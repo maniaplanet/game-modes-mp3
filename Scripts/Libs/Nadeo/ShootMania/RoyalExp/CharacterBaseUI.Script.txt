@@ -1,0 +1,1150 @@
+#Const Version		"2013-02-05"
+#Const ScriptName	"CharacterBaseUI.Script.txt"
+
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/ShootMania/UIFieldsServer.Script.txt" as UIFieldsServer
+
+#Const C_DefaultBgColor		"3329"
+#Const C_DefaultCaracsColor	"0007"
+
+#Const C_DefaultGreen	"0c0"
+#Const C_DefaultRed		"c00"
+#Const C_DefaultBlue	"0af"
+
+#Const C_BorderColor	"999f"
+#Const C_BorderSize		0.5
+
+#Const C_TextColor		"ddc"
+
+declare Text[] _CustomScriptInit;
+declare Text[] _CustomScriptLoop;
+declare Text[] _CustomMarkups;
+
+declare Vec2 	G_MainFramePos;
+declare Vec2	G_FrameSize;
+declare Integer G_StatDescPosnY;
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+/**
+ * Reset the UI builder.
+ */
+Void Reset(Vec2 FramePosition, Vec2 FrameSize, Integer StatDescPosnY)
+{
+	G_MainFramePos	 = FramePosition;
+	G_FrameSize		 = FrameSize;
+	G_StatDescPosnY  = StatDescPosnY;
+
+	_CustomScriptInit = Text[];
+	_CustomScriptLoop = Text[];
+	_CustomMarkups    = Text[];
+}
+
+Void Reset(Vec2 FrameSize) {
+	Reset(<0.,0.>, FrameSize, -73);
+}
+
+/**
+ * Reset the UI builder.
+ 
+Void Reset(Integer MainFramePosnX, Integer MainFramePosnY)
+{
+	Reset(MainFramePosnX, MainFramePosnY, -73, <260., 100.>);
+}
+*/
+
+/**
+ * Reset the UI builder.
+ */
+Void Reset() {
+	Reset(<260., 100.>);
+}
+
+/**
+ * Add a custom initialization in the manialink script section.
+ */
+Void AddCustomScriptInit(Text MLScriptText)
+{
+	_CustomScriptInit.add(MLScriptText);
+}
+
+/**
+ * Add a custom loop step in the manialink script section.
+ */
+Void AddCustomScriptLoop(Text MLScriptText)
+{
+	_CustomScriptLoop.add(MLScriptText);
+}
+
+/**
+ * Add custom markups in the manialink.
+ */
+Void AddCustomMarkups(Text MLMarkups)
+{
+	_CustomMarkups.add(MLMarkups);
+}
+
+
+
+
+/**
+ * @return the nb of clics foreach carac clicked
+ */
+Integer[Integer] GetCaracsClicked(CSmPlayer Player, CUIConfig UI)
+{
+	declare Integer[Integer] CaracsClicked;
+	declare netwrite  Integer[Integer] XpCharacter_CaracLevel for UI;
+	foreach(FieldIndex => FieldLevel in XpCharacter_CaracLevel)
+	{
+		declare Integer NbClics = UIFieldsServer::IsUIRequestingChange(Player, UI, FieldIndex);
+		if(NbClics > 0)
+		{
+			CaracsClicked[FieldIndex] = NbClics;
+		}
+	}
+	return CaracsClicked;
+}
+
+// Wrappers
+// Maybe too much of them - should include UIFieldsServer library directly.
+Integer GetFieldClickCount(CSmPlayer Player, CUIConfig UI, Integer FieldIndex)
+{
+	return UIFieldsServer::IsUIRequestingChange(Player, UI, FieldIndex);
+}
+
+Void FlushEvents(CSmPlayer Player)
+{
+	UIFieldsServer::FlushUIEvents(Player);
+}
+
+Boolean ButtonClicked(CSmPlayer Player, CUIConfig UI)
+{
+	return UIFieldsServer::ButtonClicked(Player, UI);
+}
+
+Void DeclareCustomField(CSmPlayer Player, Integer FieldIndex)
+{
+	UIFieldsServer::DeclareServerUIField(Player, FieldIndex);
+}
+
+
+/**
+ * Create a default label for the UI.
+ */
+Text CreateLabel(Text Id, Text Label, Real PosnX, Real PosnY, Real SizenX, Real SizenY, Boolean Action, Text ActionStyle) {
+	declare LabelText = """<label id="{{{Id}}}" text="{{{Label}}}" posn="{{{PosnX}}} {{{PosnY}}} 1" """;
+	
+	if (SizenX > 0 && SizenY > 0) {
+		LabelText = LabelText^""" sizen="{{{SizenX}}} {{{SizenY}}}" """;
+	}
+	
+	if(Action) {
+		LabelText = LabelText^""" style="{{{ActionStyle}}}" ScriptEvents="true"/>""";
+	} else {
+		LabelText = LabelText^""" textsize="2" />""";
+	}
+	LabelText = LabelText^"""
+	""";
+	return LabelText;
+}
+Text CreateLabel(Text Id, Text Label, Real PosnX, Real PosnY, Real SizenX, Real SizenY, Boolean Action) { 
+	return CreateLabel(Id, "", PosnX, PosnY, SizenX, SizenY, Action, "TextButtonNav");
+}
+Text CreateLabel(Text Id, Text Label, Real PosnX, Real PosnY, Boolean Action) {
+	return CreateLabel(Id, "", PosnX, PosnY, -1., -1., Action);
+}
+Text CreateLabel(Text Id, Real PosnX, Real PosnY, Boolean Action) {
+	return CreateLabel(Id, "", PosnX, PosnY, Action);
+}
+Text CreateLabel(Text Id, Text Label, Integer PosnX, Integer PosnY, Integer SizenX, Integer SizenY, Boolean Action) {
+	return CreateLabel(Id, Label, 1.0*PosnX, 1.0*PosnY, 1.0*SizenX, 1.0*SizenY, Action);
+}
+Text CreateLabel(Text Id, Text Label, Integer PosnX, Integer PosnY, Boolean Action) {
+	return CreateLabel(Id, "", 1.0*PosnX, 1.0*PosnY, -1., -1., Action);
+}
+Text CreateLabel(Text Id, Integer PosnX, Integer PosnY, Boolean Action) {
+	return CreateLabel(Id, "", 1.0*PosnX, 1.0*PosnY, Action);
+}
+
+
+Text GetCaracPrefix(Integer FieldIndex)
+{
+	return "CARAC_"^FieldIndex^"_";
+}
+
+Text GetCharStatPrefix(Integer StatIndex)
+{
+	return "STAT_"^StatIndex^"_";
+}
+
+/**
+ * Build markups for one carac (in 1 line) in the UI.
+ */
+Text BuildCaracUILine(CSmPlayer Player, Integer FieldIndex, Text Label, Integer MaxCaracLevel, Integer FieldCount)
+{
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) return "";
+	
+	declare CaracId = GetCaracPrefix(FieldIndex);
+	
+	// Un poil bourrin, mais pas non plus compltement chocant.
+	declare netwrite Integer[Text] XpCharacter_CaracsFieldsFromButton for UI;
+	declare ButtonID = CaracId^"AddButton";
+	XpCharacter_CaracsFieldsFromButton[ButtonID] = FieldIndex;
+	
+	// 7 for 6 caracs
+	declare YOffset = 5 + (2. * (6. / FieldCount));
+	declare XOffset = 0.;
+	//declare LabelWidth = 35.;
+	declare LabelWidth = 40.;
+	declare MLText = """<frame posn="0 {{{- YOffset * FieldIndex}}}" >""";
+	MLText = MLText^CreateLabel(CaracId^"Description"	, Label		, XOffset, 0., LabelWidth, YOffset, False, "");
+	XOffset += LabelWidth + 2;
+	
+	// width 4 for maxCarac = 4
+	declare QuadWidth 	= 4. * (4. / MaxCaracLevel);
+	declare QuadHeight 	= 4;
+	declare BgSelected 	= "a00f";
+	declare BgOk 		= "0a0f";
+	declare BgNok 		= "777f";
+	//declare BgCaracPt	= "fff3";//C_DefaultBgColor;
+	declare BgCaracPt	= C_DefaultCaracsColor;
+	
+	for(QuadIndex, 1, MaxCaracLevel) 
+	{
+		declare Text QuadId = CaracId^"Level"^QuadIndex;
+		MLText=MLText^"""<quad posn="{{{XOffset -.5}}} 0 1" sizen="{{{QuadWidth+3}}} {{{QuadHeight}}}" bgcolor="{{{BgCaracPt}}}" /> """;
+		
+		
+		/*// HACK
+		if(FieldIndex == 0 && QuadIndex % 4 == 0) {
+			MLText=MLText^"""<quad posn="{{{XOffset -.5}}} 0 1" sizen="{{{QuadWidth+3}}} {{{QuadHeight}}}" bgcolor="0449" />
+		""";
+		}
+		else {
+			MLText=MLText^"""<quad posn="{{{XOffset -.5}}} 0 1" sizen="{{{QuadWidth+3}}} {{{QuadHeight}}}" bgcolor="{{{BgCaracPt}}}" />
+			""";
+		}		
+		// FIN HACK*/
+		
+
+		MLText=MLText^"""
+		<quad id="{{{QuadId^"OverOk"}}}" hidden="true" posn="{{{XOffset-2}}} 1.5 0" sizen="{{{QuadWidth+6}}} {{{QuadHeight+3}}}" style="Bgs1" substyle="ProgressBarSmall" />
+	
+		
+		<quad id="{{{QuadId}}}" hidden="true" posn="{{{XOffset-2}}} 1.5 3" sizen="{{{QuadWidth+6}}} {{{QuadHeight+3}}}" style="Bgs1" substyle="ProgressBarSmall" />
+		""";
+		
+		XOffset = XOffset + QuadWidth + 4;
+	}
+	XOffset = XOffset + 2;
+	MLText = MLText^"""
+	<label id="{{{ButtonID}}}" valign="center" halign="center" text="$O+1" posn="{{{XOffset+(3*QuadWidth)}}} -2 1" sizen="{{{YOffset*2}}} {{{YOffset - 1}}}" style="TextButtonNav" ScriptEvents="true" />""";
+	MLText = MLText^"</frame>";
+	
+	return MLText;
+}
+
+
+Text BuildCharStatUILine(CUIConfig UI, Text LabelId, Text LabelText, Integer LineIndex)
+{
+	// Un poil bourrin, mais pas non plus compltement chocant.
+	declare netwrite Integer[Text] XpCharacter_CaracsStatsFromButton for UI;
+	declare ButtonID = LabelId^"Description";
+	XpCharacter_CaracsStatsFromButton[ButtonID] = LineIndex;
+	
+	declare YOffset = 6.;
+	declare LabelWidth = 43.;
+	declare Text MLText;
+	MLText = """<frame posn="-15 {{{- YOffset * LineIndex}}}" >""";
+	MLText = MLText^CreateLabel(LabelId^"Description"	, LabelText	, 0., 0., LabelWidth, YOffset, True, "TextCardSmallScores2");
+	MLText = MLText^CreateLabel(LabelId, ""	, LabelWidth + 5.0, 0., LabelWidth, YOffset, False);
+	MLText = MLText^"""</frame>""";
+	return MLText;
+}
+
+
+Text BuildCaracsML(CSmPlayer Player)
+{
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) return ""; // assert(UI != Null)
+	
+	
+	declare netwrite Integer[Integer] 	XpCharacter_CaracLevel 	for UI;
+	declare Integer XpCharacter_MaxCaracLevel for Player.User;
+	
+	declare DecoQuadHeight = 10 + XpCharacter_CaracLevel.count * 6;
+	/*
+	declare MLText = """
+	<quad posn="-19 9" sizen="55 {{{DecoQuadHeight}}}" style="Bgs1" substyle="BgCardList" />
+	
+	""";
+	*/
+	declare MLText = """
+	<!--<quad posn="-19 9" sizen="55 {{{DecoQuadHeight}}}"  bgcolor="{{{C_DefaultBgColor}}}"  />-->
+	
+	""";
+	
+	declare netwrite Text[Integer] 		XpCharacter_CaracName 	for UI;
+	declare Integer FieldCount = XpCharacter_CaracName.count;
+	foreach(FieldIndex => FieldLevel in XpCharacter_CaracLevel)
+	{
+		declare CaracName = XpCharacter_CaracName[FieldIndex];//RpgCharacter::GetCaracName(FieldIndex);
+		MLText = MLText^BuildCaracUILine(Player, FieldIndex, CaracName, XpCharacter_MaxCaracLevel, FieldCount);
+	}
+	return MLText;
+}
+
+
+Text BuildCharStatsML(CSmPlayer Player)
+{
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) return ""; // assert(UI != Null)
+	declare netwrite XpCharacter_CharacterStats for UI = Real[Integer];
+	
+	
+	
+	declare DecoQuadHeight = 6 + XpCharacter_CharacterStats.count * 6;
+	declare MLText = """
+	<!-- <quad posn="-19 4" sizen="85 {{{DecoQuadHeight}}}" bgcolor="{{{C_DefaultBgColor}}}" /> -->
+	
+	""";
+	
+	declare netwrite XpCharacter_CharacterStatsName for UI = Text[Integer];
+	foreach(StatIndex => StatValue in XpCharacter_CharacterStats)
+	{
+		declare StatName = XpCharacter_CharacterStatsName[StatIndex];//RpgCharacter::GetCharStatName(StatIndex);
+		MLText = MLText^BuildCharStatUILine(UI, GetCharStatPrefix(StatIndex), StatName, StatIndex);
+	}
+	
+	return MLText;
+}
+
+
+
+/**
+ * @return the content of a ManiaPage displayed in the alt menu of a given player.
+ */ 
+Text GetAltMenuManiaPage(CSmPlayer Player)
+{
+	declare PlayerId = Player.Id;
+	declare Integer XpCharacter_MaxCaracLevel 	for Player.User = 15; // la valeur par défaut ici ne mange pas de pain.
+	declare Integer XpCharacter_MaxLevel 		for Player.User = 50; // la valeur par défaut ici ne mange pas de pain.
+
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) return "";
+	
+	declare netwrite Real[Integer] XpCharacter_CharacterStats for UI;
+	declare NbStats = XpCharacter_CharacterStats.count;
+
+	declare MLText =
+"""<script><!--
+		#Include "TextLib" as TextLib
+		#Include "MathLib" as MathLib
+		//#Include "Libs/Nadeo/ShootMania/UIFieldsClient.Script.txt"	as UIFieldsClient
+		//#Include "Libs/Nadeo/TabsClient.Script.txt"					as Tabs
+		
+		
+		
+		// //////////////////////////////////////////////////
+		// UIFieldsClient Library
+		/**
+		 * Called by the UI.
+		 * Declare a field; so that it can be used in both server and UI.
+		 */
+		Void DeclareClientUIField(CUIConfig UI, Integer FieldIndex, Real InitialValue) 
+		{
+			declare netwrite _UI2ServerFieldsChangeRequest	for UI = Integer[Integer];
+			declare netwrite _UI2ServerFieldsValueRequest 	for UI = Real[Integer];
+			
+			if (! _UI2ServerFieldsChangeRequest.existskey(FieldIndex)) 
+			{
+				_UI2ServerFieldsChangeRequest[FieldIndex] = 0;
+				_UI2ServerFieldsValueRequest[FieldIndex] = InitialValue;
+			}
+			if (! _UI2ServerFieldsChangeRequest.existskey(-1)) 
+			{
+				_UI2ServerFieldsChangeRequest[-1] = 0;
+			}
+		}
+		
+		
+		/**
+		 * Called by the UI.
+		 * Declare a field; so that it can be used in both server and UI.
+		 */
+		Void DeclareClientUIField(CUIConfig UI, Integer FieldIndex, Integer InitialValue) {
+			DeclareClientUIField(UI, FieldIndex, 1.0*InitialValue);
+		}
+		
+		/**
+		 * Called by the UI.
+		 * Declare a field; so that it can be used in both server and UI.
+		 */
+		Void DeclareClientUIField(CUIConfig UI, Integer FieldIndex) {
+			DeclareClientUIField(UI, FieldIndex, 0.0);
+		}
+		
+		
+		
+		/**
+		 * Called by the UI.
+		 * Notify that a new Real value should be given to the server
+		 */
+		Void NotifyNewValueToServer(CUIConfig UI, Integer FieldIndex, Real NewValue)
+		{
+			declare netwrite	Integer[Integer] 	_UI2ServerFieldsChangeRequest 	for UI;
+			declare netwrite	Real[Integer] 		_UI2ServerFieldsValueRequest 	for UI;
+			
+			_UI2ServerFieldsChangeRequest[FieldIndex] 	= _UI2ServerFieldsChangeRequest[FieldIndex] + 1;
+			_UI2ServerFieldsValueRequest[FieldIndex] 	= NewValue;
+			_UI2ServerFieldsChangeRequest[-1] = _UI2ServerFieldsChangeRequest[-1] + 1;
+		}
+		/**
+		 * Called by the UI.
+		 * Notify that a new Integer value should be given to the server.
+		 */
+		Void NotifyNewValueToServer(CUIConfig UI, Integer FieldIndex, Integer NewValue)
+		{
+			NotifyNewValueToServer(UI, FieldIndex, 1.0 * NewValue);
+		}
+		/**
+		 * Called by the UI.
+		 * Notify that a new value should be given to the server (no specific value, notify only "a change".
+		 */
+		Void NotifyNewValueToServer(CUIConfig UI, Integer FieldIndex)
+		{
+			NotifyNewValueToServer(UI, FieldIndex, 0.0);
+		}
+		
+		
+		
+		
+		// //////////////////////////////////////////////////
+		// Tabs Library
+		/**
+		 * Called By the client UI.
+		 * Update a Manialink page, showing the frame of [Page] with Id [FrameTabId]
+		 * iff the tab [TabKey] is selected.
+		 * @param UI		 	UI of the player (variable "UI" in client manialink).
+		 * @param Page 			Manialink page containing the tab page (assumably variable "Page" in client manialink).
+		 * @param TabKey 		The key associated to this tab, as defined in CreateTabPaneLayer.
+		 * @param FrameTabId	Id of the frame containing the tab page.
+		 */
+		Void UpdateFrameTab(CUIConfig UI, CMlPage Page, Text TabKey, Text FrameTabId)
+		{
+			declare netread Boolean _TabsLib_UseTabs for UI;
+			if (! _TabsLib_UseTabs) return;
+			
+			declare netread Boolean _TabsLib_AlwaysShowScores for UI;
+			declare Text _TabsLib_CurrentTab for UI;
+			
+			//ScoreTableOnlyManialink
+			if (! _TabsLib_AlwaysShowScores) {
+				declare netread Text _TabsLib_ScoresTableTab for UI;
+				// @Test: j'ai comment la ligne en dessous et ajouté la ligne avec AltMenuNoDefaultScores
+				//UI.ScoreTableOnlyManialink = (_TabsLib_CurrentTab != _TabsLib_ScoresTableTab);
+				
+				// HACK
+				//UI.AltMenuNoDefaultScores = (_TabsLib_CurrentTab != _TabsLib_ScoresTableTab);
+				UI.AltMenuNoCustomScores = False;
+				UI.AltMenuNoDefaultScores = True;
+
+
+				//log("_TabsLib_CurrentTab == _TabsLib_ScoresTableTab : "^_TabsLib_CurrentTab^", "^_TabsLib_ScoresTableTab^" : "^UI.AltMenuNoDefaultScores);
+			}
+			
+			declare MainFrame <=> (Page.GetFirstChild(FrameTabId) as CMlFrame);
+			if(MainFrame == Null) return;
+			
+			if(_TabsLib_CurrentTab == TabKey) {
+				MainFrame.Show();
+			}
+			else {
+				MainFrame.Hide();
+			}
+		}
+		
+		
+		
+		// //////////////////////////////////////////////////
+		// Client Functions
+		
+		
+		Integer GetFieldFromButton(Text ButtonId)
+		{
+			declare netread Integer[Text] XpCharacter_CaracsFieldsFromButton for UI;
+			if(XpCharacter_CaracsFieldsFromButton.existskey(ButtonId)) return XpCharacter_CaracsFieldsFromButton[ButtonId];
+			return -1;
+		}
+		
+		Integer GetStatFromButton(Text ButtonId)
+		{
+			declare netread Integer[Text] XpCharacter_CaracsStatsFromButton for UI;
+			if(XpCharacter_CaracsStatsFromButton.existskey(ButtonId)) return XpCharacter_CaracsStatsFromButton[ButtonId];
+			return -1;
+		}
+		
+		Integer GetMouseOverField() {
+			declare Integer XpCharacter_MouseOverField for UI = -1;
+			return XpCharacter_MouseOverField;
+		}
+		
+		Integer GetMouseOverStat() {
+			declare Integer XpCharacter_MouseOverStat for UI = -1;
+			return XpCharacter_MouseOverStat;	
+		}
+		
+		Text GetCaracPrefix(Integer FieldIndex)
+		{
+			return "CARAC_"^FieldIndex^"_";
+		}
+		Text GetCharStatPrefix(Integer StatIndex)
+		{
+			return "STAT_"^StatIndex^"_";
+		}
+
+		Void UpdateCaracs()
+		{
+			declare netread Integer[Integer]  	XpCharacter_CaracLevel 					for UI;
+			declare netread Integer 			XpCharacter_UnusedCaracPoints 			for UI;
+			declare Integer[Integer] 			XpCharacter_CaracLevelBuffer 			for UI;
+			declare Integer 					XpCharacter_UnusedCaracPointsBuffer 	for UI;
+			
+			// copy
+			XpCharacter_CaracLevelBuffer = XpCharacter_CaracLevel;
+			XpCharacter_UnusedCaracPointsBuffer = XpCharacter_UnusedCaracPoints;
+		}
+
+		Void UpdateCaracsButtons()
+		{
+			// declare netread Integer[Integer] XpCharacter_CaracLevel 			for UI;
+			// declare netread Integer 			XpCharacter_UnusedCaracPoints 	for UI;
+			declare netread Integer[Integer] 	XpCharacter_CaracCost 			for UI;
+			
+			declare Integer[Integer] XpCharacter_CaracLevelBuffer 	for UI;
+			declare Integer XpCharacter_UnusedCaracPointsBuffer 	for UI;
+			
+			declare MouseOverField = GetMouseOverField();
+			//foreach(CaracFieldIndex => FieldLevel in XpCharacter_CaracLevel) 
+			foreach(CaracFieldIndex => FieldLevel in XpCharacter_CaracLevelBuffer)
+			{
+				declare CaracLabelIdPrefix = GetCaracPrefix(CaracFieldIndex);
+				
+				// print carac current level
+				for(I, 1, {{{XpCharacter_MaxCaracLevel}}})
+				{
+					declare FieldLevelId 	= CaracLabelIdPrefix^"Level"^I;
+					declare LevelQuad <=> (Page.GetFirstChild(FieldLevelId) as CMlQuad);
+					if (I <= FieldLevel) LevelQuad.Show();
+					else LevelQuad.Hide();
+				}
+
+				// print "+" button to level up carac.
+				declare LabelButtonId	= CaracLabelIdPrefix^"AddButton";
+				declare ButtonCaracs	<=> (Page.GetFirstChild(LabelButtonId) as CMlLabel);
+				if(FieldLevel < {{{XpCharacter_MaxCaracLevel}}}) {
+					declare CaracCost = XpCharacter_CaracCost[CaracFieldIndex];
+					declare FigureColor = "$999"; //C_DefaultRed
+					if (CaracCost <= XpCharacter_UnusedCaracPointsBuffer) FigureColor = "$o$0f0";
+					ButtonCaracs.SetText(FigureColor^CaracCost);
+					ButtonCaracs.Show();
+				}
+				else ButtonCaracs.Hide();
+				
+			}
+		}
+		
+		Void UpdateMouseOver(CMlQuad[Integer][Integer] LevelOverQuads)
+		{
+			declare MouseOverField = GetMouseOverField();
+
+			declare netread Integer[Integer] XpCharacter_CaracLevel for UI;
+			foreach(CaracFieldIndex => FieldLevel in XpCharacter_CaracLevel) 
+			{
+				declare CMlQuad[Integer] BufferTable = LevelOverQuads[CaracFieldIndex];
+				for(I, 1, {{{XpCharacter_MaxCaracLevel}}})
+				{
+					declare LevelOverQuad <=> BufferTable[I];
+					if (MouseOverField < 0) {
+						LevelOverQuad.Hide();
+					} else {
+						if (MouseOverField == CaracFieldIndex && I==(FieldLevel+1)) LevelOverQuad.Show();
+						else LevelOverQuad.Hide();
+					}
+				}
+			}
+			
+			
+			if (MouseOverField >= 0) 
+			{
+				if(XpCharacter_CaracLevel[MouseOverField] < {{{XpCharacter_MaxCaracLevel}}}) 
+				{
+					declare netread Real[Integer] XpCharacter_CharacterStats 		for UI;
+					declare netread Text[Integer] XpCharacter_CharacterStatsFormat 	for UI;
+				
+					declare netread Real[Integer][Integer] XpCharacter_CaracLevelPlusOne 	for UI;
+					declare netread Integer[Integer] XpCharacter_CharacterStatsAddMode 		for UI;
+					
+					foreach(StatField => StatValue in XpCharacter_CaracLevelPlusOne[MouseOverField])
+					{
+						declare CurrValue = XpCharacter_CharacterStats[StatField];
+						declare AddMode = XpCharacter_CharacterStatsAddMode[StatField];
+						
+						declare Real UpValue;
+						if (AddMode == 1) {
+						   UpValue = XpCharacter_CharacterStats[StatField] + XpCharacter_CaracLevelPlusOne[MouseOverField][StatField];
+						} else {
+							UpValue = XpCharacter_CharacterStats[StatField] * XpCharacter_CaracLevelPlusOne[MouseOverField][StatField];
+						}
+						
+						// if (UpValue == CurrValue) continue; // nope, show blue stat instead
+						
+						declare CharStatPrefix = GetCharStatPrefix(StatField);
+						declare Label_CharStat <=> (Page.GetFirstChild(CharStatPrefix) as CMlLabel);
+						declare Format = XpCharacter_CharacterStatsFormat[StatField];
+						
+						declare Text UpColor = "${{{C_DefaultGreen}}}";
+						//if (UpValue < CurrValue) UpColor = "${{{C_DefaultRed}}}";
+						if (UpValue < CurrValue) UpColor = "${{{C_DefaultGreen}}}";
+						else if (UpValue == CurrValue) UpColor = "${{{C_DefaultBlue}}}";
+						
+						declare Text CurrValueText;
+						declare Text UpValueText;
+						if (Format == "i") {
+							CurrValueText = ""^MathLib::NearestInteger(CurrValue);
+							UpValueText	  = UpColor^" > "^MathLib::NearestInteger(UpValue);
+						} else {
+							CurrValueText = CurrValue^Format;
+							UpValueText   = UpColor^" > "^UpValue^Format;
+						}
+						
+						declare CurrAndUpValues = CurrValueText^UpValueText;
+						Label_CharStat.SetText(CurrAndUpValues);
+					}
+				}
+			} // END IF
+			
+			declare MouseOverStat = GetMouseOverStat();			
+			declare LabelStatDesc <=> (Page.GetFirstChild("LabelStatDesc") as CMlLabel);
+			if(MouseOverStat >= 0) {
+				declare netread Text[Integer] XpCharacter_CharacterStatsDesc for UI;
+				LabelStatDesc.SetText(XpCharacter_CharacterStatsDesc[MouseOverStat]);
+				LabelStatDesc.Show();
+			} else {
+				LabelStatDesc.Hide();
+			}
+		}
+		
+		
+		Text LevelUpStatNewText(Text StatText, Text NewValue) {
+			return StatText^"${{{C_DefaultGreen}}} > "^NewValue;
+		}
+		Text LevelUpStatNewText(Text StatText, Real NewValue) {
+			return LevelUpStatNewText(StatText, ""^NewValue);
+		}
+		Text LevelUpStatNewText(Text StatText, Integer NewValue) {
+			return LevelUpStatNewText(StatText, ""^NewValue);
+		}
+		
+		
+		Void UpdateCharStats() {
+			declare netread Real[Integer] XpCharacter_CharacterStats 		for UI;
+			declare netread Text[Integer] XpCharacter_CharacterStatsFormat 	for UI;
+			
+			foreach(CharStatIndex => StatValue in XpCharacter_CharacterStats) 
+			{
+				declare CharStatPrefix = GetCharStatPrefix(CharStatIndex);
+				// stat value label: labelID is the prefix alone.
+				declare Label_CharStat <=> (Page.GetFirstChild(CharStatPrefix) as CMlLabel);
+				declare Format = XpCharacter_CharacterStatsFormat[CharStatIndex];
+				if (Format == "i") {
+					Label_CharStat.SetText(""^MathLib::NearestInteger(StatValue));
+				} else {
+					Label_CharStat.SetText(StatValue^Format);
+				}
+				
+				// Drunk mode ^^
+				//Label_CharStat.PosnX += 0.5 - MathLib::Rand(0., 1.);
+				//Label_CharStat.PosnY += 0.5 - MathLib::Rand(0., 1.);
+				//Label_CharStat.Scale += 0.5 - MathLib::Rand(0., 1.);
+			}
+		}
+		
+		Void ManageUIEvents(CMlQuad[Integer][Integer] LevelOverQuads)
+		{
+			declare Integer XpCharacter_MouseOverField for UI = -1;
+			declare Integer XpCharacter_MouseOverStat for UI = -1;
+			
+			declare Boolean IsMouseOutOrOver = False;		
+			foreach(Event in PendingEvents) {
+				switch(Event.Type)
+				{
+					case CMlEvent::Type::MouseClick : 
+					{
+						declare Field = GetFieldFromButton(Event.ControlId);
+						if (Field >= 0) { // Fields exists
+							//UIFieldsClient::NotifyNewValueToServer(UI, Field);
+							NotifyNewValueToServer(UI, Field);
+							
+							declare Integer[Integer] XpCharacter_CaracLevelBuffer 	for UI;
+							declare Integer XpCharacter_UnusedCaracPointsBuffer 	for UI;
+							declare netread Integer[Integer] 	XpCharacter_CaracCost 			for UI;
+							
+							if(XpCharacter_UnusedCaracPointsBuffer >= XpCharacter_CaracCost[Field]) {
+								XpCharacter_UnusedCaracPointsBuffer -= XpCharacter_CaracCost[Field];
+								XpCharacter_CaracLevelBuffer[Field] += 1;
+							}
+							
+							UpdateCaracsButtons();
+						}
+						UpdateCharStats();
+						UpdateMouseOver(LevelOverQuads);
+					}
+					case CMlEvent::Type::MouseOver :
+					{
+						declare Field = GetFieldFromButton(Event.ControlId);
+						if (Field >= 0) XpCharacter_MouseOverField = Field;
+						declare Stat  = GetStatFromButton(Event.ControlId);
+						if (Stat >= 0) XpCharacter_MouseOverStat = Stat;
+						
+						IsMouseOutOrOver = True;
+					}
+					case CMlEvent::Type::MouseOut :
+					{
+						XpCharacter_MouseOverField = -1;
+						XpCharacter_MouseOverStat = -1;
+						
+						IsMouseOutOrOver = True;
+					}
+				}
+			}
+			
+			if(IsMouseOutOrOver) {
+				UpdateCharStats();
+				UpdateMouseOver(LevelOverQuads);
+			}
+		}
+		
+		
+		
+		
+		main() 
+		{
+			// log("Start Client UI for "^UI);
+			// declare caracs
+			declare netread Integer[Integer] XpCharacter_CaracLevel for UI;
+			// waiting for the data to come
+			declare MainFrame <=> (Page.GetFirstChild("XpMainFrame") as CMlFrame);
+			MainFrame.Hide();
+			while(XpCharacter_CaracLevel.count <= 0) yield;
+			MainFrame.Show();
+			
+			// ////////////////////////
+			// Netread Variables
+			// Player Caracteristics (left panel)
+			declare netread Integer XpCharacter_Level				for UI;
+			declare netread Integer XpCharacter_XpPoints			for UI;
+			declare netread Integer XpCharacter_XpToNextLevel		for UI;
+			declare netread Integer XpCharacter_UnusedCaracPoints 	for UI;
+			declare netread Integer XpCharacter_FusionLvl			for UI;
+		
+			
+			foreach(FieldIndex => FieldLevel in XpCharacter_CaracLevel)
+			{
+				//UIFieldsClient::DeclareClientUIField(UI, FieldIndex);
+				DeclareClientUIField(UI, FieldIndex);
+			}
+						
+			// ////////////////////////
+			// Labels
+			// Levels and carac points
+			declare Label_Level					<=> (Page.GetFirstChild("LevelLabel")		as CMlLabel);
+			declare Label_XP					<=> (Page.GetFirstChild("XpLabel")			as CMlLabel);
+			declare Label_NextXP				<=> (Page.GetFirstChild("NextXpLabel")		as CMlLabel);
+			declare Label_CaracPoints			<=> (Page.GetFirstChild("CaracPointsLabel")	as CMlLabel);
+			declare Label_RebirthLvl			<=> (Page.GetFirstChild("RebirthLvlLabel")	as CMlLabel);
+			declare Label_RebirthTitle			<=> (Page.GetFirstChild("RebirthTitleLabel")	as CMlLabel);
+			
+			
+			declare Label_MaxLevel				<=> (Page.GetFirstChild("MaxLevelLabel")	as CMlLabel);
+			Label_MaxLevel.SetText("/{{{XpCharacter_MaxLevel}}}");
+			
+			""";
+			
+			foreach(ScriptInit in _CustomScriptInit)
+			{
+				MLText = MLText^ScriptInit;
+			}
+			
+			
+			MLText = MLText^"""
+			
+			
+			// Building quads for mouse over
+			declare CMlQuad[Integer][Integer] LevelOverQuads = CMlQuad[Integer][Integer];
+			foreach(CaracFieldIndex => FieldLevel in XpCharacter_CaracLevel) 
+			{
+				declare CaracLabelIdPrefix = GetCaracPrefix(CaracFieldIndex);
+				LevelOverQuads[CaracFieldIndex] = CMlQuad[Integer];
+				
+				// print carac current level
+				for(I, 1, {{{XpCharacter_MaxCaracLevel}}})
+				{
+					declare CaracLabelIdPrefix = GetCaracPrefix(CaracFieldIndex);
+					declare FieldLevelOverId = CaracLabelIdPrefix^"Level"^I^"OverOk";
+					declare LevelOverQuad <=> (Page.GetFirstChild(FieldLevelOverId) as CMlQuad);
+					LevelOverQuads[CaracFieldIndex][I] = LevelOverQuad;
+				}
+			}
+			
+			
+			declare netread Integer XpCharacter_LastCaracsUpdate for UI;
+			declare LastUpdate = 0;
+			
+			//declare MainFrame <=> (Page.GetFirstChild("XpMainFrame")	as CMlFrame);
+			
+			while (True)
+			{
+				yield;
+				if (! PageIsVisible) continue;
+				
+				//Tabs::UpdateFrameTab(UI, Page, "XpTab", "XpMainFrame");
+				UpdateFrameTab(UI, Page, "XpTab", "XpMainFrame");
+				
+				ManageUIEvents(LevelOverQuads);
+				
+				if (LastUpdate != XpCharacter_LastCaracsUpdate) {
+					LastUpdate = XpCharacter_LastCaracsUpdate;
+					UpdateCaracs();
+					UpdateCaracsButtons();
+					UpdateCharStats();
+					UpdateMouseOver(LevelOverQuads);
+				}				
+				
+				// Level
+				Label_Level.SetText(""^XpCharacter_Level);
+				Label_XP.SetText(""^XpCharacter_XpPoints);
+				Label_NextXP.SetText(""^XpCharacter_XpToNextLevel);
+				
+				// Rebirth
+				if (XpCharacter_FusionLvl <= 0) {
+					Label_RebirthTitle.Hide();
+					Label_RebirthLvl.Hide();
+				} else {
+					Label_RebirthTitle.Show();
+					Label_RebirthLvl.Show();
+					Label_RebirthLvl.SetText(""^XpCharacter_FusionLvl);
+				}
+				Label_RebirthLvl.SetText(""^XpCharacter_FusionLvl);
+				
+				declare PointsToAssignColor = "$fff";
+				if(XpCharacter_UnusedCaracPoints > 0) {
+					PointsToAssignColor = "${{{C_DefaultGreen}}}";
+				}
+				declare PointsText = PointsToAssignColor^XpCharacter_UnusedCaracPoints;
+				
+				if(XpCharacter_UnusedCaracPoints > 1) {
+					Label_CaracPoints.SetText( TextLib::Compose( _("%1 points to assign"), PointsText ));
+				} else {
+					Label_CaracPoints.SetText( TextLib::Compose( _("%1 point to assign"), PointsText ));
+				}
+				""";
+			
+				foreach(ScriptLoop in _CustomScriptLoop)
+				{
+					MLText = MLText^ScriptLoop;
+				}
+				
+				MLText = MLText^"""
+			}
+		}
+		
+	--></script>
+
+	<frame id="XpMainFrame" posn="{{{G_MainFramePos.X}}} {{{G_MainFramePos.Y-12.3}}}" >
+		<frame halign="center" posn="0 0">
+				""";
+				declare FrameQuadWidth  = G_FrameSize.X;// 260;//200;
+				declare FrameQuadHeight = G_FrameSize.Y;// 100;//104;
+				declare ImgFile = "file://Media/Manialinks/RoyalExp/ScoresTableBg.dds";
+				MLText = MLText^"""
+			<quad	halign="center" valign="center"	posn="0 0 0" sizen="{{{FrameQuadWidth}}} {{{FrameQuadHeight}}}" bgcolor="0007" />
+			<label	halign="center" valign="top" 	posn="0 {{{(FrameQuadHeight/2) -2.5}}} 1" textemboss="true" text="{{{_("Character")}}}"/>
+		</frame>
+		<frame posn="0 44 0">
+			<frame posn="0 0 0">
+				""";
+				declare FigureLabelsX = 70;
+				MLText = MLText^"""
+				<label id="LevelNameLabel" style="TextCardSmallScores2" text="{{{_("Level")}}}" posn="0 0" scale="2.5" />
+				<label id="LevelLabel" posn="{{{FigureLabelsX}}} 0"  style="TextCardSmallScores2" scale="2.5" />
+				<label id="MaxLevelLabel"posn="{{{FigureLabelsX + 10}}} -4" style="TextCardSmallScores2" scale="1" />
+				<label id="XpNameLabel" text="{{{_("Xp")}}}" posn="0 -10"  style="TextCardSmallScores2" scale="1.5" />
+				<label id="XpLabel" posn="{{{FigureLabelsX}}} -10"  style="TextCardSmallScores2"  scale="1.5"/>
+				<label id="NextXpNameLabel" text="{{{_("Xp to next level")}}}" posn="0 -16"  style="TextCardSmallScores2" scale="1.5" />
+				<label id="NextXpLabel" posn="{{{FigureLabelsX}}} -16"  style="TextCardSmallScores2" scale="1.5" />
+				
+				<!--
+					<label id="RebirthTitleLabel" posn="{{{FigureLabelsX+10}}} -12" halign="left" scale="0.6" textcolor="{{{C_DefaultBlue}}}" text=" /{{{_("Rebirth")}}}"/>
+					<label id="RebirthLvlLabel" posn="{{{FigureLabelsX+25}}} -12" textcolor="{{{C_DefaultBlue}}}" scale="0.6"/>
+				-->
+				<label id="RebirthTitleLabel" posn="0 4" halign="left" scale="0.8" textcolor="{{{C_DefaultBlue}}}" text="{{{_("Rebirth")}}}"/>
+				<label id="RebirthLvlLabel" posn="{{{FigureLabelsX}}} 4" textcolor="{{{C_DefaultBlue}}}" scale="1"/>
+			</frame>
+			
+			<frame posn="0 -33 0">
+				<quad posn="0 10 1" bgcolor="{{{C_BorderColor}}}" sizen="98 .25" />
+				<label id="CaracPointsLabel" posn="0 8"  style="TextCardRaceRank"/>
+				<label posn="84 6" textemboss="true" text="{{{_("Cost")}}}" scale="0.8"  textcolor="{{{C_DefaultBlue}}}"/>
+				
+				""";
+				MLText = MLText^BuildCaracsML(Player);
+				MLText = MLText^"""
+			</frame>
+		</frame>
+		
+		
+		<frame posn="-100 44 0">""";
+MLText = MLText^BuildCharStatsML(Player);
+MLText = MLText^"""
+			<frame posn="0 10 1">
+				<quad posn="-15 {{{G_StatDescPosnY}}} 2"  bgcolor="{{{C_BorderColor}}}" sizen="80 .25" />
+				<label id="LabelStatDesc" posn="-15 {{{G_StatDescPosnY - 2}}} 2"  textcolor="ffff" textsize="2"/>
+			</frame>
+		</frame>
+		""";
+
+	foreach(Markups in _CustomMarkups) {
+		MLText = MLText^Markups;
+	}
+	
+	MLText = MLText^"""</frame>""";
+	
+	return MLText;
+}
+
+
+Void InitializeCharacterUI(CSmPlayer Player, CUIConfig UI)
+{
+	declare netwrite Integer[Integer]  XpCharacter_CaracLevel for UI;
+	foreach(FieldIndex => FieldLevel in XpCharacter_CaracLevel) {
+		UIFieldsServer::DeclareServerUIField(Player, FieldIndex);
+	}
+	
+	// some variables are initialized while processing the maniapage.
+	// LATER : fix that.
+	declare Dummy = GetAltMenuManiaPage(Player);
+}
+
+/**
+ * Create a character page in the Alt menu.
+ */
+Void BuildAltXpMenuLayer(CSmPlayer PlayerPattern)
+{
+	declare LayerPressAlt <=> UIManager.UILayerCreate();
+	LayerPressAlt.Type = CUILayer::EUILayerType::AltMenu;
+	LayerPressAlt.ManialinkPage = GetAltMenuManiaPage(PlayerPattern);
+	UIManager.UIAll.UILayers.add(LayerPressAlt);
+}
+
+Void CreateCustomMarkupsRespeButton() {
+	declare PosnX = 40;
+	declare PosnY = -45;
+	declare MLText = """
+	"""^CreateLabel("RespeLabel", PosnX , PosnY, True );
+	
+	MLText = MLText^"""<frame posn="{{{PosnX}}} {{{PosnY+4}}}" id="Frame_ConfirmRespe" hidden="true">""";
+	//MLText = MLText^"""<quad  posn="-31 5" sizen="62 12" bgcolor="000c" />""";
+	MLText = MLText^CreateLabel("Label_ConfirmRespe", -30 , 4, False );
+	MLText = MLText^CreateLabel("Button_ConfirmRespe", -14 , -4, True );
+	MLText = MLText^CreateLabel("Button_CancelRespe", 0 , -4, True );
+	MLText = MLText^"""</frame>""";
+	
+	AddCustomMarkups(MLText);
+}
+
+Void CreateCustomScriptInitRespeButton(Integer RespeField, Integer LevelsCostToRespe, Boolean OnlyOnce) {
+	declare MLText = """
+		declare netread Boolean XpCharacter_MapRespeDone for UI;
+		
+		//UIFieldsClient::DeclareClientUIField(UI, {{{RespeField}}});
+		DeclareClientUIField(UI, {{{RespeField}}});
+		
+		declare Label_Respe	<=> (Page.GetFirstChild("RespeLabel") as CMlLabel);
+		Label_Respe.SetText(TextLib::Compose("> %1", _("Reset All")));
+		
+		
+		declare Frame_ConfirmRespe <=> (Page.GetFirstChild("Frame_ConfirmRespe") as CMlFrame);
+		declare Label_ConfirmRespe <=> (Page.GetFirstChild("Label_ConfirmRespe") as CMlLabel);
+		declare Button_ConfirmRespe <=> (Page.GetFirstChild("Button_ConfirmRespe") as CMlLabel);
+		declare Button_CancelRespe <=> (Page.GetFirstChild("Button_CancelRespe") as CMlLabel);
+
+
+		Label_ConfirmRespe.SetText("{{{_("Reseting caracteristics can be done \\nonly one time.")}}}");
+		Button_ConfirmRespe.SetText("{{{_("OK")}}}");
+		Button_CancelRespe.SetText("{{{_("Cancel")}}}");
+	
+		Frame_ConfirmRespe.Hide();
+		declare Boolean ShowRespeLabel = True;
+	""";
+	AddCustomScriptInit(MLText);
+}
+
+Void CreateCustomScriptLoopRespeButton(Integer RespeField, Integer RespeLevelMin) {
+	declare MLText = """
+	
+	if (!XpCharacter_MapRespeDone) {
+		foreach(Event in PendingEvents)  {
+			if(Event.Type == CMlEvent::Type::MouseClick) {
+				switch(Event.ControlId) {
+					case "RespeLabel": {
+						ShowRespeLabel = False;
+						Frame_ConfirmRespe.Show();
+					}
+					case "Button_ConfirmRespe": {
+						//UIFieldsClient::NotifyNewValueToServer(UI, {{{RespeField}}});
+						NotifyNewValueToServer(UI, {{{RespeField}}});
+						// "True" here fixes the bug when there are only spectators
+						// (the label "reset all" disapears but caracs are not reset),
+						// but makes the label visible again during a short period of time
+						// after clicking "OK", which occurs much more in a normal usage
+						// and feels clumsy.
+						ShowRespeLabel = False; 
+						
+						Frame_ConfirmRespe.Hide(); 
+					}
+					case "Button_CancelRespe": {
+						ShowRespeLabel = True;
+						
+						Frame_ConfirmRespe.Hide();
+					}
+				}
+			}
+		}
+	}
+	
+	if (	ShowRespeLabel && 
+			! XpCharacter_MapRespeDone && 
+			(XpCharacter_Level >= {{{RespeLevelMin}}}) &&
+			(XpCharacter_UnusedCaracPoints < (XpCharacter_Level + XpCharacter_FusionLvl))) 
+	{
+		Label_Respe.Show(); } else {
+		Label_Respe.Hide();
+	}
+	""";
+	AddCustomScriptLoop(MLText);
+}
+
+/**
+ * A a "reset all" button in the Character page.
+ */
+Void CreateUIRespeButton(Integer RespeField, Integer RespeLevelMin, Integer LevelsCostToRespe, Boolean OnlyOnce)
+{
+	CreateCustomMarkupsRespeButton();
+	CreateCustomScriptInitRespeButton(RespeField, LevelsCostToRespe, OnlyOnce);
+	CreateCustomScriptLoopRespeButton(RespeField, RespeLevelMin);
+}
+
+Void CreateXpGainLayer(Text[Integer] XpTypeLabels, Integer FramePosnX, Integer FramePosnY)
+{
+	declare Integer TextSize = 2;
+	declare Integer YOffset  = -4;
+	declare Real MaxXOffset = 10.;
+	declare Real TranslationSpeed = 2.;
+	declare Text XpColor = "$3f3";
+	
+	//declare Text AltColor = "$c33$o";
+	declare CUILayer LayerXp <=> UIManager.UILayerCreate();
+	declare Text 	 MLText;
+	MLText = """
+	<script><!--
+		#Include "TextLib" as TextLib
+	
+		declare netread Integer[Integer] XpCharacter_XpNotifTime for UI;
+		declare netread Integer[Integer] XpCharacter_XpNotifValue for UI;
+
+		declare CMlLabel[Integer] Label_NotifXp = CMlLabel[Integer];
+		declare Text[Integer] XpLabels = Text[Integer];
+		""";
+	
+	
+	foreach(XpType => XpTypeLabel in XpTypeLabels) {
+		MLText ^= """
+		Label_NotifXp[{{{XpType}}}] = (Page.GetFirstChild("Label_NotifXp{{{XpType}}}") as CMlLabel);
+		XpLabels[{{{XpType}}}] = "{{{XpTypeLabel}}}";
+		""";
+	}
+	
+	MLText ^= """
+		declare netread Integer XpCharacter_XpNotifLvlUpTime for UI;
+		declare Label_NotifXpLvlUp 		<=> (Page.GetFirstChild("Label_NotifXpLvlUp") as CMlLabel);
+		declare Label_NotifXpPressAlt 	<=> (Page.GetFirstChild("Label_NotifXpPressAlt") as CMlLabel);
+		Label_NotifXpLvlUp.SetText(TextLib::Compose("{{{XpColor}}}%1", _("Level up!")));
+		Label_NotifXpPressAlt.SetText(_("Press $<$c33$oalt$> to assign skill points"));
+		
+		while(True) {
+			yield;
+			
+			foreach(XpType => XpTime in XpCharacter_XpNotifTime) {
+				if (XpCharacter_XpNotifTime[XpType] < ArenaNow) {
+					Label_NotifXp[XpType].Hide();
+					Label_NotifXp[XpType].PosnX = {{{MaxXOffset}}};
+				} else {
+					Label_NotifXp[XpType].Show();
+					//declare XpText = TextLib::Compose("{{{XpColor}}}+%1 xp (%2)", ""^XpCharacter_XpNotifValue[XpType], XpLabels[XpType]);
+					//Label_NotifXp[XpType].SetText(XpText);
+					Label_NotifXp[XpType].SetText(TextLib::Compose("{{{XpColor}}}+%1 xp (%2)", ""^XpCharacter_XpNotifValue[XpType], XpLabels[XpType]));
+					//Label_NotifXp[XpType].SetText("{{{XpColor}}}+"^XpCharacter_XpNotifValue[XpType]^" xp ("^XpLabels[XpType]^")");
+					if(Label_NotifXp[XpType].PosnX > 0) Label_NotifXp[XpType].PosnX -= {{{TranslationSpeed}}};
+				}
+			}
+			
+			if(XpCharacter_XpNotifLvlUpTime < ArenaNow) {
+				Label_NotifXpLvlUp.Hide();
+				Label_NotifXpPressAlt.Hide();
+			} else {
+				Label_NotifXpLvlUp.Show();
+				Label_NotifXpPressAlt.Show();
+			}
+		}
+		
+	--></script>
+	<frame id="Frame_NotifXp" posn="{{{FramePosnX}}} {{{FramePosnY}}}" >
+		<label id="Label_NotifXpLvlUp" posn="0 {{{-YOffset}}}" textsize="{{{1.5*TextSize}}}" halign="right" hidden="true" />
+		<label id="Label_NotifXpPressAlt" posn="0 0" textsize="{{{TextSize}}}" halign="right" hidden="true" />
+	""";
+	
+	
+	foreach(XpType => XpTypeLabel in XpTypeLabels) {
+		MLText ^= """
+		<label id="Label_NotifXp{{{XpType}}}" posn="{{{MaxXOffset}}} {{{XpType*YOffset}}}"  textsize="{{{TextSize}}}" halign="right"/>""";
+	}
+	
+	MLText ^= """
+	</frame>
+	""";
+	LayerXp.ManialinkPage = MLText;
+	LayerXp.IsVisible = True;
+	UIManager.UIAll.UILayers.add(LayerXp);
+}
+
+Void CreateXpGainLayer(Text[Integer] XpTypeLabels) {
+	CreateXpGainLayer(XpTypeLabels, 155, 0);
+}

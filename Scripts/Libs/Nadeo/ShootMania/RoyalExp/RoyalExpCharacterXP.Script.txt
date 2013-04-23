@@ -1,0 +1,225 @@
+#Const Version		"2013-02-05"
+#Const ScriptName	"RoyalExpCharacterXp.Script.txt"
+
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+
+#Const C_TimeToShowXp				4000
+#Const C_TimeToShowLvlUp			5000
+#Const C_InitialCaracPointsBonus	1
+#Const C_CaracPointsPerLevel		1
+#Const C_CaracPointsPerRebirth		1
+
+// lvl i -> i+1 needs C_BaseXpNeeded + (i-1)C_AddXpNeedPerLevel xp points
+#Const C_BaseXpNeeded		24
+#Const C_AddXpNeedPerLevel	4
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+/**
+ * Add levels and carac points to a player.
+ */
+Void LvlUp(CSmPlayer Player, Integer NbLevels, Integer CaracPointsPerLevel)
+{
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) return;
+	
+	declare netwrite Integer XpCharacter_Level				for UI;
+	declare netwrite Integer XpCharacter_UnusedCaracPoints 	for UI;
+
+	XpCharacter_Level 			  = XpCharacter_Level + NbLevels;
+	XpCharacter_UnusedCaracPoints = XpCharacter_UnusedCaracPoints + (CaracPointsPerLevel * NbLevels);
+}
+
+/**
+ * Add levels and carac points to a player.
+ * 1 carac point is given for each level earned.
+ */
+Void LvlUp(CSmPlayer Player, Integer NbLevels)
+{
+	LvlUp(Player, NbLevels, C_CaracPointsPerLevel);
+}
+
+
+/**
+ * Spend carac points to update a player's caracteristics.
+ * @return True iff the carac has been updated.
+ */
+Boolean IncrementCaracteristic(CUIConfig UI, Integer FieldIndex, Integer MaxCaracLevel)
+{
+	declare netwrite Integer XpCharacter_UnusedCaracPoints 	 for UI;
+	if (XpCharacter_UnusedCaracPoints <= 0) return False;
+	
+	declare netwrite Integer[Integer] XpCharacter_CaracCost for UI;
+	declare Integer CaracCost = XpCharacter_CaracCost[FieldIndex];
+	if (XpCharacter_UnusedCaracPoints < CaracCost) return False;
+	
+	declare netwrite Integer[Integer] XpCharacter_CaracLevel for UI;
+	declare Level = XpCharacter_CaracLevel[FieldIndex];
+	
+	if (Level < MaxCaracLevel) {
+		XpCharacter_CaracLevel[FieldIndex] 	= Level + 1;
+		XpCharacter_UnusedCaracPoints 		= XpCharacter_UnusedCaracPoints - CaracCost;
+		return True;
+	}
+	return False;
+}
+
+
+/**
+ * Set a player's caracs to zero, and give back the player his/her carac points
+ */
+Void Respecialize(CUIConfig UI)
+{
+	declare netwrite Integer XpCharacter_UnusedCaracPoints 	 	for UI;
+	declare netwrite Integer 			XpCharacter_Level 		for UI;
+	declare netwrite Integer[Integer]  	XpCharacter_CaracLevel 	for UI;
+	declare netwrite Integer XpCharacter_FusionLvl				for UI;
+	
+	foreach(FieldIndex => FieldLevel in XpCharacter_CaracLevel)
+	{
+		XpCharacter_CaracLevel[FieldIndex] = 0;
+	}
+	
+	XpCharacter_UnusedCaracPoints = (C_CaracPointsPerRebirth * XpCharacter_FusionLvl) + (C_CaracPointsPerLevel * XpCharacter_Level) + C_InitialCaracPointsBonus;
+}
+
+
+/**
+ * @return the level of a player, depending on his/her total of xp and the table LVL_PROGRESSION.
+ */
+Integer GetLevelFromXp(Integer XpPoints)
+{
+	declare I = 1;
+	declare Rest = XpPoints - C_BaseXpNeeded;
+	while(Rest >= 0) {
+		I = I + 1;
+		declare LevelCost = C_BaseXpNeeded + ((I-1) * C_AddXpNeedPerLevel);
+		Rest = Rest - LevelCost;
+	}
+	return I;
+}
+
+/**
+ * @return the nb of XpPoints a player has to collect to level up.
+ */
+Integer GetXpToNextLevel(Integer CurrentLevel, Integer CurrentXp, Integer MaxPlayerLevel)
+{
+	if (CurrentLevel >= MaxPlayerLevel) return 0;
+	
+	declare BaseCost = CurrentLevel * C_BaseXpNeeded;
+	declare AdditionnalCost = ((CurrentLevel * (CurrentLevel-1)) / 2) * C_AddXpNeedPerLevel;
+	declare XPToNextLevel = BaseCost + AdditionnalCost;
+	return XPToNextLevel - CurrentXp;
+}
+
+/**
+ * @return the nb of XpPoints a player has to collect to level up.
+ */
+Integer GetXpToNextLevel(Integer CurrentXp, Integer MaxLevel)
+{
+	return GetXpToNextLevel(CurrentXp, GetLevelFromXp(CurrentXp), MaxLevel);
+}
+
+
+
+
+/** 
+ * Notify the xp system that a player has earned some Xp Points.
+ * @return True iff the player levels up.
+ */
+Boolean NotifyXpGain(CSmPlayer Player, Integer XpPointsEarned, Integer XpType)
+{
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) return False;
+	
+	// For the UI
+	if(XpType >= 0) {
+		declare netwrite Integer[Integer] XpCharacter_XpNotifTime for UI;
+		declare netwrite Integer[Integer] XpCharacter_XpNotifValue for UI;
+		
+		XpCharacter_XpNotifTime[XpType] = Now + C_TimeToShowXp;
+		XpCharacter_XpNotifValue[XpType] = XpPointsEarned;
+	}
+	
+	declare Integer XpCharacter_MaxLevel for Player.User;
+	declare netwrite Integer XpCharacter_Level for UI;
+	
+	// do not give xp to a max lvl player.
+	if(XpCharacter_Level >= XpCharacter_MaxLevel) return False;
+	
+	
+	declare netwrite Integer XpCharacter_XpPoints for UI;
+	XpCharacter_XpPoints += XpPointsEarned;
+	
+	declare NewPlayerLevel = GetLevelFromXp(XpCharacter_XpPoints);
+	
+	declare netwrite Integer XpCharacter_XpToNextLevel for UI;
+	XpCharacter_XpToNextLevel = GetXpToNextLevel(NewPlayerLevel, XpCharacter_XpPoints, XpCharacter_MaxLevel);
+	
+	if (NewPlayerLevel > XpCharacter_Level) {
+		LvlUp(Player, NewPlayerLevel - XpCharacter_Level);
+
+		declare netwrite Integer XpCharacter_XpNotifLvlUpTime for UI;
+		XpCharacter_XpNotifLvlUpTime = Now + C_TimeToShowLvlUp;
+		
+		declare netwrite Integer XpCharacter_LastCaracsUpdate for UI;
+		XpCharacter_LastCaracsUpdate = Now;	// notify the UI it should update.
+		
+		return True;
+	}
+	
+	return False;
+}
+
+/**
+ * Build xp, levels and carac points for a fresh new player.
+ */
+Void BuildFromScratch(CSmPlayer Player, CUIConfig UI)
+{
+	declare netwrite Integer XpCharacter_UnusedCaracPoints	 	for UI;
+	declare netwrite Integer XpCharacter_Level 					for UI;
+	declare netwrite Integer XpCharacter_XpPoints	 			for UI;
+	declare netwrite Integer XpCharacter_XpToNextLevel 			for UI;
+
+	//declare persistent Integer RoyalEvolution_PersistentRebirth for Player.User = 0;
+	
+	declare Integer XpCharacter_MaxLevel for Player.User;
+	
+	XpCharacter_Level 					= 1;
+	XpCharacter_XpPoints				= 0;
+	//XpCharacter_XpPoints				= RoyalEvolution_PersistentRebirth;
+	XpCharacter_UnusedCaracPoints 		= (C_CaracPointsPerLevel * XpCharacter_Level) + C_InitialCaracPointsBonus;
+	XpCharacter_XpToNextLevel = GetXpToNextLevel(XpCharacter_Level, XpCharacter_XpPoints, XpCharacter_MaxLevel);
+}
+
+
+
+
+/**
+ * @return the nb of xp points needed to go from (Level-1) to Level.
+ */
+Integer GetXpDeltaToLevel(Integer Level) {
+	return C_BaseXpNeeded + ((Level - 2) * C_AddXpNeedPerLevel);
+}
+
+Integer GetCaracPointsPerRebirth() {
+	return C_CaracPointsPerRebirth;
+}
+

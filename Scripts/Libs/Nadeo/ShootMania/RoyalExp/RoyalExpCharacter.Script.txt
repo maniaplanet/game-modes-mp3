@@ -1,0 +1,424 @@
+#Const Version		"2013-02-06"
+#Const ScriptName	"RoyalExpCharacter.Script.txt"
+
+#Include "TextLib" as TextLib
+#Include "MathLib" as MathLib
+
+// ////////////////////////////////////////
+// CARACS ENUMS
+#Const SHIELD_CARACTERISTIC			0
+#Const SHIELD_RELOAD_CARACTERISTIC	1
+#Const STAMINA_CARACTERISTIC		2
+//#Const STAMINA_REGEN_CARACTERISTIC	3
+#Const WEAPON_CARACTERISTIC			3
+#Const AMMO_CARACTERISTIC			4
+#Const CAPTURE_CARACTERISTIC		5
+
+// ////////////////////////////////////////
+// STATS ENUMS
+#Const ARMOR			0
+#Const ARMOR_REGEN		1
+#Const STAMINA			2
+#Const STAMINA_GAIN		3
+#Const FITNESS			4
+#Const AMMO_REGEN		5
+#Const ROCKET_AMMO		6
+#Const POLE_CAPTURE		7
+
+#Const ADDITIVE			1
+#Const MULTIPLICATIVE	2
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+/*
+ * @return a factor, calculated by the following formula : given that we start at level [LevelBase] and we add [AddLevel], increment the factor by 1 every [PlusOneEvery].
+ */
+Integer PlusOnEveryFormula(Integer AddLevel, Integer LevelBase, Integer PlusOneEvery)
+{
+	return ((LevelBase % PlusOneEvery) + AddLevel) / PlusOneEvery;
+}
+
+/**
+ * Specify stats update when adding levels to a caracteristic.
+ *
+ * @param the given caracteristics (e.g. SHIELD_CARACTERISTIC)
+ * @param the number of levels to add
+ * @param current level
+ * @return a table associating stats index (e.g. ARMOR) to values to add to te base value.
+ */
+Real[Integer] GetStatsUpdate(Integer FieldIndex, Integer AddLevel, Integer LevelBase)
+{
+	switch(FieldIndex) {
+		case SHIELD_CARACTERISTIC :
+			return [ARMOR => AddLevel * 1.0];
+		case SHIELD_RELOAD_CARACTERISTIC :		
+			// return [ARMOR_REGEN => MathLib::Pow(2.0, AddLevel*1.0)];
+			return [ARMOR_REGEN => - AddLevel * 5.];
+		case STAMINA_CARACTERISTIC :
+			return [
+				//STAMINA => MathLib::Pow(2.0, AddLevel*1.0),
+				//STAMINA_GAIN => MathLib::Pow(2.0, AddLevel*1.0)];
+				STAMINA_GAIN => AddLevel * 22.,
+				FITNESS => AddLevel * 15.];
+		/*case STAMINA_REGEN_CARACTERISTIC :
+			return [STAMINA_GAIN => MathLib::Pow(2.0, AddLevel*1.0)];*/
+		case WEAPON_CARACTERISTIC : 
+			//return [AMMO_REGEN => MathLib::Pow(1.7, AddLevel*1.0)];
+			return [AMMO_REGEN => MathLib::Pow(1.5, AddLevel*1.0)];
+		case AMMO_CARACTERISTIC : 
+			return [ROCKET_AMMO => MathLib::Pow(1.8, AddLevel*1.0)];
+		case CAPTURE_CARACTERISTIC : return [
+			POLE_CAPTURE => AddLevel * 20.0];
+	}
+	
+	declare NoValue = Real[Integer];
+	return NoValue;
+}
+
+Real[Integer] GetPlusOneStatsUpdate(Integer FieldIndex, Integer CurrentLevel)
+{
+	return GetStatsUpdate(FieldIndex, 1, CurrentLevel);
+}
+
+Real[Integer] GetBaseStatsUpdate(Integer FieldIndex, Integer CurrentLevel)
+{
+	return GetStatsUpdate(FieldIndex, CurrentLevel, 0);
+}
+
+
+/**
+ * @return statistics for a level 1 player.
+ */
+Real[Integer] GetBaseStats()
+{
+	return [
+		ARMOR => 1.0,
+		ARMOR_REGEN => 30.0,
+		STAMINA => 100.,
+		STAMINA_GAIN => 12.,
+		FITNESS => 40.,
+		//AMMO_REGEN => 30.0,
+		AMMO_REGEN => 32.0,
+		ROCKET_AMMO => 1.0,
+		POLE_CAPTURE => 20.
+	];
+}
+
+/**
+ * Update values of statistics shown for the incrementation of any caracteristic.
+ */
+Void UpdatePlusOneStats(CUIConfig UI)
+{
+	declare netwrite Integer[Integer]  		XpCharacter_CaracLevel 			for UI;
+	declare netwrite Real[Integer][Integer] XpCharacter_CaracLevelPlusOne	for UI;
+	
+	foreach(CaracField => CaracLevel in XpCharacter_CaracLevel)
+	{
+		declare StatsUpdate = GetPlusOneStatsUpdate(CaracField, CaracLevel);
+		XpCharacter_CaracLevelPlusOne[CaracField] = StatsUpdate;
+	}
+}
+
+
+
+/**
+ * Apply statistics to gameplay variables for a given player.
+ */
+Void ApplyStatsToGameplay(CSmPlayer Player, CUIConfig UI, Boolean ImpactArmor)
+{
+	declare netwrite Real[Integer] XpCharacter_CharacterStats for UI;
+	
+	// ///////////////////////////////
+	// Apply XpCharacter_CharacterStats to Player
+	if(ImpactArmor) {
+		declare Integer CurrentArmorMax = Player.ArmorMax;
+		Player.ArmorMax		= 100 * MathLib::NearestInteger(XpCharacter_CharacterStats[ARMOR]);
+		if (Player.ArmorMax > CurrentArmorMax) {
+			Player.Armor += Player.ArmorMax - CurrentArmorMax;
+		}
+	}
+	
+	declare RocketIndex = GetWeaponIndex(CSmMode::EWeapon::Rocket);
+	SetPlayerAmmoMax(Player, CSmMode::EWeapon::Rocket , MathLib::NearestInteger(XpCharacter_CharacterStats[ROCKET_AMMO]));
+	Player.AmmoGain 	= XpCharacter_CharacterStats[AMMO_REGEN] / 100.0;
+	
+
+	if(XpCharacter_CharacterStats[STAMINA] < 10.) Player.StaminaMax = 0.1;
+	else Player.StaminaMax  	= XpCharacter_CharacterStats[STAMINA] / 100.0;
+	
+	Player.StaminaGain 	= XpCharacter_CharacterStats[STAMINA_GAIN] / 100.0;
+	
+	if(XpCharacter_CharacterStats[FITNESS] < 10.) Player.StaminaPower = 0.1;
+	else Player.StaminaPower 	= XpCharacter_CharacterStats[FITNESS] / 100.0;
+
+	
+	declare Real TimeToReplenish = XpCharacter_CharacterStats[ARMOR_REGEN];
+	Player.ArmorReplenishGain	= MathLib::NearestInteger(1000./(1.+TimeToReplenish));
+	//Player.ArmorGain	= MathLib::NearestInteger(100./(1.+TimeToReplenish));
+	
+	declare Real CaptureSpeedBonus for Player;
+	CaptureSpeedBonus = (XpCharacter_CharacterStats[POLE_CAPTURE] / 100.0);
+}
+
+Void ApplyStatsToGameplay(CSmPlayer Player, CUIConfig UI) {
+	ApplyStatsToGameplay(Player, UI, True);
+}
+
+
+/**
+ * Apply all caracteristics to statistics and gameplay variables for a given player.
+ */
+Void ApplyCaracsToStats(CSmPlayer Player, CUIConfig UI, Boolean ImpactArmor)
+{
+	// The Character Page
+	declare netwrite Integer[Integer]  XpCharacter_CaracLevel for UI;
+	
+	declare netwrite XpCharacter_CharacterStats for UI = Real[Integer];
+	declare netwrite Integer[Integer] XpCharacter_CharacterStatsAddMode for UI;
+	
+	XpCharacter_CharacterStats = GetBaseStats();
+	foreach(CaracFieldIndex => CaracLevel in XpCharacter_CaracLevel) {
+		declare StatsUpdate = GetBaseStatsUpdate(CaracFieldIndex, CaracLevel);
+		foreach(StatIndex => StatValue in StatsUpdate) {
+			if(XpCharacter_CharacterStatsAddMode[StatIndex] == ADDITIVE) {
+				XpCharacter_CharacterStats[StatIndex] = XpCharacter_CharacterStats[StatIndex] + StatValue;
+			} else {
+				XpCharacter_CharacterStats[StatIndex] = XpCharacter_CharacterStats[StatIndex] * StatValue;
+			}
+		}
+	}
+	
+	UpdatePlusOneStats(UI);
+	ApplyStatsToGameplay(Player, UI, ImpactArmor);
+	
+	declare netwrite Integer XpCharacter_LastCaracsUpdate for UI;
+	XpCharacter_LastCaracsUpdate = Now;
+}
+
+Void ApplyCaracsToStats(CSmPlayer Player, CUIConfig UI) {
+	ApplyCaracsToStats(Player, UI, True);
+}
+
+/**
+ * Build the cost of players caracterstics
+ */
+Void BuildCaracCost(CUIConfig UI)
+{
+	declare netwrite Integer[Integer] XpCharacter_CaracCost for UI;
+	XpCharacter_CaracCost[SHIELD_CARACTERISTIC] = 4;
+	XpCharacter_CaracCost[SHIELD_RELOAD_CARACTERISTIC] = 3;
+	XpCharacter_CaracCost[STAMINA_CARACTERISTIC] = 1;
+	//XpCharacter_CaracCost[STAMINA_REGEN_CARACTERISTIC] = 1;
+	XpCharacter_CaracCost[WEAPON_CARACTERISTIC] = 3;
+	XpCharacter_CaracCost[AMMO_CARACTERISTIC] = 2;
+	XpCharacter_CaracCost[CAPTURE_CARACTERISTIC] = 1;
+}
+
+/**
+ * Build the name of players caracterstics
+ */
+Void BuildCaracName(CUIConfig UI)
+{
+	declare netwrite Text[Integer] XpCharacter_CaracName for UI;
+	XpCharacter_CaracName[SHIELD_CARACTERISTIC] = _("Armor");
+	XpCharacter_CaracName[SHIELD_RELOAD_CARACTERISTIC] = _("Armor Regen");
+	XpCharacter_CaracName[STAMINA_CARACTERISTIC] = _("Stamina");
+	//XpCharacter_CaracName[STAMINA_REGEN_CARACTERISTIC] = _("Stamina Regen");
+	XpCharacter_CaracName[WEAPON_CARACTERISTIC] = _("Ammo Reload");
+	XpCharacter_CaracName[AMMO_CARACTERISTIC] = _("Rocket Ammo");
+	XpCharacter_CaracName[CAPTURE_CARACTERISTIC] = _("Pole Capture Speed");
+}
+
+
+/**
+ * Build the name of players statistics
+ */
+Void BuildCharStatName(CUIConfig UI)
+{
+	declare netwrite Text[Integer] XpCharacter_CharacterStatsName for UI;
+	
+	XpCharacter_CharacterStatsName[ARMOR] = _("Armor");
+	XpCharacter_CharacterStatsName[ARMOR_REGEN] = _("Armor Regen");
+	XpCharacter_CharacterStatsName[STAMINA] = _("Stamina");
+	XpCharacter_CharacterStatsName[STAMINA_GAIN] = _("Stamina Regen");
+	XpCharacter_CharacterStatsName[FITNESS] = _("Fitness");
+	XpCharacter_CharacterStatsName[AMMO_REGEN] = _("Ammo Reload");
+	XpCharacter_CharacterStatsName[ROCKET_AMMO] = _("Rocket Ammo");
+	XpCharacter_CharacterStatsName[POLE_CAPTURE] = _("Pole Capture Speed");
+}
+
+/**
+ * Build the add/mult table for players statistics
+ */
+Void BuildCharStatAdditiveMode(CUIConfig UI)
+{
+	declare netwrite Integer[Integer] XpCharacter_CharacterStatsAddMode for UI;
+	
+	XpCharacter_CharacterStatsAddMode[ARMOR] = ADDITIVE;
+	XpCharacter_CharacterStatsAddMode[ARMOR_REGEN] = ADDITIVE;
+	XpCharacter_CharacterStatsAddMode[STAMINA] = ADDITIVE;
+	XpCharacter_CharacterStatsAddMode[STAMINA_GAIN] = ADDITIVE;
+	XpCharacter_CharacterStatsAddMode[FITNESS] = ADDITIVE;
+	XpCharacter_CharacterStatsAddMode[AMMO_REGEN] = MULTIPLICATIVE;
+	XpCharacter_CharacterStatsAddMode[ROCKET_AMMO] = MULTIPLICATIVE;
+	XpCharacter_CharacterStatsAddMode[POLE_CAPTURE] = ADDITIVE;
+}
+
+/**
+ * Build the description of players statistics
+ */
+Void BuildCharStatDesc(CUIConfig UI)
+{
+	declare netwrite Text[Integer] XpCharacter_CharacterStatsDesc for UI;
+	
+	XpCharacter_CharacterStatsDesc[ARMOR] = _("Total armor points.");
+	XpCharacter_CharacterStatsDesc[ARMOR_REGEN] = _("Time to regen 1 armor.\nUseful only if your armor is greater than 1.");
+	XpCharacter_CharacterStatsDesc[STAMINA] = _ ("Size of the stamina gauge.");
+	XpCharacter_CharacterStatsDesc[STAMINA_GAIN] = _("Filling speed of the stamina gauge.");
+	XpCharacter_CharacterStatsDesc[FITNESS] = _ ("Running speed and slide length.");
+	XpCharacter_CharacterStatsDesc[AMMO_REGEN] = _("Reload speed of ammo for all weapons.");
+	XpCharacter_CharacterStatsDesc[ROCKET_AMMO] = _("Number of rockets.");
+	XpCharacter_CharacterStatsDesc[POLE_CAPTURE] = _("Filling speed of the gauge when capturing a pole.");
+}
+
+/**
+ * Build format text for players statistics.
+ * Use "i" to format as Integer.
+ * Any ohter text is added after the number in the UI (e.g. "%", "sec.", etc.)
+ */
+Void BuildCharStatFormat(CUIConfig UI)
+{
+	declare netwrite Text[Integer] XpCharacter_CharacterStatsFormat for UI;
+	XpCharacter_CharacterStatsFormat[ARMOR] = "i";
+	XpCharacter_CharacterStatsFormat[ARMOR_REGEN] = "''";
+	XpCharacter_CharacterStatsFormat[STAMINA] = "%";
+	XpCharacter_CharacterStatsFormat[STAMINA_GAIN] = "%";
+	XpCharacter_CharacterStatsFormat[FITNESS] = "%";
+	XpCharacter_CharacterStatsFormat[AMMO_REGEN] = "%";
+	XpCharacter_CharacterStatsFormat[ROCKET_AMMO] = "i";
+	XpCharacter_CharacterStatsFormat[POLE_CAPTURE] = "%";
+}
+
+/**
+ * Helper for the creation of all needed texts (names, formats, etc.).
+ */
+Void BuildTexts(CUIConfig UI)
+{
+	BuildCaracName(UI);
+	BuildCharStatName(UI);
+	BuildCharStatFormat(UI);
+	BuildCharStatDesc(UI);
+	BuildCaracCost(UI);
+	BuildCharStatAdditiveMode(UI);
+}
+
+/**
+ * Build new Caracteristics for a given player.
+ */
+Void BuildFromScratch(CSmPlayer Player, CUIConfig UI)
+{
+	declare netwrite Integer[Integer]  XpCharacter_CaracLevel for UI;
+	
+	XpCharacter_CaracLevel[SHIELD_CARACTERISTIC] 		= 0;
+	XpCharacter_CaracLevel[SHIELD_RELOAD_CARACTERISTIC] = 0;
+	XpCharacter_CaracLevel[STAMINA_CARACTERISTIC] 		= 0;
+	//XpCharacter_CaracLevel[STAMINA_REGEN_CARACTERISTIC] = 0;
+	XpCharacter_CaracLevel[WEAPON_CARACTERISTIC]		= 0;
+	XpCharacter_CaracLevel[AMMO_CARACTERISTIC]			= 0;
+	XpCharacter_CaracLevel[CAPTURE_CARACTERISTIC]		= 0;
+	
+	BuildTexts(UI);
+	ApplyCaracsToStats(Player, UI);
+}
+
+
+/**
+ * Called when a player spawns, to update what needs to be updated.
+ */
+Void OnSpawn(CSmPlayer Player, CUIConfig UI) {
+	ApplyCaracsToStats(Player, UI, True);
+}
+
+/**
+ * Notify a hit from Shooter to Victim.
+ * (e.g. for Poison caracteristic)
+ */
+Void NotifyHit(CSmPlayer Shooter, CSmPlayer Victim) {
+	// current version : do nothing
+}
+
+/**
+ * Called once per step.
+ * Update what needs to be updated (e.g. poison).
+ */
+Void FrameUpdate(CSmPlayer Player) {
+	/*if(Player.Armor % 100 == 0 && Player.Armor < Player.ArmorMax) {
+		Player.Armor += 1;
+	}*/
+	// current version : do nothing
+}
+
+/**
+ * @return xp given to Player once XP_BOOST stat is applied
+ */
+Integer GetBoostedXp(CSmPlayer Player, Integer XpPoints) {
+	return XpPoints;
+	// current version : do nothing
+}
+
+/**
+ * @return True iff any carac in CaracsIndice has a not-null impact on stat StatIndex
+ * The computation takes into account current level of the carac for this player.
+ */
+Boolean CaracImpactsStat(CUIConfig UI, Integer[Integer] CaracsIndice, Integer StatIndex)
+{
+	declare netwrite Integer[Integer] XpCharacter_CaracLevel for UI;
+	
+	foreach(Carac => NbClics in CaracsIndice) {
+		declare CaracLevel = XpCharacter_CaracLevel[Carac];
+		declare StatsUpdate = GetPlusOneStatsUpdate(Carac, CaracLevel);
+		if(StatsUpdate.existskey(StatIndex) && StatsUpdate[StatIndex] != 0.) return True;
+	}
+	
+	return False;
+}
+
+/**
+ * @return True iff any carac in CaracsIndice has a not-null impact on Armor Stat
+ * The computation takes into account current level of ARMOR for this player.
+ */
+Boolean CaracImpactsArmor(CUIConfig UI, Integer[Integer] CaracsIndice) {
+	return CaracImpactsStat(UI, CaracsIndice, ARMOR);
+}
+
+
+Text HackCaracsUIToHideArmorReload(Integer MaxCaracLevel) {
+	declare Text ScriptLoopText = """
+		declare ArmorReloadIdPrefix 	= "CARAC_"^{{{SHIELD_RELOAD_CARACTERISTIC}}}^"_";
+		declare LabelCaracArmorReloadId	= ArmorReloadIdPrefix^"AddButton";
+		declare ButtonCaracArmorReload	<=> (Page.GetFirstChild(LabelCaracArmorReloadId) as CMlLabel);
+	
+		if(XpCharacter_CaracLevel[{{{SHIELD_CARACTERISTIC}}}] < 1 || XpCharacter_CaracLevel[{{{SHIELD_RELOAD_CARACTERISTIC}}}] >= {{{MaxCaracLevel}}}) {
+			ButtonCaracArmorReload.Hide();
+		} else {
+			ButtonCaracArmorReload.Show();
+		}
+	""";
+	return ScriptLoopText;
+}
