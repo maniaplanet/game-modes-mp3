@@ -1,0 +1,1477 @@
+/**
+ *	Mode Combo
+ */
+#Extends "Modes/ShootMania/ModeBase.Script.txt"
+
+#Const	CompatibleMapTypes	"ComboArena"
+#Const	Version				"2013-04-23"
+#Const	ScriptName			"Combo.Script.txt"
+
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+#Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/Message.Script.txt" as Message
+#Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
+#Include "Libs/Nadeo/ShootMania/WarmUp.Script.txt" as WarmUp
+#Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
+#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
+#Include "Libs/Nadeo/ShootMania/KingOfTheLobby.Script.txt" as Lobby
+
+// ---------------------------------- //
+// Settings
+// ---------------------------------- //
+#Setting S_NbPlayersPerTeam		2		as _("Number of players per team (Max. 5)")
+#Setting S_PointsLimit			3		as _("Points limit (0: No points limit)")
+#Setting S_RoundTimeLimit		300		as _("Round time limit (0: No time limit)")
+#Setting S_WarmUpDuration		90		as _("Warmup duration (0: disabled)")
+#Setting S_AllowUnbalancedTeams	False	as _("Allow a game to begin without the same number of players in each team")
+#Setting S_UseArmorReduction	False	as _("Reduce the armor of players above two armor points")
+#Setting S_UseLobby				False	as "<hidden>" // _("Launch server in lobby mode")
+#Setting S_LobbyTimePerMap		86400	as "<hidden>" // _("Time limit in lobby mode (sec., 0: no limit)")
+#Setting S_MatchmakingSleep		0		as "<hidden>" // _("Matchmaking match end duration (-1: infinite)")
+// Clublinks settings
+#Setting S_UsePlayerClublinks	False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
+#Setting S_ForceClublinkTeam1	""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
+#Setting S_ForceClublinkTeam2	""		as "<hidden>"	///< Force the Clublink of team 2 (format: http://www.example.com/MyTeam.Club.xml)
+
+// ---------------------------------- //
+// Constants
+// ---------------------------------- //
+#Const C_ActionEvent_SwitchWeapon "SwitchWeapon"
+
+#Const C_Item [
+	"Armor"		=> "Armor",
+	"Arrow"		=> "Arrow",
+	"Laser"		=> "Laser",
+	"Nucleus"	=> "Nucleus",
+	"Rocket"	=> "Rocket"
+]
+#Const C_AmmoGain [
+	"Rocket"	=> 0.5,
+	"Laser"		=> 0.6,
+	"Nucleus"	=> 0.5,
+	"Arrow"		=> 0.3
+]
+#Const C_AmmoMax [
+	"Laser"		=> 0,
+	"Nucleus"	=> 0,
+	"Arrow"		=> 0,
+	"Rocket"	=> 4
+]
+#Const C_Timers [
+	"Armor"		=> 30000,
+	"Rocket"	=> 45000,
+	"Nucleus"	=> 45000,
+	"Laser"		=> 45000,
+	"Arrow"		=> 45000
+]
+
+#Const C_ArmorReductionPeriod	30000
+#Const C_ArmorReductionStart	200
+
+#Const C_RoundStartInvicibilityDuration 10000
+#Const C_Default_ComboTime		3000
+#Const C_Default_Armor			200
+#Const C_Default_ArmorMax		400
+#Const C_Item_Delay				30000
+#Const C_Item_ArmorValue		100
+#Const C_NbPlayersPerTeamMax	5
+#Const C_ComboTimeStep			2000
+#Const C_OffZoneRadiusMax		300.
+#Const C_OffZoneRadiusMin		16.
+#Const C_OffZoneDuration		60
+#Const C_MaxDamage				100
+#Const C_ImgBaseDir 			"file://Media/Manialinks/Shootmania/Common/"
+#Const C_SleepEndMap			15000
+
+#Const Description _("TYPE: 2 vs 2\nOBJECTIVE:\n- Eliminate the two opponents within a short range of time (Combo Time).\n- Your Combo Time starts when you eliminate one opponent: eliminate the second one before it ends to win the round.\n- Each time you eliminate an opponent, your Combo Time increases.\n- Use '1', '2', '3' and '4' on your keyboard to switch weapon. Collecting a weapon item grants your team with the ability to use it this round, or with 1 extra ammo max if you already own it.")
+
+#Const C_BlueBots	0
+#Const C_RedBots	0
+
+// ---------------------------------- //
+// Globales variables
+// ---------------------------------- //
+declare Ident[Text] G_ItemId;					///< Ids of the items
+declare Boolean	G_OffZoneIsActivated;			///< OffZone status
+declare Integer G_ComboTime;					///< Timer of the current combo
+declare Integer G_ComboClan;					///< Clan doing the combo
+declare Integer G_ComboNextTick;				///< Combo time
+declare Integer[Integer] G_ClanComboTimeLimit;	///< Timer max of the combo for each clan
+declare Ident[][Integer] G_ClansPlayers;		///< List of players allowed to play
+
+declare Integer S_Script_RoundTimeLimit;
+declare Integer S_Script_PointsLimit;
+declare Integer S_Script_NbPlayersPerTeam;
+
+// ---------------------------------- //
+// Extend
+// ---------------------------------- //
+
+***LogVersion***
+***
+MB_LogVersion(ScriptName, Version);
+MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
+MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
+MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
+MB_LogVersion(WarmUp::GetScriptName(), WarmUp::GetScriptVersion());
+MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
+MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
+MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
+MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
+***
+
+***Rules***
+***
+declare ModeName = "Combo";
+SpawnScreen::CreateRules(ModeName, Description);
+***
+
+***InitServer***
+***
+declare LayerAttached		= False;
+declare LayerDetached		= False;
+declare LayerUpdated		= False;
+declare LayerDestroyed		= False;
+MB_UsePlayerClublinks		= S_UsePlayerClublinks;
+declare Default_Weapons		= [CSmMode::EWeapon::Rocket];
+***
+
+***StartServer***
+***
+// ---------------------------------- //
+// Lobby mode
+if (S_UseLobby) Lobby::StartLobbyMode(S_LobbyTimePerMap, True);
+
+// ---------------------------------- //
+// Set mode options
+UseClans = True;
+MB_UseSectionRound = True;
+
+// ---------------------------------- //
+// Create the rules
+---Rules---
+
+// ---------------------------------- //
+// Create the scores table
+ScoresTable::Load();
+
+// ---------------------------------- //
+// Load items
+ItemList_Begin();
+G_ItemId[C_Item["Armor"]]	= ItemList_Add("Storm\\MeleeUltimate\\Armor.Item.gbx");
+G_ItemId[C_Item["Rocket"]]	= ItemList_Add("Storm\\MeleeUltimate\\Rocket.Item.gbx");
+G_ItemId[C_Item["Laser"]]	= ItemList_Add("Storm\\MeleeUltimate\\Laser.Item.gbx");
+G_ItemId[C_Item["Nucleus"]]	= ItemList_Add("Storm\\MeleeUltimate\\Nucleus.Item.gbx");
+G_ItemId[C_Item["Arrow"]]	= ItemList_Add("Storm\\MeleeUltimate\\Arrow.Item.gbx");
+ItemList_End();
+
+// ---------------------------------- //
+// Create layer
+declare LayerInfoId = Layers::Create("Info");
+***
+
+***InitMap***
+***
+declare Integer MapWinnerClan;
+declare CSmBlockSpawn[Integer] Spawns;
+***
+
+***StartMap***
+***
+// ---------------------------------- //
+// Misc initialization
+Users_SetNbFakeUsers(C_BlueBots, C_RedBots);
+Score::MatchBegin();
+SM::SetupDefaultVisibility();
+//UIManager.UIAll.TeamLabelsVisibility = CUIConfig::ELabelsVisibility::Always;
+MapWinnerClan = 0;
+G_ClansPlayers = [1 => Ident[], 2 => Ident[]];
+Spawns = [1 => Null, 2 => Null];
+foreach (BlockSpawn in BlockSpawns) {
+	if (BlockSpawn.Order == 1) Spawns[1] = BlockSpawn;
+	else if (BlockSpawn.Order == 2) Spawns[2] = BlockSpawn;
+}
+assert(Spawns[1] != Null && Spawns[2] != Null);
+UpdateModeStatusMessage();
+UpdateBasesColors();
+
+// ---------------------------------- //
+// Initialize players
+foreach (Player in AllPlayers) {
+	SetPlayerClan(Player, Player.RequestedClan);
+	
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI != Null) {
+		UI.SpectatorForceCameraType = -1;
+		UI.SpectatorForcedClan = -1;
+	}
+}
+
+// ---------------------------------- //
+// Initialize scores
+foreach (Score in Scores) {
+	declare HitLaser	for Score = 0;
+	declare HitNucleus	for Score = 0;
+	declare HitArrow	for Score = 0;
+	declare HitRocket	for Score = 0;
+	HitLaser	= 0;
+	HitNucleus	= 0;
+	HitArrow	= 0;
+	HitRocket	= 0;
+}
+
+// ---------------------------------- //
+// Set storm center
+foreach (BlockPole in BlockPoles) {
+	if (BlockPole.Tag == "Checkpoint") {
+		OffZoneCenterBlockId = BlockPole.Id;
+		break;
+	}
+}
+
+// ---------------------------------- //
+// Build the scores table
+declare ScoresBGImg			= C_ImgBaseDir^"scoresBg.dds";
+declare ScoresBGImgLeft		= C_ImgBaseDir^"scoresBg_left.dds";
+declare ScoresBGImgRight	= C_ImgBaseDir^"scoresBg_right.dds";
+declare Clan1Color			= Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
+declare Clan2Color			= Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
+ScoresTable::SetTableBackgroundLeftRightImage(
+	ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0.1, 52.3>, <207., 175.>
+);
+ScoresTable::SetTableFormat(2, 5);
+ScoresTable::SetHeaderHeight(12.);
+ScoresTable::SetPlayerCardHeight(12.);
+ScoresTable::SetTableWidth(190.);
+ScoresTable::SetColumnsName("", "", _("Weapons hits"), _("Hits"), _("Score"));
+ScoresTable::SetColumnsWidth(2., 2., 3., 15., 1.5, 1.5, 0., 0., 5., 3., 3.);
+ScoresTable::SetDefaultCustom3("0/0/0/0");
+ScoresTable::Build();
+ScoresTable::StartMatch();
+
+// ---------------------------------- //
+// Initalize settings
+S_Script_RoundTimeLimit = S_RoundTimeLimit;
+S_Script_PointsLimit = S_PointsLimit;
+S_Script_NbPlayersPerTeam = S_NbPlayersPerTeam;
+if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
+	S_Script_NbPlayersPerTeam = C_NbPlayersPerTeamMax;
+}
+
+// ---------------------------------- //
+// Do warm up
+WarmUp();
+declare ClansOrder = WarmUp::GetOrder();
+foreach (Clan => ClanOrder in ClansOrder) {
+	if (!G_ClansPlayers.existskey(Clan)) continue;
+	foreach (PlayerId => PlayerOrder in ClanOrder) {
+		G_ClansPlayers[Clan].add(PlayerId);
+	}
+}
+
+// ---------------------------------- //
+// Update the players clublinks
+if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") {
+	Clublink::DefineTeamAuto();
+	Clublink::SyncUpdate();	///< Try to force the load of the clublink
+} else {
+	Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
+}
+
+// ---------------------------------- //
+// Rebuild the scores table with new info on teams
+Clan1Color = Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
+Clan2Color = Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
+ScoresTable::SetTableBackgroundLeftRightImage(
+	ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0., 52.3>, <207., 175.>
+);
+ScoresTable::Build();
+
+// ---------------------------------- //
+// Initialize UI
+UpdateScoresHeader();
+UIManager.UIAll.SendNotice("", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::StartRound, 0);
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+LayerAttached = Layers::Attach("Info", NullId);
+LayerUpdated = Layers::Update("Info", UpdateLayerInfo());
+***
+
+***InitRound***
+***
+declare Integer RoundWinnerClan;
+declare Integer SpawnClan1;
+declare Integer SpawnClan2;
+declare Integer InvincibilityEndTime;
+***
+
+***StartRound***
+***
+// ---------------------------------- //
+// Combo initialization
+RoundWinnerClan = 0;
+G_ComboClan = 0;
+G_ComboTime = 0;
+G_ComboNextTick = 0;
+G_ClanComboTimeLimit = [1 => C_Default_ComboTime, 2 => C_Default_ComboTime];
+OffZoneRadius = -1.;
+OffZoneRadiusSpeed = 0.;
+G_OffZoneIsActivated = False;
+Score::RoundBegin();
+UpdateModeStatusMessage();
+
+// ---------------------------------- //
+// Initalize game
+S_Script_RoundTimeLimit = S_RoundTimeLimit;
+S_Script_PointsLimit = S_PointsLimit;
+S_Script_NbPlayersPerTeam = S_NbPlayersPerTeam;
+if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
+	S_Script_NbPlayersPerTeam = C_NbPlayersPerTeamMax;
+}
+StartTime = Now;
+if (S_Script_RoundTimeLimit <= 0) {
+	UIManager.UIAll.CountdownEndTime = -1;
+} else {
+	UIManager.UIAll.CountdownEndTime = StartTime + (S_Script_RoundTimeLimit * 1000);
+}
+
+// ---------------------------------- //
+// Initialize players
+foreach (Player in AllPlayers) {
+	SetPlayerClan(Player, Player.RequestedClan);
+	
+	declare NextArmorReduction for Player = -1;
+	NextArmorReduction = -1;
+	
+	declare Weapons			for Player = CSmMode::EWeapon[];
+	declare AmmoMax for Player = C_AmmoMax;
+	AmmoMax = C_AmmoMax;
+	
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI != Null) {
+		declare netwrite Text Net_Combo_Weapon for UI;
+		Net_Combo_Weapon = "Rocket";
+	}
+	
+	Weapons = Default_Weapons;
+	Player.ArmorMax = C_Default_ArmorMax;
+	Player.AmmoGain = C_AmmoGain["Rocket"];
+	SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, False);
+	SetPlayerAmmoMax(Player, CSmMode::EWeapon::Rocket, AmmoMax["Rocket"]);
+	SetPlayerAmmoMax(Player, CSmMode::EWeapon::Laser, AmmoMax["Laser"]);
+	SetPlayerAmmoMax(Player, CSmMode::EWeapon::Nucleus, AmmoMax["Nucleus"]);
+	SetPlayerAmmoMax(Player, CSmMode::EWeapon::Arrow, AmmoMax["Arrow"]);
+	SetPlayerReloadAllWeapons(Player, True);
+}
+UpdateClansPlayers();
+
+// ---------------------------------- //
+// Initialize items
+DestroyAllItems();
+foreach (ItemAnchor in ItemAnchors) {
+	declare ItemSpawned for ItemAnchor = False;
+	declare ItemNextSpawn for ItemAnchor = Now;
+	ItemSpawned = False;
+	ItemNextSpawn = Now + C_Item_Delay;
+}
+
+// ---------------------------------- //
+// Spawn players
+SpawnClan1 = 1;
+SpawnClan2 = 1;
+if (MB_SectionRoundNb % 2 == 0) {
+	SpawnClan1 = 2;
+	SpawnClan2 = 2;
+}
+foreach (Player in Players) {
+	if (!G_ClansPlayers.existskey(Player.CurrentClan)) continue;
+	if (!G_ClansPlayers[Player.CurrentClan].exists(Player.Id)) continue;
+	
+	declare CSmBlockSpawn BlockSpawn;
+	if (Player.CurrentClan == 1) {
+		BlockSpawn <=> Spawns[SpawnClan1];
+		SpawnClan1 = 3 - SpawnClan1;
+	} else if (Player.CurrentClan == 2) {
+		BlockSpawn <=> Spawns[SpawnClan2];
+		SpawnClan2 = 3 - SpawnClan2;
+	}
+	declare SpawnTime = Now + 2000;
+	if (SpawnTime < StartTime) SpawnTime = StartTime;
+	if (BlockSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, C_Default_Armor, BlockSpawn, SpawnTime);
+}
+
+// ---------------------------------- //
+// Initialize UI
+declare netwrite Integer Net_Combo_ComboClan1 for Teams[0];
+declare netwrite Integer Net_Combo_ComboClan2 for Teams[0];
+Net_Combo_ComboClan1 = G_ClanComboTimeLimit[1];
+Net_Combo_ComboClan2 = G_ClanComboTimeLimit[2];
+
+// ---------------------------------- //
+// Round start invincibility
+InvincibilityEndTime = StartTime + C_RoundStartInvicibilityDuration;
+UsePvPCollisions = False;
+UsePvPWeapons = False;
+Message::SendStatusMessage(_("Players are invincible"), InvincibilityEndTime - Now, 1);
+***
+
+***OnNewPlayer***
+***
+ScoresTable::SetFooterStats(Player, TL::Compose(_("Points limit: %1"), TL::ToText(S_Script_PointsLimit)));
+SetPlayerClan(Player, Player.RequestedClan);
+declare UI <=> UIManager.GetUI(Player);
+if (UI != Null) {
+	UI.SpectatorForceCameraType = 1;
+	UI.SpectatorForcedClan = Player.CurrentClan;
+	
+	declare AmmoMax for Player = C_AmmoMax;
+	
+	declare netwrite Integer		Net_Combo_AmmoUpdate	for UI;
+	declare netwrite Integer[Text]	Net_Combo_AmmoMax		for UI;
+	Net_Combo_AmmoUpdate = Now;
+	Net_Combo_AmmoMax = AmmoMax;
+}
+***
+
+***OnNewSpectator***
+***
+ScoresTable::SetFooterStats(Spectator, TL::Compose(_("Points limit: %1"), TL::ToText(S_Script_PointsLimit)));
+declare UI <=> UIManager.GetUI(Spectator);
+if (UI != Null) {
+	UI.SpectatorForceCameraType = -1;
+	UI.SpectatorForcedClan = -1;
+}
+***
+
+***PlayLoop***
+***
+// ---------------------------------- //
+// Libraries
+Message::Loop();
+
+// ---------------------------------- //
+// Update the players clublinks
+if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
+
+// ---------------------------------- //
+// Check Action events
+foreach (Event in PendingEvents) {
+	// ---------------------------------- //
+	// On armor empty
+	if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
+		if (Event.Victim != Null) {
+			declare NewComboClan = 3 - Event.Victim.CurrentClan;
+			UpdateCombo(NewComboClan);
+		}
+		XmlRpc::OnArmorEmpty(Event);
+		PassOn(Event);
+	} 
+	// ---------------------------------- //
+	// On hit
+	else if (Event.Type == CSmModeEvent::EType::OnHit) {
+		if (Event.Shooter == Event.Victim) {
+			Discard(Event);
+		} else if (Event.Shooter != Null && Event.Victim != Null && Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
+			Discard(Event);
+		} else {
+			if (Event.Damage > C_MaxDamage) Event.Damage = C_MaxDamage;
+			Score::AddPoints(Event.Shooter, 1);
+			XmlRpc::OnHit(Event);
+			if (Event.Shooter != Null) {
+				declare HitLaser for Event.Shooter.Score = 0;
+				declare HitNucleus for Event.Shooter.Score = 0;
+				declare HitArrow for Event.Shooter.Score = 0;
+				declare HitRocket for Event.Shooter.Score = 0;
+				
+				switch (Event.WeaponNum) {
+					case 1: HitLaser += 1;
+					case 3: HitNucleus += 1;
+					case 5: HitArrow += 1;
+					case 2: HitRocket += 1;
+				}
+				
+				ScoresTable::SetCustom3(Event.Shooter, HitLaser^"/"^HitNucleus^"/"^HitArrow^"/"^HitRocket);
+			}
+			PassOn(Event);
+		}
+	} 
+	// ---------------------------------- //
+	// On player request respawn
+	else if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
+		if (Event.Player != Null) {
+			declare NewComboClan = 3 - Event.Player.CurrentClan;
+			UpdateCombo(NewComboClan);
+		}
+		XmlRpc::OnPlayerRequestRespawn(Event);
+		PassOn(Event);
+	} 
+	// ---------------------------------- //
+	// On player touches item
+	else if (Event.Type == CSmModeEvent::EType::OnPlayerTouchesItem) {
+		if (Event.Player == Null) {
+			Discard(Event);
+		} else if (Event.Player != Null && Event.Player.SpawnStatus != CSmPlayer::ESpawnStatus::Spawned) {
+			Discard(Event);
+		} else {
+			PickUpItem(Event.Player, Event.Item);
+			PassOn(Event);
+		}
+	}
+	// ---------------------------------- //
+	// On action event
+	else if (Event.Type == CSmModeEvent::EType::OnActionEvent) {
+		if (Event.Player == Null) {
+			Discard(Event);
+		} else {
+			SwitchWeapon(Event.Player, Event.ActionSlot);
+			PassOn(Event);
+		}		
+	}
+	// ---------------------------------- //
+	// Others
+	else {
+		PassOn(Event);
+	}
+}
+
+// ---------------------------------- //
+// Round start invincibility
+if (InvincibilityEndTime > 0 && InvincibilityEndTime <= Now) {
+	InvincibilityEndTime = -1;
+	UsePvPCollisions = True;
+	UsePvPWeapons = True;
+	UIManager.UIAll.SendNotice("", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::PhaseChange, 0);
+}
+
+// ---------------------------------- //
+// Start the storm
+if (UIManager.UIAll.CountdownEndTime > 0 && UIManager.UIAll.CountdownEndTime <= Now) {
+	UIManager.UIAll.CountdownEndTime = -1;
+	OffZoneRadius = C_OffZoneRadiusMax;
+	OffZoneRadiusSpeed = (C_OffZoneRadiusMax - C_OffZoneRadiusMin) / ML::ToReal(C_OffZoneDuration);
+	G_OffZoneIsActivated = True;
+	UIManager.UIAll.StatusMessage = _("Direct elimination");
+}
+// ---------------------------------- //
+// Stop the storm
+if (OffZoneRadiusSpeed > 0. && OffZoneRadius <= C_OffZoneRadiusMin) {
+	OffZoneRadiusSpeed = 0.;
+	OffZoneRadius = C_OffZoneRadiusMin;
+	G_OffZoneIsActivated = False;
+}
+
+// ---------------------------------- //
+// Spawn items
+Combo_SpawnItem();
+
+// ---------------------------------- //
+// Update combo timer
+if (G_ComboTime > 0) {
+	if (G_ComboNextTick <= Now) {
+		G_ComboNextTick = Now + 1000;
+		if (G_ComboTime > 0) {
+			Message::SendBigMessage(Teams[G_ComboClan-1].ColorText^(G_ComboTime / 1000), 1000, 1);
+		} 
+	}
+	G_ComboTime -= Period;
+	if (G_ComboTime <= 0) {
+		G_ComboClan = 0;
+		G_ComboTime = 0;
+	}
+}
+
+// ---------------------------------- //
+// Spawn players
+foreach (Player in Players) {
+	if (G_ComboTime <= 0 && !G_OffZoneIsActivated) {
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !Player.RequestsSpectate) {
+			SetPlayerClan(Player, Player.RequestedClan);
+			if (!G_ClansPlayers.existskey(Player.CurrentClan)) continue;
+			if (!G_ClansPlayers[Player.CurrentClan].exists(Player.Id)) continue;
+			
+			Player.ArmorMax = C_Default_ArmorMax;
+			
+			declare CSmBlockSpawn BlockSpawn;
+			if (Player.CurrentClan == 1) {
+				BlockSpawn <=> Spawns[SpawnClan1];
+				SpawnClan1 = 3 - SpawnClan1;
+			} else if (Player.CurrentClan == 2) {
+				BlockSpawn <=> Spawns[SpawnClan2];
+				SpawnClan2 = 3 - SpawnClan2;
+			}
+			if (BlockSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, C_Default_Armor, BlockSpawn, Now);
+			
+			declare AmmoMax for Player = C_AmmoMax;
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Rocket, AmmoMax["Rocket"]/2);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Laser, AmmoMax["Laser"]/2);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, AmmoMax["Nucleus"]/2);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Arrow, AmmoMax["Arrow"]/2);
+			
+			if (Player.Armor > C_ArmorReductionStart) {
+				declare NextArmorReduction for Player = -1;
+				NextArmorReduction = Now + C_ArmorReductionPeriod;
+			}
+			
+			declare UI <=> UIManager.GetUI(Player);
+			if (UI != Null) {
+				UI.SpectatorForceCameraType = 1;
+				UI.SpectatorForcedClan = Player.CurrentClan;
+			}
+		}
+	}
+	if (S_UseArmorReduction) {
+		if (Player.Armor > C_ArmorReductionStart) {
+			declare NextArmorReduction for Player = -1;
+			if (NextArmorReduction > 0 && NextArmorReduction < Now) {
+				Player.Armor -= 100;
+				if (Player.Armor > C_ArmorReductionStart) {
+					NextArmorReduction = Now + C_ArmorReductionPeriod;
+				}
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
+// Check if we need more players
+UpdateClansPlayers();
+
+// ---------------------------------- //
+// Update settings
+if (S_Script_RoundTimeLimit != S_RoundTimeLimit) {
+	S_Script_RoundTimeLimit = S_RoundTimeLimit;
+	if (S_Script_RoundTimeLimit <= 0) {
+		UIManager.UIAll.CountdownEndTime = -1;
+	} else {
+		UIManager.UIAll.CountdownEndTime = StartTime + (S_Script_RoundTimeLimit * 1000);
+	}
+}
+if (S_Script_PointsLimit != S_PointsLimit) {
+	S_Script_PointsLimit = S_PointsLimit;
+	foreach (Player in AllPlayers) ScoresTable::SetFooterStats(Player, TL::Compose(_("Points limit: %1"), TL::ToText(S_Script_PointsLimit)));
+}
+if (S_Script_NbPlayersPerTeam != S_NbPlayersPerTeam) {
+	S_Script_NbPlayersPerTeam = S_NbPlayersPerTeam;
+	LayerUpdated = Layers::Update("Info", UpdateLayerInfo());
+}
+
+// ---------------------------------- //
+// victory conditions
+declare EndRound = False;
+declare EndMap = False;
+if (ClansNbPlayers[1] == 0) {
+	EndMap = True;
+	RoundWinnerClan = 2;
+	MapWinnerClan = 2;
+} else if (ClansNbPlayers[2] == 0) {
+	EndMap = True;
+	RoundWinnerClan = 1;
+	MapWinnerClan = 1;
+} else if (ClansNbPlayersAlive[1] == 0) {
+	EndRound = True;
+	RoundWinnerClan = 2;
+} else if (ClansNbPlayersAlive[2] == 0) {
+	EndRound = True;
+	RoundWinnerClan = 1;
+}
+
+if (G_ComboTime > 0) {
+	if (G_ComboClan == 1 && ClansNbPlayersAlive[2] == 0) {
+		EndRound = True;
+		RoundWinnerClan = 1;
+	} else if (G_ComboClan == 2 && ClansNbPlayersAlive[1] == 0) {
+		EndRound = True;
+		RoundWinnerClan = 2;
+	}
+}
+if (EndMap || EndRound) MB_StopRound = True;
+if (EndMap) MB_StopMap = True;
+***
+
+***EndRound***
+***
+UIManager.UIAll.StatusMessage = "";
+Message::CleanAllMessages();
+Score::RoundEnd();
+UIManager.UIAll.CountdownEndTime = -1;
+OffZoneRadius = -1.;
+OffZoneRadiusSpeed = 0.;
+G_OffZoneIsActivated = False;
+
+// ---------------------------------- //
+// Update scores
+if (ClanScores.existskey(RoundWinnerClan)) {
+	ClanScores[RoundWinnerClan] += 1;
+	if (RoundWinnerClan == 1 || RoundWinnerClan == 2) {
+		Message::SendBigMessage(TL::Compose(_("$<%1$> wins the round"), Teams[RoundWinnerClan - 1].ColorizedName), 3000, 1);
+	}
+}
+UpdateScoresHeader();
+UpdateModeStatusMessage();
+
+// ---------------------------------- //
+// Save the current player clan for ladder ranking
+foreach (Player in Players) {
+	if (Player.Score == Null) continue;
+	Player.Score.LadderClan = Player.CurrentClan;
+}
+
+// ---------------------------------- //
+// Check if the points limit is reached
+declare EndMap = False;
+if (S_Script_PointsLimit > 0) {
+	if (ClanScores[1] >= S_Script_PointsLimit && ClanScores[1] > ClanScores[2]) {
+		EndMap = True;
+		MapWinnerClan = 1;
+	} else if (ClanScores[2] >= S_Script_PointsLimit && ClanScores[2] > ClanScores[1]) {
+		EndMap = True;
+		MapWinnerClan = 2;
+	}
+}
+if (EndMap) {
+	MB_StopMap = True;
+} else {
+	MB_Sleep(500);
+	SM::UnspawnAllPlayers();
+	StartTime = -1;
+	MB_Sleep(2500);
+}
+***
+
+***EndMap***
+***
+MB_Sleep(500);
+StartTime = -1;
+EndTime = -1;
+DestroyAllItems();
+
+// ---------------------------------- //
+// Update UI
+UIManager.UIAll.CountdownEndTime = -1;
+Message::CleanAllMessages();
+LayerDetached = Layers::Detach("Info", NullId);
+
+foreach (Score in Scores) {
+	Score.LadderMatchScoreValue = ML::ToReal(Score.Points);
+	declare PrevPoints for Score = 0;
+	PrevPoints = Score.Points;
+	if (Score.LadderClan == MapWinnerClan) {
+		Score.Points = 3;
+		Score.LadderMatchScoreValue *= 2.;
+	} else if (Score.LadderClan == 3 - MapWinnerClan) {
+		Score.Points = 2;
+		Score.LadderMatchScoreValue *= 1.;
+	} else {
+		Score.Points = 1;
+		Score.LadderMatchScoreValue *= 0.5;
+	}
+}
+Ladder_SetResultsVersion(1);
+Score::MatchEnd(True);
+foreach (Score in Scores) {
+	declare PrevPoints for Score = 0;
+	Score.Points = PrevPoints;
+}
+ScoresTable::EndMatch();
+
+// ---------------------------------- //
+// Winning sequence
+UIManager.UIAll.UISequence				= CUIConfig::EUISequence::EndRound;
+UIManager.UIAll.BigMessageSound			= CUIConfig::EUISound::EndMatch;
+UIManager.UIAll.ScoreTableVisibility	= CUIConfig::EVisibility::ForcedVisible;
+if (MapWinnerClan == 1 || MapWinnerClan == 2) {
+	UIManager.UIAll.BigMessage = TL::Compose(_("$<%1$> wins the map"), Teams[MapWinnerClan - 1].ColorizedName);
+} else {
+	UIManager.UIAll.BigMessage = _("|Match|Draw");
+}
+MB_Sleep(C_SleepEndMap/2);
+UIManager.UIAll.UISequence				= CUIConfig::EUISequence::Podium;
+MB_Sleep(C_SleepEndMap/2);
+UIManager.UIAll.ScoreTableVisibility	= CUIConfig::EVisibility::Normal;
+UIManager.UIAll.BigMessage				= "";
+
+MatchmakingWait();
+***
+
+***EndServer***
+***
+ScoresTable::Unload();
+SpawnScreen::DestroyRules();
+SpawnScreen::DestroyScores();
+SpawnScreen::DestroyMapInfo();
+
+// ---------------------------------- //
+// Destroy layer
+LayerDestroyed = Layers::Destroy("Info");
+***
+
+// ---------------------------------- //
+/// Update the ModeStatusMessage
+Void UpdateModeStatusMessage() {
+	declare Text BaseRules = _("2 vs 2: Eliminate the two opponents within a short range of time. Pick up items to power up your team.");
+	
+	declare Text RoundsToWinSetting = ""^S_PointsLimit;
+	declare Text MatchScore = ClanScores[1] ^ " - " ^ ClanScores[2];
+	ModeStatusMessage = TL::Compose("%1\nRounds to win: %2 \\ Current Score: %3", BaseRules, RoundsToWinSetting, MatchScore);
+}
+
+// ---------------------------------- //
+/// End map timer for MatchMaking
+Void MatchmakingWait() {
+	declare PrevMatchmakingSleep = S_MatchmakingSleep;
+	StartTime = Now;
+	if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
+	else UIManager.UIAll.CountdownEndTime = -1;
+	while (S_MatchmakingSleep < 0 || UIManager.UIAll.CountdownEndTime > Now) {
+		if (PrevMatchmakingSleep != S_MatchmakingSleep) {
+			PrevMatchmakingSleep = S_MatchmakingSleep;
+			if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
+			else UIManager.UIAll.CountdownEndTime = -1;
+		}
+		+++SleepLoop+++
+		yield;
+	}
+	StartTime = -1;
+	UIManager.UIAll.CountdownEndTime = -1;
+}
+
+// ---------------------------------- //
+/// Update the base colors
+Void UpdateBasesColors() {
+	foreach (Base in Bases) {
+		Base.Clan = 0;
+		Base.IsActive = True;
+	}
+}
+
+// ---------------------------------- //
+/** Update the combo
+ *
+ *	@param	_NewComboClan	The clan who updated the combo
+ */
+Void UpdateCombo(Integer _NewComboClan) {
+	// Start combo
+	if (G_ComboClan == 0 || G_ComboClan == _NewComboClan) {
+		if (!G_OffZoneIsActivated) {
+			G_ComboClan = _NewComboClan;
+			G_ComboNextTick = Now;
+			if (G_ClanComboTimeLimit.existskey(G_ComboClan)) {
+				G_ComboTime = G_ClanComboTimeLimit[G_ComboClan];
+				G_ClanComboTimeLimit[G_ComboClan] += C_ComboTimeStep;
+				Message::SendBigMessage(Teams[G_ComboClan-1].ColorText^(G_ComboTime / 1000), 1000, 1, CUIConfig::EUISound::TieBreakPoint, 0);
+				if (_NewComboClan == 1) {
+					declare netwrite Integer Net_Combo_ComboClan1 for Teams[0];
+					Net_Combo_ComboClan1 = G_ClanComboTimeLimit[G_ComboClan];
+				} else if (_NewComboClan == 2) {
+					declare netwrite Integer Net_Combo_ComboClan2 for Teams[0];
+					Net_Combo_ComboClan2 = G_ClanComboTimeLimit[G_ComboClan];
+				}
+			}
+		}
+	}
+	// Combo breaker
+	else {
+		G_ComboClan = 0;
+		G_ComboTime = 0;
+		if (Teams.existskey(_NewComboClan-1)) {
+			declare Message = TL::Compose("%1%2", Teams[_NewComboClan-1].ColorText, _("Combo breaker"));
+			Message::SendBigMessage(Message, 3000, 1, CUIConfig::EUISound::TiePoint, 0);
+		}
+	}
+}
+
+// ---------------------------------- //
+/// Update the scores header
+Void UpdateScoresHeader() {
+	UIManager.UIAll.OverlayScoreSummary = True;
+	declare PlayerClan1Id = NullId;
+	declare PlayerClan2Id = NullId;
+	
+	foreach (Player in Players) {
+		if ((PlayerClan1Id == NullId) && (Player.CurrentClan == 1)) PlayerClan1Id = Player.Id;
+		if ((PlayerClan2Id == NullId) && (Player.CurrentClan == 2)) PlayerClan2Id = Player.Id;
+		
+		if (PlayerClan1Id != NullId && PlayerClan2Id != NullId) break;
+	}
+	
+	if (PlayerClan1Id != NullId) UIManager.UIAll.ScoreSummary_Player1 = PlayerClan1Id;
+	else UIManager.UIAll.ScoreSummary_Player1 = NullId;
+	if (PlayerClan2Id != NullId) UIManager.UIAll.ScoreSummary_Player2 = PlayerClan2Id;
+	else UIManager.UIAll.ScoreSummary_Player2 = NullId;
+	
+	UIManager.UIAll.ScoreSummary_Points1 = ClanScores[1];
+	UIManager.UIAll.ScoreSummary_Points2 = ClanScores[2];
+	UIManager.UIAll.ScoreSummary_MatchPoints1 = -1;
+	UIManager.UIAll.ScoreSummary_MatchPoints2 = -1;
+}
+
+// ---------------------------------- //
+/// Update the players lists on the side of the screen
+Text UpdateLayerInfo() {
+	declare LoginsTeam = [1 => "", 2 => ""];
+	for (Clan, 1, 2) {
+		if (!G_ClansPlayers.existskey(Clan)) continue;
+		foreach (PlayerId in G_ClansPlayers[Clan]) {
+			if (!Players.existskey(PlayerId)) continue;
+			if (LoginsTeam[Clan] == "") LoginsTeam[Clan] ^= Players[PlayerId].Login;
+			else LoginsTeam[Clan] ^= ","^Players[PlayerId].Login;
+		}
+	}
+	
+	return """
+<frame>
+	<quad posn="-160 72" sizen="41 4" halign="left" bgcolor="0007" />
+	<quad posn="-159 77 1" sizen="10 10" halign="left" style="Emblems" substyle="#1" /> 
+	<label id="team1name" posn="-149 72 1" sizen="40 4" halign="left" textprefix="$s" text="Blue" />
+</frame>
+<frame>
+	<quad posn="160 72" sizen="41 4" halign="right" bgcolor="0007" />
+	<quad posn="159 77 1" sizen="10 10" halign="right" style="Emblems" substyle="#2" /> 
+	<label id="team2name" posn="149 72 1" sizen="40 4" halign="right" textprefix="$s" text="Red" />
+</frame>
+<playerlist posn="-160 67" halign="left"  substyle="Medium" lines="{{{S_Script_NbPlayersPerTeam}}}" columns="1" team="1" status="Playing" logins="{{{LoginsTeam[1]}}}" />
+<playerlist posn=" 160 67" halign="right" substyle="Medium" lines="{{{S_Script_NbPlayersPerTeam}}}" columns="1" team="2" status="Playing" logins="{{{LoginsTeam[2]}}}"/>
+<frame posn="0 71 5" id="Frame_ScoreInfo">
+	<label posn="-25 0.5 6" sizen="15 5" textsize="4" halign="right" valign="center" textemboss="1" text="0" id="Label_ComboClan1" />
+	<quad posn="-22 0 6" sizen="5 5" halign="center" valign="center" style="Icons64x64_1" substyle="GenericButton" />
+	<quad posn=" 22 0 6" sizen="5 5" halign="center" valign="center" style="Icons64x64_1" substyle="GenericButton" />
+	<label posn="25 0.5 6" sizen="15 5" textsize="4" halign="left" valign="center" textemboss="1" text="0" id="Label_ComboClan2" />
+</frame>
+<frame posn="-68 -76" id="Frame_WeaponInfo">
+	<quad posn="0 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}Laser.dds" id="Quad_IconLaser" />
+	<quad posn="12 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}Nucleus.dds" id="Quad_IconNucleus" />
+	<quad posn="24 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}Arrow.dds" id="Quad_IconArrow" />
+	<quad posn="36 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}Rocket.dds" id="Quad_IconRocket" />
+	<frame posn="0 0.3">
+		<label posn="0 0" sizen="6 6" halign="left" valign="center" textemboss="1" text="0" id="Label_AmmoLaser" />
+		<label posn="12 0" sizen="6 6" halign="left" valign="center" textemboss="1" text="0" id="Label_AmmoNucleus" />
+		<label posn="24 0" sizen="6 6" halign="left" valign="center" textemboss="1" text="0" id="Label_AmmoArrow" />
+		<label posn="36 0" sizen="6 6" halign="left" valign="center" textemboss="1" text="0" id="Label_AmmoRocket" />
+	</frame>
+</frame>
+<script><!--
+	#Include "TextLib" as TL
+	
+	main() {
+		declare Frame_WeaponInfo	<=> (Page.GetFirstChild("Frame_WeaponInfo")			as CMlFrame);
+		declare Label_Team1Name		<=> (Page.GetFirstChild("team1name")			as CMlLabel);
+		declare Label_Team2Name		<=> (Page.GetFirstChild("team2name")			as CMlLabel);
+		declare Label_ComboClan1	<=> (Page.GetFirstChild("Label_ComboClan1")		as CMlLabel);
+		declare Label_ComboClan2	<=> (Page.GetFirstChild("Label_ComboClan2")		as CMlLabel);
+		declare Label_AmmoLaser		<=> (Page.GetFirstChild("Label_AmmoLaser")		as CMlLabel);
+		declare Label_AmmoNucleus	<=> (Page.GetFirstChild("Label_AmmoNucleus")	as CMlLabel);
+		declare Label_AmmoArrow		<=> (Page.GetFirstChild("Label_AmmoArrow")		as CMlLabel);
+		declare Label_AmmoRocket	<=> (Page.GetFirstChild("Label_AmmoRocket")		as CMlLabel);
+		declare Quad_IconLaser		<=> (Page.GetFirstChild("Quad_IconLaser")		as CMlQuad);
+		declare Quad_IconNucleus	<=> (Page.GetFirstChild("Quad_IconNucleus")		as CMlQuad);
+		declare Quad_IconArrow		<=> (Page.GetFirstChild("Quad_IconArrow")		as CMlQuad);
+		declare Quad_IconRocket		<=> (Page.GetFirstChild("Quad_IconRocket")		as CMlQuad);
+		
+		declare netread Integer Net_Combo_ComboClan1 for Teams[0];
+		declare netread Integer Net_Combo_ComboClan2 for Teams[0];
+		
+		declare netread Integer			Net_Combo_AmmoUpdate	for UI;
+		declare netread Integer[Text]	Net_Combo_AmmoMax		for UI;
+		
+		declare netread Text Net_Combo_Weapon for UI;
+		
+		declare PrevIsSpectatorMode = False;
+		declare PrevTeam1Name		= "";
+		declare PrevTeam2Name		= "";
+		declare PrevComboClan1		= 0;
+		declare PrevComboClan2		= 0;
+		declare PrevAmmoUpdate		= 0;
+		declare PrevWeapon			= "";
+		
+		while (True) {
+			sleep(100);
+			if (!PageIsVisible) continue;
+			if (InputPlayer == Null) continue;
+			
+			if (PrevIsSpectatorMode != IsSpectatorMode) {
+				PrevIsSpectatorMode = IsSpectatorMode;
+				if (IsSpectatorMode) Frame_WeaponInfo.Hide();
+				else Frame_WeaponInfo.Show();
+			}
+			
+			if (PrevTeam1Name != Teams[0].ColorizedName) {
+				PrevTeam1Name = Teams[0].ColorizedName;
+				Label_Team1Name.SetText(Teams[0].ColorizedName);
+			}
+			if (PrevTeam2Name != Teams[1].ColorizedName) {
+				PrevTeam2Name = Teams[1].ColorizedName;
+				Label_Team2Name.SetText(Teams[1].ColorizedName);
+			}
+			if (PrevComboClan1 != Net_Combo_ComboClan1) {
+				PrevComboClan1 = Net_Combo_ComboClan1;
+				Label_ComboClan1.SetText(TL::ToText(PrevComboClan1/1000));
+			}
+			if (PrevComboClan2 != Net_Combo_ComboClan2) {
+				PrevComboClan2 = Net_Combo_ComboClan2;
+				Label_ComboClan2.SetText(TL::ToText(PrevComboClan2/1000));
+			}
+			if (PrevAmmoUpdate != Net_Combo_AmmoUpdate) {
+				PrevAmmoUpdate = Net_Combo_AmmoUpdate;
+				foreach (Weapon => 	AmmoMax in Net_Combo_AmmoMax) {
+					declare WeaponText = "$aaa"^AmmoMax;
+					declare WeaponIcon = "{{{C_ImgBaseDir}}}"^Weapon^".dds";
+					if (AmmoMax > 0) {
+						WeaponText = "$fff"^AmmoMax;
+						WeaponIcon = "{{{C_ImgBaseDir}}}"^Weapon^"White.dds";
+					}
+					switch (Weapon) {
+						case "Laser"	: {
+							Label_AmmoLaser.SetText(WeaponText);
+							if (Http.IsValidUrl(WeaponIcon)) Quad_IconLaser.ChangeImageUrl(WeaponIcon);
+						}
+						case "Nucleus"	: {
+							Label_AmmoNucleus.SetText(WeaponText);
+							if (Http.IsValidUrl(WeaponIcon)) Quad_IconNucleus.ChangeImageUrl(WeaponIcon);
+						}
+						case "Arrow"	: {
+							Label_AmmoArrow.SetText(WeaponText);
+							if (Http.IsValidUrl(WeaponIcon)) Quad_IconArrow.ChangeImageUrl(WeaponIcon);
+						}
+						case "Rocket"	: {
+							Label_AmmoRocket.SetText(WeaponText);
+							if (Http.IsValidUrl(WeaponIcon)) Quad_IconRocket.ChangeImageUrl(WeaponIcon);
+						}
+					}
+				}
+			}
+			if (PrevWeapon != Net_Combo_Weapon) {
+				switch (PrevWeapon) {
+					case "Laser"	: Quad_IconLaser.Scale		= 1.;
+					case "Nucleus"	: Quad_IconNucleus.Scale	= 1.;
+					case "Arrow"	: Quad_IconArrow.Scale		= 1.;
+					case "Rocket"	: Quad_IconRocket.Scale		= 1.;
+				}
+				switch (Net_Combo_Weapon) {
+					case "Laser"	: Quad_IconLaser.Scale		= 1.3;
+					case "Nucleus"	: Quad_IconNucleus.Scale	= 1.3;
+					case "Arrow"	: Quad_IconArrow.Scale		= 1.3;
+					case "Rocket"	: Quad_IconRocket.Scale		= 1.3;
+				}
+				PrevWeapon = Net_Combo_Weapon;
+			}
+		}
+	}
+--></script>""";
+}
+
+// ---------------------------------- //
+/// Update the players allowed to play
+Void UpdateClansPlayers() {
+	declare ToRemove = [1 => Ident[], 2 => Ident[]];
+	declare AllowedPlayers = Ident[];
+	declare PlayersListNeedUpdate = False;
+	foreach (Clan => ClanPlayers in G_ClansPlayers) {
+		foreach (PlayerId in ClanPlayers) {
+			if (!Players.existskey(PlayerId)) {
+				ToRemove[Clan].add(PlayerId);
+				UpdateCombo(3 - Clan);
+			} else {
+				AllowedPlayers.add(PlayerId);
+			}
+		}
+	}
+	foreach (Clan => ClanPlayers in ToRemove) {
+		foreach (PlayerId in ClanPlayers) {
+			declare Removed = G_ClansPlayers[Clan].remove(PlayerId);
+			PlayersListNeedUpdate = True;
+		}
+	}
+	for (Clan, 1, 2) {
+		if (G_ClansPlayers[Clan].count < S_Script_NbPlayersPerTeam) {
+			if (ClansNbPlayers[Clan] > ClansNbPlayersAlive[Clan]) {
+				foreach (Player in Players) {
+					if (AllowedPlayers.exists(Player.Id)) continue;
+					SetPlayerClan(Player, Player.RequestedClan);
+					if (Player.CurrentClan == Clan) {
+						G_ClansPlayers[Clan].add(Player.Id);
+						PlayersListNeedUpdate = True;
+					}
+				}
+			}
+		}
+	}
+	if (PlayersListNeedUpdate) {
+		declare LayerUpdated = Layers::Update("Info", UpdateLayerInfo());
+	}
+}
+
+// ---------------------------------- //
+/// Spawn items
+Void Combo_SpawnItem() {
+	foreach (ItemAnchor in ItemAnchors) {
+		declare ItemSpawned for ItemAnchor = False;
+		declare ItemNextSpawn for ItemAnchor = Now;
+		if (ItemSpawned) continue;
+		if (ItemNextSpawn > Now) continue;
+		
+		declare CSmItem Item;
+		switch (ItemAnchor.Tag) {
+			case C_Item["Armor"]	: Item = CreateItem(G_ItemId[C_Item["Armor"]]);
+			case C_Item["Rocket"]	: Item = CreateItem(G_ItemId[C_Item["Rocket"]]);
+			case C_Item["Laser"]	: Item = CreateItem(G_ItemId[C_Item["Laser"]]);
+			case C_Item["Nucleus"]	: Item = CreateItem(G_ItemId[C_Item["Nucleus"]]);
+			case C_Item["Arrow"]	: Item = CreateItem(G_ItemId[C_Item["Arrow"]]);
+		}
+		if (Item != Null) {
+			declare AnchorId for Item = NullId;
+			declare Tag for Item = ItemAnchor.Tag;
+			Item.StayInArena = False;
+			AnchorId = ItemAnchor.Id;
+			Tag = ItemAnchor.Tag;
+			ItemSpawned = True;
+			AttachItemToAnchor(Item, ItemAnchor);
+		}
+	}
+}
+
+// ---------------------------------- //
+/** Add ammo to a player weapon
+ *
+ *	@param	_Player		The player who'll receive the ammo
+ *	@param	_Weapon		The weapon to load
+ *	@param	_Ammo		The number of ammo to add
+ */
+Void AddAmmoMax(CSmPlayer _Player, Text _Weapon, Integer _Ammo) {
+	declare CSmMode::EWeapon Weapon;
+	switch (_Weapon) {
+		case "Laser"	: Weapon = CSmMode::EWeapon::Laser;
+		case "Nucleus"	: Weapon = CSmMode::EWeapon::Nucleus;
+		case "Arrow"	: Weapon = CSmMode::EWeapon::Arrow;
+		case "Rocket"	: Weapon = CSmMode::EWeapon::Rocket;
+		default			: return;
+	}
+	
+	declare AmmoMax for _Player = C_AmmoMax;
+	AmmoMax[_Weapon] += 1;
+	SetPlayerAmmoMax(_Player, Weapon, AmmoMax[_Weapon]);
+	
+	declare UI <=> UIManager.GetUI(_Player);
+	if (UI != Null) {
+		declare netwrite Integer		Net_Combo_AmmoUpdate	for UI;
+		declare netwrite Integer[Text]	Net_Combo_AmmoMax		for UI;
+		Net_Combo_AmmoUpdate = Now;
+		Net_Combo_AmmoMax = AmmoMax;
+	}
+}
+
+// ---------------------------------- //
+/** Pick up weapon
+ *
+ *	@param	_Player		The player who picked up the item
+ *	@param	_Weapon		The item picked up by the player
+ */
+Void PickUpWeapon(CSmPlayer _Player, Text _Weapon) {
+	declare CSmMode::EWeapon Weapon;	
+	switch (_Weapon) {
+		case "Laser"	: Weapon = CSmMode::EWeapon::Laser;
+		case "Nucleus"	: Weapon = CSmMode::EWeapon::Nucleus;
+		case "Arrow"	: Weapon = CSmMode::EWeapon::Arrow;
+		case "Rocket"	: Weapon = CSmMode::EWeapon::Rocket;
+		default			: return;
+	}
+	
+	// Player picking up the weapon and his teammates
+	foreach (Player in Players) {		
+		if (Player.CurrentClan == _Player.CurrentClan) {
+			AddAmmoMax(Player, _Weapon, 1);
+			
+			declare Weapons for Player = CSmMode::EWeapon[];
+			if (!Weapons.exists(Weapon)) {
+				Weapons.add(Weapon);
+				AddPlayerAmmo(_Player, Weapon, 1.);
+			}
+				
+			Message::SendStatusMessage(
+				Player,
+				TL::Compose(_("|Player picked up item|$<%1$> picked up %2"), _Player.Name, _Weapon), 
+				3000, 1, CUIConfig::EUISound::Notice, 0
+			);
+		}
+	}	
+}
+
+// ---------------------------------- //
+/** Pick up item
+ *
+ *	@param	_Player		The player who picked up the item
+ *	@param	_Item		The item picked up by the player
+ */
+Void PickUpItem(CSmPlayer _Player, CSmItem _Item) {
+	if (_Player == Null || _Item == Null) return;
+	
+	declare Tag for _Item = "";
+	declare AnchorId for _Item = NullId;
+	
+	if (!ItemAnchors.existskey(AnchorId)) return;
+	declare ItemAnchor <=> ItemAnchors[AnchorId];
+	declare ItemSpawned for ItemAnchor = False;
+	declare ItemNextSpawn for ItemAnchor = Now;
+	ItemSpawned = False;
+	if (C_Timers.existskey(Tag)) ItemNextSpawn = Now + C_Timers[Tag];
+	
+	switch (Tag) {
+		case C_Item["Armor"]: {
+			_Player.Armor += C_Item_ArmorValue;
+			//ItemNextSpawn = Now + C_Timers["Armor"];
+			if (_Player.Armor > C_ArmorReductionStart) {
+				declare NextArmorReduction for _Player = -1;
+				NextArmorReduction = Now + C_ArmorReductionPeriod;
+			}
+		}
+		case C_Item["Rocket"]: {
+			PickUpWeapon(_Player, Tag);
+		}
+		case C_Item["Laser"]: {
+			PickUpWeapon(_Player, Tag);
+		}
+		case C_Item["Nucleus"]: {
+			PickUpWeapon(_Player, Tag);
+		}
+		case C_Item["Arrow"]: {
+			PickUpWeapon(_Player, Tag);
+		}
+	}
+	
+	AttachItemToPlayer(_Item, _Player);
+	DestroyItem(_Item);
+}
+
+// ---------------------------------- //
+/** Switch the weapon of a player
+ *
+ *	@param	_Player		The player who will switch weapon
+ *	@param	_Weapon		The number of the new weapon
+ */
+Void SwitchWeapon(CSmPlayer _Player, CSmModeEvent::EActionSlots _Weapon) {
+	declare Weapons for _Player = CSmMode::EWeapon[];
+	declare UI <=> UIManager.GetUI(_Player);
+	
+	switch (_Weapon) {
+		// Rocket
+		case CSmModeEvent::EActionSlots::Activable4: {
+			if (!Weapons.exists(CSmMode::EWeapon::Rocket)) return;
+			SetPlayerWeapon(_Player, CSmMode::EWeapon::Rocket, False);
+			_Player.AmmoGain = C_AmmoGain["Rocket"];
+			if (UI != Null) {
+				declare netwrite Text Net_Combo_Weapon for UI;
+				Net_Combo_Weapon = "Rocket";
+			}
+		}
+		// Laser
+		case CSmModeEvent::EActionSlots::Activable1: {
+			if (!Weapons.exists(CSmMode::EWeapon::Laser)) return;
+			SetPlayerWeapon(_Player, CSmMode::EWeapon::Laser, False);
+			_Player.AmmoGain = C_AmmoGain["Laser"];
+			if (UI != Null) {
+				declare netwrite Text Net_Combo_Weapon for UI;
+				Net_Combo_Weapon = "Laser";
+			}
+		}
+		// Nucleus
+		case CSmModeEvent::EActionSlots::Activable2: {
+			if (!Weapons.exists(CSmMode::EWeapon::Nucleus)) return;
+			SetPlayerWeapon(_Player, CSmMode::EWeapon::Nucleus, False);
+			_Player.AmmoGain = C_AmmoGain["Nucleus"];
+			if (UI != Null) {
+				declare netwrite Text Net_Combo_Weapon for UI;
+				Net_Combo_Weapon = "Nucleus";
+			}
+		}
+		// Arrow
+		case CSmModeEvent::EActionSlots::Activable3: {
+			if (!Weapons.exists(CSmMode::EWeapon::Arrow)) return;
+			SetPlayerWeapon(_Player, CSmMode::EWeapon::Arrow, False);
+			_Player.AmmoGain = C_AmmoGain["Arrow"];
+			if (UI != Null) {
+				declare netwrite Text Net_Combo_Weapon for UI;
+				Net_Combo_Weapon = "Arrow";
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
+/** Can we start the turn or not?
+ *
+ * @param _MinimumCriteria	True: At least 1 player in each clan ready | False: all players with 1 atk and 1 def ready
+ *
+ * @return		True if we can start the turn, false otherwise
+ */
+Boolean CanStopWarmUp(Boolean _MinimumCriteria) {
+	declare NbClan1 = 0;
+	declare NbClan1Ready = 0;
+	declare NbClan2 = 0;
+	declare NbClan2Ready = 0;
+	declare CanStart = False;
+	
+	// Can't start round if ...
+	foreach (ClanNumber => ClanOrder in WarmUp::GetOrder()) {
+		// ... a slot is empty
+		if (S_AllowUnbalancedTeams) {
+			if (ClanOrder.count < 1) {
+				return False;
+			}
+		} else {
+			if (ClanOrder.count != S_Script_NbPlayersPerTeam) {
+				return False;
+			}
+		}
+		foreach (PlayerId => PlayerOrder in ClanOrder) {
+			// ... the player in the slot doesn't exist
+			if (!Players.existskey(PlayerId)) {
+				return False;
+			}
+			// ... the player in the slot changed team
+			else if (Players[PlayerId].RequestedClan != ClanNumber) {
+				return False;
+			}
+			// In other cases, check if the player is ready
+			else {
+				declare IsPlayerReady = False;
+				declare Player <=> Players[PlayerId];
+				
+				// Bot default to ready state
+				if (Player.IsFakePlayer) {
+					IsPlayerReady = True;
+				} else {
+					IsPlayerReady = WarmUp::IsReady(Player);
+				}
+				declare Clan = 0;
+				Clan = Player.RequestedClan;
+				if (Clan == 1) {
+					if (IsPlayerReady) NbClan1Ready += 1;
+					NbClan1 += 1;
+				} else if (Clan == 2) {
+					if (IsPlayerReady) NbClan2Ready += 1;
+					NbClan2 += 1;
+				}
+			}
+		}
+	}
+	
+	// If we don't want to use the warmup, return true when there's at least one player in each clan
+	if (S_WarmUpDuration <= 0) {
+		return True;
+	} else if (_MinimumCriteria) {
+		if ((NbClan1Ready >= 1) && (NbClan2Ready >= 1)) return True;
+		else return False;
+	} else {
+		if (S_AllowUnbalancedTeams) {
+			if((NbClan1Ready == NbClan1) && (NbClan2Ready == NbClan2)) return True;
+			else return False;
+		} else {
+			if((NbClan1Ready >= S_Script_NbPlayersPerTeam) && (NbClan2Ready >= S_Script_NbPlayersPerTeam)) return True;
+			else return False;
+		}
+	}
+	
+	return False;
+}
+
+// ---------------------------------- //
+/// Manage the warm up sequence
+Void WarmUp() {
+	// Init warm up
+	declare PrevSequence = UIManager.UIAll.UISequence;
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
+	UIManager.UIAll.BigMessage = _("Warm-up");
+	UIManager.UIAll.StatusMessage = _("Press F6 once you're ready.");
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	declare RazorTime = -1;
+	StartTime = Now + 1000;
+	EndTime = -1;
+	
+	// ---------------------------------- //
+	// Initialize items
+	DestroyAllItems();
+	foreach (ItemAnchor in ItemAnchors) {
+		declare ItemSpawned for ItemAnchor = False;
+		declare ItemNextSpawn for ItemAnchor = Now;
+		ItemSpawned = False;
+		ItemNextSpawn = Now;
+	}
+	Combo_SpawnItem();
+	
+	// Param: Duration, UseTeam, UseOrder, NumberOfPlayers
+	WarmUp::Before(S_WarmUpDuration, True, True, S_Script_NbPlayersPerTeam);
+	WarmUp::ResetOrder();
+	declare Cleaned = WarmUp::CleanOrder();
+	
+	foreach (Player in Players) {
+		SetPlayerClan(Player, Player.RequestedClan);
+	}
+	
+	while ((EndTime == -1 || Now <= EndTime) && !ServerShutdownRequested && !MatchEndRequested) {
+		yield;
+		
+		// Let the server sleep if there's no players on it
+		if (PlayersNbTotal <= 0) continue;
+		
+		WarmUp::Loop();
+		SM::UnspawnPlayersChangingClan();
+		
+		// Manage players
+		foreach (Player in Players) {
+			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+				SetPlayerClan(Player, Player.RequestedClan);
+				SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, False);
+				declare BlockSpawn <=> SM::GetSpawn("Spawn", Player.CurrentClan);
+				if (BlockSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, 200, BlockSpawn, Now);
+			}
+		}
+		
+		{
+			// Warmup ending conditions
+			declare SomePlayersReady = CanStopWarmUp(True);
+			declare AllPlayersReady = CanStopWarmUp(False);
+			
+			if (AllPlayersReady || WarmUp::EndRequested()) {
+				if (EndTime == -1 && S_WarmUpDuration <= 0) EndTime = Now;
+				else if (EndTime == -1 || EndTime > Now + 5000) EndTime = Now + 5 * 1000;
+			} else if (SomePlayersReady) {
+				if (RazorTime == -1) RazorTime = Now + S_WarmUpDuration*1000;
+				EndTime = RazorTime;
+			} else {
+				RazorTime = -1;
+				EndTime = -1;
+			}
+		}
+	}
+	
+	WarmUp::After();
+	
+	StartTime = -1;
+	EndTime = -1;
+	
+	declare PlayersOrder = WarmUp::GetOrder();
+	declare AllowedPlayers = Ident[];
+	for (I, 1, 2) {
+		foreach (PlayerId => PlayerOrder in PlayersOrder[I]) {
+			AllowedPlayers.add(PlayerId);
+		}
+	}
+	
+	// Init players
+	foreach (Player in Players) {
+		if (AllowedPlayers.exists(Player.Id)) {
+			declare ValidPlayer for Player = False;
+			ValidPlayer = True;
+		} else {
+			declare ValidPlayer for Player = False;
+			ValidPlayer = False;
+		}
+	}
+	
+	SM::UnspawnAllPlayers();
+	sleep(3000);
+	DestroyAllItems();
+	UIManager.UIAll.BigMessage = "";
+	UIManager.UIAll.StatusMessage = "";
+	UIManager.UIAll.UISequence = PrevSequence;
+}

@@ -1,4 +1,4 @@
-game-modes
+Game modes script
 ==========
 
-ManiaPlanet game modes script
+This project regroup some of the ManiaPlanet game modes scripts.

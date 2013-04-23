@@ -1,0 +1,1928 @@
+/**
+ *	Mode Royal
+ */
+
+#Extends "Modes/ShootMania/ModeBase.Script.txt"
+
+#Const CompatibleMapTypes	"RoyalArena"
+#Const Version				"2013-04-17"
+#Const ScriptName			"Royal.Script.txt"
+
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/Top2.Script.txt" 							as Top
+#Include "Libs/Nadeo/Layers.Script.txt" 						as Layers
+#Include "Libs/Nadeo/Message.Script.txt" 						as Message
+#Include "Libs/Nadeo/Interface.Script.txt"						as Slider
+#Include "Libs/Nadeo/TabsServer.Script.txt" 					as Tabs
+#Include "Libs/Nadeo/ShootMania/SM.Script.txt" 					as SM
+#Include "Libs/Nadeo/ShootMania/Score.Script.txt" 				as Score
+#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" 		as SpawnScreen
+#Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" 		as ScoresTable
+#Include "Libs/Nadeo/ShootMania/BeginnersWelcome.Script.txt" 	as Beginners
+#Include "Libs/Nadeo/ShootMania/AFK.Script.txt" 				as AFK
+
+/* ------------------------------------- */
+// Settings
+/* ------------------------------------- */
+#Setting S_MapPointsLimit			200		as _("Points to win a map")
+#Setting S_OffZoneActivationTime	4		as _("OffZone activation duration")
+#Setting S_OffZoneAutoStartTime		90		as _("Time before auto activation of the OffZone")
+#Setting S_OffZoneTimeLimit			50		as _("OffZone shrink duration")
+#Setting S_OffZoneMaxSpeed			1.25	as _("Maximum speed multiplier for the OffZone")
+#Setting S_EndRoundTimeLimit		60		as _("Time limit after the OffZone is completly shrunk")
+#Setting S_SpawnInterval			5		as _("Time between each wave of spawns")
+#Setting S_UseEarlyRespawn			True	as _("Allow early respawn")
+#Setting S_EndMapChatTime			20		as _("End map chat time")
+#Setting S_AllowAllies				True	as _("Allow players to ally")
+#Setting S_AllowBeginners			False	as _("Is a Beginners Welcome server")
+#Setting S_AutoManageAFK			True	as _("Switch inactive players to spectators")
+
+#Const C_OffZoneMinRadius		16.		///< Minimum size of the OffZone at the end
+#Const C_OffZoneDefaultRadius	300.	///< Starting radius of the OffZone
+#Const C_ArmorMax				200		///< Maximum number of armor at spawn
+#Const C_ArmorRespawn			100		///< Armor after an early respawn
+#Const C_RandomEarlyRespawn		True	///< Spawn at a random point when early respawning
+#Const C_DamageMax				100		///< Not possible to inflict more damage with one hit
+#Const C_CaptureSpeedBonus		1.		///< Default capture speed bonus
+#Const C_GaugeMultiplier		1000	///< Gauge.Max multiplier used for exact capture speed calculation
+#Const C_AllowDrawMap			False	///< Allow a map to end in a tie
+#Const C_AllowDoubleCapture		False	///< Allow the pole to be captured a second time
+#Const C_MaxAllies				3		///< Maximum number of allies in an alliance
+
+#Const C_ScoresTableWidth		200.	///< Width of the scores table UI
+#Const C_ScoresTableScale		1.		///< Scale of the scores table UI
+#Const C_ScoresTableNbPlayers	16		///< Number of players in the scores table
+#Const C_ScoresTablePlayerHeight 6.		///< Height of a line for a player
+#Const C_AFKsCheckFrequency		30000 	///< milli sec., check AFKs every ...
+
+#Const C_ScoreHit		1	///< Index for hit points
+#Const C_ScoreSurvival	2	///< Index for survival points
+#Const C_ScorePole		3	///< Index for pole points
+
+#Const C_NormalSpawn	0
+#Const C_EarlyRespawn	1
+
+#Const C_TopId_Hit 		"HIT"
+#Const C_TopId_Survival "SURVIVAL"
+#Const C_TopId_Pole 	"POLE"
+#Const C_TopId_Round 	"ROUND"
+#Const C_SlideId_Hit		1
+#Const C_SlideId_Survival	2
+#Const C_SlideId_Pole		3
+#Const C_SlideId_Round		4
+
+#Const C_TabMenu	1
+#Const C_AltMenu	2
+
+#Const C_BestHitColor "$f00"
+#Const C_BonusWhenBestPlayerIsHit	1
+
+#Const C_UI_Colors [
+	"BG" => "0000",
+	"Separator" => "0000",
+	"Text" => "ffff"
+]
+
+#Const C_AltMenuBgImage "file://Media/Manialinks/ShootMania/Royal/ScoresTableBg.dds"
+#Const C_TopsBgImage 	"file://Media/Manialinks/ShootMania/Royal/TopsBg.dds"
+#Const C_WelcomeBgImage "file://Media/Manialinks/ShootMania/Common/WelcomeBg.dds"
+
+#Const C_AltMenuWidth	260.
+
+#Const C_NbBots	0	///< Number of bots for debug
+
+#Const Description _("TYPE: Individual\nOBJECTIVE: Survive as long as possible to score a maximum of points. Bonus points are awarded for the pole capture and for each player hit.\nOnce you're eliminated you have to wait for the next round to respawn.\nIf the pole is captured then the playing area will start to shrink. If a player leaves this area he is eliminated.\nThe first player to reach the points limit wins.")
+
+#Const C_DisplayRulesReminder	True
+
+/* ------------------------------------- */
+// Globales variables
+/* ------------------------------------- */
+declare Integer			G_SurvivalScore;	///< The current score for survival
+declare Ident[Integer]	G_LastEliminations;	///< Save the last 2 eliminated players
+declare Ident			G_BestHitPlayerThisRound;
+declare Ident 			G_TabPaneID;
+declare Vec2			G_AltMenuSize;
+declare Integer			G_PointsOnCapture;
+
+/* -------------------------------------- */
+// Extend
+/* -------------------------------------- */
+
+***LogVersion***
+***
+MB_LogVersion(ScriptName, Version);
+MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
+MB_LogVersion(AFK::GetScriptName(), AFK::GetScriptVersion());
+MB_LogVersion(Top::GetScriptName(), Top::GetScriptVersion());
+MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
+MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
+MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
+MB_LogVersion(Slider::GetScriptName(), Slider::GetScriptVersion());
+MB_LogVersion(Tabs::GetScriptName(), Tabs::GetScriptVersion());
+MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
+MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
+MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
+***
+
+***InitServer***
+***
+declare LayerAttached	= False;
+declare LayerDetached	= False;
+declare LayerUpdated	= False;
+declare LayerDestroyed	= False;
+declare AllowDoubleCapture = C_AllowDoubleCapture;
+declare OffZoneMaxSpeedTime = 20; ///<Duration of capture to reach maximum speed
+
+UseClans = False;
+UseAllies = S_AllowAllies;
+
+Beginners::Load("Nadeo_Royal");
+Beginners::CreateWelcomeWindow(TextLib::Compose(_("Welcome to Royal!")), TextLib::Compose(_("Be the last player standing to win.")));
+
+ScoresTable::Load();
+ScoresTable::SetTableFormat(2, 8);
+
+ScoresTable::SetColumnsWidth(
+		2.,	
+		1.5,
+		1.5,
+		20.,
+		1.5,
+		1.5,
+		3.,
+		3.,
+		3.,
+		4.,
+		5.
+	);
+
+ScoresTable::SetColumnsName("", _("|Hit/Survival, 6 chars max|Hit/Sv"), _("Pole"), _("Round"), _("Total"));
+ScoresTable::SetTableWidth(C_AltMenuWidth);
+declare Real ImgSize = 365.;
+ScoresTable::SetTableBackgroundImage(C_AltMenuBgImage, <0., 109.>, <376., 341.>);
+//ScoresTable::SetTableBackgroundImage(C_AltMenuBgImage, <0., 103.>, <376., 334.>);
++++ScoresTable+++
+ScoresTable::Build(); 
+ScoresTable::GetLayerScoresTable().Type = CUILayer::EUILayerType::Normal;
+
+declare AltMenuHeight = ScoresTable::GetHeight();
+G_AltMenuSize = <C_AltMenuWidth, AltMenuHeight>;
+
+Top::Load();
+Top::SetTopWidth(49.);
+Top::SetDefaultTitle();
+declare Real TopXPosition	= -75.;
+declare Real TopYPosition	= 30.;
+declare Real TopXOffset 	= 50.;
+declare Integer NbPlayersPerTop = 15;
+Top::Create(C_TopId_Hit, _("Top Hit"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+TopXPosition += TopXOffset;
+Top::Create(C_TopId_Survival, _("Top Survival"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+TopXPosition += TopXOffset;
+Top::Create(C_TopId_Pole, _("Top Pole"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+TopXPosition += TopXOffset;
+Top::Create(C_TopId_Round, _("Top Round"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+Top::SetCommonBackgroundImage(C_TopsBgImage,  <0.1, 154.9>, <376., 341.>);
+
+UIManager.UIAll.AltMenuNoCustomScores = False;
+***
+
+
+
+***StartServer***
+***
+MB_Log("Royal: Start Server");
+
+/* -------------------------------------- */
+// Set mode options and tops
+MB_UseSectionRound	= True;
+
+
+/* ------------------------------------- */
+// Create Rules
+declare ModeName = "Royal";
+declare ModeRules = TextLib::Compose(_("Free for all\n- Survive as long as possible to score a maximum of points.\n- Bonus points are awarded for the pole capture and for each player hit.\n- If the pole is captured then the playing area will start to shrink. If a player leaves this area he is eliminated.\n- The first player to reach %1 points wins."), TextLib::ToText(S_MapPointsLimit));
+UpdateModeStatusMessage();
++++ModeRulesText+++
+SpawnScreen::CreateRules(ModeName, ModeRules);
+SpawnScreen::CreateMapInfo();
+SpawnScreen::CreateScores();
+
+/* ------------------------------------- */
+// Init UI
+declare LayerSpawnQueueId		= Layers::Create("SpawnQueue");
+declare LayerRoundInfosId		= Layers::Create("RoundInfo", CreateLayerRoundInfos());
+Layers::GetFromName("RoundInfo").Type = CUILayer::EUILayerType::Normal;
+LayerAttached = Layers::Attach("ScoresInSpawn", NullId);
+
+UIManager.UIAll.AltMenuNoCustomScores = True;
+UIManager.UIAll.NoticesFilter_LevelToShowAsBigMessage = CUIConfig::ENoticeLevel::MatchInfo;
+
+---BuildTabs---
+
+CreateMarkersManialinkPage();
+Top::SetLayerType(CUILayer::EUILayerType::Normal);
+
+CreateRulesReminderLayer();
+***
+
+
+Void UpdateModeStatusMessage() {
+	declare Text BaseRules = _("TYPE: Individual\nOBJECTIVE: Survive as long as possible to score a maximum of points.");
+	
+	declare Text ScoreToWinSetting = ""^S_MapPointsLimit;
+	declare Text BestPlayerScore = "-";
+	if(Scores.count > 0){
+		BestPlayerScore = ""^(Scores[0].Points + Scores[0].RoundPoints);
+	} else {
+		BestPlayerScore = _("no score");
+	}
+	
+
+	//declare Text GlobalScore = TextLib::Compose(_("Match Score: %1\nRound Score: %2"), MatchScore, RoundScore);
+	
+	//ModeStatusMessage = TextLib::Compose("%1\n%2\n%3", BaseRules, WavesRules, GlobalScore);
+	ModeStatusMessage = TextLib::Compose("%1\nPoints to win: %2, Current best score: %3", BaseRules, ScoreToWinSetting, BestPlayerScore);
+}
+
+***BuildTabs***
+***
+// Create Tabs
+Tabs::Load();
+declare TabPane <=> Tabs::CreateTabPaneLayer(
+[
+	"TopTab"	=> "Buddies",
+	"ScoresTab" => "Rankings"
+], -5, -1, False);
+
+TabPane.Type = CUILayer::EUILayerType::AltMenu;
+G_TabPaneID = TabPane.Id;
+UIManager.UIAll.UILayers.add(TabPane);
+***
+
+
+***InitMap***
+***
+declare MapWinnerPlayer			= NullId;	///< User Id of the map winner
+declare BlockSpawnsPriorities	= [1=>CSmBlockSpawn[], 2=>CSmBlockSpawn[], 3=>CSmBlockSpawn[]];
+//declare Pole					<=> SM::GetPole("Goal", 0);	///< The pole used as the OffZone center
+
+assert(BlockPoles.count > 0, "No Pole found in the map.");
+declare Pole <=> BlockPoles[0];
+assert(Pole != Null, "Null Pole found in the map");
+***
+
+
+***StartMap***
+***
+Users_SetNbFakeUsers(C_NbBots, 0);
+Score::MatchBegin();
+SpawnScreen::AttachMapInfo();
+SpawnScreen::AttachScores();
+
+Slider::CreateSlider();
+Slider::AddSlide(C_SlideId_Hit, "Top", _("Top Hit"), C_TopId_Hit);
+Slider::AddSlide(C_SlideId_Survival, "Top", _("Top Survival"), C_TopId_Survival);
+Slider::AddSlide(C_SlideId_Pole, "Top", _("Top Pole"), C_TopId_Pole);
+Slider::AddSlide(C_SlideId_Round, "Top", _("Top Round"), C_TopId_Round);
+
+/* ------------------------------------- */
+// Init players
+foreach (Player in Players) {
+	declare SpawnOrder for Player = 0;
+	SpawnOrder = 0;
+}
+
+/* ------------------------------------- */
+// Init map scores
+foreach (Score in Scores) {
+	declare MapHit for Score = 0;		///< Points given by the number of hit
+	declare MapSurvival for Score = 0;	///< Points for survival
+	declare MapPole for Score = 0;		///< Points for capturing the pole
+	declare MapBestRound for Score = 0; ///< Best round this map
+	MapHit = 0;
+	MapSurvival = 0;
+	MapPole = 0;
+	MapBestRound = 0;
+}
+
+UpdateMarkers(True);
+Top::ResetAll();
+***
+
+
+***InitRound***
+***
+declare RoundWinnerPlayer	= NullId;					///< User Id of the round winner
+declare LastSpawnTime		= -S_SpawnInterval * 1000;	///< Last time a batch of player was spawned
+declare EarlyRespawnAllowed	= True;						///< Check if the players can early respawn
+declare GameplaySequence	= 0;						///< Current gameplay sequence
+declare PlayersSpawnQueue	= Integer[Ident];			///< Players waiting to be spawned: Order[Player.Id]
+declare PlayersSpawnedNb	= 0;						///< Number of players spawned for this round
+declare PlayersAlive		= Ident[Ident];				///< List of alive players: Player.Score.Id[Player.Id];
+declare FirstElimId			= NullId;					///< Id of the first eliminated user
+declare UpdateMarkers 		= False;					///< The Markers need an update
+declare OffZoneStartingRadiusSpeed = 1.;				///< Starting speed of the OffZone
+declare EarlyRespawnBlockPool = CSmBlockSpawn[];		///< Pool of available spawns for early respawn
+declare PoleCapturedByAPlayer = True;
+declare Alliances = Ident[][Integer];
+
+// To colorize max hit player
+declare Integer 	MaxHitThisRound = 0;
+G_BestHitPlayerThisRound = NullId;
+
+declare Boolean AllowBeginners = S_AllowBeginners;
+declare Integer CheckAFKsTime = 0;
+***
+
+
+***StartRound***
+***
+Score::RoundBegin();
+Message::CleanAllMessages();
+
+/* ------------------------------------- */
+// Init scores
+foreach (Score in Scores) {
+	declare HitNb for Score = 0;	///< Number of hit
+	
+	declare Hit for Score = 0;		///< Points given by the number of hit
+	declare Survival for Score = 0;	///< Points for survival
+	declare Pole for Score = 0;		///< Points for capturing the pole
+	
+	declare EliminatedBy for Score = "";	///< Login of th eliminator
+	
+	HitNb = 0;
+	Hit = 0;
+	Survival = 0;
+	Pole = 0;
+	EliminatedBy = "";
+}
+G_SurvivalScore = 1;
+G_LastEliminations = [1 => NullId, 2 => NullId];
+
+/* ------------------------------------- */
+// Init pole
+Pole.Gauge.Clan = 0;
+Pole.Gauge.Value = 0;
+Pole.Gauge.Speed = 0;
+Pole.Gauge.Max = (S_OffZoneActivationTime * 1000) * C_GaugeMultiplier;
+if (S_OffZoneActivationTime <= 0) Pole.Gauge.Max = 10;
+
+/* ------------------------------------- */
+// Init offzone
+OffZoneRadius = -1.;
+OffZoneRadiusSpeed = 0.;
+OffZoneCenterBlockId = Pole.Id;
+
+/* ------------------------------------- */
+// Wait until the round starting conditions are met
+WaitForPlayers();
+
+declare CSmPlayer[] AlliesCandidate;
+foreach (Player in Players) {
+	/* ------------------------------------- */
+	// Init spawn queue
+	declare SpawnOrder for Player = 0;
+	PlayersSpawnQueue[Player.Id] = SpawnOrder;
+	SpawnOrder = 0;
+	/* ------------------------------------- */
+	// Init points limit UI
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI!= Null) {
+		declare netwrite Integer Net_LayerInfo_PointsLimit for UI = 1;
+		Net_LayerInfo_PointsLimit = S_MapPointsLimit;
+		// Allies label visibility
+		UI.AlliesLabelsVisibility	= CUIConfig::ELabelsVisibility::Always;
+		UI.AlliesLabelsShowGauges	= CUIConfig::EVisibility::ForcedVisible;
+		UI.AlliesLabelsMaxCount		= C_MaxAllies;
+	}
+	/* ------------------------------------- */
+	// Reset 'Eliminated By'
+	if(Player.Score != Null) {
+		UpdateFooterStat(Player, "");
+	}
+	/* ------------------------------------- */
+	// Create a list of players for allies
+	if (UseAllies) {
+		AlliesCandidate.add(Player);
+		declare Integer AllianceId for Player;
+		AllianceId = 0;
+	}
+}
+PlayersSpawnQueue = PlayersSpawnQueue.sort();
+
+/* ------------------------------------- */
+// Create alliances
+declare AllianceNb = 0;
+if (UseAllies) {
+	foreach(Player1 in Players) {
+		declare Removed = AlliesCandidate.remove(Player1);
+		declare Integer AllianceId as Player1AllianceId for Player1;
+		if (Player1AllianceId != 0) continue;
+		
+		foreach (Player2 in AlliesCandidate) {
+			declare Integer AllianceId as Player2AllianceId for Player2;
+			if (Player2AllianceId != 0) continue;
+			
+			if (Users_AreAllies(Player1.User, Player2.User)) {
+				declare CanAlly = True;
+				if (Alliances.existskey(Player1AllianceId)) {
+					if (Alliances[Player1AllianceId].count >= C_MaxAllies) CanAlly = False;
+					else {
+						foreach (PlayerId in Alliances[Player1AllianceId]) {
+							if (!Users_AreAllies(Player2.User, Players[PlayerId].User)) CanAlly = False;
+						}
+					}
+				}
+				
+				if (CanAlly) {
+					if (Player1AllianceId == 0) {
+						AllianceNb += 1;
+						Player1AllianceId = AllianceNb;
+						Alliances[Player1AllianceId] = [Player1.Id];
+					}
+					Player2AllianceId = Player1AllianceId;
+					Alliances[Player2AllianceId].add(Player2.Id);
+				}
+			}
+		}
+	}
+}
+AlliesCandidate.clear();
+
+/* ------------------------------------- */
+// Update UI
+LayerAttached = Layers::Attach("SpawnQueue", NullId);
+LayerUpdated = Layers::Update("ScoresInSpawn", UpdateLayerScoresInSpawn());
+
+SM::SetupDefaultVisibility();
+StartTime = Now;
+EndTime = -1;
+UIManager.UIAll.CountdownEndTime = -1;
+
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Silence;
+UIManager.UIAll.SendNotice(
+	"", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default,  CUIConfig::EUISound::StartRound, 0
+);
+UIManager.UIAll.BigMessage = _("Spawning players...");
+
+// reset players scores
+foreach(Player in AllPlayers) {
+	UpdatePlayerScores(Player);
+}
+***
+
+
+***OnNewPlayer***
+***
+declare CanEarlyRespawn for Player = False;
+declare LastBlockSpawn for Player <=> CSmBlockSpawn;
+CanEarlyRespawn = False;
+LastBlockSpawn <=> Null;
+
+// Player join during the round
+if (Now > StartTime + 10) UpdateMarkers = True;
+
+declare UI <=> UIManager.GetUI(Player);
+if (UI!= Null) {
+	declare netwrite Integer Net_LayerInfo_PointsLimit for UI = 1;
+	Net_LayerInfo_PointsLimit = S_MapPointsLimit;
+	Tabs::UseTabs(UI, "ScoresTab");
+	declare Ident PlayerTabPaneId for Player.User;
+	PlayerTabPaneId = G_TabPaneID;
+	
+	Tabs::AlwaysShowScore(UI, True);
+}
+
+if(S_AllowBeginners) {
+	Beginners::NotifyNewPlayer(Player);
+}
+
+Slider::ShowSlider(Player, 0);
+
+// hide rules reminder
+if(UI != Null) {
+	declare netwrite Boolean Royal_ServToUIPlayerIsEliminated for UI;
+	Royal_ServToUIPlayerIsEliminated = GameplaySequence >= 2;
+}
+***
+
+
+***OnNewSpectator***
+***
+declare CanEarlyRespawn for Spectator = False;
+declare LastBlockSpawn for Spectator <=> CSmBlockSpawn;
+CanEarlyRespawn = False;
+LastBlockSpawn <=> Null;
+
+// Player join during the round
+if (Now > StartTime + 10) UpdateMarkers = True;
+
+declare UI <=> UIManager.GetUI(Spectator);
+if (UI!= Null) {
+	declare netwrite Integer Net_LayerInfo_PointsLimit for UI = 1;
+	Net_LayerInfo_PointsLimit = S_MapPointsLimit;
+	Tabs::UseTabs(UI, "ScoresTab");
+	declare Ident PlayerTabPaneId for Spectator.User;
+	PlayerTabPaneId = G_TabPaneID;
+}
+
+Slider::ShowSlider(Spectator, 0);
+***
+
+***SleepLoop***
+***
+Top::Loop();
+Tabs::XmlRpcLoop();
+***
+
+***PlayLoop***
+***
+Message::Loop();
+Top::Loop();
+Tabs::XmlRpcLoop();
+
+if(AllowBeginners != S_AllowBeginners) {
+	Beginners::ResetPlayers();
+	MB_StopMatch = True;
+}
+
+/* ------------------------------------- */
+/* Update UI
+ * Delayed by 1 frame to take events into account
+ */
+if (UpdateMarkers) {
+	declare ShowPoleMarker = (GameplaySequence < 2) || (AllowDoubleCapture);
+	UpdateMarkers(ShowPoleMarker);
+	UpdateMarkers = False;
+}
+
+switch (GameplaySequence) {
+	/* ------------------------------------- */
+	// Spawning players
+	case 0: {		
+		if (LastSpawnTime + (S_SpawnInterval * 1000) <= Now) {
+			LastSpawnTime = Now;
+			UIManager.UIAll.CountdownEndTime =  LastSpawnTime + (S_SpawnInterval * 1000);
+			
+			declare SpawnQueueCount = 0;
+			/* ------------------------------------- */
+			// Init spawn priority list
+			foreach (BlockSpawn in BlockSpawns) {
+				if (BlockSpawn.Order <= 1)		BlockSpawnsPriorities[1].add(BlockSpawn);
+				else if (BlockSpawn.Order == 2)	BlockSpawnsPriorities[2].add(BlockSpawn);
+				else if (BlockSpawn.Order >= 3)	BlockSpawnsPriorities[3].add(BlockSpawn);
+			}
+		
+			for (I, 1, 3) {
+				//foreach (BlockSpawn in BlockSpawnsPriorities[I]) {
+				while (BlockSpawnsPriorities[I].count > 0) {
+					declare BlockSpawn <=> BlockSpawnsPriorities[I][MathLib::Rand(0, BlockSpawnsPriorities[I].count - 1)];
+					declare Removed = BlockSpawnsPriorities[I].remove(BlockSpawn);
+					/* ------------------------------------- */
+					// Spawning players
+					declare ToRemove = Ident[];
+					declare PlayerSpawned = False;
+					foreach (QueuePlayerId => SpawnOrder in PlayersSpawnQueue) {
+						if(! Players.existskey(QueuePlayerId)) continue;
+						
+						declare Integer AllianceId for Players[QueuePlayerId];
+						declare Ident[] AlliancePlayers;
+						if (Alliances.existskey(AllianceId)) {
+							foreach (PlayerId in Alliances[AllianceId]) AlliancePlayers.add(PlayerId);
+						} else {
+							AlliancePlayers = [QueuePlayerId];
+						}
+						foreach (PlayerId in AlliancePlayers) {
+							ToRemove.add(PlayerId);
+							if (
+								Players.existskey(PlayerId) 
+								&& Players[PlayerId].SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned
+							) {
+								declare Player <=> Players[PlayerId];
+								declare CanEarlyRespawn for Player = False;
+								declare LastBlockSpawn for Player <=> CSmBlockSpawn;
+								declare AutoBalance_ReloadSpeedBonus for Player.User = 1.;
+								declare CaptureSpeedBonus for Player = 1.;
+								CanEarlyRespawn = False;
+								LastBlockSpawn <=> BlockSpawn;
+								Player.AmmoGain = AutoBalance_ReloadSpeedBonus;
+								Player.ArmorMax = C_ArmorMax;
+								CaptureSpeedBonus = C_CaptureSpeedBonus;
+								
+								if(S_AllowBeginners) {
+									Beginners::UpdateBeginnerStatus(Player);
+								}
+								
+								+++OnPlayerSpawn+++
+								SM::SpawnPlayer(Player, 0, Player.ArmorMax, BlockSpawn, Now);
+								XmlRpc::Royal_SpawnPlayer(Player, C_NormalSpawn);
+								
+								Slider::HideSlider(Player, 3000);
+								
+								if(S_AllowBeginners) {
+									Beginners::HighlightPlayer(Player);
+								}
+								
+								CanEarlyRespawn = True;
+								PlayersSpawnedNb += 1;
+								if (Player.Score != Null) {
+									PlayersAlive[Player.Id] = Player.Score.Id;
+									// Start with one survival point
+									UpdatePlayerScores(Player, C_ScoreSurvival, 1);
+									//Top::IncrementPlayerPoints("Survival", Player, 1);
+								} else PlayersAlive[Player.Id] = NullId;
+								PlayerSpawned = True;
+								//break;
+							}
+						}
+						if (PlayerSpawned) break;
+					}
+					foreach (PlayerId in ToRemove) {
+						declare Removed = PlayersSpawnQueue.removekey(PlayerId);
+					}
+					SpawnQueueCount = PlayersSpawnQueue.count;
+				}
+			}
+			
+			UpdateMarkers = True;
+			LayerUpdated = Layers::Update("SpawnQueue", UpdateLayerSpawnQueue(PlayersSpawnQueue));
+			if (SpawnQueueCount <= 0) {
+				GameplaySequence = 1;
+			}
+		}
+	}
+	/* ------------------------------------- */
+	// Launch the OffZone auto activation countdown
+	case 1: {
+		declare Boolean CapturePhase = True;
+		---RoyalCapturePhase---
+		if(CapturePhase) {
+			declare OffZoneAutoStartTime = S_OffZoneAutoStartTime * 1000;
+			if (OffZoneAutoStartTime < 0) OffZoneAutoStartTime = 0;
+			UIManager.UIAll.CountdownEndTime = Now + OffZoneAutoStartTime;
+			UIManager.UIAll.BigMessage = "";
+			Message::SendStatusMessage(
+				_("The pole can now be captured."), OffZoneAutoStartTime, 1, CUIConfig::EUISound::PhaseChange, 0
+			);
+			LayerDetached = Layers::Detach("SpawnQueue", NullId);
+			LayerAttached = Layers::Attach("RoundInfo", NullId);		
+			UpdateLayerInfo(PlayersNbAlive);
+			GameplaySequence = 2;
+			
+			G_PointsOnCapture = PlayersSpawnedNb;
+			
+			// Update "points on capture"
+			foreach (Player in Players) UpdateFooterStat(Player, "");
+			foreach (Spectator in Spectators) UpdateFooterStat(Spectator, "");
+		}
+	}
+	/* ------------------------------------- */
+	// Waiting for the pole capture/OffZone activation (automatic or manual)
+	case 2: {
+		// Auto activation of the OffZone
+		if (UIManager.UIAll.CountdownEndTime <= Now) {
+			Pole.Gauge.Speed = Pole.Gauge.Max;
+			Pole.Gauge.Value = Pole.Gauge.Max + 1;
+			PoleCapturedByAPlayer = False;
+		}
+		// Manual activation of the OffZone
+		else {
+			if (Pole.Sector.PlayersIds.count > 0) {
+				declare CaptureSpeed = 1.;
+				declare BonusMax = 0.;
+				foreach (PlayerId in Pole.Sector.PlayersIds) {
+					declare CaptureSpeedBonus for Players[PlayerId] = 1.;
+					if (CaptureSpeedBonus > BonusMax) BonusMax = CaptureSpeedBonus;
+				}
+				CaptureSpeed = BonusMax * C_GaugeMultiplier;
+				Pole.Gauge.Speed = MathLib::NearestInteger(CaptureSpeed);
+			} else Pole.Gauge.Speed = 0;
+		}
+	}
+	/* ------------------------------------- */
+	// Offzone shrinking
+	case 3: {
+		if (AllowDoubleCapture) {
+			if (!Pole.Captured && Pole.Sector.PlayersIds.count > 0) {
+				declare CaptureSpeed = 1.;
+				declare BonusMax = 0.;
+				foreach (PlayerId in Pole.Sector.PlayersIds) {
+					declare CaptureSpeedBonus for Players[PlayerId] = 1.;
+					if (CaptureSpeedBonus > BonusMax) BonusMax = CaptureSpeedBonus;
+				}
+				CaptureSpeed = BonusMax * C_GaugeMultiplier;
+				
+				Pole.Gauge.Speed = MathLib::NearestInteger(CaptureSpeed);
+				
+				declare RadiusSpeedBonus = (1 + ((S_OffZoneMaxSpeed - 1.) * (MathLib::ToReal(Pole.Gauge.Value) / MathLib::ToReal(Pole.Gauge.Max))));
+				OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed * RadiusSpeedBonus;
+				UIManager.UIAll.StatusMessage = TextLib::Compose(
+					_("OffZone speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(RadiusSpeedBonus * 100))
+				);
+			} else Pole.Gauge.Speed = 0;
+		}
+		
+		if (OffZoneRadius <= C_OffZoneMinRadius) {
+			OffZoneRadiusSpeed = 0.;
+			OffZoneRadius = C_OffZoneMinRadius;
+			GameplaySequence = 4;
+		}
+	}
+	/* ------------------------------------- */
+	// Revert pole gauge
+	case 4: {
+		declare EndRoundTimeLimit = S_EndRoundTimeLimit * 1000;
+		if (EndRoundTimeLimit < 0) EndRoundTimeLimit = 0;
+		UIManager.UIAll.CountdownEndTime = -1;
+		EndTime = Now + EndRoundTimeLimit;
+		if (Pole.Gauge.Value == 0) {
+			Pole.Gauge.Max = 0;
+			Pole.Gauge.Value = 0;
+			Pole.Gauge.Speed = 0;
+		} else {
+			Pole.Gauge.Max = MathLib::NearestInteger((Pole.Gauge.Max / (Pole.Gauge.Value *1.)) * (EndTime - Now));
+			Pole.Gauge.Value = EndTime - Now;
+			Pole.Gauge.Speed = -1;
+		}
+		GameplaySequence = 10;
+	}
+}
+
+/* ------------------------------------- */
+// Early respawn
+if (S_UseEarlyRespawn && EarlyRespawnAllowed) {
+	foreach (Player in Players) {
+		declare CanEarlyRespawn for Player = False;
+		if (CanEarlyRespawn && Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+			declare RandomBlockSpawn <=> CSmBlockSpawn;
+			if (EarlyRespawnBlockPool.count <= 0) {
+				EarlyRespawnBlockPool.clear();
+				foreach (BlockSpawn in BlockSpawns) {
+					EarlyRespawnBlockPool.add(BlockSpawn);
+				}
+			}
+			RandomBlockSpawn <=> EarlyRespawnBlockPool[MathLib::Rand(0, EarlyRespawnBlockPool.count - 1)];
+			declare Removed = EarlyRespawnBlockPool.remove(RandomBlockSpawn);
+
+			declare LastBlockSpawn for Player <=> CSmBlockSpawn;
+			if (LastBlockSpawn == Null || C_RandomEarlyRespawn) {
+				LastBlockSpawn <=> BlockSpawns[MathLib::Rand(0, BlockSpawns.count - 1)];
+			}
+			
+			declare AutoBalance_ReloadSpeedBonus for Player.User = 1.;
+			declare CaptureSpeedBonus for Player = 1.;
+			Player.AmmoGain = AutoBalance_ReloadSpeedBonus;
+			CaptureSpeedBonus = C_CaptureSpeedBonus;
+			
+			+++OnPlayerSpawn+++
+			Player.ArmorMax = C_ArmorRespawn;
+			SM::SpawnPlayer(Player, 0, Player.ArmorMax, LastBlockSpawn, Now);
+			XmlRpc::Royal_SpawnPlayer(Player, C_EarlyRespawn);
+			
+			Slider::HideSlider(Player, 5000);
+			
+			declare Boolean Royal_IsRegularPlayer for Player.User;
+			if(S_AllowBeginners) {
+				Beginners::HighlightPlayer(Player);
+			}
+		}
+	}
+}
+
+foreach (Event in PendingEvents) {
+	/* ------------------------------------- */
+	// On hit
+	if (Event.Type == CSmModeEvent::EType::OnHit) {
+		---OnHitEvent---
+		if (Event.Shooter != Null && Event.Victim != Null) {
+			/* ------------------------------------- */
+			// Ceiling the damages at 100
+			Event.Damage = C_DamageMax;
+			
+			if (Event.Victim == Event.Shooter) Discard(Event);
+			else {				
+				declare Boolean Royal_IsRegularPlayer as IsShooterRegular 	for Event.Shooter.User;
+				declare Boolean Royal_IsRegularPlayer as IsVictimRegular 	for Event.Victim.User;
+
+				declare Boolean GivePoints = True;
+				if(S_AllowBeginners) {
+					Event.Damage = Beginners::GetDamage(Event.Shooter, Event.Victim, Event.Damage);
+					Beginners::NotifyHit(Event.Shooter);
+					// A beginner gives no point.
+					GivePoints = Beginners::ShouldGivePoints(Event.Shooter, Event.Victim);
+				}
+				
+				// Update Hit score
+				if(Event.Shooter.Score != Null && (! GivePoints)) {
+					Event.ShooterPoints = 0;
+					XmlRpc::OnHit(Event);
+				}
+				else if (Event.Shooter.Score != Null) {
+					declare HitNb for Event.Shooter.Score = 0;
+					declare LostArmor = Event.Damage;
+					if (Event.Damage > Event.Victim.Armor) LostArmor = Event.Victim.Armor;
+					declare Points = 0;
+					
+					declare Integer Bonus = 0;
+					declare CSmPlayer FirstInScoresTable = Null;
+					// Players are sorted by scores
+					foreach(Player in Players) {
+						if(Player.Score.RoundPoints > Event.Shooter.Score.RoundPoints) {
+							FirstInScoresTable = Player;
+							break;
+						} else {
+							FirstInScoresTable = Null;
+							break;
+						}
+					}
+					
+					// Fake loop, gets the first not null element
+					/*
+					foreach(Score in Scores) {
+						declare BestScoreUser <=> Score.User;
+						if ((BestScoreUser != Null) && (Event.Victim.User == BestScoreUser)) {
+							if(Event.Victim.Score.Points > Event.Shooter.Score.Points) Bonus = C_BonusWhenBestPlayerIsHit;
+						}
+						break;
+					}
+					if (Event.Victim.User == FirstInScoresTable) {
+						Bonus = C_BonusWhenBestPlayerIsHit;
+					}
+					
+					for (I, 1, LostArmor / 100) {
+						Points += (HitNb / 2) + 1;
+						HitNb += 1;
+					}
+					Points += Bonus;
+					*/
+					
+					Points += (HitNb / 2) + 1;
+					HitNb += 1;
+					
+					Event.ShooterPoints = Points;
+					XmlRpc::OnHit(Event);
+					UpdatePlayerScores(Event.Shooter, C_ScoreHit, Points);
+					//Top::IncrementPlayerPoints("Hit", Event.Shooter, Points);
+					
+					
+					// Update Best Hit if needed
+					declare Integer Hit as ShooterHit for Event.Shooter.Score;
+					if(ShooterHit > MaxHitThisRound) {
+						MaxHitThisRound = ShooterHit;
+						
+						if(G_BestHitPlayerThisRound != NullId && Players.existskey(G_BestHitPlayerThisRound)) {
+							declare BestPlayer = Players[G_BestHitPlayerThisRound];
+							declare Integer Hit for BestPlayer.Score;
+							declare Integer Survival for BestPlayer.Score;
+							ScoresTable::SetCustom2(BestPlayer, Hit^"/"^Survival);
+						}
+						
+						declare Integer Hit for Event.Shooter.Score;
+						declare Integer Survival for Event.Shooter.Score;
+						ScoresTable::SetCustom2(Event.Shooter, C_BestHitColor^Hit^"$fff/"^Survival);
+						
+						G_BestHitPlayerThisRound = Event.Shooter.Id;
+					} 
+					else if(MaxHitThisRound == ShooterHit) {
+						//log("egalisation");
+						if(G_BestHitPlayerThisRound != NullId && Players.existskey(G_BestHitPlayerThisRound)) {
+							declare BestPlayer = Players[G_BestHitPlayerThisRound];
+							declare Integer Hit for BestPlayer.Score;
+							declare Integer Survival for BestPlayer.Score;
+							ScoresTable::SetCustom2(BestPlayer, Hit^"/"^Survival);
+						}
+					}
+					
+				}
+				
+				UpdateMarkers = True;
+				PassOn(Event);
+			}
+		} else {
+			UpdateMarkers = True;
+			XmlRpc::OnHit(Event);
+			PassOn(Event);
+		}
+	} 
+	/* ------------------------------------- */
+	// On armor empty
+	else if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {		
+		if(Event.Victim != Null) {
+			// declare persistent Integer Royal_TotalEliminations for Event.Victim.User;
+			declare Integer Royal_TotalEliminations for Event.Victim.User;
+			Royal_TotalEliminations += 1;
+			
+			if(! EarlyRespawnAllowed && PlayersAlive.count > 2) {
+				//declare Boolean Royal_ShowReminder for Event.Victim.User = True;
+				declare UI <=> UIManager.GetUI(Event.Victim);
+				if(UI != Null) {
+					declare netread  Boolean Royal_UIToServShowRulesReminder for UI;
+					declare netwrite Boolean Royal_ServToUIPlayerIsEliminated for UI;
+					if(Royal_UIToServShowRulesReminder) {
+						Royal_ServToUIPlayerIsEliminated = True;
+					}
+				}
+			}
+		}
+		
+		if (Event.Victim != Null && !EarlyRespawnAllowed) {
+			declare Removed = PlayersAlive.removekey(Event.Victim.Id);
+			UpdateSurvivalScore(PlayersAlive);
+			UpdateMarkers = True;
+			UpdateLastEliminations(Event.Victim.Score);
+			UpdateLayerInfo(PlayersNbAlive - 1);
+			declare SpawnOrder for Event.Victim = 0;
+			SpawnOrder = Now;
+			if (FirstElimId == NullId) {
+				if (Event.Shooter != Null) {
+					FirstElimId = Event.Shooter.User.Id;
+					DisplayFirstElimMessage(FirstElimId, False);
+				} else {
+					FirstElimId = Event.Victim.User.Id;
+					DisplayFirstElimMessage(FirstElimId, True);
+				}
+			}
+			
+			if (Event.Victim.Score != Null) {
+				declare EliminatedBy for Event.Victim.Score = "";
+				if (Event.Shooter != Null) EliminatedBy = Event.Shooter.User.Name;
+				else EliminatedBy = "*";
+				UpdateFooterStat(Event.Victim, EliminatedBy);
+				
+			}
+			
+			// Play a sound on the last 5 players eliminations
+			if (PlayersNbAlive <= 5 && PlayersNbAlive > 2) {
+				declare Variant = 5 - PlayersNbAlive;
+				UIManager.UIAll.SendNotice(
+					"", 
+					CUIConfig::ENoticeLevel::MatchInfo, Null, 
+					CUIConfig::EAvatarVariant::Default, 
+					CUIConfig::EUISound::TieBreakPoint, Variant
+				);
+			} else if (PlayersNbAlive <= 2) {
+				UIManager.UIAll.SendNotice(
+					"", 
+					CUIConfig::ENoticeLevel::MatchInfo, Null, 
+					CUIConfig::EAvatarVariant::Default, 
+					CUIConfig::EUISound::VictoryPoint, 0
+				);
+			}
+		}
+		
+		XmlRpc::OnArmorEmpty(Event);
+		Slider::ShowSlider(Event.Victim, 0);
+		PassOn(Event);
+	} 
+	/* ------------------------------------- */
+	// On capture
+	else if(Event.Type == CSmModeEvent::EType::OnCapture) {		
+		Message::CleanAllMessages();
+		XmlRpc::OnCapture(Event);
+		
+		declare OffZoneTimeLimit = S_OffZoneTimeLimit  * 1000;
+		if (OffZoneTimeLimit <= 0) OffZoneTimeLimit = 10;
+					
+		/* ------------------------------------- */
+		// Update Pole score
+		if (Event.BlockPole.Sector.PlayersIds.count > 0) {
+			declare Points = PlayersSpawnedNb / Event.BlockPole.Sector.PlayersIds.count;
+			foreach (PlayerId in Event.BlockPole.Sector.PlayersIds) {
+				if (Players.existskey(PlayerId) && Players[PlayerId].Score != Null) {
+					declare Player <=> Players[PlayerId];
+					UpdatePlayerScores(Player, C_ScorePole, Points);
+					//Top::IncrementPlayerPoints("Pole", Player, Points);
+					
+					// Use notices to display several messages one after the other
+					UIManager.UIAll.SendNotice(
+						TextLib::Compose(_("$<%1$> captured the pole."), Player.Name), 
+						CUIConfig::ENoticeLevel::MatchInfo, Null, 
+						CUIConfig::EAvatarVariant::Default, 
+						CUIConfig::EUISound::StartRound, 0
+					);
+				}
+			}
+			declare Message = "";
+			if (GameplaySequence == 2) {
+				Message = _("OffZone activated.");
+				if (AllowDoubleCapture) {
+					Message::SendStatusMessage(
+						_("Stay near the pole to speed up the OffZone"), 2000, 1, CUIConfig::EUISound::StartRound, 0
+					);
+				}
+			}
+			else if (GameplaySequence == 3) {
+				UIManager.UIAll.StatusMessage = "";
+				Message = TextLib::Compose(
+					_("OffZone speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
+				);
+			}
+			UIManager.UIAll.SendNotice(
+				Message, 
+				CUIConfig::ENoticeLevel::MatchInfo, Null, 
+				CUIConfig::EAvatarVariant::Default, 
+				CUIConfig::EUISound::StartRound, 0
+			);
+		} else {
+			declare Message = "";
+			if (GameplaySequence == 2) {
+				if(PoleCapturedByAPlayer) {
+					Message = _("Pole captured and OffZone activated.");
+				} else {
+					Message = _("OffZone auto-activated.");
+				}
+				if (AllowDoubleCapture) {
+					Message::SendStatusMessage(
+						_("The pole can be captured again."), OffZoneTimeLimit, 1, CUIConfig::EUISound::StartRound, 0
+					);
+				}
+			}
+			else if (GameplaySequence == 3) {
+				Message = TextLib::Compose(
+					_("OffZone speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
+				);
+			}
+			Message::SendBigMessage(
+				Message, 3000, 2, CUIConfig::EUISound::StartRound, 0
+			);
+		}
+		
+		/* ------------------------------------- */
+		// Active OffZone
+		if (GameplaySequence == 2) {			
+			OffZoneRadius = C_OffZoneDefaultRadius;
+			OffZoneStartingRadiusSpeed = (C_OffZoneDefaultRadius - C_OffZoneMinRadius) / (OffZoneTimeLimit/1000);
+			OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed;
+			Event.BlockPole.Gauge.Speed = 0; 
+			
+			if (AllowDoubleCapture) {
+				declare Local_OffZoneMaxSpeedTime = (OffZoneMaxSpeedTime * 1000);
+				if (OffZoneMaxSpeedTime <= 0) Local_OffZoneMaxSpeedTime = 10;
+				Event.BlockPole.Gauge.Max = (Local_OffZoneMaxSpeedTime * C_GaugeMultiplier);
+				Event.BlockPole.Gauge.Value = 0;
+			}
+			
+			UIManager.UIAll.CountdownEndTime = -1;
+			GameplaySequence = 3;
+			
+			/* ------------------------------------- */
+			// Disable early respawn for all players
+			EarlyRespawnAllowed = False;
+		}
+		/* ------------------------------------- */
+		// Speed up OffZone
+		else if (GameplaySequence == 3) {
+			OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed * S_OffZoneMaxSpeed;
+		}
+		
+		UpdateMarkers = True;
+		PassOn(Event);
+	} 
+	/* ------------------------------------- */
+	// On player requests respawn
+	else if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
+		XmlRpc::OnPlayerRequestRespawn(Event);
+		
+		if (Event.Player != Null && !EarlyRespawnAllowed) {
+			declare Removed = PlayersAlive.removekey(Event.Player.Id);
+			UpdateSurvivalScore(PlayersAlive);
+			UpdateMarkers = True;
+			UpdateLastEliminations(Event.Player.Score);
+			UpdateLayerInfo(PlayersNbAlive - 1);
+			
+			declare SpawnOrder for Event.Player = 0;
+			SpawnOrder = Now;
+			if (!EarlyRespawnAllowed && FirstElimId == NullId) {
+				FirstElimId = Event.Player.User.Id;
+				DisplayFirstElimMessage(FirstElimId, True);
+			}
+		}
+		Slider::ShowSlider(Event.Player, 0);
+		
+		PassOn(Event);
+	} 
+	/* ------------------------------------- */
+	// Other cases
+	else {
+		PassOn(Event);
+	}
+}
+
+/* ------------------------------------- */
+// On Player disconnection
+declare ToRemove = Ident[];
+foreach (PlayerId => ScoreId in PlayersAlive) {
+	if (!Players.existskey(PlayerId)) {
+		ToRemove.add(PlayerId);
+		if (Scores.existskey(ScoreId)) {
+			declare Score <=> Scores[ScoreId];
+			UpdateLastEliminations(Score);
+			UpdateLayerInfo(PlayersNbAlive);
+		
+			if (!EarlyRespawnAllowed && FirstElimId == NullId) {
+				FirstElimId = Score.User.Id;
+				DisplayFirstElimMessage(FirstElimId, True);
+			}
+			declare EliminatedBy for Score = "";
+			EliminatedBy = "*";
+		} else UpdateLastEliminations(Null);
+	}
+}
+foreach (PlayerId in ToRemove) {
+	declare Removed = PlayersAlive.removekey(PlayerId);
+	UpdateSurvivalScore(PlayersAlive);
+	UpdateMarkers = True;
+}
+/* ------------------------------------- */
+// Round end conditions
+declare TimeLimitReached = (EndTime > 0 && EndTime <= Now);
+declare AllEliminated = False;
+if (
+	!TimeLimitReached && GameplaySequence > 0
+	&& (
+		(PlayersNbAlive <= 1 && PlayersSpawnedNb != 1)
+		|| (PlayersNbAlive <= 0 && PlayersSpawnedNb == 1) 
+	)
+) { 
+	AllEliminated = True; 
+	foreach (Player in Players) {
+		if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
+			RoundWinnerPlayer = Player.User.Id;
+			
+			declare Removed = PlayersAlive.removekey(Player.Id);
+			UpdateSurvivalScore(PlayersAlive);
+			UpdateLastEliminations(Player.Score);
+			declare SpawnOrder for Player = 0;
+			SpawnOrder = Now + 1;
+		}
+	}
+	XmlRpc::Royal_RoundWinner(RoundWinnerPlayer);
+}
+
+if (TimeLimitReached || AllEliminated) {
+	MB_StopRound = True;
+}
+
+
+// Manage inactive players
+if(S_AutoManageAFK && (Now > CheckAFKsTime) && (!MB_StopRound)) {
+	CheckAFKsTime = Now + C_AFKsCheckFrequency;
+	AFK::ManageAFKPlayers();
+}
+
+// update status message
+UpdateModeStatusMessage();
+***
+
+
+***LastEliminationsBonus***
+***
+	foreach (Rank => ScoreId in G_LastEliminations) {	
+		declare Points = 0;
+		if (Rank == 1) {
+			Points = PlayersSpawnedNb;
+		} else if (Rank == 2) {
+			Points = PlayersSpawnedNb / 2;
+		}
+		if (ScoreId != NullId && Scores.existskey(ScoreId)) {
+			declare Score <=> Scores[ScoreId];
+			if (ScoreToPlayer.existskey(ScoreId) && Players.existskey(ScoreToPlayer[ScoreId])) {
+				UpdatePlayerScores(Players[ScoreToPlayer[ScoreId]], C_ScoreSurvival, Points);
+				//Top::IncrementPlayerPoints("Survival", Players[ScoreToPlayer[ScoreId]], Points);
+			}
+		}
+	}
+***
+
+
+***EndRound***
+***
+LayerDetached = Layers::Detach("SpawnQueue", NullId);
+LayerDetached = Layers::Detach("RoundInfo", NullId);
+Message::CleanAllMessages();
+UIManager.UIAll.BigMessage = "";
+UIManager.UIAll.StatusMessage = "";
+OffZoneRadiusSpeed = 0.;
+Pole.Gauge.Speed = 0;
+
+/* ------------------------------------- */
+// Bonus points for last two survivors
+declare ScoreToPlayer = Ident[Ident];
+foreach (Player in Players) {
+	if (Player.Score != Null) ScoreToPlayer[Player.Score.Id] = Player.Id;
+	if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
+		+++EndRoundAlivePlayer+++
+	}
+	
+	Slider::ShowSlider(Player, 0);
+}
+
+---LastEliminationsBonus---
+
+foreach(Player in Players) {
+	if(Player.Score == Null) continue;
+	
+	declare HitNb 							for Player.Score = 0;
+	declare AutoBalance_ReloadSpeedBonus 	for Player.User = 1.;
+	declare Boolean IsBeginner = S_AllowBeginners && Beginners::IsBeginner(Player);
+	
+		
+	if(IsBeginner) {
+		Beginners::BalanceBeginner(Player, HitNb);
+	} else {
+		if(HitNb <= 1) {
+			if (AutoBalance_ReloadSpeedBonus < 1.3) AutoBalance_ReloadSpeedBonus += .1;
+		} else {
+			AutoBalance_ReloadSpeedBonus = 1.;
+		}
+	}
+}
+
+foreach (Score in Scores) {
+	/* ------------------------------------- */
+	// Update map score
+	declare MapHit for Score = 0;
+	declare MapSurvival for Score = 0;
+	declare MapPole for Score = 0;
+	declare Hit for Score = 0;
+	declare Survival for Score = 0;
+	declare Pole for Score = 0;
+	declare EliminatedBy for Score = "";
+	declare MapBestRound for Score = 0;
+	
+	MapHit += Hit;
+	MapSurvival += Survival;
+	MapPole += Pole;
+	if (EliminatedBy == "") EliminatedBy = "*";
+	if(MapBestRound < Score.RoundPoints) MapBestRound = Score.RoundPoints;
+}
+
+/* ------------------------------------- */
+// Update round top
+/*
+foreach (Player in Players) {
+	if (Player.Score != Null && Player.Score.RoundPoints > Top::GetPlayerPoints("Round", Player)) {
+		Top::SetPlayerPoints("Round", Player, Player.Score.RoundPoints);
+	}
+}
+*/
+
+// hide rules reminder
+foreach(Player in AllPlayers) {
+	declare UI <=> UIManager.GetUI(Player);
+	if(UI != Null) {
+		declare netwrite Boolean Royal_ServToUIPlayerIsEliminated for UI;
+		Royal_ServToUIPlayerIsEliminated = False;
+	}
+}
+
+/* ------------------------------------- */
+// Display the name of the round winner
+DisplayWinnerName("Round", RoundWinnerPlayer);
+CustomSleep(1500);
+
+/* ------------------------------------- */
+// Show round results
+OffZoneRadius = -1.;
+StartTime = -1;
+EndTime = -1;
+UIManager.UIAll.CountdownEndTime = -1;
+SM::UnspawnAllPlayers();
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+
+CustomSleep(6000);
+---ScoreRoundEnd---
+Score::RoundEnd();
+CustomSleep(4000);
+
+LayerDetached = Layers::Detach("Tops", NullId);
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+UIManager.UIAll.BigMessage = "";
+
+/* ------------------------------------- */
+// Map end conditions
+declare MaxPoints = 0;
+foreach (Score in Scores) {
+	if (Score.Points >= MaxPoints) {
+		if (Score.Points > MaxPoints) {
+			MapWinnerPlayer = Score.User.Id;
+		} else if (Score.Points == MaxPoints) {
+			MapWinnerPlayer = NullId;
+		}
+		MaxPoints = Score.Points;
+	}
+}
+
+declare PointLimitReached = MaxPoints >= S_MapPointsLimit;
+declare RequestTieBreak = (!C_AllowDrawMap && MapWinnerPlayer == NullId);
+if (PointLimitReached && !RequestTieBreak) MB_StopMap = True;
+***
+
+
+***EndMap***
+***
+Score::MatchEnd();
+//Top::RoundEnd();
+//Top::MatchEnd();
+
+LayerAttached = Layers::Attach("Tops", NullId);
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+
+/* ------------------------------------- */
+// Display the name of the map winner
+declare DisplayTime = (S_EndMapChatTime * 1000) / 2;
+DisplayWinnerName("Map", MapWinnerPlayer);
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+CustomSleep(DisplayTime);
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
+CustomSleep(DisplayTime);
+
+LayerDetached = Layers::Detach("Tops", NullId);
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+UIManager.UIAll.BigMessage = "";
+
+Slider::DestroySlider();
+***
+
+
+***EndServer***
+***
+/* -------------------------------------- */
+// Layers destruction
+LayerDetached = Layers::DetachAll(NullId);
+LayerDestroyed = Layers::Destroy("SpawnQueue");
+LayerDestroyed = Layers::Destroy("RoundInfo");
+LayerDestroyed = Layers::Destroy("TabScoresTable");
+LayerDestroyed = Layers::Destroy("AltScoresTable");
+LayerDestroyed = Layers::Destroy("Tops");
+LayerDestroyed = Layers::Destroy("ScoresInSpawn");
+LayerDestroyed = Layers::Destroy("RulesReminder");
+SpawnScreen::DestroyRules();
+Layers::Clean();
+ScoresTable::Unload();
+***
+
+
+/* ------------------------------------- */
+// Functions
+/* ------------------------------------- */
+
+***UpdateFooterStat***
+***
+	declare Text RoundInfoText;
+	
+	if(EliminatedByName != "") {
+		RoundInfoText = TextLib::Compose(_("Points on capture: %1, Points limit: %2, Eliminated by %3"), ""^G_PointsOnCapture, ""^S_MapPointsLimit, EliminatedByName);
+	} else {
+		RoundInfoText = TextLib::Compose(_("Points on capture: %1, Points limit: %2"), ""^G_PointsOnCapture, ""^S_MapPointsLimit);
+	}
+	ScoresTable::SetFooterStats(Player, RoundInfoText);
+***
+
+Void UpdateFooterStat(CSmPlayer Player, Text EliminatedByName) {
+	---UpdateFooterStat---
+}
+
+/* -------------------------------------- */
+/** Custom sleep function
+ *
+ *	@param	_Duration		The time to spend sleeping in ms
+ */
+Void CustomSleep(Integer _Duration) {
+	declare End = Now + _Duration;
+	while(Now < End) {
+		yield;
+		Message::Loop();
+		+++SleepLoop+++
+	}
+}
+
+/* ------------------------------------- */
+/// Let the server sleep until there's enough players to start a game
+Void WaitForPlayers() {
+	declare Waited = False;
+	
+	while (!ServerShutdownRequested && !MatchEndRequested && PlayersNbTotal <= 0) {
+		Waited = True;
+		sleep(1000);
+	}
+}
+
+/* ------------------------------------- */
+/** Display the First Elimination message
+ *
+ *	@param	_UserId		The Id of the user
+ *	@param	_Eliminated	Select the message to display: eliminated or eliminator name
+ */
+Void DisplayFirstElimMessage(Ident _UserId, Boolean _Eliminated) {
+	declare Name = "Bot";
+	if (Users.existskey(_UserId)) Name = Users[_UserId].Name;
+	declare Message = _("$<%1$> did the first elimination!");
+	if (_Eliminated) Message = _("First player eliminated!");
+	
+	Message::SendBigMessage(
+		TextLib::Compose(
+			Message,
+			Name
+		), 									///< Message
+		3000,								///< Duration
+		4,									///< Priority
+		CUIConfig::EUISound::PhaseChange,	///< Sound
+		1									///< Sound variant
+	);
+}
+
+/* ------------------------------------- */
+/** Display the name of the round/map winner
+ *
+ *	@param	_Level			Round or map ?
+ *	@param	_WinnerPlayer	Id of the winner user
+ */
+Void DisplayWinnerName(Text _Level, Ident _WinnerPlayer) {
+	if (Users.existskey(_WinnerPlayer)) {
+		UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
+		declare Message = "";
+		if (_Level == "Round") Message = _("$<%1$> wins the round!");
+		else if (_Level == "Map") Message = _("$<%1$> wins the map!");
+		UIManager.UIAll.BigMessage = TextLib::Compose(
+			Message, 
+			Users[_WinnerPlayer].Name
+		);
+	} else {
+		UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
+		UIManager.UIAll.BigMessage = _("|Match|Draw");
+	}
+}
+
+/* ------------------------------------- */
+// Update last two eliminations
+Void UpdateLastEliminations(CSmScore _Score) {
+	declare ScoreId = NullId;
+	if (_Score != Null) ScoreId = _Score.Id;
+	G_LastEliminations[2] = G_LastEliminations[1];
+	G_LastEliminations[1] = ScoreId;
+}
+
+
+
+/* -------------------------------------- */
+/**	Update the scores of a player
+ *
+ *	@param	_Player 	The player who receive the points
+ *	@param	_Score		The score to update
+ *	@param	_Points		The number of points to add
+ */
+***UpdatePlayerScores***
+***
+	if (_Player.Score == Null) return;
+	
+	declare Hit for _Player.Score = 0;
+	declare Survival for _Player.Score = 0;
+	declare Pole for _Player.Score = 0;
+	declare MapHit for _Player.Score = 0;
+	declare MapSurvival for _Player.Score = 0;
+	declare MapPole for _Player.Score = 0;
+	declare MapBestRound for _Player.Score = 0;
+	
+	declare Type = "";
+	switch (_Score) {
+		case C_ScoreHit		: { Hit += _Points;			Type = "Hit"; }
+		case C_ScoreSurvival: { Survival += _Points;	Type = "Survival"; }
+		case C_ScorePole	: { Pole += _Points;		Type = "Pole"; }
+	}
+	
+	if(_Points > 0) {
+		XmlRpc::Royal_UpdatePoints(_Player, Type, _Points);
+	}
+	
+	declare Text HitText = Hit^"/"^Survival;
+	if(_Player.Id == G_BestHitPlayerThisRound) {
+		HitText= C_BestHitColor^Hit^"$fff/"^Survival;
+	}
+	
+	ScoresTable::SetCustom2(_Player, HitText);
+	declare Text PoleCustomScore = "";
+	if (Pole > 0) PoleCustomScore = ""^Pole;
+	
+	ScoresTable::SetCustom3(_Player, PoleCustomScore);
+	
+	_Player.Score.RoundPoints = Hit + Survival + Pole;
+	if( _Player.Score.RoundPoints > MapBestRound) {
+		MapBestRound = _Player.Score.RoundPoints;
+	}
+	
+	Top::SetRecord(_Player, C_TopId_Hit			, ""^(MapHit + Hit)				, -(MapHit + Hit));
+	Top::SetRecord(_Player, C_TopId_Survival	, ""^(MapSurvival + Survival)	, -(MapSurvival + Survival));
+	Top::SetRecord(_Player, C_TopId_Pole		, ""^(MapPole + Pole)			, -(MapPole + Pole));
+	Top::SetRecord(_Player, C_TopId_Round		, ""^MapBestRound				, -MapBestRound);
+	
+	
+	+++OnPointsUpdate+++
+***
+
+
+Void UpdatePlayerScores(CSmPlayer _Player, Integer _Score, Integer _Points) {
+	---UpdatePlayerScores---
+}
+
+
+/**
+ * Update the score
+ */
+Void UpdatePlayerScores(CSmPlayer _Player) {
+	UpdatePlayerScores(_Player, -1, 0);
+}
+
+Void UpdateMarkers(Boolean _ShowPoleMarker) {
+	declare CSmBlockPole Pole <=> SM::GetPole("Goal", 0);
+	declare CSmPlayer[] TopPlayers = CSmPlayer[];
+	declare Integer NbTopPlayersWithMarker = 0;
+
+	declare Text Markers = "";
+	declare Integer MarkersCount = 0;
+	
+	/*
+	declare CSmPlayer[] SortedPlayers;
+	foreach(Player in Players) {
+		SortedPlayers
+	}
+	*/
+	
+	
+	foreach (Score in Scores) {
+		// if (Player.Score == Null) continue; // not for bots
+		if(MarkersCount >= NbTopPlayersWithMarker) break;
+		
+		MarkersCount += 1;
+		//Markers ^= """<marker playerlogin="{{{Score.User.Login}}}" manialinkframeid="TopPlayerMarker{{{MarkersCount}}}" visibility="WhenInMiddleOfScreen" box="0 2 0" />
+		Markers ^= """<marker playerlogin="{{{Score.User.Login}}}" manialinkframeid="TopPlayerMarker{{{
+			MarkersCount}}}" visibility="WhenVisible" box="0 2. 0" />
+""";
+	}
+	for(I, MarkersCount+1, NbTopPlayersWithMarker) {
+		Markers ^= """<marker manialinkframeid="TopPlayerMarker{{{I}}}" visibility="Never" box="0 2 0" />
+""";
+	}
+	
+	// Add a marker above the pole
+	declare Text PoleMarkerVisibility;
+	if(_ShowPoleMarker) {
+		PoleMarkerVisibility = "Always";
+	} else {
+		PoleMarkerVisibility = "Always";//"Never";
+	}
+	
+	// Markers ^= """<marker icon="PointA" pos="{{{ Pole.Position.X }}} {{{ Pole.Position.Y + 25 }}} {{{ Pole.Position.Z }}}" />""";
+	Markers ^= """<marker manialinkframeid="PoleMarkerFrameId" visibility="{{{PoleMarkerVisibility}}}" pos="{{{
+		Pole.Position.X}}} {{{Pole.Position.Y + 25.}}} {{{Pole.Position.Z}}}" />""";
+		
+	//log(Markers);
+	UIManager.UIAll.Hud3dMarkers = Markers;
+}
+
+/* ------------------------------------- */
+/** Generate the spawn queue manialink
+ *
+ *	@param	_PlayersSpawnQueue	The players spawn queue
+ *
+ * @return	The manialink Text
+ */
+Text UpdateLayerSpawnQueue(Integer[Ident] _PlayersSpawnQueue) {
+	declare ML = "";
+	declare PlayersList = "";
+	declare SpawnQueue = Text[Integer];
+	declare J = 1;
+	declare Max = 10;
+	
+	foreach (PlayerId => SpawnOrder in _PlayersSpawnQueue) {
+		declare Name = "Player";
+		if (Players.existskey(PlayerId)) Name = TextLib::MLEncode(Players[PlayerId].Name);
+		SpawnQueue[J] = Name;
+		J += 1;
+	}
+	
+	declare Height = 0;
+	foreach (I => Name in SpawnQueue) {
+		declare LabelText = Name;
+		if (I == Max && SpawnQueue.count > Max) {
+			LabelText = "$w+"^TextLib::ToText(SpawnQueue.count - (Max - 1));
+		}
+		PlayersList ^= """
+<label posn="0 {{{(I - 1) * -5}}} 0" sizen="28 5" text="$s{{{LabelText}}}" id="Label_Player_{{{I}}}" />
+""";
+		Height = I;
+		if (I >= Max) break;
+	}
+	
+	Height = (Height * 5) + 10;
+	
+	ML = """
+<frame posn="157 -88 1">
+	<quad posn="0 0 0" sizen="30 {{{Height}}}" bgcolor="0007" halign="right" valign="bottom"/>
+	<label posn="-15 {{{Height-1}}} 1" sizen="30 5" halign="center" text="{{{TextLib::Compose("$s%1", _("Queue"))}}}"/>
+	<frame posn="-29 {{{Height-8}}} 2">
+		{{{PlayersList}}}
+	</frame>
+</frame>
+""";	
+	return ML;
+}
+
+Text CreateLayerRoundInfos() {
+	declare Integer YOffset 	= 5;
+	declare Integer YPosition 	= -71;
+	
+	return """
+<label posn="156 -86 1" halign="right" valign="bottom" id="Label_RemainingPlayers" />
+<script><!--
+	#Include "TextLib" as TextLib
+
+	declare Label_RemainingPlayers <=> (Page.GetFirstChild("Label_RemainingPlayers") as CMlLabel);
+	declare netread Integer Net_LayerInfo_RemainingPlayers for UI = 1;
+	declare LastRemainingPlayers = 0;
+	
+	while (True) {
+		sleep(200);
+		if(! PageIsVisible) continue;
+		
+		if (LastRemainingPlayers != Net_LayerInfo_RemainingPlayers) {
+			LastRemainingPlayers = Net_LayerInfo_RemainingPlayers;
+			Label_RemainingPlayers.SetText(TextLib::Compose("$s%1%2", _("Remaining players: "), TextLib::ToText(LastRemainingPlayers)));
+		}
+	}
+--></script>
+""";
+}
+
+
+/* ------------------------------------- */
+/** Update the info manialink
+ *
+ *	@param	_RemainingPlayers	The number of remaining players
+ */
+Void UpdateLayerInfo(Integer _RemainingPlayers) {
+	declare PlayersAndSpectators = CSmPlayer[];
+	foreach (Player in Players) PlayersAndSpectators.add(Player);
+	foreach (Spectator in Spectators) PlayersAndSpectators.add(Spectator);
+	foreach (Player in PlayersAndSpectators) {
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI == Null) continue;
+		
+		declare netwrite Integer Net_LayerInfo_RemainingPlayers for UI = 1;
+		Net_LayerInfo_RemainingPlayers = _RemainingPlayers;
+	}
+}
+
+/* ------------------------------------- */
+/** Update the Scores in Spawn manialink
+ *
+ *	@return		The manialink string
+ */
+Text UpdateLayerScoresInSpawn() {
+	declare Top3 = "";
+	declare I = 0;
+	declare Icons = ["First", "Second", "Third"];
+	declare Ranking = Text[Integer];
+	declare Scoring = Integer[Integer];
+	
+	foreach (Score in Scores) {
+		Ranking[I] = TextLib::MLEncode(Score.User.Name);
+		Scoring[I] = Score.Points;
+		I += 1;
+		if (I >= 3) break;
+	}
+	
+	foreach (Rank => Name in Ranking) {
+		Top3 ^= 
+"""
+<frame posn="-140 {{{ (Rank * -30) - 14 }}}">
+	<quad posn="0 -2 1" sizen="30 30" valign="center" style="Icons64x64_1" substyle="{{{ Icons[Rank] }}}" />
+	<label posn="30 0 1" sizen="200 20" textsize="15" valign="center" text="{{{ Name }}}" />
+	<label posn="270 0 1" sizen="20 20" textsize="15" halign="right" valign="center" text="{{{ Scoring[Rank] }}}" />
+</frame>
+""";
+	}
+	
+	return 
+"""
+<frame posn="0 70">
+	<frame posn="0 0">
+		<quad posn="0 0" sizen="290 92" halign="center" bgcolor="222c" />
+		{{{ Top3 }}}
+	</frame>
+	<frame posn="0 -95">
+		<quad posn="0 0" sizen="290 30" halign="center" bgcolor="222c" />
+		<frame posn="-140 -14">
+			<label posn="12 0 1" sizen="15 20" scale="2" halign="center" valign="center" style="TextRaceMessageBig" id="Label_Rank" />
+			<label posn="30 0 1" sizen="200 20" textsize="15" valign="center" id="Label_Name" />
+			<label posn="270 0 1" sizen="20 20" textsize="15" halign="right" valign="center" id="Label_Score" />
+		</frame>
+	</frame>
+</frame>
+<script><!--
+declare Label_Rank <=> (Page.GetFirstChild("Label_Rank") as CMlLabel);
+declare Label_Name <=> (Page.GetFirstChild("Label_Name") as CMlLabel);
+declare Label_Score <=> (Page.GetFirstChild("Label_Score") as CMlLabel);
+if (InputPlayer != Null) {
+	Label_Rank.SetText("$s"^(Scores.keyof(InputPlayer.Score) + 1));
+	Label_Name.SetText("$s"^InputPlayer.Name);
+	Label_Score.SetText("$s"^InputPlayer.Score.Points);
+}
+--></script>
+""";
+}
+
+/* ------------------------------------- */
+/** Update the survival score of the remaining players
+ *
+ *	@param	_PlayersAlive	The remaining players
+ */
+Void UpdateSurvivalScore(Ident[Ident] _PlayersAlive) {
+	G_SurvivalScore += 1;
+	
+	foreach (PlayerId => ScoreId in _PlayersAlive) {
+		if (Players.existskey(PlayerId)) {
+			UpdatePlayerScores(Players[PlayerId], C_ScoreSurvival, 1);
+			//Top::IncrementPlayerPoints("Survival", Players[PlayerId], 1);
+		}
+	}
+}
+
+
+CSmPlayer GetMaxHitPlayer() {
+	declare BestPlayer = Null;
+	declare MaxHit = -1;
+	foreach(Player in Players) {
+		declare Score <=> Player.Score;
+		if(Score != Null) {
+			declare Integer Hit for Score;
+			if(Hit > MaxHit) {
+				MaxHit = Hit;
+				BestPlayer <=> Player;
+			}
+		}
+	}
+	return BestPlayer;
+}
+
+Void CreateMarkersManialinkPage() {
+	declare Real PoleImgSize = 10.;
+	declare Real PlayersImgSize = 6.;
+	declare Real WideScreenRatio = 9./16.;
+	declare Text PoleMarkerImg = "file://Media/Manialinks/Shootmania/Common/goal_cap.dds";
+	declare Text MLText = """
+	<script><!--
+		main() {
+			declare Integer NbTopPlayersWithMarker = 3;
+			declare CMlFrame[] MarkersFrames = CMlFrame[];
+			
+			MarkersFrames.add((Page.GetFirstChild("TopPlayerMarker1") as CMlFrame));
+			MarkersFrames.add((Page.GetFirstChild("TopPlayerMarker2") as CMlFrame));
+			MarkersFrames.add((Page.GetFirstChild("TopPlayerMarker3") as CMlFrame));
+			
+			while(True) {
+				yield;
+				if(! PageIsVisible) continue;
+				
+				declare Integer MarkersCount = 0;
+				foreach(Player in Players) {
+					if (Player.Score == Null) continue; // not for bots
+					if(MarkersCount >= NbTopPlayersWithMarker) break;
+					MarkersFrames[MarkersCount].Hide();
+					MarkersCount += 1;
+				}
+				for(I, MarkersCount, NbTopPlayersWithMarker-1) {
+					MarkersFrames[I].Hide();
+				}
+			}
+		}
+	--></script>
+	<frame>
+		<frame id="TopPlayerMarker1" >
+			<quad halign="center" posn="0 0 0" sizen="{{{PlayersImgSize*WideScreenRatio}}} {{{PlayersImgSize}}}" style="Icons64x64_1" substyle="First" autoscale="False" />
+		</frame>
+		<frame id="TopPlayerMarker2" >
+			<quad halign="center" posn="0 0 0" sizen="{{{PlayersImgSize*WideScreenRatio}}} {{{PlayersImgSize}}}" style="Icons64x64_1" substyle="Second" autoscale="False" />
+		</frame>
+		<frame id="TopPlayerMarker3" >
+			<quad halign="center" posn="0 0 0" sizen="{{{PlayersImgSize*WideScreenRatio}}} {{{PlayersImgSize}}}" style="Icons64x64_1" substyle="Third" autoscale="False" />
+		</frame>
+		<frame id="PoleMarkerFrameId">
+			<quad halign="center" posn="0 0 0" sizen="{{{PoleImgSize*WideScreenRatio}}} {{{PoleImgSize}}}" image="{{{PoleMarkerImg}}}" autoscale="False" colorize="0. 0. 0." />
+		</frame>
+	</frame>
+	""";
+	
+	declare LayerMarkers <=> UIManager.UILayerCreate();
+	LayerMarkers.ManialinkPage = MLText;
+	LayerMarkers.Type = CUILayer::EUILayerType::Markers;
+	UIManager.UIAll.UILayers.add(LayerMarkers);
+}
+
+
+Void CreateRulesReminderLayer() {
+	if(! C_DisplayRulesReminder) return;
+
+	declare Text TitleText 			= _("Waiting for next round to start...");
+	declare Text ModeName	 		= _("Royal Mode");
+	declare Text RulesReminder 		= _("To win a round, be the last man standing.\nTo win a match, win points by surviving (Sv) hitting others (Hit) or being the one to activate the tornado at the pole (Pole).");
+	
+	---RulesReminderText---
+	
+	declare Text DoNotShowAgain		= _("Do Not Show Again");
+	declare Text Close				= _("Close");
+	
+	declare Integer WindowWidth		= 270;
+	declare Integer WindowHeight	= 25;
+	declare Real 	WindowX			= 0.;
+	declare Real 	WindowY			= 30.;	
+	
+	declare Text MLText = """
+	<script><!--
+		// for the "do not show again" feature
+		declare persistent Boolean NadeoRoyal_PersistentShowRulesReminder for This = True;
+		
+		declare netwrite Boolean Royal_UIToServShowRulesReminder for UI = True;
+		declare netread  Boolean Royal_ServToUIPlayerIsEliminated for UI;
+		
+		declare Boolean _TabsLib_ScoresLayerIsVisible 	for UI;
+		declare Boolean _TabsLib_AltLayerIsVisible 		for UI;
+		
+		Royal_UIToServShowRulesReminder = True;
+		if(! NadeoRoyal_PersistentShowRulesReminder) {
+			Royal_UIToServShowRulesReminder = False;
+			return;
+		}
+		
+		declare Button_DoNotShowAgain <=> (Page.GetFirstChild("Button_DoNotShowAgain") as CMlLabel);
+		declare Button_Close <=> (Page.GetFirstChild("Button_Close") as CMlLabel);
+		declare RulesReminderMainFrame <=> (Page.GetFirstChild("RulesReminderMainFrame") as CMlFrame);
+		
+		declare Boolean ShowFrame = True;
+		declare Boolean SwitchEliminated = False;
+		while(True) {
+			yield;
+			
+			if(Royal_ServToUIPlayerIsEliminated != SwitchEliminated) {
+				SwitchEliminated = Royal_ServToUIPlayerIsEliminated;
+				ShowFrame = True; // change in the elimination status: the frame can be shown.
+			}
+			
+			
+			if(IsSpectatorMode || (! Royal_ServToUIPlayerIsEliminated) || (_TabsLib_ScoresLayerIsVisible || _TabsLib_AltLayerIsVisible)) {
+				RulesReminderMainFrame.Hide();
+				continue;
+			}
+			
+			if(ShowFrame) {
+				RulesReminderMainFrame.Show();
+			}
+			
+			
+			foreach(Event in PendingEvents) {
+				switch(Event.Type){
+					case CMlEvent::Type::MouseClick: {
+						if(Event.ControlId == "Button_DoNotShowAgain") {
+							NadeoRoyal_PersistentShowRulesReminder = False;
+							Royal_UIToServShowRulesReminder = False;
+							RulesReminderMainFrame.Hide();
+							return; // End of this behavior
+						}
+						if(Event.ControlId == "Button_Close") {
+							RulesReminderMainFrame.Hide();
+							ShowFrame = False;
+						}
+					}
+					case CMlEvent::Type::KeyPress: {
+						if(Event.CharPressed == "2424832" ) { // F1
+							RulesReminderMainFrame.Hide();
+							ShowFrame = False;
+						}
+					}
+				}
+			}
+		}
+		
+	--></script>
+	<frame id="RulesReminderMainFrame" hidden="true" posn="{{{WindowX}}} {{{WindowY}}} 5" >
+		<!--<quad  posn="0 0" 	halign="center"	valign="center" sizen="{{{WindowWidth}}} {{{WindowHeight}}}" image="{{{C_WelcomeBgImage}}}" />-->
+		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="292 160" image="{{{C_WelcomeBgImage}}}" />
+		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
+		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-8}}}" 	halign="left" valign="center" text="{{{ModeName}}}" textsize="3" textprefix="$0f0"/>
+		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
+		<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
+		<label posn="{{{(WindowWidth/2)-42}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" />
+		<!--<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2)}}}"  text="{{{
+				_("Press $<$o$f00F1$> to close this window.")}}}" />-->
+	</frame>
+	""";
+	
+	declare Ident RulesReminderLayerId	= Layers::Create("RulesReminder", MLText);
+	declare Boolean Attached			= Layers::Attach("RulesReminder", NullId);
+}

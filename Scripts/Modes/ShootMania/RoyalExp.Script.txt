@@ -1,0 +1,841 @@
+#Const 	__ROYAL_EVO_DEBUG__ False
+
+#Extends "Modes/ShootMania/Royal.Script.txt"
+
+#Const DeluxeVersion 		"2012-04-09"
+#Const DeluxeScriptName		"RoyalExp.Script.txt"
+
+#Include "Libs/Nadeo/ShootMania/RoyalExp/RoyalExpCharacter.Script.txt" as Character
+#Include "Libs/Nadeo/ShootMania/RoyalExp/RoyalExpCharacterXp.Script.txt" as CharacterXp
+#Include "Libs/Nadeo/ShootMania/RoyalExp/CharacterBaseUI.Script.txt" as CharacterUI
+
+#Setting S_AllowDoubleCapture	True	as _("Allow a second pole capture after the first activation")
+#Setting S_OffZoneMaxSpeedTime	8		as _("Duration of capture to reach maximum speed")
+
+#Const C_RoyalDeluxeBots	2
+
+#Const C_MaxCaracsLevel 	4
+#Const C_MaxLevel 			12
+#Const C_RebirthLevelMin	12
+#Const C_RespeLevelMin		1
+#Const C_LevelLossToRespe	0
+#Const C_AutoXpEachRound	20
+#Const C_XpPointsPerCombo	3
+#Const C_MinHitForCombo		4
+#Const C_MinSurviveRatioForCombo 0.6
+#Const C_MaxCombo			5
+// Coordinated with C_ScoreHit/Survival/Pole from Royal
+#Const C_XpTypeCombo		4
+#Const C_XpTypeBonus		5
+#Const C_SaveDataOnServer	False
+
+#Const C_XpColor			"$3f3"
+
+
+// Coordinated with SHIELD_CARACTERISTIC/.../_CARACTERISTIC from RoyalExpCharacter
+#Const RESPE_FIELD			20
+#Const FUSION_FIELD			30
+
+declare Boolean G_UIBuilt;
+
+***LogVersion***
+***
+MB_LogVersion(DeluxeScriptName, DeluxeVersion);
+MB_LogVersion(CharacterUI::GetScriptName(), CharacterUI::GetScriptVersion());
+MB_LogVersion(Character::GetScriptName(), Character::GetScriptVersion());
+MB_LogVersion(CharacterXp::GetScriptName(), CharacterXp::GetScriptVersion());
+***
+
+***ScoresTable***
+***
+// ScoresTable::SetColumnsName(_("Level"), _("|Hit/Survival,6 chars max|Hit/Sv"), _("Pole"), _("Round"), _("Total"));
+ScoresTable::SetColumnsName(_("Level"), _("|Hit/Survival,6 chars max|Hit/Sv"), _("Pole"), _("Round"), _("Total"));
+***
+
+***ModeRulesText***
+***
+ModeName = "Royal Evolution";
+ModeRules = TextLib::Compose(_("Free for all\n- Survive as long as possible to score a maximum of points.\n- Bonus points are awarded for the pole capture and for each player hit.\n- If the pole is captured then the playing area will start to shrink. If a player leaves this area he is eliminated.\n- The first player to reach %1 points wins.\n\nPress ALT to improve your character. Any time you earn points, xp is granted to you. When you have enough xp, you level up and earn new skill points to assign.\n- Reseting all caracteristics is free but can be done only once.\n- When you reach level %2, you are allowed to 'rebirth', i.e. go back to level 1 with one extra point to assign.\n- Your progress is saved until you disconnect from the server."), TextLib::ToText(S_MapPointsLimit), TextLib::ToText(C_RebirthLevelMin));
+***
+
+***StartMatch***
+***
+G_UIBuilt = False;
+
+if(__ROYAL_EVO_DEBUG__) MB_UseLogging = True;
+
+// Initialize UI
+// CharacterUI::Reset(25, -12);
+//CharacterUI::Reset(0, -8, -73, G_AltMenuSize);
+CharacterUI::Reset(G_AltMenuSize);
+
+CharacterUI::CreateUIRespeButton(RESPE_FIELD, C_RespeLevelMin, C_LevelLossToRespe, True);
+BuildBushidoUI();
+CreateUIFusionButton(FUSION_FIELD, C_RebirthLevelMin);
+HackCaracsUIToHideArmorReload();
+CreateXpGainLayer();
+
+// Initialize players
+foreach(Player in AllPlayers) {
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) continue;
+	
+	declare Boolean XpCharacter_Built for UI;
+	XpCharacter_Built = False;
+	Tabs::AlwaysShowScore(UI, True);
+
+	if(G_TabPaneID != NullId) {
+		Tabs::ForceTab(UI, G_TabPaneID, "ScoresTableTab");
+	}
+	
+	if(C_SaveDataOnServer) {
+		UnloadData(Player);
+	}
+}
+
+
+***
+
+
+
+***StartMap***
+***
+if(__ROYAL_EVO_DEBUG__) Users_SetNbFakeUsers(C_RoyalDeluxeBots, 0);
+
+foreach(_Player in Players) {
+	---SetLvlRebirthScoreText---
+}
+***
+
+***StartRound***
+***
+// Setting Royal Mode variables
+AllowDoubleCapture = S_AllowDoubleCapture;
+OffZoneMaxSpeedTime = S_OffZoneMaxSpeedTime;
+foreach(Player in Players) 
+{
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI != Null)
+	{
+		declare netwrite Boolean XpCharacter_HitComboValidated for UI;
+		declare netwrite Boolean XpCharacter_SurvivalComboValidated for UI;
+		declare netwrite Boolean XpCharacter_PoleComboValidated for UI;
+		XpCharacter_HitComboValidated = False;
+		XpCharacter_SurvivalComboValidated = False;
+		XpCharacter_PoleComboValidated = False;
+	}
+}
+***
+
+***PlayLoop***
+***
+	+++UpdatePlayersStatusFromUI+++
+	foreach(Event in PendingEvents) 
+	{
+		if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
+			if (Event.Victim != Null && GameplaySequence >= 3) {
+				GiveXp(Event.Victim, C_AutoXpEachRound, C_XpTypeBonus);
+			}
+		} else if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
+			if (Event.Player != Null && GameplaySequence >= 3) {
+				GiveXp(Event.Player, C_AutoXpEachRound, C_XpTypeBonus);
+			}
+		}
+		
+		if(__ROYAL_EVO_DEBUG__) {
+			if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
+				GiveXp(Event.Player, 50, C_XpTypeBonus);
+				Discard(Event);
+			}
+		}
+	}
+	
+	if(C_SaveDataOnServer) {
+		foreach(Player in Players) {
+			declare UI <=> UIManager.GetUI(Player);
+			if (UI == Null) continue;
+			declare Boolean XpCharacter_Built for UI;
+			if (! XpCharacter_Built) continue;
+			
+			declare netwrite Integer XpCharacter_LastCaracsUpdate for UI;
+			declare 		 Integer XpCharacterRoyalEvo_LastUpdate for Player.User;
+			if (XpCharacterRoyalEvo_LastUpdate != XpCharacter_LastCaracsUpdate) {
+				XpCharacterRoyalEvo_LastUpdate = XpCharacter_LastCaracsUpdate;
+				SaveData(Player);
+			}
+		}
+	}
+	
+	
+***
+
+***SleepLoop***
+***
+	+++UpdatePlayersStatusFromUI+++
+***
+
+
+
+***EndRound***
+***
+declare Integer RoundPlayersPlaying = 0;
+foreach(Player in Players)
+{
+	if(Player.Score != Null) {
+		RoundPlayersPlaying += 1;
+	}
+}
+
+foreach(Player in Players) 
+{
+	if (! Player.RequestsSpectate) 
+	{
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI == Null) continue;
+		
+		// only built players can earn points
+		declare Boolean XpCharacter_Built for UI;
+		if (! XpCharacter_Built) continue;
+		
+		declare netwrite Integer ComboHit for UI;
+		declare netwrite Integer ComboSurvival for UI;
+		declare netwrite Integer ComboPole for UI;
+		
+		declare Integer HitNb for Player.Score;
+		if (HitNb < C_MinHitForCombo) {
+			ComboHit = 0;
+		}
+		
+		declare Integer Survival for Player.Score;
+		declare Real SurvRatio = Survival / (RoundPlayersPlaying * 1.0);
+		if (SurvRatio < C_MinSurviveRatioForCombo) {
+			ComboSurvival = 0;
+		}
+		
+		declare Integer Pole for Player.Score;
+		if (Pole <= 0) {
+			ComboPole = 0;
+		}
+	}
+}
+
+***
+
+
+***EndRoundAlivePlayer***
+***
+	GiveXp(Player, C_AutoXpEachRound, C_XpTypeBonus);
+***
+
+***BuildTabs***
+***
+	// Create Tabs
+	Tabs::Load();
+	declare TabPane <=> Tabs::CreateTabPaneLayer(
+	[
+		"XpTab" => "Profile",
+		"TopTab" => "Buddies",
+		"ScoresTab" => "Rankings"
+	], -5, -1, False);
+	
+	TabPane.Type = CUILayer::EUILayerType::AltMenu;
+	G_TabPaneID = TabPane.Id;
+	UIManager.UIAll.UILayers.add(TabPane);
+***
+
+
+***OnPlayerSpawn***
+***
+declare UI <=> UIManager.GetUI(Player);
+if (UI == Null) {
+	Player.ArmorMax = 100;
+}
+else {
+	declare Boolean XpCharacter_Built for UI = False;
+	
+	if (! XpCharacter_Built) 
+	{
+		XpCharacter_Built = True;
+		
+		declare Integer XpCharacter_MaxCaracLevel for Player.User;
+		XpCharacter_MaxCaracLevel = C_MaxCaracsLevel;
+		declare Integer XpCharacter_MaxLevel for Player.User;
+		XpCharacter_MaxLevel = C_MaxLevel;	
+		
+		declare netwrite Integer XpCharacter_FusionLvl	for UI;
+		XpCharacter_FusionLvl = 0;
+		
+		declare Integer LastHitComboCounter for Player;
+		LastHitComboCounter = Now;
+		
+		declare netwrite Boolean XpCharacter_MapRespeDone for UI;
+		XpCharacter_MapRespeDone = False;
+		
+		declare netwrite Integer ComboHit for UI;
+		declare netwrite Integer ComboSurvival for UI;
+		declare netwrite Integer ComboPole for UI;
+		
+		ComboHit = 0;
+		ComboSurvival = 0;
+		ComboPole = 0;
+		
+		Character::BuildFromScratch(Player, UI);
+		CharacterXp::BuildFromScratch(Player, UI);
+		
+		CharacterUI::InitializeCharacterUI(Player, UI);
+		
+		if(! G_UIBuilt) {
+			G_UIBuilt = True;
+			// Create the Alt Xp Screen
+			CharacterUI::BuildAltXpMenuLayer(Player);
+		}
+		
+		
+		CharacterUI::DeclareCustomField(Player, RESPE_FIELD);
+		CharacterUI::DeclareCustomField(Player, FUSION_FIELD);
+		
+		declare CSmPlayer _Player <=> Player;
+		---SetLvlRebirthScoreText---
+		
+		if(C_SaveDataOnServer) {
+			if (LoadData(Player)) {
+				declare Dummy = CharacterXp::NotifyXpGain(Player, 0, -1); // TODO : créer une belle fonction d'update.
+			}
+			declare Integer XpCharacterRoyalEvo_LastUpdate for Player.User;
+			XpCharacterRoyalEvo_LastUpdate = 0;
+		}
+	}
+	
+	CharacterUI::FlushEvents(Player);
+	Character::OnSpawn(Player, UI);
+}
+***
+
+
+
+
+
+//Void UpdatePlayersStatusFromUI()
+//{
+***UpdatePlayersStatusFromUI***
+***
+	foreach (Player in AllPlayers) 
+	{
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI == Null) continue;
+		
+		declare Boolean XpCharacter_Built for UI;
+		if(! XpCharacter_Built) continue;
+		
+		Character::FrameUpdate(Player);
+		
+		if (! CharacterUI::ButtonClicked(Player, UI)) continue;
+		
+		declare Integer CurrentArmorMax = Player.ArmorMax;
+		declare CaracsClicked = CharacterUI::GetCaracsClicked(Player, UI);
+		declare Boolean CaracImpactsArmor = Character::CaracImpactsArmor(UI, CaracsClicked);
+		declare Incremented = False;
+		foreach(CaracIndex => NbClics in CaracsClicked) {
+			for(I, 1, NbClics) {
+				declare IncrementDone = CharacterXp::IncrementCaracteristic(UI, CaracIndex, C_MaxCaracsLevel);
+				Incremented = Incremented || IncrementDone;
+			}
+		}
+		
+		
+		
+		// RESPE
+		declare netwrite Boolean XpCharacter_MapRespeDone for UI = False;
+		if (! XpCharacter_MapRespeDone)
+		{
+			if (CharacterUI::GetFieldClickCount(Player, UI, RESPE_FIELD) > 0)
+			{
+				declare netwrite Integer XpCharacter_Level 		for UI;
+				declare netwrite Integer XpCharacter_XpPoints 	for UI;
+				Incremented = True;
+				XpCharacter_MapRespeDone = True;
+				
+				declare XpLoss = 0;
+				for(I, 0, C_LevelLossToRespe - 1) {
+					XpLoss = XpLoss + CharacterXp::GetXpDeltaToLevel(XpCharacter_Level - I);
+				}
+				XpCharacter_XpPoints -= XpLoss;
+				XpCharacter_Level -= C_LevelLossToRespe;
+				CaracImpactsArmor = True;
+				
+				CharacterXp::Respecialize(UI);
+				declare Boolean LvlUp = CharacterXp::NotifyXpGain(Player,  0, -1); // GiveXp(Player, 0);
+			}
+		}
+		
+		// REBIRTH
+		if (CharacterUI::GetFieldClickCount(Player, UI, FUSION_FIELD) > 0)
+		{
+			declare netwrite Integer XpCharacter_Level 		for UI;
+			declare netwrite Integer XpCharacter_XpPoints 	for UI;
+			declare netwrite Integer XpCharacter_FusionLvl	for UI;
+			
+			// declare persistent Integer RoyalEvolution_PersistentRebirth for Player.User = 0;
+			
+			Incremented = True;
+			
+			XpCharacter_FusionLvl += 1;
+			XpCharacter_XpPoints = 0;
+			XpCharacter_Level = 1;
+			// RoyalEvolution_PersistentRebirth += 1;
+			CaracImpactsArmor = True;
+			
+			CharacterXp::Respecialize(UI);
+			declare Boolean LvlUp = CharacterXp::NotifyXpGain(Player,  0, -1); // GiveXp(Player, 0);
+			declare CSmPlayer _Player <=> Player;
+			---SetLvlRebirthScoreText---
+		}
+		
+		if (Incremented) {
+			Character::ApplyCaracsToStats(Player, UI, CaracImpactsArmor);
+		}
+		
+		CharacterUI::FlushEvents(Player);
+	}
+//}
+***
+
+
+
+***OnPointsUpdate***
+***
+	declare UI <=> UIManager.GetUI(_Player);
+	if (UI != Null) {
+		switch (_Score) {
+			case C_ScoreHit		: {
+				declare netwrite Boolean XpCharacter_HitComboValidated for UI;
+				if (! XpCharacter_HitComboValidated) {
+					declare Integer HitNb for _Player.Score;
+					
+					if (HitNb >= C_MinHitForCombo) {
+						XpCharacter_HitComboValidated = True;
+						declare netwrite Integer ComboHit for UI;
+						if (ComboHit <= C_MaxCombo) ComboHit += 1;
+						if (ComboHit > 1) {
+							declare Integer GiveXp_XpType = C_XpTypeCombo;
+							declare Integer GiveXp_XpPoints = (ComboHit-1) * C_XpPointsPerCombo;
+							+++GiveXp+++
+						}
+						
+					}
+				}
+			}
+			case C_ScoreSurvival: 
+			{
+				declare netwrite Boolean XpCharacter_SurvivalComboValidated for UI;
+				if (! XpCharacter_SurvivalComboValidated) {
+					// we have to recompute it because the label +OnPointsUpdate+ is declared in a function.
+					declare Integer RoundPlayersPlaying = 0;
+					foreach(Player in Players) 
+					{
+						if(Player.Score != Null) {
+							RoundPlayersPlaying += 1;
+						}
+					}
+	
+					declare netwrite Boolean XpCharacter_SurvivalComboValidated for UI;
+					declare Integer Survival for _Player.Score;
+					declare Real SurvRatio = Survival / (RoundPlayersPlaying * 1.0);
+					if (SurvRatio > C_MinSurviveRatioForCombo) {
+						XpCharacter_SurvivalComboValidated = True;
+						declare netwrite Integer ComboSurvival for UI;
+						if (ComboSurvival <= C_MaxCombo) ComboSurvival += 1;
+						
+						if (ComboSurvival > 1) {
+							declare Integer GiveXp_XpType = C_XpTypeCombo;
+							declare Integer GiveXp_XpPoints = (ComboSurvival-1) * C_XpPointsPerCombo;
+							+++GiveXp+++
+						}
+					}
+				}
+			}
+			case C_ScorePole	: {
+				declare netwrite Boolean XpCharacter_PoleComboValidated for UI;
+				if (! XpCharacter_PoleComboValidated) {
+					declare Integer Pole for _Player.Score;
+					if (Pole > 0) {
+						XpCharacter_PoleComboValidated = True;
+						declare netwrite Integer ComboPole for UI;
+						if (ComboPole <= C_MaxCombo) ComboPole += 1;
+						if(ComboPole > 1) {
+							declare Integer GiveXp_XpType = C_XpTypeCombo;
+							declare Integer GiveXp_XpPoints = (ComboPole-1) * C_XpPointsPerCombo;
+							+++GiveXp+++
+						}
+					}
+				}
+			}
+		}
+	
+		
+		declare Integer GiveXp_XpType = _Score;
+		declare Integer GiveXp_XpPoints = _Points;
+		+++GiveXp+++
+	}
+***
+
+
+***GiveXp***
+***
+	declare Integer BoostedXp = Character::GetBoostedXp(_Player, GiveXp_XpPoints);
+	declare Boolean LvlUp = CharacterXp::NotifyXpGain(_Player, BoostedXp, GiveXp_XpType);
+	if (LvlUp) {
+		declare Ident PlayerTabPaneId for _Player.User;
+		Tabs::HighLightTab(UI, PlayerTabPaneId, "XpTab");
+		UI.SendNotice("", CUIConfig::ENoticeLevel::PlayerInfo, Null, CUIConfig::EAvatarVariant::Default, 
+			CUIConfig::EUISound::RankChange, 0);
+
+		---SetLvlRebirthScoreText---
+	}
+***
+
+***SetLvlRebirthScoreText***
+***
+	declare PlayerUI <=> UIManager.GetUI(_Player);
+	if(PlayerUI != Null) {
+		declare Text LvlRebirthScoreText = "";
+		declare netwrite Integer XpCharacter_Level 		for PlayerUI;
+		declare netwrite Integer XpCharacter_FusionLvl	for PlayerUI;
+		LvlRebirthScoreText ^= XpCharacter_Level;
+		if(XpCharacter_FusionLvl > 0) {
+			LvlRebirthScoreText ^= "/$0af"^XpCharacter_FusionLvl^"";
+		}
+		ScoresTable::SetCustom1(_Player, LvlRebirthScoreText);
+	}
+***
+
+Void GiveXp(CSmPlayer _Player, Integer XpPoints, Integer PointsType)
+{
+	declare UI <=> UIManager.GetUI(_Player);
+	if(UI == Null) return;
+	
+	declare Integer GiveXp_XpType = PointsType;
+	declare Integer GiveXp_XpPoints = XpPoints;
+	
+	+++GiveXp+++
+}
+
+
+Void UnloadData(CSmPlayer Player)
+{
+	declare Boolean XpCharacterRoyalEvo_DataSaved for Player.User;
+	XpCharacterRoyalEvo_DataSaved = False;
+}
+
+/**
+ * Used to store some data in case of Player unwanted deconnection.
+ * Xp, caracs levels, etc. are stored in the Player.User, so if a player deonects
+ * and gets back to the server before a new map loads, he/she can get back
+ * his/her character sheet.
+ */
+Void SaveData(CSmPlayer Player) 
+{
+	declare UI <=> UIManager.GetUI(Player);
+	if(UI == Null) return;
+	
+	//MB_Log("Saving player "^Player.Name);
+	declare Boolean XpCharacterRoyalEvo_DataSaved for Player.User;
+	XpCharacterRoyalEvo_DataSaved = True;
+	
+	declare Boolean XpCharacterRoyalEvo_MapRespeDone for Player.User;
+	declare Integer XpCharacterRoyalEvo_Rebirths for Player.User;
+	declare Integer XpCharacterRoyalEvo_XpPoints for Player.User;
+	declare Integer XpCharacterRoyalEvo_Level for Player.User;
+	declare Integer XpCharacterRoyalEvo_UnsuedCaracPoints for Player.User;	
+	declare Integer[Integer] XpCharacterRoyalEvo_CaracLevels for Player.User;
+	
+	declare netwrite Boolean XpCharacter_MapRespeDone for UI;
+	declare netwrite Integer XpCharacter_FusionLvl	for UI;
+	declare netwrite Integer XpCharacter_XpPoints for UI;
+	declare netwrite Integer XpCharacter_Level for UI;
+	declare netwrite Integer XpCharacter_UnusedCaracPoints 	 	for UI;
+	declare netwrite Integer[Integer]  	XpCharacter_CaracLevel 	for UI;
+	
+	
+	XpCharacterRoyalEvo_MapRespeDone 		= XpCharacter_MapRespeDone;
+	XpCharacterRoyalEvo_Rebirths 			= XpCharacter_FusionLvl;
+	XpCharacterRoyalEvo_XpPoints 			= XpCharacter_XpPoints;
+	XpCharacterRoyalEvo_Level 				= XpCharacter_Level;
+	XpCharacterRoyalEvo_UnsuedCaracPoints 	= XpCharacter_UnusedCaracPoints;
+	foreach(Carac => Level in XpCharacter_CaracLevel) {
+		XpCharacterRoyalEvo_CaracLevels[Carac] = Level;
+	}
+}
+
+/**
+ * @return True iff the player was loaded, False if he/she is new or it is a bot.
+ */
+Boolean LoadData(CSmPlayer Player) 
+{
+	declare UI <=> UIManager.GetUI(Player);
+	if(UI == Null) return False;
+	
+	declare Boolean XpCharacterRoyalEvo_DataSaved for Player.User;
+	if(!XpCharacterRoyalEvo_DataSaved) {
+		return False; // player is new
+	}
+	// MB_Log("Loading player "^Player.Name); 
+	
+	declare Boolean XpCharacterRoyalEvo_MapRespeDone for Player.User;
+	declare Integer XpCharacterRoyalEvo_Rebirths for Player.User;
+	declare Integer XpCharacterRoyalEvo_XpPoints for Player.User;
+	declare Integer XpCharacterRoyalEvo_Level for Player.User;
+	declare Integer XpCharacterRoyalEvo_UnsuedCaracPoints for Player.User;
+	declare Integer[Integer] XpCharacterRoyalEvo_CaracLevels for Player.User;
+	
+	declare netwrite Boolean XpCharacter_MapRespeDone for UI;
+	declare netwrite Integer XpCharacter_FusionLvl	for UI;
+	declare netwrite Integer XpCharacter_XpPoints for UI;
+	declare netwrite Integer XpCharacter_Level for UI;
+	declare netwrite Integer XpCharacter_UnusedCaracPoints 	 	for UI;
+	declare netwrite Integer[Integer]  	XpCharacter_CaracLevel 	for UI;
+	
+	XpCharacter_MapRespeDone 		= XpCharacterRoyalEvo_MapRespeDone;
+	XpCharacter_FusionLvl 			= XpCharacterRoyalEvo_Rebirths;
+	XpCharacter_XpPoints 			= XpCharacterRoyalEvo_XpPoints;
+	XpCharacter_Level 				= XpCharacterRoyalEvo_Level;
+	XpCharacter_UnusedCaracPoints 	= XpCharacterRoyalEvo_UnsuedCaracPoints;
+	foreach(Carac => Level in XpCharacterRoyalEvo_CaracLevels) {
+		XpCharacter_CaracLevel[Carac] = Level;
+	}
+	return True;
+}
+
+
+
+Void BuildBushidoUI() 
+{
+	declare ScriptInitText 	= """
+
+		declare netread Integer ComboHit 		for UI;
+		declare netread Integer ComboSurvival 	for UI;
+		declare netread Integer ComboPole 		for UI;
+		
+		declare netread Text ComboHitDesc 		for UI;
+		declare netread Text ComboSurvivalDesc 	for UI;
+		declare netread Text ComboPoleDesc 		for UI;
+
+		declare netread Boolean XpCharacter_HitComboValidated 		for UI;
+		declare netread Boolean XpCharacter_SurvivalComboValidated 	for UI;
+		declare netread Boolean XpCharacter_PoleComboValidated 		for UI;
+
+		declare Label_ComboHit 		<=> (Page.GetFirstChild("BushidoHitLabel") as CMlLabel);
+		declare Label_ComboSurvival <=> (Page.GetFirstChild("BushidoSurvivalLabel") as CMlLabel);
+		declare Label_ComboPole 	<=> (Page.GetFirstChild("BushidoPoleLabel") as CMlLabel);
+		
+		declare Label_SmallComboHit 		<=> (Page.GetFirstChild("BushidoHitSmallLabel") as CMlLabel);
+		declare Label_SmallComboSurvival 	<=> (Page.GetFirstChild("BushidoSurvivalSmallLabel") as CMlLabel);
+		declare Label_SmallComboPole 		<=> (Page.GetFirstChild("BushidoPoleSmallLabel") as CMlLabel);
+		
+		//declare Label_ComboHitValid 		<=> (Page.GetFirstChild("BushidoHitValidLabel") as CMlLabel);
+		//declare Label_ComboSurvivalValid 	<=> (Page.GetFirstChild("BushidoSurvivalValidLabel") as CMlLabel);
+		//declare Label_ComboPoleValid 		<=> (Page.GetFirstChild("BushidoPoleValidLabel") as CMlLabel);
+		
+		declare Label_ComboDesc <=> (Page.GetFirstChild("BushidoDescLabel") as CMlLabel);
+		
+		declare MouseOverCombo = False;
+	""";
+	
+	declare ScriptLoopText 	= """
+
+		if(XpCharacter_HitComboValidated) {
+			declare Integer XpBonus = 0;
+			if (ComboHit > {{{C_MaxCombo}}}) XpBonus = {{{C_MaxCombo * C_XpPointsPerCombo}}};
+			else XpBonus = {{{C_XpPointsPerCombo}}} * (ComboHit-1);
+			
+			Label_ComboHit.SetText("{{{C_XpColor}}}+"^XpBonus^" xp");
+		}
+		else Label_ComboHit.SetText("  $a00x");
+		
+		if(XpCharacter_SurvivalComboValidated) {
+			declare Integer XpBonus = 0;
+			if (ComboSurvival > {{{C_MaxCombo}}}) XpBonus = {{{C_MaxCombo * C_XpPointsPerCombo}}};
+			else XpBonus = {{{C_XpPointsPerCombo}}} * (ComboSurvival-1);
+			
+			Label_ComboSurvival.SetText("{{{C_XpColor}}}+"^XpBonus^" xp");
+		}
+		else Label_ComboSurvival.SetText("  $a00x");
+				
+		if(XpCharacter_PoleComboValidated) {
+			declare Integer XpBonus = 0;
+			if (ComboPole > {{{C_MaxCombo}}}) XpBonus = {{{C_MaxCombo * C_XpPointsPerCombo}}};
+			else XpBonus = {{{C_XpPointsPerCombo}}} * (ComboPole-1);
+			
+			Label_ComboPole.SetText("{{{C_XpColor}}}+"^XpBonus^" xp");
+		}
+		else Label_ComboPole.SetText("  $a00x");
+		
+		
+		declare Text ComboText = ""^ComboHit;
+		if(ComboHit > {{{C_MaxCombo}}}) ComboText = "{{{C_MaxCombo}}}+";
+		Label_SmallComboHit.SetText(ComboText);
+		
+		ComboText = ""^ComboSurvival;
+		if(ComboSurvival > {{{C_MaxCombo}}}) ComboText = "{{{C_MaxCombo}}}+";
+		Label_SmallComboSurvival.SetText(ComboText);
+		
+		ComboText = ""^ComboPole;
+		if(ComboPole > {{{C_MaxCombo}}}) ComboText = "{{{C_MaxCombo}}}+";
+		Label_SmallComboPole.SetText(ComboText);
+		
+		
+		foreach(Event in PendingEvents) {
+			if (Event.Type == CMlEvent::Type::MouseOver) {
+				switch(Event.ControlId) {
+					case "BushidoHit": {
+						MouseOverCombo = True;
+						Label_ComboDesc.SetText("{{{TextLib::Compose(_("Perform %1 hits this round to increase combo."), TextLib::ToText(C_MinHitForCombo))}}}");
+					}
+					case "BushidoSurvival": {
+						MouseOverCombo = True;
+						Label_ComboDesc.SetText("{{{TextLib::Compose(_("Survive %1%% of players this round to increase combo."), ""^(MathLib::NearestInteger(C_MinSurviveRatioForCombo*100)))}}}");
+					}
+					case "BushidoPole": {
+						MouseOverCombo = True;
+						Label_ComboDesc.SetText("{{{_("Get the pole this round to increase combo.")}}}");
+					}
+				}
+			}
+			if (Event.Type == CMlEvent::Type::MouseOut) {
+				MouseOverCombo = False;
+			}
+		}
+		
+		if (MouseOverCombo) {
+			Label_ComboDesc.Show();
+		} else {
+			Label_ComboDesc.Hide();
+		}
+		
+		
+	""";
+	
+	declare Integer IconsSize = 10;
+	declare Integer YMargin   = -IconsSize;
+	declare Integer XMargin   = 10;
+	declare ManiaLinkText 	= """
+	<frame posn="-118 -30 2">
+		<quad id="BushidoHit" posn="0 0" sizen="{{{IconsSize}}} {{{IconsSize}}}" style="UIConstructionSimple_Buttons" substyle="Author" ScriptEvents="true"/>
+		<label id="BushidoHitLabel" posn="0 {{{YMargin}}}" scale=".8"/>
+		<label id="BushidoHitSmallLabel" posn="{{{IconsSize - 1.5}}} {{{IconsSize - 16}}}" scale=".6"/>
+		
+		<quad id="BushidoSurvival" posn="{{{IconsSize + XMargin}}} 0" sizen="{{{IconsSize}}} {{{IconsSize}}}"  style="UIConstructionSimple_Buttons" substyle="AuthorTime" ScriptEvents="true"/>
+		<label id="BushidoSurvivalLabel" posn="{{{IconsSize + XMargin}}} {{{YMargin}}}" scale=".8"/>
+		<label id="BushidoSurvivalSmallLabel" posn="{{{IconsSize + XMargin + IconsSize - 1.5}}} {{{IconsSize - 16}}}" scale=".6"/>
+		
+		<quad id="BushidoPole" posn="{{{2*(IconsSize + XMargin)}}} 0" sizen="{{{IconsSize}}} {{{IconsSize}}}"  style="UIConstructionSimple_Buttons" substyle="TerrainEditor" ScriptEvents="true"/>
+		<label id="BushidoPoleLabel" posn="{{{2*(IconsSize + XMargin)}}} {{{YMargin}}}" scale=".8"/>
+		<label id="BushidoPoleSmallLabel" posn="{{{2*(IconsSize + XMargin) + IconsSize - 1.5}}} {{{IconsSize - 16}}}" scale=".6"/>
+		
+		<label id="BushidoDescLabel" posn="0 {{{YMargin - 5}}}" scale=".8"/>
+	</frame>
+	""";
+	
+	CharacterUI::AddCustomScriptInit(ScriptInitText);
+	CharacterUI::AddCustomScriptLoop(ScriptLoopText);
+	CharacterUI::AddCustomMarkups(ManiaLinkText);
+}
+
+
+Void CreateCustomMarkupsFusionButton() {
+	declare PosnX = -15;
+	declare PosnY = -45;
+	declare MLText = CharacterUI::CreateLabel("FusionLabel", PosnX , PosnY, True );
+	
+	MLText = MLText^"""<frame posn="{{{PosnX}}} {{{PosnY+4}}} 3" id="Frame_ConfirmFusion" hidden="true">""";
+	//MLText = MLText^"""<quad  posn="-31 5" sizen="55 12" bgcolor="000c" />""";
+	MLText = MLText^CharacterUI::CreateLabel("Label_ConfirmFusion", -30 , 4, False );
+	MLText = MLText^CharacterUI::CreateLabel("Button_ConfirmFusion", -14 , -4, True );
+	MLText = MLText^CharacterUI::CreateLabel("Button_CancelFusion", 0 , -4, True );
+	MLText = MLText^"""</frame>""";
+	
+	CharacterUI::AddCustomMarkups(MLText);
+}
+
+Void CreateCustomScriptInitFusionButton(Integer FusionField) 
+{
+	declare Integer PointsPerRebirth = CharacterXp::GetCaracPointsPerRebirth();
+	
+	declare MLText = """
+		DeclareClientUIField(UI, {{{FusionField}}});
+		
+		declare Label_Fusion	<=> (Page.GetFirstChild("FusionLabel") as CMlLabel);
+		Label_Fusion.SetText(TextLib::Compose("> %1", _("Rebirth")));
+		
+		
+		declare Frame_ConfirmFusion <=> (Page.GetFirstChild("Frame_ConfirmFusion") as CMlFrame);
+		declare Label_ConfirmFusion <=> (Page.GetFirstChild("Label_ConfirmFusion") as CMlLabel);
+		declare Button_ConfirmFusion <=> (Page.GetFirstChild("Button_ConfirmFusion") as CMlLabel);
+		declare Button_CancelFusion <=> (Page.GetFirstChild("Button_CancelFusion") as CMlLabel);
+	
+		
+		
+		Label_ConfirmFusion.SetText(TextLib::Compose(_("Rebirth gets you back to $<$c00level 1$>\nwith $<$0a0%1 extra point$> to assign."), "{{{PointsPerRebirth}}}"));
+		Button_ConfirmFusion.SetText("{{{_("OK")}}}");
+		Button_CancelFusion.SetText("{{{_("Cancel")}}}");
+	
+		Frame_ConfirmFusion.Hide();
+		declare Boolean ShowFusionLabel = True;
+	""";
+	CharacterUI::AddCustomScriptInit(MLText);
+}
+
+Void CreateCustomScriptLoopFusionButton(Integer FusionField, Integer FusionLevelMin) {
+	declare MLText = """
+		
+	foreach(Event in PendingEvents)  {
+		if(Event.Type == CMlEvent::Type::MouseClick) {
+			switch(Event.ControlId) {
+				case "FusionLabel": {
+					ShowFusionLabel = False;
+					Frame_ConfirmFusion.Show();
+				}
+				case "Button_ConfirmFusion": {
+					NotifyNewValueToServer(UI, {{{FusionField}}});
+					ShowFusionLabel = True;
+					
+					Frame_ConfirmFusion.Hide();
+				}
+				case "Button_CancelFusion": {
+					ShowFusionLabel = True;
+					
+					Frame_ConfirmFusion.Hide();
+				}
+			}
+		}
+	}
+	
+	if (ShowFusionLabel && (XpCharacter_Level >= {{{FusionLevelMin}}})) Label_Fusion.Show();
+	else Label_Fusion.Hide();
+	""";
+	CharacterUI::AddCustomScriptLoop(MLText);
+}
+
+Void CreateUIFusionButton(Integer FusionField, Integer FusionLevelMin)
+{
+	CreateCustomMarkupsFusionButton();
+	CreateCustomScriptInitFusionButton(FusionField);
+	CreateCustomScriptLoopFusionButton(FusionField, FusionLevelMin);
+}
+
+
+
+Void CreateXpGainLayer()
+{
+	CharacterUI::CreateXpGainLayer([
+		1 => _("Hit"),
+		2 => _("Survival"),
+		3 => _("Pole"),
+		4 => _("Combo"),
+		5 => _("Bonus")
+	]);
+}
+
+Void HackCaracsUIToHideArmorReload() {
+	CharacterUI::AddCustomScriptLoop(Character::HackCaracsUIToHideArmorReload(C_MaxCaracsLevel));
+}

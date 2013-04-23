@@ -1,0 +1,1286 @@
+/**
+ *	Mode Joust
+ *
+ *	Duel 1vs1
+ */
+
+#Extends "Modes/ShootMania/ModeBase.Script.txt"
+
+#Const	CompatibleMapTypes	"JoustArena"
+#Const	Version				"2013-04-18"
+#Const	ScriptName			"Joust.Script.txt"
+
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
+#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
+#Include "Libs/Nadeo/ShootMania/WaitingQueue.Script.txt" as WQ
+#Include "Libs/Nadeo/ShootMania/KingOfTheLobby.Script.txt" as Lobby
+#Include "Libs/Nadeo/ShootMania/WarmUpSimple.Script.txt" as WarmupSimple
+#Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
+
+// ---------------------------------- //
+// Settings
+// ---------------------------------- //
+#Setting S_RoundPointsToWin	7		as _("Round points to win")
+#Setting S_RoundPointsGap	2		as _("Round points gap")
+#Setting S_RoundPointsLimit	11		as _("Round points limit")
+#Setting S_RoundTimeLimit	0 		as _("Round time limit")
+#Setting S_PoleTimeLimit	60		as _("Pole capture time limit")
+
+#Setting S_MatchPointsToWin	3		as _("Match points to win")
+#Setting S_MatchPointsGap	0		as _("Match points gap")
+#Setting S_MatchPointsLimit	3		as _("Match points limit")
+//#Setting S_MatchPointsAuto	True	as _("Match points auto")
+#Setting S_MatchmakingSleep	0		as "<hidden>" // _("Matchmaking match end duration (-1: infinite)")
+
+// Clublinks settings
+#Setting S_UsePlayerClublinks		False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
+#Setting S_ForceClublinkTeam1		""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
+#Setting S_ForceClublinkTeam2		""		as "<hidden>"	///< Force the Clublink of team 2 (format: http://www.example.com/MyTeam.Club.xml)
+
+#Setting S_UseLobby			False	as "<hidden>" // _("Launch server in lobby mode")
+#Setting S_LobbyTimePerMap	86400	as "<hidden>" //_("Time limit in lobby mode (sec., 0: no limit)")
+#Setting S_UseWarmup		False	as _("Start with a warmup")
+
+#Const C_InvincibilityAfterHitDuration 0
+#Const C_NbBots 0
+
+#Const Description _("TYPE: Duel (1 vs 1)\nOBJECTIVE:\nHit your opponent to score points. Your ammunitions are limited and you can reload only by touching the poles on the map.\nThe first player to reach the points limit with an advantage of two points wins the round.\nWhen a player loose, another one takes its place while the winner stays. And once a player wins enough rounds we go to the next map.")
+
+/* ------------------------------------- */
+// Globales variables
+/* ------------------------------------- */
+declare Ident[Integer]		G_CurrPlayerIds;		///< The id of the player currently playing on each side
+declare CSmPlayer[Integer]	G_CurrPlayers;			///< The player currently playing on each side
+declare Integer				G_BreakCount;			///< Sound variant for the hit message
+declare Boolean				G_FinalHitActivated;	///< Someone got the final hit
+
+// ---------------------------------- //
+// Extend
+// ---------------------------------- //
+
+***LogVersion***
+***
+MB_LogVersion(ScriptName, Version);
+MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
+MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
+MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
+MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
+MB_LogVersion(WQ::GetScriptName(), WQ::GetScriptVersion());
+MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
+MB_LogVersion(WarmupSimple::GetScriptName(), WarmupSimple::GetScriptVersion());
+MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
+***
+
+// ---------------------------------- //
+// Server initialization
+// ---------------------------------- //
+***InitServer***
+***
+declare SkipPlayersPresentation = False; ///< Play the player presentation sequence
+declare Boolean LayerUpdated;
+declare Boolean LayerAttached;
+declare Boolean LayerDetached;
+declare Boolean LayerDestroyed;
+***
+
+// ---------------------------------- //
+// Server start
+// ---------------------------------- //
+***StartServer***
+***
+// ---------------------------------- //
+// Lobby mode
+// Change map once a day
+if (S_UseLobby) Lobby::StartLobbyMode(S_LobbyTimePerMap, False);
+
+// ---------------------------------- //
+// Set mode options
+UseClans = False;
+UseAmmoBonusOnHit = False;
+MB_UseSectionSubmatch = True;
+MB_UsePlayerClublinks	= S_UsePlayerClublinks;
+
+// ---------------------------------- //
+// Create the rules
+declare ModeName = "Joust";
+declare ModeRules = TextLib::Compose(
+	_("Duel - 1 vs 1\n\n- You must touch your opponent with your weapons to score points.\n- Ammunitions are limited. You must alternatively capture poles on each side of the map to reload.\n- The first player to score at least %1 points with %2 ahead of his opponent wins the round.\n- Take at least %3 rounds with %4 ahead of your opponents to win the match."),
+	TextLib::ToText(S_RoundPointsToWin),
+	TextLib::ToText(S_RoundPointsGap),
+	TextLib::ToText(S_MatchPointsToWin),
+	TextLib::ToText(S_MatchPointsGap)
+);
+SpawnScreen::CreateRules(ModeName, ModeRules);
+ModeStatusMessage =  _("TYPE: Duel (1 vs 1)\nOBJECTIVE: Eliminate your opponent with limited ammunitions. You can only reload by touching the poles.");
+
+// ---------------------------------- //
+// Initialize WaitingQueue library
+WQ::InitSettings(1);
+WQ::SetShowScore(False);
+
+// ---------------------------------- //
+// Create layers
+declare LayerSpectatorId = Layers::Create("Spectator");
+LayerUpdated = Layers::Update("Spectator", CreateLayerSpectator());
+
++++ScoresTable+++
+***
+
+
+***ScoresTable***
+***
+	declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
+	ScoresTable::Unload();
+	ScoresTable::Load();
+	ScoresTable::SetTableFormat(1, 6);
+	ScoresTable::SetColumnsWidth(
+		2.,	
+		1.5,
+		1.5,
+		20.,
+		1.5,
+		1.5,
+		3.,
+		3.,
+		3.,
+		4.,
+		5.
+	);
+	ScoresTable::SetTableWidth(146.);
+	// ScoresTable::SetTableBackgroundImage(BgImage, <0., 87.>, <150., 270.>);
+	ScoresTable::SetTableBackgroundImage(BgImage, <0., 54.5>, <160., 176.>);
+	ScoresTable::SetColumnsName("", "", "", _("Hits"), _("Score"));
+	ScoresTable::SetRoundScoreFormat("$s$0c0");
+	ScoresTable::Build();
+	UpdateScoresTable();
+***
+
+
+// ---------------------------------- //
+// Map initialization
+// ---------------------------------- //
+***InitMap***
+***
+declare Ident MatchWinnerId;			///< Id of the round winner
+declare Ident MatchLoserId;				///< Id of the round loser
+declare Integer MatchPointsToWin;		///< Adaptable match point limit
+declare Integer[Integer] CurrGoalsSide;	///< The goals side each player can currently capture
+declare CSmBlockPole[][Integer] Goals;	///< The goals ordered by side
+declare CSmBlockPole[] GoalsSide1;		///< The goals on side 1
+declare CSmBlockPole[] GoalsSide2;		///< The goals on side 2
+declare Ident[] HasPlayed;				///< Save the players who played at least once since the beginning of the map
+***
+
+// ---------------------------------- //
+// Map start
+// ---------------------------------- //
+***StartMap***
+***
+Users_SetNbFakeUsers(C_NbBots, 0);
+
+Score::MatchBegin(True);
+UpdateScoresTable();
+
+SkipPlayersPresentation = False;
+MatchWinnerId = NullId;
+MatchLoserId = NullId;
+MatchPointsToWin = S_MatchPointsToWin;
+CurrGoalsSide = Integer[Integer];
+Goals = CSmBlockPole[][Integer];
+GoalsSide1 = CSmBlockPole[];
+GoalsSide2 = CSmBlockPole[];
+HasPlayed = Ident[];
+/*	
+If there's more players than the current match point limit.
+Increase the limit to be sure that all the players can play once at least.
+*/
+/*if (WQ::WaitingQueueLength() > S_MatchPointsToWin) {
+	MatchPointsToWin = WQ::WaitingQueueLength();
+}*/
+
+// ---------------------------------- //
+// Init scores
+foreach (Score in Scores) {
+	declare MapPoints for Score = 0;
+	MapPoints = 0;
+}
+
+// ---------------------------------- //
+// Init Poles
+foreach (Pole in BlockPoles) {
+	if (Pole.Tag == "Goal1") GoalsSide1.add(Pole);
+	else if (Pole.Tag == "Goal2") GoalsSide2.add(Pole);
+}
+Goals = [1 => GoalsSide1, 2 => GoalsSide2];
+
+
+// ---------------------------------- //
+// Update the players clublinks
+if (S_ForceClublinkTeam1 != "" && S_ForceClublinkTeam2 != "") Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
+
+// reset ui
+UIManager.UIAll.BigMessage = "";
+UIManager.UIAll.OverlayScoreSummary = False;
+
+// start warmup if requested
+if(S_UseWarmup) {
+	WarmupSimple::Initialize(20);
+	WarmupSimple::SetMinimumPlayersNumber(2);
+	WarmupSimple::SetCountdownOnPlayersReady(3);
+	WarmupSimple::Start();
+	sleep(500); // avoids border effects right after the warmup.
+}
+***
+
+// ---------------------------------- //
+// Submatch initialization
+// ---------------------------------- //
+***InitSubmatch***
+***
+declare Integer[Integer] TimeOfLatestCapture;
+declare Boolean	DrawRound;
+declare Boolean	PoleTimeExpired;
+declare Ident	WinnerId;
+declare Ident	LoserId;
+declare Ident	FirstPoint;
+declare Ident	FirstCapture;
+declare Text	WinStatusMessage;
+declare Boolean	AGoalHaveBeenCaptured;
+***
+
+// ---------------------------------- //
+// Submatch start
+// ---------------------------------- //
+***StartSubmatch***
+***
+// ---------------------------------- //
+// Wait for enough players
+if(PlayersNbTotal < 2) {
+	WaitForPlayers(2);
+}
+
+Score::RoundBegin();
+
+// ---------------------------------- //
+// Initialize UI
+SM::SetupDefaultVisibility();
+UIManager.UIAll.BigMessage = "";
+UIManager.UIAll.SpectatorAutoTarget = NullId;
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+UIManager.UIAll.ScoreTableOnlyManialink = True;
+// UIManager.UIAll.UILayers.clear();
+SpawnScreen::AttachRules();
+
+// ---------------------------------- //
+// Show the new match message
+if (MB_SectionSubmatchNb == 1) {
+	UIManager.UIAll.SendNotice(
+		_("New match"), CUIConfig::ENoticeLevel::MatchInfo,
+		Null, CUIConfig::EAvatarVariant::Default,
+		CUIConfig::EUISound::StartRound, 0
+	);
+}
+
+// ---------------------------------- //
+// Update waiting queue and select next two players
+WQ::UpdateLoop(0);
+if (WQ::WaitingQueueLength() < 2) WaitForPlayers(2);
+if (MatchEndRequested) break;
+G_CurrPlayerIds = [1=>WQ::GetWaitingQueue(0), 2=>WQ::GetWaitingQueue(1)];
+
+declare XmlRpcPlayer1 <=> Null;
+declare XmlRpcPlayer2 <=> Null;
+if (Players.existskey(G_CurrPlayerIds[1])) XmlRpcPlayer1 <=> Players[G_CurrPlayerIds[1]];
+if (Players.existskey(G_CurrPlayerIds[2])) XmlRpcPlayer2 <=> Players[G_CurrPlayerIds[2]];
+XmlRpc::Joust_SelectedPlayers(XmlRpcPlayer1, XmlRpcPlayer2);
+
+// ---------------------------------- //
+// Init players and choose to play the PlayersPresentation or not
+for (I, 1, 2) {
+	if (!Players.existskey(G_CurrPlayerIds[I])) continue;
+	declare Player <=> Players[G_CurrPlayerIds[I]];
+	declare LatestShootDate for Player = Now;
+	LatestShootDate = Now;
+	if(HasPlayed.exists(Player.Id)) {
+		SkipPlayersPresentation = True && SkipPlayersPresentation;
+	} else {
+		SkipPlayersPresentation = False;
+		HasPlayed.add(Player.Id);
+	}
+}
+
+// ---------------------------------- //
+// Update the score header
+
+SetScoreHeader();
+
+// ---------------------------------- //
+// Play the PlayersPresentation sequence and set timer
+if (!SkipPlayersPresentation) {
+	StartTime = Now + 7000;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::PlayersPresentation;
+	SkipPlayersPresentation = True;
+} else {
+	StartTime = Now + 3000;
+}
+if (S_RoundTimeLimit > 0) EndTime = StartTime + (S_RoundTimeLimit * 1000);
+else EndTime = -1;
+
+// ---------------------------------- //
+// Spawn players
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+RespawnPlayers(StartTime);
+
+declare ClubLinkUrl = [1 => "", 2 => ""];
+for (I, 1, 2) {
+	if (!Players.existskey(G_CurrPlayerIds[I])) continue;
+	declare Player <=> Players[G_CurrPlayerIds[I]];
+	declare PoleTime for Player = -1;
+	PoleTime = StartTime + (S_PoleTimeLimit * 1000);
+	Player.EndTime = PoleTime;
+	ClubLinkUrl[I] = Player.User.ClubLink;
+}
+if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamFromUrl(ClubLinkUrl[1], ClubLinkUrl[2]);
+else  Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
+
+// ---------------------------------- //
+// Init goals
+CurrGoalsSide = [1=>-1, 2=>-1];
+foreach (Goal in BlockPoles) {
+	Goal.Gauge.Value = 0;
+	Goal.Gauge.Clan = 0;
+}
+
+// ---------------------------------- //
+// Init players and UI
+TimeOfLatestCapture = [1 => StartTime, 2 => StartTime];
+for (I, 1, 2) {
+	if (!G_CurrPlayerIds.existskey(I) || !Players.existskey(G_CurrPlayerIds[I])) continue;
+	declare UI <=> UIManager.GetUI(Players[G_CurrPlayerIds[I]]);
+	if (UI == Null) continue;
+	
+	UI.Hud3dMarkers = "";
+	foreach (Pole in BlockPoles) {
+		declare Pos = Pole.Position;
+		declare Icon = "PointA";
+		if (Pole.Tag == "Goal2") Icon = "PointB";
+		UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" /> """;
+	}
+}
+UIManager.UIAll.SendNotice(
+	TextLib::Compose(_("Round %1"), TextLib::ToText(MB_SectionSubmatchNb)), CUIConfig::ENoticeLevel::MatchInfo, 
+	Null, CUIConfig::EAvatarVariant::Default, 
+	CUIConfig::EUISound::PlayerHit, 0
+);
+
+// ---------------------------------- //
+// Init variables
+G_BreakCount = 0;
+G_FinalHitActivated = False;
+DrawRound		= False;
+PoleTimeExpired	= False;
+WinnerId		= NullId;
+LoserId			= NullId;
+FirstPoint		= NullId;
+FirstCapture	= NullId;
+WinStatusMessage= "";
+AGoalHaveBeenCaptured = True;
+
+// dactivate collision until the first pole is captured
+UsePvPCollisions = False;
+***
+
+// ---------------------------------- //
+// When a new player arrives
+// ---------------------------------- //
+***OnNewPlayer***
+***
+if (!G_CurrPlayerIds.exists(Player.Id)) {
+	LayerAttached = Layers::Attach("Spectator", Player.Id);
+	UpdateLayerSpectator();
+}
+***
+
+// ---------------------------------- //
+// When a new spectator arrives
+// ---------------------------------- //
+***OnNewSpectator***
+***
+LayerAttached = Layers::Attach("Spectator", Spectator.Id);
+UpdateLayerSpectator();
+***
+
+// ---------------------------------- //
+// Play loop
+// ---------------------------------- //
+***PlayLoop***
+***
+// ---------------------------------- //
+// One of the players currently playing has disconnected
+declare PlayerDisconnected = False;
+for (I, 1, 2) {
+	if (!Players.existskey(G_CurrPlayerIds[I])) {
+		WinnerId = G_CurrPlayerIds[3-I];
+		LoserId = G_CurrPlayerIds[I];
+		PlayerDisconnected = True;
+	}
+}
+if (PlayerDisconnected) {
+	SetScoreHeader();
+	MB_StopSubmatch = True;
+	break;
+}
+
+// ---------------------------------- //
+// Managing events
+foreach (Event in PendingEvents) {
+	if (G_FinalHitActivated) Discard(Event); ///< Discard all events once the final hit has been made
+	else {
+		// ---------------------------------- //
+		// On hit
+		if (Event.Type == CSmModeEvent::EType::OnHit) {
+			if (Event.Shooter == Null || Event.Victim == Null) {
+				Discard(Event);
+			} else if (Event.Shooter == Event.Victim) {
+				Discard(Event);
+			} else {
+				declare LatestShootDate for Event.Victim = Now;
+				
+				// Check if the victim has alreaby been hit recently
+				if (Now > LatestShootDate + C_InvincibilityAfterHitDuration && Event.Damage > 0) {
+					if (Event.Shooter.Score != Null && Event.Victim.Score != Null) {
+						if (FirstPoint == NullId) FirstPoint = Event.Shooter.Id;
+						Score::AddPoints(Event.Shooter, 1);
+						
+						DisplayHitMessage(Event.Victim.Id, Event.Shooter.Id);
+					}
+					LatestShootDate = Now;
+					Event.Damage = 100;
+					SetScoreHeader();
+					XmlRpc::OnHit(Event);
+					PassOn(Event);
+				} else {
+					Discard(Event);
+				}
+			}
+		} 
+		// ---------------------------------- //
+		// On armor empty
+		else if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
+			if (Event.Shooter == Null) {
+				// When the player fall in offzone
+				for (I, 1, 2) {
+					if (Event.Victim != Null && Event.Victim.Id == G_CurrPlayerIds[I]) {
+						// Display hit message
+						if (Players.existskey(G_CurrPlayerIds[3-I])) {
+							declare OtherPlayer <=> Players[G_CurrPlayerIds[3-I]];
+							
+							if (OtherPlayer.Score != Null && Event.Victim.Score != Null) {
+								if (FirstPoint == NullId) FirstPoint = OtherPlayer.Id;
+								Score::AddPoints(OtherPlayer, 1);
+								DisplayHitMessage(Event.Victim.Id, OtherPlayer.Id);
+							}
+						}
+						CurrGoalsSide[I] = -1;
+						AGoalHaveBeenCaptured = True;
+						RespawnPlayer(Event.Victim, Now+3000, Event.Victim.Armor - 100);
+					}
+				}
+				SetScoreHeader();
+				XmlRpc::OnArmorEmpty(Event);
+				Discard(Event);
+			} else {
+				XmlRpc::OnArmorEmpty(Event);
+				PassOn(Event);
+			}
+		} 
+		// ---------------------------------- //
+		// On player request respawn
+		else if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
+			for (I, 1, 2) {
+				if (Event.Player.Id == G_CurrPlayerIds[I]) {
+					// Display hit message
+					if (Players.existskey(G_CurrPlayerIds[3-I])) {
+						declare OtherPlayer <=> Players[G_CurrPlayerIds[3-I]];
+						
+						if (OtherPlayer.Score != Null && Event.Player.Score != Null) {
+							if (FirstPoint == NullId) FirstPoint = OtherPlayer.Id;
+							Score::AddPoints(OtherPlayer, 1);
+							DisplayHitMessage(Event.Player.Id, OtherPlayer.Id);
+						}
+					}
+					CurrGoalsSide[I] = -1;
+					AGoalHaveBeenCaptured = True;
+					RespawnPlayer(Event.Player, Now+3000, Event.Player.Armor - 100);
+				}
+			}
+			SetScoreHeader();
+			XmlRpc::OnPlayerRequestRespawn(Event);
+			Discard(Event);
+		}
+		// ---------------------------------- //
+		// On player shoot
+		else if (Event.Type == CSmModeEvent::EType::OnShoot) {
+			XmlRpc::OnShoot(Event);
+			PassOn(Event);
+		}
+		// ---------------------------------- //
+		// Other events
+		else {
+			PassOn(Event);
+		}
+	}
+}
+
+// ---------------------------------- //
+// Dont modify the scores of the players after this line !!!
+// It would change the Players array order breaking the G_CurrPlayers
+G_CurrPlayers = [1=>Players[G_CurrPlayerIds[1]], 2=>Players[G_CurrPlayerIds[2]]];
+
+// ---------------------------------- //
+// Capture
+for (I, 1, 2) {
+	if (CurrGoalsSide[I] == -1) {
+		declare MeCapturingGoal1 = (G_CurrPlayers[I].BlockPole != Null 
+									&& G_CurrPlayers[I].BlockPole.Tag == "Goal1");
+		declare MeCapturingGoal2 = (G_CurrPlayers[I].BlockPole != Null 
+									&& G_CurrPlayers[I].BlockPole.Tag == "Goal2");
+		
+		if (MeCapturingGoal1) {
+			CurrGoalsSide[I] = 2;
+			TimeOfLatestCapture[I] = Now;
+			GiveEnergy(I);
+			if (FirstCapture == NullId) FirstCapture = G_CurrPlayerIds[I];
+			AGoalHaveBeenCaptured = True;
+			UpdateTimer(G_CurrPlayers[I]);
+			
+			// restore collisions
+			UsePvPCollisions = True;
+		} else if (MeCapturingGoal2) {			
+			CurrGoalsSide[I] = 1;
+			TimeOfLatestCapture[I] = Now;
+			GiveEnergy(I);
+			if (FirstCapture == NullId) FirstCapture = G_CurrPlayerIds[I];
+			AGoalHaveBeenCaptured = True;
+			UpdateTimer(G_CurrPlayers[I]);
+			
+			// restore collisions
+			UsePvPCollisions = True;
+		}
+	} else {
+		declare MeCapturingNextGoal = 
+			(G_CurrPlayers[I].BlockPole != Null && G_CurrPlayers[I].BlockPole.Tag == "Goal"^CurrGoalsSide[I]);
+		
+		if (MeCapturingNextGoal) {
+			CurrGoalsSide[I] = 3 - CurrGoalsSide[I];
+			TimeOfLatestCapture[I] = Now;
+			GiveEnergy(I);
+			if (FirstCapture == NullId) FirstCapture = G_CurrPlayerIds[I];
+			AGoalHaveBeenCaptured = True;
+			UpdateTimer(G_CurrPlayers[I]);
+		}
+	}
+}
+
+// ---------------------------------- //
+// Update the poles
+if (AGoalHaveBeenCaptured) {
+	// Color
+	for (I, 1, 2) {
+		foreach (Goal in Goals[I]) {
+			if (CurrGoalsSide[1] == CurrGoalsSide[2] && (CurrGoalsSide[2] == I || CurrGoalsSide[2] == -1)) {
+				Goal.Gauge.Value = Goal.Gauge.Max;
+				Goal.Gauge.Clan = 0;
+			} else if ((CurrGoalsSide[1] == -1 && CurrGoalsSide[2] == I) 
+						|| (CurrGoalsSide[2] == -1 && CurrGoalsSide[1] == I)) 
+			{
+				Goal.Gauge.Value = Goal.Gauge.Max;
+				Goal.Gauge.Clan = 0;
+			} else if(CurrGoalsSide[2] == I || CurrGoalsSide[2] == -1) {
+				Goal.Gauge.Value = Goal.Gauge.Max;
+				Goal.Gauge.Clan = 2;
+			} else if(CurrGoalsSide[1] == I || CurrGoalsSide[1] == -1) {
+				Goal.Gauge.Value = Goal.Gauge.Max;
+				Goal.Gauge.Clan = 1;
+			} else {
+				Goal.Gauge.Value = 0;
+				Goal.Gauge.Clan = 0;
+			}
+		} 
+	}
+	AGoalHaveBeenCaptured = False;
+	
+	// 3D markers
+	for (I, 1, 2) {
+		declare Player <=> G_CurrPlayers[I];
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI == Null) continue;
+		
+		UI.Hud3dMarkers = "";
+		if (CurrGoalsSide[I] != -1) {
+			foreach (Pole in Goals[CurrGoalsSide[I]]) {
+				declare Pos = Pole.Position;
+				declare Icon = "PointA";
+				if (Pole.Tag == "Goal2") Icon = "PointB";
+				UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" />""";
+			}
+		} else {
+			foreach (Pole in BlockPoles) {
+				declare Pos = Pole.Position;
+				declare Icon = "PointA";
+				if (Pole.Tag == "Goal2") Icon = "PointB";
+				UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" />""";
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
+// Glow
+for (I, 1, 2) {
+	declare Player <=> G_CurrPlayers[I];
+	declare LatestShootDate for Player = Now;
+	Player.IsHighlighted = Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned && (Now < LatestShootDate + C_InvincibilityAfterHitDuration);
+}
+
+// ---------------------------------- //
+// Determine if there's a round winner
+// If a player reach the maximum point limit
+if (WinnerId == NullId) {
+	for (I, 1, 2) {
+		declare Player <=> Players[G_CurrPlayerIds[I]];
+		if (Player.Score == Null) continue;
+		if (Player.Score.RoundPoints >= S_RoundPointsLimit) {
+			WinnerId = G_CurrPlayerIds[I];
+			LoserId = G_CurrPlayerIds[3-I];
+			WinStatusMessage = _("Point limit reached");
+			MB_StopSubmatch = True;
+		}
+	}
+}
+
+// If a player reach the point limit with the required gap with its opponent
+if (WinnerId == NullId && G_CurrPlayers[1].Score != Null && G_CurrPlayers[2].Score != Null) {
+	declare GapReached = MathLib::Abs(G_CurrPlayers[1].Score.RoundPoints - G_CurrPlayers[2].Score.RoundPoints) >= S_RoundPointsGap;
+	if (GapReached) {
+		for (I, 1, 2) {
+			declare Player <=> Players[G_CurrPlayerIds[I]];
+			if (Player.Score == Null) continue;
+			if (Player.Score.RoundPoints >= S_RoundPointsToWin 
+				&& Player.Score.RoundPoints > Players[G_CurrPlayerIds[3-I]].Score.RoundPoints)
+			{
+				WinnerId = G_CurrPlayerIds[I];
+				LoserId = G_CurrPlayerIds[3-I];
+				declare Name1 = Player.Name;
+				declare Name2 = Players[G_CurrPlayerIds[3-I]].Name;
+				declare Score1 = Player.Score.RoundPoints;
+				declare Score2 = Players[G_CurrPlayerIds[3-I]].Score.RoundPoints;
+				WinStatusMessage = """$<{{{Name1}}}$> {{{Score1}}} - {{{Score2}}} $<{{{Name2}}}$>""";
+				MB_StopSubmatch = True;
+			}
+		}
+	}
+}
+
+// If there's no pole time left
+if (WinnerId == NullId) {
+	for (I, 1, 2) {
+		if (!Players.existskey(G_CurrPlayerIds[I])) continue;
+		declare Player <=> Players[G_CurrPlayerIds[I]];
+		if (Player.EndTime <= Now) {
+			// If the two players reach the time limit at the same time
+			if (WinnerId != NullId) {
+				WinnerId = NullId;
+				PoleTimeExpired = True;
+				break;
+			}
+			
+			WinnerId = G_CurrPlayerIds[3 - I];
+			LoserId = G_CurrPlayerIds[I];
+			WinStatusMessage = TextLib::Compose(
+				_("$<%1$> didn't capture the pole in time."),
+				Player.Name
+			);
+			MB_StopSubmatch = True;
+		}
+	}
+}
+
+// Display a message when the round time limit is approaching
+if (EndTime > 0 && EndTime <= Now + 15000) UIManager.UIAll.StatusMessage = _("The round time limit is approaching.");
+// If there's no round time left
+declare RoundTimeExpired = (EndTime > 0 && EndTime <= Now);
+if (WinnerId == NullId && (RoundTimeExpired || PoleTimeExpired)) {
+	declare Player1 <=> Players[G_CurrPlayerIds[1]];
+	declare Player2 <=> Players[G_CurrPlayerIds[2]];
+	declare ScorePlayer1 = 0;
+	declare ScorePlayer2 = 0;
+	if (Player1.Score != Null) ScorePlayer1 = Player1.Score.RoundPoints;
+	if (Player2.Score != Null) ScorePlayer2 = Player2.Score.RoundPoints;
+	
+	// Winner is determined in this order:
+	// Player with highest score
+	if (ScorePlayer1 > ScorePlayer2) {
+		WinnerId	= G_CurrPlayerIds[1];
+		LoserId		= G_CurrPlayerIds[2];
+		WinStatusMessage = "$<"^Player1.Name^"$> "^ScorePlayer1^" - "^ScorePlayer2^" $<"^Player2.Name^"$>";
+	} else if (ScorePlayer2 > ScorePlayer1) {
+		WinnerId	= G_CurrPlayerIds[2];
+		LoserId		= G_CurrPlayerIds[1];
+		WinStatusMessage = "$<"^Player1.Name^"$> "^ScorePlayer1^" - "^ScorePlayer2^" $<"^Player2.Name^"$>";
+	}
+	// First player who scored
+	else if (FirstPoint != NullId) {
+		if (G_CurrPlayerIds[1] == FirstPoint) {
+			WinnerId	= G_CurrPlayerIds[1];
+			LoserId		= G_CurrPlayerIds[2];
+		} else {
+			WinnerId	= G_CurrPlayerIds[2];
+			LoserId		= G_CurrPlayerIds[1];
+		}
+		WinStatusMessage = _("First player to score.");
+	}
+	// First player who captured a pole
+	else if (FirstCapture != NullId) {
+		if (G_CurrPlayerIds[1] == FirstCapture) {
+			WinnerId	= G_CurrPlayerIds[1];
+			LoserId		= G_CurrPlayerIds[2];
+		} else {
+			WinnerId	= G_CurrPlayerIds[2];
+			LoserId		= G_CurrPlayerIds[1];
+		}
+		WinStatusMessage = _("First player to reload.");
+	}
+	// Declare a draw round
+	else {
+		DrawRound = True;
+	}
+	MB_StopSubmatch = True;
+}
+***
+
+// ---------------------------------- //
+// Submatch end
+// ---------------------------------- //
+***EndSubmatch***
+***
+// ---------------------------------- //
+// Send round result
+declare CSmPlayer XmlRpcPlayer1;
+declare CSmPlayer XmlRpcPlayer2;
+declare XmlRpcScore1 = 0;
+declare XmlRpcScore2 = 0;
+if (Players.existskey(G_CurrPlayerIds[1])) {
+	XmlRpcPlayer1 <=> Players[G_CurrPlayerIds[1]];
+	if (XmlRpcPlayer1.Score != Null) XmlRpcScore1 = XmlRpcPlayer1.Score.RoundPoints;
+}
+if (Players.existskey(G_CurrPlayerIds[2])) {
+	XmlRpcPlayer2 <=> Players[G_CurrPlayerIds[2]];
+	if (XmlRpcPlayer2.Score != Null) XmlRpcScore2 = XmlRpcPlayer2.Score.RoundPoints;
+}
+XmlRpc::Joust_RoundResult(XmlRpcPlayer1, XmlRpcScore1, XmlRpcPlayer2, XmlRpcScore2);
+
+EndTime = Now;
+foreach (Player in Players) {
+	declare PoleTime for Player = -1;
+	PoleTime = -1;
+	Player.EndTime = PoleTime;
+	LayerDetached = Layers::Detach("Spectator", Player.Id);
+}
+foreach (Spectator in Spectators) LayerDetached = Layers::Detach("Spectator", Spectator.Id);
+UIManager.UIAll.StatusMessage = "";
+
+// ---------------------------------- //
+// Stop the looser
+if (LoserId != NullId && Players.existskey(LoserId) 
+	&& Players[LoserId].SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned)
+{
+	Players[LoserId].Armor = 0;
+	Players[LoserId].IsHighlighted = False;
+}
+SetScoreHeader();
+UpdateScoresTable();
+
+sleep(3000);
+StartTime = -1;
+EndTime = -1;
+
+// ---------------------------------- //
+// Display the submatch result
+if (WinnerId != NullId && LoserId != NullId && 
+	Players.existskey(WinnerId))
+{
+	// ---------------------------------- //
+	// Unspawn looser
+	if(Players.existskey(LoserId)) {
+		declare Loser <=> Players[LoserId];
+		Loser.Armor = 0;
+		UnspawnPlayer(Loser);
+	}
+	declare Winner <=> Players[WinnerId];
+	
+	// ---------------------------------- //
+	// Increase winner submatch win score
+	if(Winner.Score != Null) Winner.Score.Points += 1;
+	
+	// ---------------------------------- //
+	// Update WaitingQueue
+	WQ::EndMatch(WinnerId, LoserId);
+	WQ::UpdateLoop(0);
+	if(WinnerId == G_CurrPlayerIds[1]) WQ::UpdateQueueSubmatch(1);
+	else WQ::UpdateQueueSubmatch(0);
+	
+	SetScoreHeader();
+	
+	// ---------------------------------- //
+	// Play the winning submatch end sequence
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
+	UIManager.UIAll.BigMessageSoundVariant = 0;
+	UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> wins the round!"), WQ::GetTeamName(WinnerId));
+	UIManager.UIAll.StatusMessage = WinStatusMessage;
+	sleep(4000);
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+	sleep(1000);
+} else {
+	// ---------------------------------- //
+	// Play the draw submatch end sequence
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
+	UIManager.UIAll.BigMessageSoundVariant = 0;
+	UIManager.UIAll.BigMessage = _("Draw round");
+	sleep(4000);
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+	sleep(1000);
+}
+
+SM::UnspawnAllPlayers();
+sleep(6000);
+// Reset RoundPoints to avoid addition to the Score.Points by the Score library
+foreach (Score in Scores) {
+	declare MapPoints for Score = 0;
+	MapPoints += Score.RoundPoints;
+	Score.RoundPoints = 0;
+}
+Score::RoundEnd();
+
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+UIManager.UIAll.BigMessage = "";
+UIManager.UIAll.StatusMessage = "";
+
+// ---------------------------------- //
+// Determine if there's a match winner
+
+// Get the two players with the best score
+declare CSmPlayer[Integer] FirstPlayers;
+FirstPlayers = [1 => Null, 2 => Null];
+foreach (Player in Players) {
+	if (Player.Score == Null) continue;
+	if (FirstPlayers[1] == Null || Player.Score.Points > FirstPlayers[1].Score.Points) {
+		FirstPlayers[2] = FirstPlayers[1];
+		FirstPlayers[1] = Player;
+	} else if (FirstPlayers[2] == Null || Player.Score.Points > FirstPlayers[2].Score.Points) {
+		FirstPlayers[2] = Player;
+	}
+}
+
+if (FirstPlayers[1] != Null && FirstPlayers[2] != Null) {
+	declare Boolean GapReached = ((FirstPlayers[1].Score.Points - FirstPlayers[2].Score.Points) >= S_MatchPointsGap);
+	
+	if (FirstPlayers[1].Score.Points >= S_MatchPointsLimit
+		|| (GapReached && FirstPlayers[1].Score.Points >= MatchPointsToWin))
+	{
+		MatchWinnerId = FirstPlayers[1].Id;
+		MatchLoserId = FirstPlayers[2].Id;
+		MB_StopMap = True;
+	}
+} else {
+	for (I, 1, 2) {
+		if (FirstPlayers[I] != Null && FirstPlayers[I].Score != Null 
+		&& (FirstPlayers[I].Score.Points >= S_MatchPointsLimit 
+			|| FirstPlayers[I].Score.Points >= MatchPointsToWin)) 
+		{
+			MatchWinnerId = FirstPlayers[I].Id;
+			MatchLoserId = NullId;
+			MB_StopMap = True;
+		}
+	}
+}
+***
+
+// ---------------------------------- //
+// Map end
+// ---------------------------------- //
+***EndMap***
+***
+// ---------------------------------- //
+// Play end map sequence
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+UIManager.UIAll.ScoreTableOnlyManialink = True;
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+// UIManager.UIAll.UILayers.clear();
+SpawnScreen::AttachRules();
+
+if (Players.existskey(MatchWinnerId)) {
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
+	UIManager.UIAll.BigMessageSoundVariant = 1;
+	UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> wins the match!"), WQ::GetTeamName(MatchWinnerId));
+} else {
+	UIManager.UIAll.BigMessage = "";
+}
+
+foreach (Score in Scores) {
+	declare MapPoints for Score = 0;
+	Score.LadderMatchScoreValue = MathLib::ToReal(MapPoints);
+}
+Ladder_SetResultsVersion(1);
+Score::MatchEnd(True);
+
+sleep(5000);
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
+sleep(5000);
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+
+// ---------------------------------- //
+// Don't let last two players play first on next map
+if (G_CurrPlayerIds.existskey(1)) {
+	if (MatchWinnerId == G_CurrPlayerIds[1]) WQ::UpdateQueueMap(0);
+	else WQ::UpdateQueueMap(1);
+}
+WQ::EndMap();
+
+MatchmakingWait();
+***
+
+// ---------------------------------- //
+// Server end
+// ---------------------------------- //
+***EndServer***
+***
+SpawnScreen::DestroyRules();
+LayerDestroyed = Layers::Destroy("Spectator");
+ScoresTable::Unload();
+***
+
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
+
+// ---------------------------------- //
+/// End map timer for MatchMaking
+Void MatchmakingWait() {
+	declare PrevMatchmakingSleep = S_MatchmakingSleep;
+	StartTime = Now;
+	if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
+	else UIManager.UIAll.CountdownEndTime = -1;
+	while (S_MatchmakingSleep < 0 || UIManager.UIAll.CountdownEndTime > Now) {
+		if (PrevMatchmakingSleep != S_MatchmakingSleep) {
+			PrevMatchmakingSleep = S_MatchmakingSleep;
+			if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
+			else UIManager.UIAll.CountdownEndTime = -1;
+		}
+		+++SleepLoop+++
+		yield;
+	}
+	StartTime = -1;
+	UIManager.UIAll.CountdownEndTime = -1;
+}
+
+// ---------------------------------- //
+/** Wait for enough players to launch a round
+ *
+ *	@param	_MinimumNbPlayers	Minimum players required to start
+ */
+Void WaitForPlayers(Integer _MinimumNbPlayers) {
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
+	UIManager.UIAll.BigMessageSoundVariant = 0;
+	UIManager.UIAll.BigMessage = _("Waiting for players...");
+	
+	declare HasWaited = False;
+	StartTime = Now;
+	EndTime = -1;
+	
+	while (!ServerShutdownRequested && !MatchEndRequested && WQ::WaitingQueueLength() < _MinimumNbPlayers ) {
+		yield;
+		HasWaited = True;
+		
+		WQ::UpdateLoop(3);
+		
+		foreach (Player in Players) {
+			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned
+				&& PlayersNbTotal < _MinimumNbPlayers)
+			{
+				SM::SpawnPlayer(Player, 0, SM::GetSpawn("Spawn", 0), Now);
+				Player.AmmoGain = 1.;
+			}
+		}
+		
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CSmModeEvent::EType::OnHit) {
+				if (Event.Victim == Event.Shooter) {
+					Discard(Event);
+				} else {
+					PassOn(Event);
+				}
+			} else {
+				PassOn(Event);
+			}
+		}
+	}
+	if (HasWaited) {
+		SM::UnspawnAllPlayers();
+		UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
+		UIManager.UIAll.BigMessage = _("A new player joins the game.");
+		sleep(5000);
+	}
+	StartTime = -1;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::None;
+	UIManager.UIAll.BigMessage = "";
+}
+
+// ---------------------------------- //
+/** Spawn one player and initialize his weapons
+ *
+ *	@param	_Player		The player to spawn
+ *	@param	_SpawnDate	When to spawn the player
+ *	@param	_Armor		Number of armor at spawn
+ */
+Void RespawnPlayer(CSmPlayer _Player, Integer _SpawnDate, Integer _Armor) {
+	UnspawnPlayer(_Player);
+	
+	_Player.ArmorMax = S_RoundPointsToWin * 100;
+	SM::SpawnPlayer(_Player, 0, _Armor, SM::GetSpawn("Spawn", 0), _SpawnDate);
+	
+	declare PoleTime for _Player = -1;
+	_Player.EndTime = PoleTime;
+	
+	_Player.AmmoGain = 0.;
+	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Laser, 1);
+	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Nucleus, 2);
+	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 5);
+	SetPlayerAmmo(_Player, CSmMode::EWeapon::Laser, 0);
+	SetPlayerAmmo(_Player, CSmMode::EWeapon::Nucleus, 0);
+	SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
+	SetPlayerWeapon(_Player, CSmMode::EWeapon::Rocket, True);
+}
+
+// ---------------------------------- //
+/** Spawn the two players of the round
+ *
+ *	@param	_SpawnDate	When to spawn the players
+ */
+Void RespawnPlayers(Integer _SpawnDate) {
+	if(!G_CurrPlayerIds.existskey(1) || !Players.existskey(G_CurrPlayerIds[1])
+	|| !G_CurrPlayerIds.existskey(2) || !Players.existskey(G_CurrPlayerIds[2])) return;
+	
+	G_CurrPlayers = [1=>Players[G_CurrPlayerIds[1]], 2=>Players[G_CurrPlayerIds[2]]];
+	
+	for (I, 1, 2) {
+		if (G_CurrPlayers[I].SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+			RespawnPlayer(G_CurrPlayers[I], _SpawnDate, S_RoundPointsToWin * 100);
+		}
+	}
+	
+	foreach (Player in Players) {
+		if (Player.Id != G_CurrPlayers[1].Id && Player.Id != G_CurrPlayers[2].Id) UnspawnPlayer(Player);
+	}
+}
+
+// ---------------------------------- //
+/// Reload weapon energy
+Void GiveEnergy(Integer PlayerIndex) {
+	declare Player <=> Players[G_CurrPlayerIds[PlayerIndex]];
+	SetPlayerAmmo(Player, CSmMode::EWeapon::Laser, 1);
+	SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, 2);
+	SetPlayerAmmo(Player, CSmMode::EWeapon::Rocket, 5);
+	XmlRpc::Joust_OnReload(Player);
+}
+
+
+// ---------------------------------- //
+/// Update the score header
+Void SetScoreHeader() {
+	if(Players.existskey(G_CurrPlayerIds[1])) {
+		G_CurrPlayers[1] = Players[G_CurrPlayerIds[1]];
+		
+		declare RoundPoints1 = 0;
+		declare MatchPoints1 = 0;
+		if(G_CurrPlayers[1].Score != Null) {
+			RoundPoints1 = G_CurrPlayers[1].Score.RoundPoints;
+			MatchPoints1 = G_CurrPlayers[1].Score.Points;
+		}
+		UIManager.UIAll.ScoreSummary_Player1 = G_CurrPlayers[1].Id;
+		UIManager.UIAll.ScoreSummary_Points1 = RoundPoints1;
+		UIManager.UIAll.ScoreSummary_MatchPoints1 = MatchPoints1;
+	}
+	else {
+		G_CurrPlayers[1] = Null;
+	}
+	
+	if(Players.existskey(G_CurrPlayerIds[2])) {
+		G_CurrPlayers[2] = Players[G_CurrPlayerIds[2]];
+		declare RoundPoints2 = 0;
+		declare MatchPoints2 = 0;
+		if(G_CurrPlayers[2].Score != Null) {
+			RoundPoints2 = G_CurrPlayers[2].Score.RoundPoints;
+			MatchPoints2 = G_CurrPlayers[2].Score.Points;
+		}
+		UIManager.UIAll.ScoreSummary_Player2 = G_CurrPlayers[2].Id;
+		UIManager.UIAll.ScoreSummary_Points2 = RoundPoints2;
+		UIManager.UIAll.ScoreSummary_MatchPoints2 = MatchPoints2;
+	} else {
+		G_CurrPlayers[2] = Null;
+	}
+	
+	UIManager.UIAll.OverlayScoreSummary = Players.existskey(G_CurrPlayerIds[1]) && Players.existskey(G_CurrPlayerIds[2]);
+}
+
+Void UpdateScoresTable() {
+	foreach(Player in AllPlayers) {
+		if(Player.Score == Null) continue;
+		//ScoresTable::SetFooterScore(Player, ""^Player.Score.Points);
+		ScoresTable::SetFooterScore(Player, " ");
+	}
+}
+
+/** Display the break/counter/last point message
+ *
+ *	@param	_VictimId		Id of the victim of the hit
+ *	@param	_ShooterId		Id of the player causing the hit
+ */
+Void DisplayHitMessage(Ident _VictimId, Ident _ShooterId) {
+	if (!Players.existskey(_VictimId) || !Players.existskey(_ShooterId)) return;
+	declare Victim <=> Players[_VictimId];
+	declare Shooter <=> Players[_ShooterId];
+	
+	if (Victim.Score == Null || Shooter.Score == Null) return;
+	
+	declare ShooterPoints = Shooter.Score.RoundPoints;
+	declare VictimPoints = Victim.Score.RoundPoints;
+	
+	if (ShooterPoints >= S_RoundPointsToWin-1) {
+		declare GapReached = MathLib::Abs(ShooterPoints - VictimPoints) >= S_RoundPointsGap;
+		declare GapAlmostReached = MathLib::Abs(ShooterPoints+1 - VictimPoints) >= S_RoundPointsGap;
+		declare GapWasAlmostReached = MathLib::Abs((ShooterPoints-1) - (VictimPoints+1)) >= S_RoundPointsGap;
+		if ((ShooterPoints >= VictimPoints && GapReached && ShooterPoints >= S_RoundPointsToWin) 
+			|| (ShooterPoints >= S_RoundPointsLimit))
+		{
+			UIManager.UIAll.SendNotice(
+				TextLib::Compose(_("$<%1$> gets the final hit!"), Shooter.Name), 
+				CUIConfig::ENoticeLevel::MatchInfo, 
+				Null, CUIConfig::EAvatarVariant::Default, 
+				CUIConfig::EUISound::VictoryPoint, 0
+			);
+			G_FinalHitActivated = True;
+		} else if (ShooterPoints >= VictimPoints && GapAlmostReached) {
+			UIManager.UIAll.SendNotice(
+				TextLib::Compose(_("Break! Advantage: $<%1$>"), Shooter.Name), 
+				CUIConfig::ENoticeLevel::MatchInfo, 
+				Null, CUIConfig::EAvatarVariant::Default, 
+				CUIConfig::EUISound::TieBreakPoint, G_BreakCount
+			);
+			G_BreakCount += 1;
+		} else if (ShooterPoints <= VictimPoints && GapWasAlmostReached) {
+			UIManager.UIAll.SendNotice(
+				TextLib::Compose(_("Counter! $<%1$> hasn't lost yet."), Shooter.Name),
+				CUIConfig::ENoticeLevel::MatchInfo, 
+				Null, CUIConfig::EAvatarVariant::Default, 
+				CUIConfig::EUISound::TiePoint, G_BreakCount
+			);
+			G_BreakCount += 1;
+			Victim.Armor += 1 * 100;
+			Shooter.Armor += 1 * 100;
+		}
+	}
+}
+
+// ---------------------------------- //
+/**	Create the spectator layer
+ *
+ *	@return		The spectator manialink
+ */
+Text CreateLayerSpectator() {
+	declare Real XOffset = 28.;// 15.
+	declare Real YOffset =  6.; // 0.
+	return """
+<script><!-- 
+	#Include "TextLib" as TextLib
+	main() {
+		declare Label_Time1 <=> (Page.GetFirstChild("Time1") as CMlLabel);
+		declare Label_Time2 <=> (Page.GetFirstChild("Time2") as CMlLabel);
+		//declare Label_Name1 <=> (Page.GetFirstChild("Name1") as CMlLabel);
+		//declare Label_Name2 <=> (Page.GetFirstChild("Name2") as CMlLabel);
+		
+		declare netread Net_LayerSpectatorUpdated for UI = -1;
+		declare netread Net_PlayerPoleTime for UI = [1 => -1, 2 => -1];
+		declare netread Net_PlayerName for UI = [1 => Text, 2 => Text];
+		
+		declare LastUpdate = -1;
+		declare PlayerPoleTime = [1 => -1, 2 => -1];
+		
+		while (True) {
+			sleep(100);
+			
+			if (LastUpdate != Net_LayerSpectatorUpdated) {
+				LastUpdate = Net_LayerSpectatorUpdated;
+				PlayerPoleTime = Net_PlayerPoleTime;
+				//Label_Name1.SetText(Net_PlayerName[1]);
+				//Label_Name2.SetText(Net_PlayerName[2]);
+			}
+			
+			Label_Time1.SetText(TextLib::TimeToText(PlayerPoleTime[1] - ArenaNow, False));
+			Label_Time2.SetText(TextLib::TimeToText(PlayerPoleTime[2] - ArenaNow, False));
+		}
+	}
+--></script>
+<frame posn="0 68 50" scale="0.7" >
+	<!--<label posn="{{{-XOffset}}} {{{YOffset}}} 0" sizen="50 10" textemboss="1" text="Player 1" halign="right" id="Name1" />-->
+	<label posn="{{{-(XOffset)}}} {{{YOffset}}} 1" sizen="20 10" style="TextRaceChrono" textcolor="c81" textemboss="1" halign="right" id="Time1" />
+	<!--<label posn="0 0 0" sizen="6 10" textemboss="true" text="-" halign="center" />-->
+	<label posn="{{{XOffset}}} {{{YOffset}}} 1" sizen="20 10" style="TextRaceChronoWarning" textcolor="c81" textemboss="1" halign="left" id="Time2" />
+	<!--<label posn="{{{XOffset}}} {{{YOffset}}} 0" sizen="50 10" textemboss="1" text="Player 2" halign="left" id="Name2" />-->
+</frame>
+""";
+}
+
+// ---------------------------------- //
+/// Update the spectator layer
+Void UpdateLayerSpectator() {
+	foreach (Player in AllPlayers) {
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI == Null) continue;
+		
+		declare netwrite Net_LayerSpectatorUpdated for UI = Now;
+		declare netwrite Net_PlayerPoleTime for UI = [1 => -1, 2 => -1];
+		declare netwrite Net_PlayerName for UI = [1 => Text, 2 => Text];
+		
+		Net_LayerSpectatorUpdated = Now;
+		
+		for (I, 1, 2) {
+			if (!Players.existskey(G_CurrPlayerIds[I])) continue;
+			declare Player <=> Players[G_CurrPlayerIds[I]];
+			declare PoleTime for Player = -1;
+			Net_PlayerPoleTime[I] = PoleTime;
+			Net_PlayerName[I] = Player.Name;
+		}
+	}
+}
+
+// ---------------------------------- //
+/** Update the EndTime of a player after a capture
+ *
+ *	@Param	_Player		The timer owner to update
+ */
+Void UpdateTimer(CSmPlayer _Player) {
+	declare PoleTime for _Player = -1;
+	PoleTime = Now + (S_PoleTimeLimit * 1000);
+	_Player.EndTime = PoleTime;
+	UpdateLayerSpectator();
+}
+
+
