@@ -1,0 +1,13 @@
+/**
+ * Rules for the EliteExp mode
+ */
+
+#Extends "Modes/ShootMania/Elite.Script.txt"
+
+#Const EliteExpVersion		"2013-02-04"
+#Const EliteExpScriptName	"EliteExp.Script.txt"
+
+***LogVersion***
+***
+MB_LogVersion(EliteExpScriptName, EliteExpVersion);
+***

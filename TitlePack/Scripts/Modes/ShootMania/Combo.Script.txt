@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2013-04-23"
+#Const	Version				"2013-04-24"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "TextLib" as TL
@@ -409,6 +409,15 @@ Net_Combo_ComboClan1 = G_ClanComboTimeLimit[1];
 Net_Combo_ComboClan2 = G_ClanComboTimeLimit[2];
 
 // ---------------------------------- //
+// Update the players clublinks
+if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") {
+	Clublink::DefineTeamAuto();
+	Clublink::SyncUpdate();	///< Try to force the load of the clublink
+} else {
+	Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
+}
+
+// ---------------------------------- //
 // Round start invincibility
 InvincibilityEndTime = StartTime + C_RoundStartInvicibilityDuration;
 UsePvPCollisions = False;
@@ -449,10 +458,6 @@ if (UI != Null) {
 // ---------------------------------- //
 // Libraries
 Message::Loop();
-
-// ---------------------------------- //
-// Update the players clublinks
-if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
 
 // ---------------------------------- //
 // Check Action events
@@ -939,10 +944,16 @@ Text UpdateLayerInfo() {
 	<label posn="25 0.5 6" sizen="15 5" textsize="4" halign="left" valign="center" textemboss="1" text="0" id="Label_ComboClan2" />
 </frame>
 <frame posn="-68 -76" id="Frame_WeaponInfo">
+	<!-- Next data update
 	<quad posn="0 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}Laser.dds" id="Quad_IconLaser" />
 	<quad posn="12 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}Nucleus.dds" id="Quad_IconNucleus" />
 	<quad posn="24 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}Arrow.dds" id="Quad_IconArrow" />
 	<quad posn="36 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}Rocket.dds" id="Quad_IconRocket" />
+	-->
+	<quad posn="0 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}LaserWhite.dds" id="Quad_IconLaser" />
+	<quad posn="12 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}NucleusWhite.dds" id="Quad_IconNucleus" />
+	<quad posn="24 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}ArrowWhite.dds" id="Quad_IconArrow" />
+	<quad posn="36 0" sizen="6 6" halign="right" valign="center" image="{{{C_ImgBaseDir}}}RocketWhite.dds" id="Quad_IconRocket" />
 	<frame posn="0 0.3">
 		<label posn="0 0" sizen="6 6" halign="left" valign="center" textemboss="1" text="0" id="Label_AmmoLaser" />
 		<label posn="12 0" sizen="6 6" halign="left" valign="center" textemboss="1" text="0" id="Label_AmmoNucleus" />
@@ -1023,19 +1034,23 @@ Text UpdateLayerInfo() {
 					switch (Weapon) {
 						case "Laser"	: {
 							Label_AmmoLaser.SetText(WeaponText);
-							if (Http.IsValidUrl(WeaponIcon)) Quad_IconLaser.ChangeImageUrl(WeaponIcon);
+							// Next data update
+							//if (Http.IsValidUrl(WeaponIcon)) Quad_IconLaser.ChangeImageUrl(WeaponIcon);
 						}
 						case "Nucleus"	: {
 							Label_AmmoNucleus.SetText(WeaponText);
-							if (Http.IsValidUrl(WeaponIcon)) Quad_IconNucleus.ChangeImageUrl(WeaponIcon);
+							// Next data update
+							//if (Http.IsValidUrl(WeaponIcon)) Quad_IconNucleus.ChangeImageUrl(WeaponIcon);
 						}
 						case "Arrow"	: {
 							Label_AmmoArrow.SetText(WeaponText);
-							if (Http.IsValidUrl(WeaponIcon)) Quad_IconArrow.ChangeImageUrl(WeaponIcon);
+							// Next data update
+							//if (Http.IsValidUrl(WeaponIcon)) Quad_IconArrow.ChangeImageUrl(WeaponIcon);
 						}
 						case "Rocket"	: {
 							Label_AmmoRocket.SetText(WeaponText);
-							if (Http.IsValidUrl(WeaponIcon)) Quad_IconRocket.ChangeImageUrl(WeaponIcon);
+							// Next data update
+							//if (Http.IsValidUrl(WeaponIcon)) Quad_IconRocket.ChangeImageUrl(WeaponIcon);
 						}
 					}
 				}

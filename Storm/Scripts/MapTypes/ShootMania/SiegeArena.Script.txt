@@ -1,0 +1,254 @@
+/**
+ * Maps with 1 attack spawn, 1-9 defense spawns and 1-9 goals
+ */
+
+#RequireContext CSmMapType
+#Include "TextLib" as TextLib
+
+#Const MaxGoals 9
+
+declare Integer[Text]	AnchorCount;
+declare Integer[Text]	AnchorTypeCount;
+declare Integer			GoalCount;
+
+Boolean HasExactlyOneAnchor(Text Tag, Integer Order, Text Error) {
+	if (!AnchorCount.existskey(Tag) || AnchorCount[Tag]  != 1) {
+		ValidationStatus = CMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = Error;
+		return False;
+	}
+	return True;
+}
+
+Void UpdateAnchorCount() {
+	
+	declare Integer[Text] ML_AnchorCount for ManialinkPage;
+	
+	AnchorCount = Integer[Text];
+	AnchorTypeCount = ["SpawnAttack" => 0, "SpawnDefense" => 0, "Goal" => 0, "Invalid" => 0];
+	GoalCount = 0;
+	
+	foreach (Data in AnchorData) {
+		declare DataTag = Data.Tag;
+		if(DataTag == "Checkpoint") {
+			DataTag = "Goal";
+			Data.Tag = "Goal";
+		}
+	
+		if (!AnchorCount.existskey(DataTag)) {
+			AnchorCount[DataTag] = 0;
+		}
+		AnchorCount[DataTag] += 1;	
+		
+		declare DataDefaultTag = Data.DefaultTag;
+		if(DataDefaultTag == "Checkpoint") DataDefaultTag = "Goal";
+		
+		if (TextLib::SubString(Data.Tag, 0, 11) == "SpawnAttack" && DataDefaultTag == "Spawn") {
+			AnchorTypeCount["SpawnAttack"] += 1;
+		} else if (TextLib::SubString(Data.Tag, 0, 12) == "SpawnDefense" && DataDefaultTag == "Spawn") {
+			AnchorTypeCount["SpawnDefense"] += 1;
+		} else if (TextLib::SubString(Data.Tag, 0, 4) == "Goal" && DataDefaultTag == "Goal") {
+			AnchorTypeCount["Goal"] += 1;
+		} else if (DataDefaultTag == "Goal" || DataDefaultTag == "Spawn"){
+			AnchorTypeCount["Invalid"] += 1;
+		}
+		
+		if (DataDefaultTag == "Goal") GoalCount += 1;
+	}
+	
+	ML_AnchorCount = AnchorCount;
+}
+
+Void UpdateValidability() {
+	declare HasSpawnDefense = False;
+	declare HasGoal			= False;
+	
+	UpdateAnchorCount();
+	
+	// Maximum MaxGoals goals on a map
+	if (GoalCount > MaxGoals) {
+		ValidationStatus = CMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = TextLib::Compose(_("There's too many Goal on the map. \nCurrently %1 Goals on a maximum of %2."), TextLib::ToText(GoalCount), TextLib::ToText(MaxGoals));
+		return;
+	}
+	// An anchor hasn't a valid tag
+	if (AnchorTypeCount["Invalid"] > 0) {
+		ValidationStatus = CMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = _("An anchor has an invalid tag (eg: SpawnDefense on a Goal, or Goal on a Spawn).");
+		return;
+	}
+	// Same number of SpawnDefense and Goal
+	if (AnchorTypeCount["SpawnDefense"] != AnchorTypeCount["Goal"]) {
+		ValidationStatus = CMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = TextLib::Compose(_("You must place as many SpawnDefense as Goal. \nCurrently %1 SpawnDefense for %2 Goal."), TextLib::ToText(AnchorTypeCount["SpawnDefense"]), TextLib::ToText(AnchorTypeCount["Goal"]));
+		return;
+	}	
+	// Only one SpawnAttack
+	if (!HasExactlyOneAnchor("SpawnAttack", 0, _("You must place one SpawnAttack."))) return;
+	// Only one SpawnDefense with the same number
+	for (I, 1, AnchorTypeCount["SpawnDefense"]) {
+		HasSpawnDefense = True;
+		if (!HasExactlyOneAnchor("SpawnDefense"^I, 0, TextLib::Compose(_("You must place one SpawnDefense %1."), TextLib::ToText(I)))) return;
+	}
+	// Only one Goal with the same number
+	for (I, 1, AnchorTypeCount["Goal"]) {
+		HasGoal = True;
+		if (!HasExactlyOneAnchor("Goal"^I, 0, TextLib::Compose(_("You must place one Goal %1."), TextLib::ToText(I)))) return;
+	}
+	// But at least one SpawnDefense and one Goal
+	if (!HasSpawnDefense ||!HasGoal) {
+		ValidationStatus = CMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = _("You must place at least one SpawnDefense and one Goal.");
+		return;
+	}
+	
+	ValidationStatus = CMapType::ValidationStatus::Validated;	
+}
+
+Text EditAnchorManialink() {
+	declare Text	DefenseButtons;
+	declare Text	GoalButtons;
+	declare Text	WarningMessage;
+	declare Integer TmpGoalCount;
+	DefenseButtons = "";
+	GoalButtons = "";
+	WarningMessage = "";
+	if (GoalCount > MaxGoals) {
+		TmpGoalCount = MaxGoals;
+		WarningMessage = TextLib::Compose("$f00%1", _("There's too many Goals"));
+	} else {
+		TmpGoalCount = GoalCount;
+		WarningMessage = "";
+	}
+	
+	for (I, 1, TmpGoalCount) {
+		DefenseButtons ^= """ 
+			<label id="SpawnDefense{{{ I }}}" posn="0 {{{ -6 * I }}}" halign="center" style="TextButtonMedium" ScriptEvents="true"/>
+		""";
+		GoalButtons ^= """
+			<label id="Goal{{{ I }}}" posn="0 {{{ -6 * I }}}" halign="center" style="TextButtonMedium"ScriptEvents="true"/>
+		""";
+	}
+			
+	declare MLText = 		
+	"""
+	<script><!--
+		main() {
+			declare CGameManialinkLabel[] Buttons;
+			Buttons.clear();
+			Buttons.add((Page.GetFirstChild("SpawnAttack") as CMlLabel));
+			for (I, 1, {{{ TmpGoalCount }}}) {
+				Buttons.add((Page.GetFirstChild("SpawnDefense"^I) as CMlLabel));
+				Buttons.add((Page.GetFirstChild("Goal"^I) as CMlLabel));
+			}
+			Buttons.add((Page.GetFirstChild("Cancel") as CMlLabel));
+			
+			declare Text AnchorTag for Page;
+			declare Boolean Finish for Page;
+			declare Integer[Text] ML_AnchorCount for Page;	
+			
+			Finish = False;	
+			while(!Finish) {
+				yield;
+				foreach(Button in Buttons) {
+					if (AnchorTag == Button.ControlId)
+						Button.Value = "$00a"^Button.ControlId;
+					else if (ML_AnchorCount.existskey(Button.ControlId) && ML_AnchorCount[Button.ControlId] > 1)
+						Button.Value = "$a00"^Button.ControlId;
+					else if (ML_AnchorCount.existskey(Button.ControlId))
+						Button.Value= "$0a0"^Button.ControlId;
+					else 
+						Button.Value = "$fff"^Button.ControlId;
+				}
+				
+				foreach(Event in PendingEvents) {
+					switch(Event.Type){
+						case CMlEvent::Type::MouseClick:
+						{
+							if (Event.ControlId != "Cancel") AnchorTag = Event.ControlId;
+							Finish = True;
+						}						
+					}
+				}
+			}
+		}			
+	--></script>
+	<frame posn="120 55">
+		<quad posn="0 0 2" sizen="74 15" halign="center" valign="bottom" style="Bgs1InRace" substyle="BgTitle3_5"/>
+		<label posn="0 5 3" halign="center" valign="bottom" style="TextTitle3" textprefix="$fff" text="{{{_("Edit anchors")}}}" />
+		<quad posn="0 0 -1" sizen="70 {{{ 24 + (6 * TmpGoalCount) }}}" halign="center" style="Bgs1" substyle="BgWindow2"/>
+		<frame posn="0 -2">
+			<label halign="center" text="{{{ WarningMessage }}}" />
+		</frame>
+		<frame posn="0 -8">
+			<frame>
+				<label id="SpawnAttack" halign="center" style="TextButtonMedium" ScriptEvents="true"/>
+			</frame>
+			<frame posn="-15 0">
+				{{{ DefenseButtons }}}
+			</frame>
+			<frame posn="20 0">
+				{{{ GoalButtons }}}
+			</frame>
+			<frame posn="0 {{{ -(6 * TmpGoalCount) - 6 }}}">
+				<label id="Cancel" posn="0 0" halign="center" style="CardButtonSmall" ScriptEvents="true"/>
+			</frame>
+		</frame>
+	</frame>
+	<frame posn="125 {{{ 15 - (6 * TmpGoalCount) }}}">
+		<quad posn="-5 0 2" sizen="74 15" halign="center" valign="bottom" style="Bgs1InRace" substyle="BgTitle3_5"/>
+		<label posn="-5 5 3" halign="center" valign="bottom" style="TextTitle3" textprefix="$fff" text="{{{_("Rules")}}}" />
+		<quad posn="-40 0 -1" sizen="70 25" style="Bgs1" substyle="BgWindow2"/>
+		<frame posn="-37 -4">
+			<label posn="0 0" style="TextCardSmallScores2" textprefix="$000" text="{{{_("Only 1 SpawnAttack.")}}}" />
+			<label posn="0 -5" style="TextCardSmallScores2" textprefix="$000" text="{{{_("Goal and SpawnDefense work in pairs.")}}}" />
+			<label posn="0 -10" style="TextCardSmallScores2" textprefix="$000" text="{{{_("Maximum 9 Goal and SpawnDefense.")}}}" />
+			<label posn="0 -15" style="TextCardSmallScores2" textprefix="$000" text="{{{_("Minimum 1 Goal and SpawnDefense.")}}}" />
+		</frame>
+	</frame>
+	""";
+  
+	return MLText;
+}
+
+Void EditAnchorData(Ident _EditedAnchorDataId)
+{		
+	declare Text AnchorTag for ManialinkPage;
+	declare Boolean Finish for ManialinkPage;
+	UpdateAnchorCount();
+	
+	declare DefaultTag = AnchorData[_EditedAnchorDataId].DefaultTag;
+	if (DefaultTag == "Goal" || DefaultTag == "Spawn" || DefaultTag == "Checkpoint") ManialinkText = EditAnchorManialink();
+	else return;
+	
+	AnchorTag = AnchorData[_EditedAnchorDataId].Tag;
+	Finish = False;
+	while(!Finish) {
+		yield;
+	}
+	
+	if (!AnchorData.existskey(_EditedAnchorDataId)) return;
+	AnchorData[_EditedAnchorDataId].Tag = AnchorTag;
+	AnchorData[_EditedAnchorDataId].Order = 0;	
+	UpdateValidability();
+}
+
+/////////////////////////////////////
+// Main
+/////////////////////////////////////
+
+main() {	
+	CustomEditAnchorData = True;
+	UpdateValidability();
+	while (True) {	
+		yield;
+		ManialinkText = "";			
+		foreach(Event in PendingEvents) {
+			if(Event.Type == CPluginEvent::Type::MapModified) {
+				UpdateValidability();			
+			} else if(Event.Type == CPluginEvent::Type::EditAnchor) {
+				EditAnchorData(Event.EditedAnchorDataId);
+			}
+		}		
+	}	
+}

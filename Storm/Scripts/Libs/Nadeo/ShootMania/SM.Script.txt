@@ -1,0 +1,112 @@
+//////////////////////////////////////////
+//   Utils
+//////////////////////////////////////////
+#Const Version		"2013-02-19"
+#Const ScriptName	"SM.Script.txt"
+
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+Void SpawnPlayer(CSmPlayer _Player, Integer _ClanNum, CSmBlockSpawn _BlockSpawn)
+{
+	This.SpawnPlayer(_Player, _ClanNum, -1, _BlockSpawn, -1);
+	if(_Player.Score != Null) Ladder_AddPlayer(_Player.Score);
+}
+
+Void SpawnPlayer(CSmPlayer _Player, Integer _ClanNum, CSmBlockSpawn _BlockSpawn, Integer _ActivationDate)
+{
+	This.SpawnPlayer(_Player, _ClanNum, -1, _BlockSpawn, _ActivationDate);
+	if(_Player.Score != Null) Ladder_AddPlayer(_Player.Score);
+}
+
+Void SpawnPlayer(CSmPlayer _Player, Integer _ClanNum, Integer _Armor, CSmBlockSpawn _BlockSpawn, Integer _ActivationDate)
+{
+	This.SpawnPlayer(_Player, _ClanNum, _Armor, _BlockSpawn, _ActivationDate);	// beware of infinite recursion!
+	if(_Player.Score != Null) Ladder_AddPlayer(_Player.Score);
+}
+
+Void SpawnPlayerNoLadder(CSmPlayer _Player, Integer _ClanNum, CSmBlockSpawn _BlockSpawn)
+{
+	This.SpawnPlayer(_Player, _ClanNum, -1, _BlockSpawn, -1);
+}
+
+Void SpawnPlayerNoLadder(CSmPlayer _Player, Integer _ClanNum, CSmBlockSpawn _BlockSpawn, Integer _ActivationDate)
+{
+	This.SpawnPlayer(_Player, _ClanNum, -1, _BlockSpawn, _ActivationDate);
+}
+
+Void SpawnPlayerNoLadder(CSmPlayer _Player, Integer _ClanNum, Integer _Armor, CSmBlockSpawn _BlockSpawn, Integer _ActivationDate)
+{
+	This.SpawnPlayer(_Player, _ClanNum, _Armor, _BlockSpawn, _ActivationDate);	// beware of infinite recursion!
+}
+
+Void UnspawnAllPlayers()
+{
+	foreach(Player in Players) {	
+		UnspawnPlayer(Player);
+	}
+}
+
+Void UnspawnPlayersChangingClan()
+{
+	foreach (Player in Players)
+	{
+		if (UseClans && !UseForcedClans && !Player.IsFakePlayer && Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned){
+			// if the player wants to change team, then remove him from the current team
+			// it will be added to the correct team at next respawn.
+			if (Player.CurrentClan != 0 && Player.RequestedClan != Player.CurrentClan) {
+				UnspawnPlayer(Player);
+			}
+		}
+	}
+}
+
+Void SetupDefaultVisibility() {	
+	UIManager.UIAll.AlliesLabelsMaxCount = 2;
+	UIManager.UIAll.AlliesLabelsVisibility = CUIConfig::ELabelsVisibility::Always;
+	UIManager.UIAll.AlliesLabelsShowGauges = CUIConfig::EVisibility::ForcedVisible;
+	UIManager.UIAll.TeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
+	UIManager.UIAll.TeamLabelsShowGauges = CUIConfig::EVisibility::ForcedVisible;
+	UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenInMiddleOfScreen;
+	UIManager.UIAll.OpposingTeamLabelsShowGauges = CUIConfig::EVisibility::ForcedHidden;	
+}
+
+CSmBlockSpawn GetSpawn(Text _Tag, Integer _Index) {	
+	foreach(Spawn in BlockSpawns) {
+		if(Spawn.Tag == _Tag && Spawn.Order == _Index)
+			return Spawn;	
+	}	
+	return Null;
+}
+
+CSmBlockPole GetPole(Text _Tag, Integer _Index) {	
+	foreach(Pole in BlockPoles) {
+		if(Pole.Tag == _Tag && Pole.Order == _Index)
+			return Pole;	
+	}	
+	return Null;
+}
+
+Void SetPlayerWeapon(CSmPlayer _Player, Real _AmmoGainCoeff, Boolean _AutoSwitchWeapon) {
+	SetPlayerWeapon(_Player, CSmMode::EWeapon::Rocket, _AutoSwitchWeapon);	
+	_Player.AmmoGain = _AmmoGainCoeff;		
+}
+

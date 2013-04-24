@@ -1,0 +1,114 @@
+#Const Version		"2013-04-08"
+#Const ScriptName	"Mode.Script.txt"
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+// ==============================
+//  Synchro
+// ==============================
+Void Synchro_DoBarrier()
+{
+	declare Barrier = Synchro_AddBarrier();
+	wait(Synchro_BarrierReached(Barrier) || ServerShutdownRequested);
+}
+
+// ==============================
+//  Team balance
+// ==============================
+
+Void AutoTeamBalance()
+{
+	This.AutoTeamBalance();
+	Synchro_DoBarrier();
+}
+
+// ==============================
+//  Playlist
+// ==============================
+Void LoadMap() 
+{ 
+	if (!MapLoaded) 
+	{
+		RequestLoadMap(); 
+	} 
+	wait(MapLoaded || ServerShutdownRequested); 
+}
+
+Void UnloadMap() 
+{ 
+	if (MapLoaded) 
+	{
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::None;
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+		RequestUnloadMap(); 
+	} 
+	wait(!MapLoaded || ServerShutdownRequested); 
+} 
+
+
+// ==============================
+//  Ladder
+// ==============================
+Void Ladder_OpenMatch_All() // Ladder_OpenMatch(m_Scores) marche pas...
+{
+	Ladder_CancelMatchRequest();
+	wait(!Ladder_RequestInProgress); 
+	
+	Ladder_OpenMatch_BeginRequest(); 
+	foreach(Score in Scores) { 
+		Ladder_OpenMatch_AddPlayer(Score); 
+	}
+	Ladder_OpenMatch_EndRequest(); 
+	wait(!Ladder_RequestInProgress); 
+}
+
+Void Ladder_OpenMatch(CScore[] _Scores)
+{
+	Ladder_CancelMatchRequest();
+	wait(!Ladder_RequestInProgress); 
+	
+	Ladder_OpenMatch_BeginRequest(); 
+	foreach(Score in _Scores) { 
+		Ladder_OpenMatch_AddPlayer(Score); 
+	}
+	Ladder_OpenMatch_EndRequest(); 
+	wait(!Ladder_RequestInProgress); 
+}
+
+Void Ladder_CloseMatch() 
+{
+	// assert que les scores sont bien triés, dans le même ordre que le ladder.
+	declare CScore PrevScore;
+	foreach(Score in Scores) { 
+		if (PrevScore == Null)
+			continue;
+		assert(PrevScore.LadderRankSortValue <= Score.LadderRankSortValue);
+		PrevScore <=> Score;
+	}
+	
+	Ladder_CloseMatchRequest();
+	wait(!Ladder_RequestInProgress); 
+}
+
+Void Ladder_CancelMatch()
+{
+	Ladder_CancelMatchRequest();
+	wait(!Ladder_RequestInProgress); 
+}
+

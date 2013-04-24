@@ -1,0 +1,378 @@
+/**
+ *	Rules library
+ *	Show the rules in the spawn screen
+ */
+
+#Const Version		"2013-01-24"
+#Const ScriptName	"SpawnScreen.Script.txt"
+
+#Include "TextLib" as TextLib
+
+/* ------------------------------------- */
+// Globales
+/* ------------------------------------- */
+declare Text	G_LibSpawnScreen_ModeName;		///< The name of the mode
+declare Text	G_LibSpawnScreen_ModeRules;		///< The rules of the mode
+declare Ident	G_LibSpawnScreen_LayerRulesId;	///< The id of the layer containing the rules
+declare Ident	G_LibSpawnScreen_LayerScoresId;	///< The id of the layer containing the scores
+declare Ident	G_LibSpawnScreen_LayerMapInfoId;///< The id of the layer containing the map info
+
+/* ------------------------------------- */
+// Functions
+/* ------------------------------------- */
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+/* ------------------------------------- */
+// Rules
+/* ------------------------------------- */
+
+/* ------------------------------------- */
+/** Generate the rules manialink
+ *
+ *	@param	_Hidden		The rules are hidden by default
+ *	@return				The manialink Text
+ */
+Text Private_CreateLayerRules(Boolean _Hidden) {
+	declare ML = "";
+	
+	declare RulesTip = _("Press F1 to show rules");
+	
+	ML = """
+<frame posn="0 -70 0" id="FrameShow">
+	<quad posn="0 0 10" sizen="140 20" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle3_5" />
+	<label posn="0 0 11" sizen="70 10" scale="2" halign="center" valign="center" style="TextTitle3" text="{{{ RulesTip }}}" />
+</frame>
+<frame posn="0 50 10" id="FrameRules">
+	<frame posn="0 0 5">
+		<quad posn="0 0 10" sizen="120 20" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle3_5" />
+		<label posn="0 0 11" sizen="60 10" scale="2" halign="center" valign="center" style="TextTitle3" textprefix="$fff" text="{{{ G_LibSpawnScreen_ModeName }}}" />
+	</frame>
+	<frame posn="0 -10 5">
+		<quad posn="0 0 10" sizen="300 120" halign="center" bgcolor="222e" />
+		<label posn="-145 -5 11" sizen="145 5" scale="2" autonewline="1" style="TextCardSmallScores2" text="{{{ G_LibSpawnScreen_ModeRules }}}" />
+	</frame>
+</frame>
+<script><!--
+main () {
+	declare FrameRules		<=> Page.GetFirstChild("FrameRules");
+	declare FrameShow		<=> Page.GetFirstChild("FrameShow");
+	declare ShowRules		= {{{ !_Hidden }}};
+	declare PrevShowRules	= !ShowRules;
+		
+	while(True) {
+		yield;
+		
+		if (PrevShowRules != ShowRules) {
+			PrevShowRules = ShowRules;
+			if (ShowRules) {
+				FrameRules.Show();
+				FrameShow.Hide();
+			} else {
+				FrameRules.Hide();
+				FrameShow.Show();
+			}
+		}
+
+		foreach (Event in PendingEvents) {
+			switch (Event.Type) {
+				case CMlEvent::Type::MouseClick :
+				{		
+					if (Event.ControlId == "FrameRules") ShowRules = !ShowRules;
+				}
+		
+				case CMlEvent::Type::KeyPress:
+				{
+					if (Event.CharPressed == "2424832") ShowRules = !ShowRules;	// F1
+				}
+			}
+		}
+	}
+}
+--></script>
+	""";
+	
+	return ML;
+}
+
+/* ------------------------------------- */
+/// Destroy the rules in the spawn screen
+Void DestroyRules() {
+	if (G_LibSpawnScreen_LayerRulesId != NullId && UIManager.UILayers.existskey(G_LibSpawnScreen_LayerRulesId)) {
+		UIManager.UILayerDestroy(UIManager.UILayers[G_LibSpawnScreen_LayerRulesId]);
+		G_LibSpawnScreen_LayerRulesId = NullId;
+	}
+}
+
+/* ------------------------------------- */
+/** Create the rules in the spawn screen
+ *
+ *	@param	_Name			The name of the mode
+ *	@param	_Rules			The rules of the mode
+ *	@param	_StartHidden	Start with the rules hidden
+ */
+Void CreateRules(Text _Name, Text _Rules, Boolean _StartHidden) {
+	// Check if a rules layer was already created and destroy it if it's the case
+	DestroyRules();
+	
+	// Set the name and the rules of the mode
+	G_LibSpawnScreen_ModeName = TextLib::MLEncode(_Name);
+	G_LibSpawnScreen_ModeRules = TextLib::MLEncode(_Rules);
+	
+	// Create and assign the layer
+	declare LayerRules <=> UIManager.UILayerCreate();
+	LayerRules.Type = CUILayer::EUILayerType::ScreenIn3d;
+	LayerRules.ManialinkPage = Private_CreateLayerRules(_StartHidden);
+	G_LibSpawnScreen_LayerRulesId = LayerRules.Id;
+	UIManager.UIAll.UILayers.add(LayerRules);
+}
+
+/* ------------------------------------- */
+// Create Overload 
+Void CreateRules(Text _Name, Text _Rules) {
+	CreateRules(_Name, _Rules, True);
+}
+
+/* ------------------------------------- */
+/// Attach the rules layer to all players
+Void AttachRules() {
+	if (UIManager.UIAll.UILayers.existskey(G_LibSpawnScreen_LayerRulesId)) return;
+	if (!UIManager.UILayers.existskey(G_LibSpawnScreen_LayerRulesId)) return;
+	
+	UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibSpawnScreen_LayerRulesId]);
+}
+
+/* ------------------------------------- */
+/// Detach the rules layer from all players
+Void DetachRules() {
+	if (!UIManager.UIAll.UILayers.existskey(G_LibSpawnScreen_LayerRulesId)) return;
+	if (!UIManager.UILayers.existskey(G_LibSpawnScreen_LayerRulesId)) return;
+	
+	declare Detached = UIManager.UIAll.UILayers.removekey(G_LibSpawnScreen_LayerRulesId);
+}
+
+/* ------------------------------------- */
+// Map info
+/* ------------------------------------- */
+
+/* ------------------------------------- */
+/** Create the map info in Spawn manialink
+ *
+ *	@return		The manialink string
+ */
+Text Private_CreateLayerMapInfo() {	
+	return """
+<frame posn="-145 75 0">
+	<label posn="0 0 1" sizen="40 10" textsize="10" valign="center" text="Map:" />
+	<label posn="40 0 1" sizen="250 10" textsize="10" valign="center" id="Label_MapName" />
+	<label posn="0 -15 2" sizen="40 10" textsize="10" valign="center" text="{{{_("|Author|By:")}}}" />
+	<label posn="40 -15 2" sizen="250 10" textsize="10" valign="center" id="Label_MapAuthor" />
+	<label posn="0 -30 2" sizen="40 10" textsize="10" valign="center" text="{{{_("|Location|From:")}}}" />
+	<quad posn="40 -30 3" sizen="15 15" valign="center" id="Quad_MapAuthorFlag" />
+	<label posn="60 -30 2" sizen="230 10" textsize="10" valign="center" id="Label_MapAuthorZone" />
+</frame>
+<script><!--
+#Include "TextLib" as TL
+
+main() {
+	declare Label_MapName		<=> (Page.GetFirstChild("Label_MapName")		as CMlLabel);
+	declare Label_MapAuthor		<=> (Page.GetFirstChild("Label_MapAuthor")		as CMlLabel);
+	declare Quad_MapAuthorFlag	<=> (Page.GetFirstChild("Quad_MapAuthorFlag")	as CMlQuad);
+	declare Label_MapAuthorZone	<=> (Page.GetFirstChild("Label_MapAuthorZone")	as CMlLabel);
+	
+	declare AuthorZonePath = "";
+	if (Map.AuthorZonePath != "") {
+		declare ExplodeAuthorZonePath = TL::Split("|", Map.AuthorZonePath);
+		declare Removed = ExplodeAuthorZonePath.remove("World");
+		foreach (Key => Zone in ExplodeAuthorZonePath) {
+			AuthorZonePath ^= Zone;
+			if (Key < ExplodeAuthorZonePath.count - 1) AuthorZonePath ^= " | ";
+		}
+	}
+	if (AuthorZonePath == "") AuthorZonePath = Map.AuthorZonePath;
+	
+	Label_MapName.SetText(Map.MapName);
+	Label_MapAuthor.SetText(Map.AuthorLogin);
+	if (Http.IsValidUrl(Map.AuthorZoneIconUrl)) Quad_MapAuthorFlag.ChangeImageUrl(Map.AuthorZoneIconUrl);
+	Label_MapAuthorZone.SetText(AuthorZonePath);
+}
+--></script>
+""";
+}
+
+/* ------------------------------------- */
+/// Destroy the map info in the spawn screen
+Void DestroyMapInfo() {
+	if (G_LibSpawnScreen_LayerMapInfoId != NullId && UIManager.UILayers.existskey(G_LibSpawnScreen_LayerMapInfoId)) {
+		UIManager.UILayerDestroy(UIManager.UILayers[G_LibSpawnScreen_LayerMapInfoId]);
+		G_LibSpawnScreen_LayerMapInfoId = NullId;
+	}
+}
+
+/* ------------------------------------- */
+/// Create the map info in the spawn screen
+Void CreateMapInfo() {
+	// Check if a map info layer was already created and destroy it if it's the case
+	DestroyMapInfo();
+	
+	// Create and assign the layer
+	declare LayerMapInfo <=> UIManager.UILayerCreate();
+	LayerMapInfo.Type = CUILayer::EUILayerType::ScreenIn3d;
+	LayerMapInfo.ManialinkPage = Private_CreateLayerMapInfo();
+	G_LibSpawnScreen_LayerMapInfoId = LayerMapInfo.Id;
+	UIManager.UIAll.UILayers.add(LayerMapInfo);
+}
+
+/* ------------------------------------- */
+/// Attach the map info layer to all players
+Void AttachMapInfo() {
+	if (UIManager.UIAll.UILayers.existskey(G_LibSpawnScreen_LayerMapInfoId)) return;
+	if (!UIManager.UILayers.existskey(G_LibSpawnScreen_LayerMapInfoId)) return;
+	
+	UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibSpawnScreen_LayerMapInfoId]);
+}
+
+/* ------------------------------------- */
+/// Detach the map info layer from all players
+Void DetachMapInfo() {
+	if (!UIManager.UIAll.UILayers.existskey(G_LibSpawnScreen_LayerMapInfoId)) return;
+	if (!UIManager.UILayers.existskey(G_LibSpawnScreen_LayerMapInfoId)) return;
+	
+	declare Detached = UIManager.UIAll.UILayers.removekey(G_LibSpawnScreen_LayerMapInfoId);
+}
+
+/* ------------------------------------- */
+// Scores
+/* ------------------------------------- */
+
+/* ------------------------------------- */
+/** Create the Scores in Spawn manialink
+ *
+ *	@return		The manialink string
+ */
+Text Private_CreateLayerScores() {
+	declare PlayersListML = "";
+	declare Icons = ["First", "Second", "Third"];
+	
+	for (I, 1, 3) {		
+		PlayersListML ^=
+"""
+<frame posn="-140 {{{ (I-1) * -30 }}} -25">
+	<quad posn="0 -2" sizen="30 30" valign="center" style="Icons64x64_1" substyle="{{{ Icons[I-1] }}}" />
+	<label posn="30 0" sizen="200 20" textsize="15" valign="center" id="Label_Name_{{{I}}}" />
+	<label posn="270 0" sizen="20 20" textsize="15" halign="right" valign="center" id="Label_Score_{{{I}}}" />
+</frame>
+""";
+	}
+	
+	return """
+<frame posn="0 85 -20">
+	<frame posn="0 -65">
+		<quad posn="0 15 -30" sizen="290 92" halign="center" bgcolor="222c" />
+		{{{ PlayersListML }}}
+	</frame>
+</frame>
+<script><!--
+#Include "TextLib" as TL
+
+#Const C_RefreshInterval 250
+
+main() {
+	declare PrevRefresh		= 0;
+	
+	declare Label_Name		= CMlLabel[Integer];
+	declare Label_Score		= CMlLabel[Integer];
+	declare PrevScoreId		= Ident[Integer];
+	declare PrevScore		= Integer[Integer];
+	
+	for (J, 1, 3) {
+		Label_Name[J]	= (Page.GetFirstChild("Label_Name_"^J)	as CMlLabel);
+		Label_Score[J]	= (Page.GetFirstChild("Label_Score_"^J)	as CMlLabel);
+		PrevScoreId[J]	= NullId;
+		PrevScore[J]	= 0;
+	}
+	
+	while (True) {
+		yield;
+		
+		if (!PageIsVisible) continue;
+		
+		if (PrevRefresh + C_RefreshInterval < Now) {
+			PrevRefresh = Now;
+			
+			declare I = 0;
+			foreach (Score in Scores) {
+				I += 1;
+				
+				if (PrevScoreId[I] != Score.Id || PrevScore[I] != Score.RoundPoints + Score.Points) {
+					PrevScoreId[I]	= Score.Id;
+					PrevScore[I]	= Score.RoundPoints + Score.Points;
+					Label_Name[I].SetText(Score.User.Name);
+					Label_Score[I].SetText(TL::ToText(Score.RoundPoints + Score.Points));
+				}
+				
+				if (I >= 3) break;
+			}
+		}
+	}
+}
+--></script>
+""";
+}
+
+/* ------------------------------------- */
+/// Destroy the scores in the spawn screen
+Void DestroyScores() {
+	if (G_LibSpawnScreen_LayerScoresId != NullId && UIManager.UILayers.existskey(G_LibSpawnScreen_LayerScoresId)) {
+		UIManager.UILayerDestroy(UIManager.UILayers[G_LibSpawnScreen_LayerScoresId]);
+		G_LibSpawnScreen_LayerScoresId = NullId;
+	}
+}
+
+/* ------------------------------------- */
+/// Create the scores in the spawn screen
+Void CreateScores() {
+	// Check if a score layer was already created and destroy it if it's the case
+	DestroyScores();
+	
+	// Create and assign the layer
+	declare LayerScores <=> UIManager.UILayerCreate();
+	LayerScores.Type = CUILayer::EUILayerType::ScreenIn3d;
+	LayerScores.ManialinkPage = Private_CreateLayerScores();
+	G_LibSpawnScreen_LayerScoresId = LayerScores.Id;
+	UIManager.UIAll.UILayers.add(LayerScores);
+}
+
+/* ------------------------------------- */
+/// Attach the scores layer to all players
+Void AttachScores() {
+	if (UIManager.UIAll.UILayers.existskey(G_LibSpawnScreen_LayerScoresId)) return;
+	if (!UIManager.UILayers.existskey(G_LibSpawnScreen_LayerScoresId)) return;
+	
+	UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibSpawnScreen_LayerScoresId]);
+}
+
+/* ------------------------------------- */
+/// Detach the scores layer from all players
+Void DetachScores() {
+	if (!UIManager.UIAll.UILayers.existskey(G_LibSpawnScreen_LayerScoresId)) return;
+	if (!UIManager.UILayers.existskey(G_LibSpawnScreen_LayerScoresId)) return;
+	
+	declare Detached = UIManager.UIAll.UILayers.removekey(G_LibSpawnScreen_LayerScoresId);
+}

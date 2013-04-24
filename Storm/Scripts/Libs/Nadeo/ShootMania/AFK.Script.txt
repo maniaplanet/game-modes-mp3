@@ -1,0 +1,66 @@
+/**
+ *	Library to manage Passive AFK players
+ */
+#Const Version		"2013-03-04"
+#Const ScriptName	"AFK.Script.txt"
+
+#Include "TextLib" as TextLib
+#Include "MathLib" as MathLib
+
+#Const Lib_AFK_IdleTimeLimit	90000 	// after 1'30 of inactivity, a player is considered AFK
+#Const Lib_AFK_SpawnTimeLimit	15000 	// A player cannot be considered AFK during 15 s. after spawning
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+Boolean IsAFK(CSmPlayer _Player, Integer _MaxIdleDuration, Integer _SpawnTimeMercy) {
+	if(_Player.SpawnStatus != CSmPlayer::ESpawnStatus::Spawned) return False;
+	declare UI <=> UIManager.GetUI(_Player);
+	// not for bots
+	if(UI == Null) return False;
+	if((UI.UISequence != CUIConfig::EUISequence::Playing) && (UI.UISequence != CUIConfig::EUISequence::None)) return False;
+	if(UI.ForceSpectator) return False;
+	if((Now - _Player.StartTime) < _SpawnTimeMercy) return False; 
+	return (_Player.IdleDuration > _MaxIdleDuration);
+}
+
+/**
+ * Try to force AFK players to spectators.
+ * @param _MaxIdleDuration : in milliSec., time of inactivity to be considered AFK
+ * @param _SpawnTimeMercy : in milliSec., time after spawning during which one can not be considered AFK.
+ */
+Void ManageAFKPlayers(Integer _MaxIdleDuration, Integer _SpawnTimeMercy) {
+	// if( UIManager.UIAll.UISequence != CUIConfig::EUISequence::Playing ) return;
+	foreach(Player in Players) {
+		declare Boolean PlayerIsAFK = IsAFK(Player, _MaxIdleDuration, _SpawnTimeMercy);
+		if(PlayerIsAFK) {
+			declare UI <=> UIManager.GetUI(Player);
+			if(UI != Null) { // not for bots
+				UIManager.UIAll.SendNotice(
+					TextLib::Compose(_("$<%1$> is inactive"), Player.User.Name),
+					CUIConfig::ENoticeLevel::PlayerInfo, Null, CUIConfig::EAvatarVariant::Default, 
+					CUIConfig::EUISound::Silence, 0);
+				Users_RequestSwitchToSpectator(Player.User);
+			}
+		}
+	}
+}
+
+Void ManageAFKPlayers() {
+	ManageAFKPlayers(Lib_AFK_IdleTimeLimit, Lib_AFK_SpawnTimeLimit);
+}

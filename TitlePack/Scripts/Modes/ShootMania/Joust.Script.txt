@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"JoustArena"
-#Const	Version				"2013-04-18"
+#Const	Version				"2013-04-24"
 #Const	ScriptName			"Joust.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -354,6 +354,7 @@ foreach (Goal in BlockPoles) {
 	Goal.Gauge.Value = 0;
 	Goal.Gauge.Clan = 0;
 }
+UpdateBasesColors();
 
 // ---------------------------------- //
 // Init players and UI
@@ -613,6 +614,7 @@ if (AGoalHaveBeenCaptured) {
 		} 
 	}
 	AGoalHaveBeenCaptured = False;
+	UpdateBasesColors();
 	
 	// 3D markers
 	for (I, 1, 2) {
@@ -988,6 +990,27 @@ Void MatchmakingWait() {
 	}
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
+}
+
+// ---------------------------------- //
+/// End map timer for MatchMaking
+Void UpdateBasesColors() {
+	foreach (Base in Bases) {
+		Base.Clan = 0;
+		Base.IsActive = True;
+	}
+	
+	declare UpdatedBases = Ident[];
+	
+	foreach (BlockPole in BlockPoles) {			
+		if (!UpdatedBases.exists(BlockPole.Base.Id)) {
+			BlockPole.Base.Clan = BlockPole.Gauge.Clan;
+			if (BlockPole.Gauge.Value <= 0) BlockPole.Base.IsActive = False;
+			UpdatedBases.add(BlockPole.Base.Id);
+		} else {
+			BlockPole.Base.Clan = 0;
+		}
+	}
 }
 
 // ---------------------------------- //

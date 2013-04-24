@@ -1,0 +1,26 @@
+#RequireContext CSmMapType
+#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+
+Void UpdateValidability() {
+	foreach(Data in AnchorData) {
+		if(Data.Tag == "Spawn") Data.Order = 0;		
+	}
+	Anchor::UpdateAnchorCounts();			
+	if( !Anchor::HasAtLeastOneAnchor("Spawn", 0, _("You must place at least one Spawn")) ) return;	
+}
+
+/////////////////////////////////////
+// Main
+
+main() {		
+	UpdateValidability();
+	while (True) {	
+		yield;
+		ManialinkText = "";			
+		foreach(Event in PendingEvents) {
+			if(Event.Type == CPluginEvent::Type::MapModified) {
+				UpdateValidability();			
+			}
+		}		
+	}	
+}

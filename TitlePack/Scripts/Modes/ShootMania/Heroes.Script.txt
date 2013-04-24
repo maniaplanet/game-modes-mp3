@@ -1,0 +1,397 @@
+/**
+ * Rules for the Heroes mode
+ */
+
+#Extends "Modes/ShootMania/ModeSport.Script.txt"
+
+#Const Version		"2013-04-10"
+#Const ScriptName	"Heroes.Script.txt"
+
+#Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
+#Setting S_TimePoleElimination	10.	as _("Capture time limit after defense elimination")///< Countdown to capture after defense elimination
+
+#Const C_AtkRocketAmmoMax	4	///< Atk Rocket ammo max
+#Const C_AtkRocketAmmoGain	1.	///< Atk Rocket ammo gain
+#Const C_AtkLaserAmmoMax	1	///< Atk Laser ammo max
+#Const C_AtkLaserAmmoGain	0.8	///< Atk Laser ammo gain
+#Const C_AtkNucleusAmmoMax	1	///< Atk Nucleus ammo max
+#Const C_AtkNucleusAmmoGain	1.	///< Atk Nucleus ammo gain
+
+#Const C_DefRocketAmmoMax	4	///< Def Rocket ammo max
+#Const C_DefRocketAmmoGain	1.	///< Def Rocket ammo gain
+#Const C_DefLaserAmmoMax	1	///< Def Laser ammo max
+#Const C_DefLaserAmmoGain	1.	///< Def Laser ammo gain
+#Const C_DefNucleusAmmoMax	1	///< Def Nucleus ammo max
+#Const C_DefNucleusAmmoGain	1.	///< Def Nucleus ammo gain
+
+#Const C_RequiredPlayersNb		5	///< Required number of players in each team
+
+#Const Description _("TYPE: Team versus Team (5 vs 5)\nOBJECTIVE:\nOne team is in attack with four players with the Laser and one player with the Nucleus. The other team is in defense with five players with the Rocket.\nThe attackers must capture the pole but only the Nucleus can do it. The defenders must eliminate the Nucleus or prevent the capture.\nThe first team to reach the points limit wins the map.")
+
+***LogVersion***
+***
+MB_LogVersion(ScriptName, Version);
+***
+
+***Rules***
+***
+/* -------------------------------------- */
+// Create rules
+declare ModeName = "Heroes";
+declare ModeRules = TextLib::Compose(
+	_("Two teams - 5 vs 5\n\n- The attacker must capture a pole after %1 seconds and before %2 seconds.\n- The defenders must prevent the attacker from capturing a pole.\n- The team in defense play with Rockets.\n- The team in attack play with 4 Lasers and 1 Nucleus.\n- The player with the Nucleus is the attacker and is the only one who can capture a pole.\n- If the attacker is eliminated, his team loose the turn.\n- The game is divided in rounds of two turns each.\n- During a round each team play one turn in attack and one turn in defense.\n- The team who wins the turn scores 1 point.\n- The first team to score at least %3 points with %4 ahead of his opponent wins the map."),
+	TextLib::ToText(S_TimeLimit - S_TimePole),
+	TextLib::ToText(S_TimeLimit),
+	TextLib::ToText(S_TurnWin),
+	TextLib::ToText(S_TurnGap)
+);
+SpawnScreen::CreateRules(ModeName, ModeRules);
+ModeStatusMessage = _("TYPE: Team versus Team (5 vs 5)\nOBJECTIVE: Capture the pole when you're the attacker. Defend the pole when you're a defender.");
+***
+
+***InitTurn***
+***
+declare ElimationCountdown = False;	///< Switch the elimination countdown for capture on or off
+declare LastDefSelfElim = False;	///< True if the last defenders respawned/fell in an offzone
+***
+
+***SpawnDef***
+***
+if (DefSpawned >= MaxDef) break;
+if (!Players.existskey(PlayerId)) continue;
+
+declare Player <=> Players[PlayerId];
+declare CurrentWeapon for Player = 1;
+CurrentWeapon = 1;
+SetPlayerAmmoMax(Player, CSmMode::EWeapon::Rocket, C_DefRocketAmmoMax);
+SetPlayerAmmoMax(Player, CSmMode::EWeapon::Laser, C_DefLaserAmmoMax);
+SetPlayerAmmoMax(Player, CSmMode::EWeapon::Nucleus, C_DefNucleusAmmoMax);
+
+Player.AmmoGain		= 1. * C_DefRocketAmmoGain;
+Player.StaminaMax	= 1. * C_DefStaminaMaxMultiplier;
+Player.StaminaGain	= 1. * C_DefStaminaMaxMultiplier;
+Player.ArmorMax		= C_DefArmorMax;
+SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, True); 
+SM::SpawnPlayer(Player, G_DefClan, DefBlockSpawn, Now);
+Player.IsHighlighted = True;
+DefSpawned += 1;
+***
+
+***SpawnAtk***
+***
+if (AtkSpawned >= C_RequiredPlayersNb) break;
+if (!Players.existskey(PlayerId)) continue;
+			
+declare Player <=> Players[PlayerId];
+declare CurrentWeapon for Player = 1;
+SetPlayerAmmoMax(Player, CSmMode::EWeapon::Rocket, C_AtkRocketAmmoMax);
+SetPlayerAmmoMax(Player, CSmMode::EWeapon::Laser, C_AtkLaserAmmoMax);
+SetPlayerAmmoMax(Player, CSmMode::EWeapon::Nucleus, C_AtkNucleusAmmoMax);
+
+Player.StaminaMax	= 1.;
+Player.StaminaGain	= 1.;
+Player.ArmorMax		= C_DefArmorMax;
+if (AtkSpawned <= 0) {
+	CurrentWeapon = 3;
+	Player.AmmoGain		= 1. * C_AtkNucleusAmmoGain;
+	SetPlayerWeapon(Player, CSmMode::EWeapon::Nucleus, False);
+	G_AtkPlayerId = PlayerId;
+} else {
+	CurrentWeapon = 2;
+	Player.AmmoGain		= 1. * C_AtkLaserAmmoGain;
+	SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
+}
+SM::SpawnPlayer(Player, G_AtkClan, AtkBlockSpawn, Now);
+Player.IsHighlighted = True;
+AtkSpawned += 1;
+***
+
+***PoleManagement***
+***
+/* -------------------------------------- */
+// All defenders eliminated, start the capture countdown
+if (ClansNbPlayersAlive[G_DefClan] <= 0 && S_TimePoleElimination >= 0) {
+	if (!ElimationCountdown) {
+		ElimationCountdown = True;
+		UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
+		UIManager.UIAll.BigMessageSoundVariant = 0;
+		UIManager.UIAll.BigMessage = _("All defenders eliminated, capture the goal!");
+		UIManager.UIAll.CountdownEndTime = -1;
+		EndTime = Now + MathLib::NearestInteger(S_TimePoleElimination * 1000);
+	}
+	foreach (Goal in BlockPoles) {
+		if (Goal.Gauge.Clan == G_DefClan) {
+			Goal.Gauge.Clan = G_AtkClan;
+			Goal.Gauge.Value = 0;
+			Goal.Gauge.Max = MathLib::NearestInteger(S_TimeCapture * 1000) * BlockPoles.count;
+		}
+		
+		if (Goal.Sector.PlayersIds.exists(G_AtkPlayerId)) {
+			Goal.Gauge.Speed = 1;
+		} else {
+			Goal.Gauge.Speed = 0;
+		}
+	}
+} else if (Now >= PoleTime) {
+	if (!GoalCanBeCaptured) {
+		GoalCanBeCaptured = True;
+		UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
+		UIManager.UIAll.BigMessageSoundVariant = 0;
+		UIManager.UIAll.BigMessage = _("The goal can now be captured.");
+		UIManager.UIAll.CountdownEndTime = -1;
+	}
+	
+	/* -------------------------------------- */
+	// Check if the attacker is capturing the pole
+	foreach (Goal in BlockPoles) {
+		if (Goal.Gauge.Value == 0 && Goal.Gauge.Clan == G_DefClan) {
+			Goal.Gauge.Clan = G_AtkClan;
+			Goal.Gauge.Max = MathLib::NearestInteger(S_TimeCapture * 1000) * BlockPoles.count;
+		}
+		
+		if (Goal.Sector.PlayersIds.exists(G_AtkPlayerId)) {
+			if(Goal.Gauge.Clan == G_DefClan) {
+				Goal.Gauge.Speed = -1;
+			} else {
+				Goal.Gauge.Speed = 1;
+			}
+		} else {
+			Goal.Gauge.Speed = 0;
+		}
+	}
+}
+***
+
+***EventOnHit***
+***
+/* -------------------------------------- */
+// Friendly fire off
+if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
+	Discard(Event);
+} else {
+	Event.Damage = 100;
+	/* -------------------------------------- */
+	// Shooter is in atk clan, victim in def clan
+	if (Players.existskey(G_AtkPlayerId)) {
+		if (Event.Shooter.CurrentClan == G_AtkClan) {
+			if (LastActionClanNb != G_AtkClan) SoundVariant += 1;
+			LastActionClanNb = G_AtkClan;
+			
+			// Elim last defender
+			if (ClansNbPlayersAlive[G_DefClan] <= 1) {
+				PlaySound(CUIConfig::EUISound::VictoryPoint, 0);
+			} 
+			// Elim standard defender
+			else {
+				PlaySound(CUIConfig::EUISound::TieBreakPoint, 4);
+			}
+			
+			if (ClansNbPlayersAlive[G_DefClan] > 1) {
+				declare DefLeft = ClansNbPlayersAlive[G_DefClan] - 1;
+				if (DefLeft <= 1) {
+					UIManager.UIAll.StatusMessage = TextLib::Compose(
+						_("%1 1 defender left."), 
+						Teams[G_DefClan - 1].ColorText
+					);
+				} else {
+					UIManager.UIAll.StatusMessage = TextLib::Compose(
+						_("%1 %2 defenders left."), 
+						Teams[G_DefClan - 1].ColorText, 
+						TextLib::ToText(DefLeft)
+					);
+				}								
+				LastStatusTime = Now;
+			}
+			
+			if (Event.Shooter.Score != Null) {
+				declare NbHit for Event.Shooter.Score = 0;
+				NbHit += 1;
+			}
+		} 
+		/* -------------------------------------- */
+		// Shooter is in def clan, victim in atk clan
+		else {
+			if (LastActionClanNb != G_DefClan) SoundVariant += 1;
+			LastActionClanNb = G_DefClan;
+			
+			// Elim nucleus attacker
+			if (Event.Victim.Id == G_AtkPlayerId) {
+				PlaySound(CUIConfig::EUISound::VictoryPoint, 0);
+			} 
+			// Elim standard attacker
+			else {
+				PlaySound(CUIConfig::EUISound::TieBreakPoint, 0);
+			}
+			
+			declare NbLeft = 0;
+			if (Event.Victim.Id == G_AtkPlayerId) {
+				NbLeft = (Players[G_AtkPlayerId].Armor - 100) / 100;
+				if (NbLeft <= 1) {
+					UIManager.UIAll.StatusMessage = TextLib::Compose(
+						_("%1 1 armor left."), 
+						Teams[G_AtkClan - 1].ColorText
+					);
+				} else {
+					UIManager.UIAll.StatusMessage = TextLib::Compose(
+						_("%1 %2 armors left."), 
+						Teams[G_AtkClan - 1].ColorText, 
+						TextLib::ToText(NbLeft)
+					);
+				}
+			} else {
+				NbLeft = ClansNbPlayersAlive[G_AtkClan] - 1;
+				if (NbLeft <= 1) {
+					UIManager.UIAll.StatusMessage = TextLib::Compose(
+						_("%1 1 attacker left."), 
+						Teams[G_AtkClan - 1].ColorText
+					);
+				} else {
+					UIManager.UIAll.StatusMessage = TextLib::Compose(
+						_("%1 %2 attackers left."), 
+						Teams[G_AtkClan - 1].ColorText, TextLib::ToText(NbLeft)
+					);
+				}
+			}
+			LastStatusTime = Now;
+			
+			if (Event.Shooter.Score != Null) {
+				declare NbHit for Event.Shooter.Score = 0;
+				NbHit += 1;
+			}
+		}
+	}
+	
+	if (Event.WeaponNum == 1) {
+		DisplayHitDistance(Event.Shooter, Event.Victim, True);
+	}
+	LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
+	PassOn(Event);
+}
+***
+
+***EventOnArmorEmpty***
+***
+if (Event.Shooter != Null && Event.Shooter.CurrentClan == G_AtkClan) {
+	G_MatchDefElim[Event.Shooter.CurrentClan] += 1;
+	G_MapDefElim[Event.Shooter.CurrentClan] += 1;
+}
+// If the last defenders eliminate himself the attackers win
+if (ClansNbPlayersAlive[G_DefClan] <= 1
+	&& Event.Victim != Null 
+	&& Event.Victim.CurrentClan == G_DefClan
+	&& Event.Shooter == Null) 
+{
+	LastDefSelfElim = True;
+}
+
+if (Event.Victim.Id == G_AtkPlayerId && Event.Shooter != Null) G_AtkElimPlayerId = Event.Shooter.Id;
+PassOn(Event);
+***
+
+***EventOnPlayerRequestRespawn***
+***
+// If the last defenders request respawn the attackers win
+if (ClansNbPlayersAlive[G_DefClan] <= 1
+	&& Event.Player != Null
+	&& Event.Player.CurrentClan == G_DefClan)
+{
+	LastDefSelfElim = True;
+}
+PassOn(Event);
+***
+
+***EventOnCapture***
+***
+PassOn(Event);
+***
+
+***EventOnShoot***
+***
+PassOn(Event);
+***
+
+***EventOnNearMiss***
+***
+PassOn(Event);
+***
+
+***AllDefElim***
+***
+AllDefElim = ((ClansNbPlayersAlive[G_DefClan] <= 0 && S_TimePoleElimination <= 0) || LastDefSelfElim);
+***
+
+***CreateLayerScoresTable***
+***
+declare ML = "";
+declare I = 0;
+
+// Scores table
+ML = """
+	<frame posn="0 41 20">
+		<quad posn="0 0 25" sizen="165 59.5" halign="center" style="Bgs1InRace" substyle="BgList" />
+		<frame posn="0 -1 30">
+			<label posn="-75 -1.5" scale="0.7" halign="center" style="TextRankingsBig" text="Hit" />
+			<label posn="-6 -1.5" scale="0.7" halign="center" style="TextRankingsBig" text="Atk" />
+			<label posn="6 -1.5" scale="0.7" halign="center" style="TextRankingsBig" text="Atk" />
+			<label posn="75 -1.5" scale="0.7" halign="center" style="TextRankingsBig" text="Hit" />
+		</frame>
+		<frame posn="0 -8 31">
+			<frame posn="-81 0 32">
+				{{{ DrawClanScoresList(1) }}}
+			</frame>
+			<frame posn="1 0 32">
+				{{{ DrawClanScoresList(2) }}}
+			</frame>
+		</frame>
+	</frame>
+""";
+
+return ML;
+***
+
+***UpdateLayerScoresTable***
+***
+declare LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
+***
+
+/* ------------------------------------- */
+/// Update the Hud3dMarkers.
+Void UpdateMarkers() {
+	// Set the marker above the goal
+	UIManager.UIAll.Hud3dMarkers = "";
+	
+	declare AtkPlayerLogin = "";
+	if (Players.existskey(G_AtkPlayerId)) AtkPlayerLogin = Players[G_AtkPlayerId].Login;
+	
+	declare ColorPoles = Teams[G_DefClan - 1].ColorText;
+	declare ColorNucleus = Teams[G_AtkClan - 1].ColorText;
+	
+	declare NucleusMarker = "";
+	if (AtkPlayerLogin != "") {
+		NucleusMarker = """<marker label="{{{ColorNucleus}}}$w$s$oN" playerlogin="{{{AtkPlayerLogin}}}" box="0 2 0" />""";
+	}
+	
+	declare PolesMarker = "";
+	foreach (Goal in BlockPoles) {
+		declare Name = "$w$s$oA";
+		if (Goal.Tag == "Goal B") Name = "$w$s$oB";
+		else if (Goal.Tag == "Goal C") Name = "$w$s$oC";
+		PolesMarker ^= """<marker label="{{{ColorPoles}}}{{{Name}}}" pos="{{{Goal.Position.X}}} {{{Goal.Position.Y + 25}}} {{{Goal.Position.Z}}}" />""";
+	}
+		
+	foreach (Player in Players) {
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI == Null) continue;
+		
+		if (Player.CurrentClan == G_AtkClan && Player.Login != AtkPlayerLogin) {
+			UI.Hud3dMarkers = NucleusMarker ^ PolesMarker;
+		} else {
+			UI.Hud3dMarkers = PolesMarker;
+		}
+	}
+	foreach (Spectator in Spectators) {
+		declare UI <=> UIManager.GetUI(Spectator);
+		if (UI == Null) continue;
+		UI.Hud3dMarkers = PolesMarker ^ NucleusMarker;
+	}
+}

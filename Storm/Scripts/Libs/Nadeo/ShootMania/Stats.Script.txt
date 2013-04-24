@@ -1,0 +1,60 @@
+/** 
+ *	Stats library
+ *	Collect stats about the players
+ */
+
+#Const Version		"2013-03-05"
+#Const ScriptName	"Stats.Script.txt"
+
+/* ------------------------------------- */
+// Constants
+/* ------------------------------------- */
+
+
+/* ------------------------------------- */
+// Globales
+/* ------------------------------------- */
+
+
+/* ------------------------------------- */
+// Functions
+/* ------------------------------------- */
+
+/* ------------------------------------- */
+// Private
+/* ------------------------------------- */
+
+
+/* ------------------------------------- */
+// Public
+/* ------------------------------------- */
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+/* ------------------------------------- */
+/// Unload the library
+Void Unload() {
+
+}
+
+/* ------------------------------------- */
+/// Load the library
+Void Load() {
+	
+}

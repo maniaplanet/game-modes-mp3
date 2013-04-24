@@ -1,0 +1,24 @@
+// ==============================
+//  
+// ==============================
+Void EnterPlayground(Integer _NbPlayers) 
+{ 
+	assert(_NbPlayers == 1); // TODO sinon.
+	if (!IsSwitchedToPlayground) 
+	{ 
+		RequestEnterPlayground(); 
+	} 
+	wait(IsSwitchedToPlayground); 
+	wait(Mode != Null && Mode.Players.count >= 1);
+	assert(Mode.Players.count == _NbPlayers);
+	
+}
+
+Void LeavePlayground() 
+{ 
+	if (IsSwitchedToPlayground) 
+	{ 
+		RequestLeavePlayground(); 
+	} 
+	wait(!IsSwitchedToPlayground); 
+} 

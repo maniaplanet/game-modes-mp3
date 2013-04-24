@@ -1,0 +1,41 @@
+
+declare Integer[Integer][Text] AnchorCounts;
+	
+Boolean HasAtLeastOneAnchor(Text Tag, Integer Order, Text Error) {  
+	if (!AnchorCounts.existskey(Tag) || !AnchorCounts[Tag].existskey(Order) || AnchorCounts[Tag][Order] < 1) {
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = Error;
+		return False;
+	}	
+	ValidationStatus = CSmMapType::ValidationStatus::Validated;	
+	return True;
+}
+
+Boolean HasAtLeastXAnchor(Text Tag, Integer Order, Integer X, Text Error) {  
+	if (!AnchorCounts.existskey(Tag) || !AnchorCounts[Tag].existskey(Order) || AnchorCounts[Tag][Order] < X) {
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = Error;
+		return False;
+	}	
+	ValidationStatus = CSmMapType::ValidationStatus::Validated;	
+	return True;
+}
+
+Boolean HasExactlyOneAnchor(Text Tag, Integer Order, Text Error) {
+	if (!AnchorCounts.existskey(Tag) || !AnchorCounts[Tag].existskey(Order) || AnchorCounts[Tag][Order] != 1) {
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = Error;
+		return False;
+	}	
+	ValidationStatus = CSmMapType::ValidationStatus::Validated;	
+	return True;
+}
+
+Void UpdateAnchorCounts() {
+	AnchorCounts = Integer[Integer][Text];
+	foreach(Data in AnchorData) {
+		if( !AnchorCounts.existskey(Data.Tag) )				AnchorCounts[Data.Tag] = Integer[Integer];
+		if( !AnchorCounts[Data.Tag].existskey(Data.Order))	AnchorCounts[Data.Tag][Data.Order] = 0;
+		AnchorCounts[Data.Tag][Data.Order] += 1;		
+	}
+}
