@@ -1,4 +1,4 @@
 Game modes script
 ==========
 
-This project regroup the game modes and libraries used in ManiaPlanet.
+This project regroups the game modes and libraries used in ManiaPlanet.
