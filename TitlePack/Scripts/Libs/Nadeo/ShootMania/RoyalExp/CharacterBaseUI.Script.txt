@@ -1,4 +1,4 @@
-#Const Version		"2013-02-05"
+#Const Version		"2013-04-26"
 #Const ScriptName	"CharacterBaseUI.Script.txt"
 
 #Include "TextLib" as TextLib
@@ -57,7 +57,7 @@ Void Reset(Vec2 FramePosition, Vec2 FrameSize, Integer StatDescPosnY)
 }
 
 Void Reset(Vec2 FrameSize) {
-	Reset(<0.,0.>, FrameSize, -73);
+	Reset(<0.,0.>, FrameSize, -60);
 }
 
 /**
@@ -148,7 +148,7 @@ Void DeclareCustomField(CSmPlayer Player, Integer FieldIndex)
  * Create a default label for the UI.
  */
 Text CreateLabel(Text Id, Text Label, Real PosnX, Real PosnY, Real SizenX, Real SizenY, Boolean Action, Text ActionStyle) {
-	declare LabelText = """<label id="{{{Id}}}" text="{{{Label}}}" posn="{{{PosnX}}} {{{PosnY}}} 1" """;
+	declare LabelText = """<label id="{{{Id}}}" textemboss="1" text="{{{Label}}}" posn="{{{PosnX}}} {{{PosnY}}} 1" """;
 	
 	if (SizenX > 0 && SizenY > 0) {
 		LabelText = LabelText^""" sizen="{{{SizenX}}} {{{SizenY}}}" """;
@@ -883,12 +883,12 @@ Text GetAltMenuManiaPage(CSmPlayer Player)
 				""";
 				declare FrameQuadWidth  = G_FrameSize.X;// 260;//200;
 				declare FrameQuadHeight = G_FrameSize.Y;// 100;//104;
-				declare ImgFile = "file://Media/Manialinks/RoyalExp/ScoresTableBg.dds";
+				declare ImgFile = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
 				MLText = MLText^"""
-			<quad	halign="center" valign="center"	posn="0 0 0" sizen="{{{FrameQuadWidth}}} {{{FrameQuadHeight}}}" bgcolor="0007" />
-			<label	halign="center" valign="top" 	posn="0 {{{(FrameQuadHeight/2) -2.5}}} 1" textemboss="true" text="{{{_("Character")}}}"/>
+			<quad	halign="center" valign="center"	posn="0.05 21.3 0" sizen="{{{FrameQuadWidth}}} {{{FrameQuadHeight}}}" image="{{{ImgFile}}}" />
+			<label	halign="center" valign="top" 	posn="0 {{{(FrameQuadHeight/2)-36}}} 1" textemboss="1" textsize="4" text="{{{_("Character")}}}"/>
 		</frame>
-		<frame posn="0 44 0">
+		<frame posn="-5 44 0">
 			<frame posn="0 0 0">
 				""";
 				declare FigureLabelsX = 70;
@@ -905,7 +905,7 @@ Text GetAltMenuManiaPage(CSmPlayer Player)
 					<label id="RebirthTitleLabel" posn="{{{FigureLabelsX+10}}} -12" halign="left" scale="0.6" textcolor="{{{C_DefaultBlue}}}" text=" /{{{_("Rebirth")}}}"/>
 					<label id="RebirthLvlLabel" posn="{{{FigureLabelsX+25}}} -12" textcolor="{{{C_DefaultBlue}}}" scale="0.6"/>
 				-->
-				<label id="RebirthTitleLabel" posn="0 4" halign="left" scale="0.8" textcolor="{{{C_DefaultBlue}}}" text="{{{_("Rebirth")}}}"/>
+				<label id="RebirthTitleLabel" posn="0 3" halign="left" scale="0.8" textcolor="{{{C_DefaultBlue}}}" text="{{{_("Rebirth")}}}"/>
 				<label id="RebirthLvlLabel" posn="{{{FigureLabelsX}}} 4" textcolor="{{{C_DefaultBlue}}}" scale="1"/>
 			</frame>
 			
@@ -921,12 +921,12 @@ Text GetAltMenuManiaPage(CSmPlayer Player)
 		</frame>
 		
 		
-		<frame posn="-100 44 0">""";
+		<frame posn="-78 44 0">""";
 MLText = MLText^BuildCharStatsML(Player);
 MLText = MLText^"""
 			<frame posn="0 10 1">
 				<quad posn="-15 {{{G_StatDescPosnY}}} 2"  bgcolor="{{{C_BorderColor}}}" sizen="80 .25" />
-				<label id="LabelStatDesc" posn="-15 {{{G_StatDescPosnY - 2}}} 2"  textcolor="ffff" textsize="2"/>
+				<label id="LabelStatDesc" posn="-15 {{{G_StatDescPosnY - 2}}} 2"  sizen="80 20" textcolor="ffff" textsize="2"/>
 			</frame>
 		</frame>
 		""";
@@ -965,13 +965,13 @@ Void BuildAltXpMenuLayer(CSmPlayer PlayerPattern)
 }
 
 Void CreateCustomMarkupsRespeButton() {
-	declare PosnX = 40;
-	declare PosnY = -45;
+	declare PosnX = 50;
+	declare PosnY = -31;
 	declare MLText = """
 	"""^CreateLabel("RespeLabel", PosnX , PosnY, True );
 	
-	MLText = MLText^"""<frame posn="{{{PosnX}}} {{{PosnY+4}}}" id="Frame_ConfirmRespe" hidden="true">""";
-	//MLText = MLText^"""<quad  posn="-31 5" sizen="62 12" bgcolor="000c" />""";
+	MLText = MLText^"""<frame posn="{{{PosnX+15}}} {{{PosnY-12}}}" id="Frame_ConfirmRespe" hidden="true">""";
+	MLText = MLText^"""<quad  posn="-31 5" sizen="62 13" bgcolor="0007" />""";
 	MLText = MLText^CreateLabel("Label_ConfirmRespe", -30 , 4, False );
 	MLText = MLText^CreateLabel("Button_ConfirmRespe", -14 , -4, True );
 	MLText = MLText^CreateLabel("Button_CancelRespe", 0 , -4, True );

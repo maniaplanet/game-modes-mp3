@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"JoustArena"
-#Const	Version				"2013-04-24"
+#Const	Version				"2013-05-14"
 #Const	ScriptName			"Joust.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -46,6 +46,7 @@
 #Setting S_UseWarmup		False	as _("Start with a warmup")
 
 #Const C_InvincibilityAfterHitDuration 0
+#Const C_ComboInterval 400
 #Const C_NbBots 0
 
 #Const Description _("TYPE: Duel (1 vs 1)\nOBJECTIVE:\nHit your opponent to score points. Your ammunitions are limited and you can reload only by touching the poles on the map.\nThe first player to reach the points limit with an advantage of two points wins the round.\nWhen a player loose, another one takes its place while the winner stays. And once a player wins enough rounds we go to the next map.")
@@ -57,6 +58,9 @@ declare Ident[Integer]		G_CurrPlayerIds;		///< The id of the player currently pl
 declare CSmPlayer[Integer]	G_CurrPlayers;			///< The player currently playing on each side
 declare Integer				G_BreakCount;			///< Sound variant for the hit message
 declare Boolean				G_FinalHitActivated;	///< Someone got the final hit
+declare Ident 				G_BestComboAuthor;		///< Author of the best combo
+declare Integer 			G_BestComboHit;		///< Number of hit in the best combo
+declare Integer				G_BestComboTimer;		///< Duration of the best combo
 
 // ---------------------------------- //
 // Extend
@@ -133,30 +137,18 @@ LayerUpdated = Layers::Update("Spectator", CreateLayerSpectator());
 
 ***ScoresTable***
 ***
-	declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
-	ScoresTable::Unload();
-	ScoresTable::Load();
-	ScoresTable::SetTableFormat(1, 6);
-	ScoresTable::SetColumnsWidth(
-		2.,	
-		1.5,
-		1.5,
-		20.,
-		1.5,
-		1.5,
-		3.,
-		3.,
-		3.,
-		4.,
-		5.
-	);
-	ScoresTable::SetTableWidth(146.);
-	// ScoresTable::SetTableBackgroundImage(BgImage, <0., 87.>, <150., 270.>);
-	ScoresTable::SetTableBackgroundImage(BgImage, <0., 54.5>, <160., 176.>);
-	ScoresTable::SetColumnsName("", "", "", _("Hits"), _("Score"));
-	ScoresTable::SetRoundScoreFormat("$s$0c0");
-	ScoresTable::Build();
-	UpdateScoresTable();
+declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
+ScoresTable::Load();
+ScoresTable::SetTableFormat(1, 5);
+ScoresTable::SetColumnsWidth(1.5, 1., 2., 20., 1.5, 1.5, 0., 0., 0., 3., 3.);
+ScoresTable::SetTableWidth(148.);
+ScoresTable::SetPlayerCardHeight(12.);
+ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 56.>, <164., 178.>);
+ScoresTable::SetColumnsName("", "", "", _("Hits"), _("Score"));
+ScoresTable::SetRoundScoreFormat("$s$0c0");
+ScoresTable::SetDefaultFooterStats(TextLib::Compose(_("Best combo: %1 by $<%2$>"), "-", "-"));
+ScoresTable::Build();
+UpdateScoresTable();
 ***
 
 
@@ -194,6 +186,9 @@ Goals = CSmBlockPole[][Integer];
 GoalsSide1 = CSmBlockPole[];
 GoalsSide2 = CSmBlockPole[];
 HasPlayed = Ident[];
+G_BestComboAuthor = NullId;
+G_BestComboHit = 0;
+G_BestComboTimer = 0;
 /*	
 If there's more players than the current match point limit.
 Increase the limit to be sure that all the players can play once at least.
@@ -207,6 +202,9 @@ Increase the limit to be sure that all the players can play once at least.
 foreach (Score in Scores) {
 	declare MapPoints for Score = 0;
 	MapPoints = 0;
+}
+foreach (Player in AllPlayers) {
+	ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Best combo: %1 by $<%2$>"), "-", "-"));
 }
 
 // ---------------------------------- //
@@ -232,7 +230,7 @@ if(S_UseWarmup) {
 	WarmupSimple::SetMinimumPlayersNumber(2);
 	WarmupSimple::SetCountdownOnPlayersReady(3);
 	WarmupSimple::Start();
-	sleep(500); // avoids border effects right after the warmup.
+	MB_Sleep(500); // avoids border effects right after the warmup.
 }
 ***
 
@@ -390,8 +388,11 @@ FirstPoint		= NullId;
 FirstCapture	= NullId;
 WinStatusMessage= "";
 AGoalHaveBeenCaptured = True;
+foreach (Player in Players) {
+	ResetCombo(Player);
+}
 
-// dactivate collision until the first pole is captured
+// Turn off collision until the first pole is captured
 UsePvPCollisions = False;
 ***
 
@@ -404,6 +405,11 @@ if (!G_CurrPlayerIds.exists(Player.Id)) {
 	LayerAttached = Layers::Attach("Spectator", Player.Id);
 	UpdateLayerSpectator();
 }
+declare BestComboAuthorName = "-";
+declare BestComboHit = "-";
+if (Users.existskey(G_BestComboAuthor)) BestComboAuthorName = Users[G_BestComboAuthor].Name;
+if (G_BestComboHit > 0) BestComboHit = TextLib::ToText(G_BestComboHit);
+ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Best combo: %1 by $<%2$>"), BestComboHit, BestComboAuthorName));
 ***
 
 // ---------------------------------- //
@@ -413,6 +419,11 @@ if (!G_CurrPlayerIds.exists(Player.Id)) {
 ***
 LayerAttached = Layers::Attach("Spectator", Spectator.Id);
 UpdateLayerSpectator();
+declare BestComboAuthorName = "-";
+declare BestComboHit = "-";
+if (Users.existskey(G_BestComboAuthor)) BestComboAuthorName = Users[G_BestComboAuthor].Name;
+if (G_BestComboHit > 0) BestComboHit = TextLib::ToText(G_BestComboHit);
+ScoresTable::SetFooterStats(Spectator, TextLib::Compose(_("Best combo: %1 by $<%2$>"), BestComboHit, BestComboAuthorName));
 ***
 
 // ---------------------------------- //
@@ -461,6 +472,7 @@ foreach (Event in PendingEvents) {
 					}
 					LatestShootDate = Now;
 					Event.Damage = 100;
+					UpdateCombo(Event.Shooter);
 					SetScoreHeader();
 					XmlRpc::OnHit(Event);
 					PassOn(Event);
@@ -807,7 +819,7 @@ if (LoserId != NullId && Players.existskey(LoserId)
 SetScoreHeader();
 UpdateScoresTable();
 
-sleep(3000);
+MB_Sleep(3000);
 StartTime = -1;
 EndTime = -1;
 
@@ -844,24 +856,24 @@ if (WinnerId != NullId && LoserId != NullId &&
 	UIManager.UIAll.BigMessageSoundVariant = 0;
 	UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> wins the round!"), WQ::GetTeamName(WinnerId));
 	UIManager.UIAll.StatusMessage = WinStatusMessage;
-	sleep(4000);
+	MB_Sleep(4000);
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-	sleep(1000);
+	MB_Sleep(1000);
 } else {
 	// ---------------------------------- //
 	// Play the draw submatch end sequence
 	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 	UIManager.UIAll.BigMessageSoundVariant = 0;
 	UIManager.UIAll.BigMessage = _("Draw round");
-	sleep(4000);
+	MB_Sleep(4000);
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-	sleep(1000);
+	MB_Sleep(1000);
 }
 
 SM::UnspawnAllPlayers();
-sleep(6000);
+MB_Sleep(6000);
 // Reset RoundPoints to avoid addition to the Score.Points by the Score library
 foreach (Score in Scores) {
 	declare MapPoints for Score = 0;
@@ -942,9 +954,9 @@ foreach (Score in Scores) {
 Ladder_SetResultsVersion(1);
 Score::MatchEnd(True);
 
-sleep(5000);
+MB_Sleep(5000);
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
-sleep(5000);
+MB_Sleep(5000);
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 
 // ---------------------------------- //
@@ -1007,6 +1019,8 @@ Void UpdateBasesColors() {
 			BlockPole.Base.Clan = BlockPole.Gauge.Clan;
 			if (BlockPole.Gauge.Value <= 0) BlockPole.Base.IsActive = False;
 			UpdatedBases.add(BlockPole.Base.Id);
+		} else if (BlockPole.Base.Clan == BlockPole.Gauge.Clan) {
+			if (BlockPole.Gauge.Value > 0) BlockPole.Base.IsActive = True;
 		} else {
 			BlockPole.Base.Clan = 0;
 		}
@@ -1032,6 +1046,7 @@ Void WaitForPlayers(Integer _MinimumNbPlayers) {
 		yield;
 		HasWaited = True;
 		
+		XmlRpc::Loop();
 		WQ::UpdateLoop(3);
 		
 		foreach (Player in Players) {
@@ -1059,11 +1074,52 @@ Void WaitForPlayers(Integer _MinimumNbPlayers) {
 		SM::UnspawnAllPlayers();
 		UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
 		UIManager.UIAll.BigMessage = _("A new player joins the game.");
-		sleep(5000);
+		MB_Sleep(5000);
 	}
 	StartTime = -1;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::None;
 	UIManager.UIAll.BigMessage = "";
+}
+
+// ---------------------------------- //
+/** Reset the combo of a player
+ *
+ *	@param	_Player		The player to reset
+ */
+Void ResetCombo(CSmPlayer _Player) {
+	declare ComboLastHit for _Player = 0;
+	declare ComboTimer for _Player = 0;
+	declare ComboHit for _Player = 0;
+	ComboLastHit = 0;
+	ComboTimer = 0;
+	ComboHit = 0;
+}
+
+// ---------------------------------- //
+/** Update the combo of a player
+ *
+ *	@param	_Player		The player to update
+ */
+Void UpdateCombo(CSmPlayer _Player) {
+	declare ComboLastHit for _Player = 0;
+	declare ComboTimer for _Player = 0;
+	declare ComboHit for _Player = 0;
+	
+	if (ComboLastHit > 0 && Now - ComboLastHit > C_ComboInterval) ResetCombo(_Player);
+	
+	if (ComboLastHit > 0) ComboTimer += Now - ComboLastHit;
+	ComboLastHit = Now;
+	ComboHit += 1;
+	
+	if (ComboHit >= G_BestComboHit && ComboTimer > G_BestComboTimer) {	///< Combo start at 2 hit only
+		G_BestComboHit = ComboHit;
+		G_BestComboTimer = ComboTimer;
+		G_BestComboAuthor = _Player.User.Id;
+		
+		foreach (Player in AllPlayers) {
+			ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Best combo: %1 by $<%2$>"), TextLib::ToText(G_BestComboHit), _Player.Name));
+		}
+	}
 }
 
 // ---------------------------------- //

@@ -31,6 +31,16 @@ Boolean HasExactlyOneAnchor(Text Tag, Integer Order, Text Error) {
 	return True;
 }
 
+Boolean HasExactlyXAnchor(Text Tag, Integer Order, Integer X, Text Error) {
+	if (!AnchorCounts.existskey(Tag) || !AnchorCounts[Tag].existskey(Order) || AnchorCounts[Tag][Order] != X) {
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+		ValidabilityRequirementsMessage = Error;
+		return False;
+	}	
+	ValidationStatus = CSmMapType::ValidationStatus::Validated;	
+	return True;
+}
+
 Void UpdateAnchorCounts() {
 	AnchorCounts = Integer[Integer][Text];
 	foreach(Data in AnchorData) {

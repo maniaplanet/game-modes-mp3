@@ -1,4 +1,4 @@
-#Const Version		"2013-04-09"
+#Const Version		"2013-05-07"
 #Const ScriptName	"TabsServer.Script.txt"
 
 #Const C_BgColor 	 		"0007" // "3329"
@@ -6,7 +6,7 @@
 #Const C_BorderColor "0000" // "999f"
 #Include "Libs/Nadeo/TabsClient.Script.txt" as TabsClient // Include for edition
 
-declare Boolean G_DefaultAltMenuActive;
+//declare Boolean G_DefaultAltMenuActive;
 
 /* ------------------------------------- */
 /** Return the version number of the script
@@ -259,29 +259,43 @@ Void UseTabs(CUIConfig UI, Text SpecificScoresTab) {
 	declare netwrite Boolean 	_TabsLib_AlwaysShowScores 	for UI;
 	declare netwrite Text 		_TabsLib_ScoresTableTab 	for UI;
 	declare netwrite Boolean 	_TabsLib_UseTabs 			for UI;
-	declare netwrite Boolean 	_AltMenuActive				for UI; // for xmlRpc requests
+	declare netwrite Boolean 	_AltMenuActive				for UI = True; // for xmlRpc requests
 	
 	_TabsLib_UseTabs 			= True;
 	_TabsLib_AlwaysShowScores 	= (SpecificScoresTab == "");
 	_TabsLib_ScoresTableTab 	= SpecificScoresTab;
-	_AltMenuActive				= G_DefaultAltMenuActive;
+	//_AltMenuActive				= G_DefaultAltMenuActive;
 }
 Void UseTabs(CUIConfig UI) {
 	UseTabs(UI, "");
 }
 
+CSmPlayer FindPlayer(Text _Login) {
+	foreach (Player in AllPlayers) {
+		if (Player.Login == _Login) return Player;
+	}
+	return Null;
+}
 
-Void SetDefaultAltMenuActive(Boolean _Active) {
-	G_DefaultAltMenuActive = _Active;
+Void SetDefaultAltMenuActive(Boolean _Active, Text _Login) {
+	//G_DefaultAltMenuActive = _Active;
 	
 	// sets this modification to all players.
-	foreach(Player in AllPlayers) {
+	/*foreach(Player in AllPlayers) {
 		declare UI <=> UIManager.GetUI(Player);
 		if (UI == Null) continue;
 		
-		declare netwrite Boolean _AltMenuActive for UI;
+		declare netwrite Boolean _AltMenuActive for UI = True;
 		_AltMenuActive = _Active;
-	}
+	}*/
+	declare Player <=> FindPlayer(_Login);
+	if (Player == Null) return;
+	
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) return;
+	
+	declare netwrite Boolean _AltMenuActive for UI = True;
+	_AltMenuActive = _Active;
 }
 
 /**
@@ -291,8 +305,8 @@ Void XmlRpcLoop() {
 	foreach (Event in XmlRpc.PendingEvents) {
 		if (Event.Type == CXmlRpcEvent::EType::Callback) {
 			switch (Event.Param1) {
-				case "LibTabs_DeactivateDefaultAltMenu": SetDefaultAltMenuActive(False);
-				case "LibTabs_ActivateDefaultAltMenu": SetDefaultAltMenuActive(True);
+				case "LibXmlRpc_DisableAltMenu": SetDefaultAltMenuActive(False, Event.Param2);
+				case "LibXmlRpc_EnableAltMenu": SetDefaultAltMenuActive(True, Event.Param2);
 			}
 		}
 	}
@@ -302,7 +316,7 @@ Void XmlRpcLoop() {
  * Called once for all.
  */
 Void Load() {
-	G_DefaultAltMenuActive = True;
+	//G_DefaultAltMenuActive = True;
 	
 	// Scores layer detection
 	declare Text EmptyLayerMLPage = """

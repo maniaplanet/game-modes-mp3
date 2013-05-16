@@ -14,12 +14,12 @@
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
 #Const	CompatibleMapTypes	"RealmArena"
-#Const	Version				"2013-04-16"
+#Const	Version				"2013-05-07"
 #Const	ScriptName			"Realm.Script.txt"
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Settings
-/* -------------------------------------- */
+// ---------------------------------- //
 #Setting S_PoleCaptureDuration	15		as _("Duration of the pole capture")
 #Setting S_PoleUncaptureSpeed	3.		as _("Speed multiplier for the uncapture")
 #Setting S_UsePoleRegeneration	False	as _("Use pole regeneration")
@@ -48,9 +48,9 @@
 
 #Const Description  _("TYPE: Team versus Team\nOBJECTIVE: Your team must control the absolute majority of poles on the map for a fixed amount of time.\nStay near a pole to capture and control it. Your poles can be stolen by the opposing team.\nThe first team to reach the points limit wins the map.")
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Globales
-/* -------------------------------------- */
+// ---------------------------------- //
 
 ***LogVersion***
 ***
@@ -77,14 +77,14 @@ MB_UsePlayerClublinks		= S_UsePlayerClublinks;
 
 ***StartServer***
 ***	
-/* -------------------------------------- */
+// ---------------------------------- //
 // Set mode options
 UseClans = True;
 SM::SetupDefaultVisibility();
 UIManager.UIAll.NoticesFilter_LevelToShowAsBigMessage = CUIConfig::ENoticeLevel::MatchInfo;
 Color::Load();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Create the rules
 declare ModeName = "Realm";
 declare ModeRules = TL::Compose(C_ModeRules, TL::ToText(S_MapPointsLimit), TL::ToText(S_MapPointsGap));
@@ -92,17 +92,16 @@ SpawnScreen::CreateRules(ModeName, ModeRules);
 //SpawnScreen::CreateMapInfo();
 ModeStatusMessage =  _("TYPE: Team versus Team\nOBJECTIVE: Your team must control the absolute majority of poles on the map for a fixed amount of time.");
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Create the layers
 declare LayerSpawnSelectionId	= Layers::Create("SpawnSelection", CreateLayerSpawnSelection());
 declare LayerInfoId				= Layers::Create("Info");
 declare LayerMarkersId			= Layers::Create("Markers");
 Layers::GetFromId(LayerMarkersId).Type = CUILayer::EUILayerType::Markers;
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Init scores table
 ScoresTable::Load();
-ScoresTable::SetTableWidth(190.);
 ***
 
 ***InitMap***
@@ -120,11 +119,11 @@ declare Integer PointsLimitShift;
 
 ***StartMap***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Add bots
 Users_SetNbFakeUsers(C_BlueBots, C_RedBots);
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Init pole
 UIManager.UIAll.Hud3dMarkers = "";
 PoleList.clear();
@@ -136,7 +135,7 @@ foreach (Pole in BlockPoles) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Init spawn
 SpawnList.clear();
 foreach (Spawn in BlockSpawns) {
@@ -144,7 +143,7 @@ foreach (Spawn in BlockSpawns) {
 	else if (Spawn.Tag == "SpawnStart") SpawnStartList[Spawn.Order] = Spawn;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Misc init
 ScoresTable::StartMatch();
 Scores::MatchBegin();
@@ -157,25 +156,25 @@ ClanScores[1]		= 0;
 ClanScores[2]		= 0;
 PointsLimitShift	= 0;
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update the rules
 ModeRules = TL::Compose(C_ModeRules, TL::ToText(S_MapPointsLimit), TL::ToText(S_MapPointsGap));
 SpawnScreen::CreateRules(ModeName, ModeRules);
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update the players clublinks
 if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
 else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 Clublink::SyncUpdate();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Build the scores table
 declare ScoresBGImg			= C_ImgBaseDir^"scoresBg.dds";
 declare ScoresBGImgLeft		= C_ImgBaseDir^"scoresBg_left.dds";
 declare ScoresBGImgRight	= C_ImgBaseDir^"scoresBg_right.dds";
 declare Clan1Color 	= Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
 declare Clan2Color 	= Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
-ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0., 52.3>, <207., 175.>);
+ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0.05, 53.5>, <207., 175.>);
 ScoresTable::Build();
 ***
 
@@ -189,17 +188,17 @@ declare Integer Turn2Winner;
 
 ***StartRound***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Select first turn clan side
 if (MB_SectionRoundNb == 1) TurnFirstClan = ML::Rand(1, 2);
 else TurnFirstClan = 3 - TurnFirstClan;
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Set the points limit
 if (C_TurnPointsLimit.existskey(PointsLimitShift)) TurnPointsLimit = C_TurnPointsLimit[PointsLimitShift];
 else TurnPointsLimit = C_TurnPointsLimit[C_TurnPointsLimit.count - 1];
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Init scores
 ClanRoundScores = [1 => 0, 2 => 0];
 Turn1Winner		= 0;
@@ -219,7 +218,7 @@ declare Integer[Integer]ClanTurnScores;
 
 ***StartTurn***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Init spawn time
 foreach (Score in Scores) {
 	declare SpectatedSpawn	for Score = -1;
@@ -232,7 +231,7 @@ foreach (Score in Scores) {
 	WaitForRespawn	= False;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Init poles
 foreach (Key => Pole in PoleList) {
 	Pole.Gauge.Clan		= 0;
@@ -241,10 +240,23 @@ foreach (Key => Pole in PoleList) {
 	Pole.Gauge.Speed	= 0;
 	Pole.Base.Clan		= 0;
 	BaseClanList[Key]	= 0;
+	
+	declare PoleClan for Pole = 0;
+	PoleClan = 0;
 }
 UpdatePolesStatus(BaseClanList);
 
-/* -------------------------------------- */
+foreach (BlockSpawn in BlockSpawns) {
+	declare SpawnClan for BlockSpawn = 0;
+	if (BlockSpawn.Tag == "SpawnStart") {
+		SpawnClan = BlockSpawn.Order;
+	} else {
+		SpawnClan = 0;
+	}
+}
+UpdateBasesColors();
+
+// ---------------------------------- //
 // Select clan side
 if (MB_SectionTurnNb % 2 == 0) {
 	Side1Clan = TurnFirstClan;
@@ -254,7 +266,7 @@ if (MB_SectionTurnNb % 2 == 0) {
 	Side2Clan = TurnFirstClan;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Init variables
 foreach (Player in Players) {
 	SetPlayerClan(Player, Player.RequestedClan);
@@ -262,20 +274,20 @@ foreach (Player in Players) {
 	SkipSpawnSelection = True;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update the players clublinks
 if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
 else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 Clublink::SyncUpdate();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Build the scores table
 declare ScoresBGImg			= C_ImgBaseDir^"scoresBg.dds";
 declare ScoresBGImgLeft		= C_ImgBaseDir^"scoresBg_left.dds";
 declare ScoresBGImgRight	= C_ImgBaseDir^"scoresBg_right.dds";
 declare Clan1Color 	= Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
 declare Clan2Color 	= Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
-ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0., 52.3>, <207., 175.>);
+ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0.05, 53.5>, <207., 175.>);
 ScoresTable::Build();
 
 UpdateScoresHeader(ClanMapScores);
@@ -324,11 +336,11 @@ if (Spectator.Score != Null) {
 
 ***PlayLoop***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update lib
 Message::Loop();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Manage events
 foreach (Event in PendingEvents) {
 	if (Event.Type == CSmModeEvent::EType::OnHit) {
@@ -368,12 +380,12 @@ foreach (Event in PendingEvents) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Pole management
 declare CapturedBases	= [1 => 0, 2 => 0];
 declare ContestedBases	= [1 => 0, 2 => 0];
 foreach (Key => Pole in PoleList) {
-	/* -------------------------------------- */
+	// ---------------------------------- //
 	// Capture pole
 	if (Pole.Sector.PlayersIds.count > 0) {
 		declare PlayerCount = [1 => 0, 2 => 0];
@@ -418,27 +430,34 @@ foreach (Key => Pole in PoleList) {
 		Pole.Gauge.Speed = 0;
 	}
 	
-	/* -------------------------------------- */
+	// ---------------------------------- //
 	// Capture base
 	if (Pole.Gauge.Value >= Pole.Gauge.Max && Pole.Gauge.Clan != BaseClanList[Key]) {
 		BaseClanList[Key] = Pole.Gauge.Clan;
 		UpdatePolesStatus(BaseClanList);
+		if (SpawnList.existskey(Key)) {
+			declare SpawnClan for SpawnList[Key] = 0;
+			SpawnClan = Pole.Gauge.Clan;
+		}
+		declare PoleClan for Pole = 0;
+		PoleClan = Pole.Gauge.Clan;
+		UpdateBasesColors();
 	}
 	
-	/* -------------------------------------- */
+	// ---------------------------------- //
 	// Update base status
 	if (BaseClanList[Key] != 0) CapturedBases[BaseClanList[Key]] += 1;
 	if (BaseClanList[Key] != 0 && Pole.Gauge.Value < Pole.Gauge.Max) ContestedBases[BaseClanList[Key]] += 1;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Player management
 if (PrevPlayerRefresh + C_PlayerRefreshInterval <= Now) {
 	PrevPlayerRefresh = Now;
 	UpdateScoresHeader(ClanMapScores);
 	
 	foreach (Player in Players) {
-		/* -------------------------------------- */
+		// ---------------------------------- //
 		// Update UI
 		declare UI <=> UIManager.GetUI(Player);
 		if (UI == Null) continue;
@@ -482,7 +501,7 @@ if (PrevPlayerRefresh + C_PlayerRefreshInterval <= Now) {
 			}
 		}
 		
-		/* -------------------------------------- */
+		// ---------------------------------- //
 		// Spawn players
 		if (SkipSpawnSelection || (NextSpawnTime <= Now && DesiredSpawn >= 0)) {
 			if (SkipSpawnSelection) DesiredSpawn = 0;
@@ -513,7 +532,7 @@ if (PrevPlayerRefresh + C_PlayerRefreshInterval <= Now) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Points management
 if (PrevPointsRefresh + C_PointsRefreshInterval <= Now) {
 	PrevPointsRefresh = Now;
@@ -549,7 +568,7 @@ if (PrevPointsRefresh + C_PointsRefreshInterval <= Now) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Turn victory
 if (
 	ClanTurnScores[1] >= TurnPointsLimit 
@@ -580,19 +599,19 @@ if (
 
 ***EndTurn***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Unspawn players
-sleep(500);
+MB_Sleep(500);
 SM::UnspawnAllPlayers();
 StartTime = -1;
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Clean UI
 foreach (Player in Players) LayerDetached = Layers::Detach("SpawnSelection", Player.Id);
 foreach (Spectator in Spectators) LayerDetached = Layers::Detach("SpawnSelection", Spectator.Id);
 Message::CleanAllMessages();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update map scores
 if (ClanTurnWinner == 1) {
 	ClanRoundScores[1]	+= 1;
@@ -609,7 +628,7 @@ if (MB_SectionTurnNb % 2 == 1) Turn1Winner = ClanTurnWinner;
 else Turn2Winner = ClanTurnWinner;
 UpdateRoundScores(ClanRoundScores);
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Display result
 UIManager.UIAll.UISequence				= CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.BigMessageSound			= CUIConfig::EUISound::EndRound;
@@ -627,12 +646,12 @@ if (ClanTurnWinner == 0) {
 		}
 	}
 }
-sleep(C_SleepEndTurn);
+MB_Sleep(C_SleepEndTurn);
 UIManager.UIAll.ScoreTableVisibility	= CUIConfig::EVisibility::Normal;
 UIManager.UIAll.BigMessage				= "";
 UIManager.UIAll.StatusMessage			= "";
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Go to next round
 if (MB_SectionTurnNb % 2 == 0) {
 	if (Turn1Winner == Turn2Winner) {
@@ -649,7 +668,7 @@ if (MB_SectionTurnNb % 2 == 0) {
 
 ***EndRound***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Map victory
 if (ClanMapScores[1] >= S_MapPointsLimit && ClanMapScores[1] - ClanMapScores[2] >= S_MapPointsGap) {
 	ClanMapWinner	= 1;
@@ -669,7 +688,7 @@ if (ClanMapScores[1] >= S_MapPointsLimit && ClanMapScores[1] - ClanMapScores[2] 
 
 ***EndMap***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update map scores
 ScoresTable::EndMatch();
 Scores::MatchEnd();
@@ -679,7 +698,7 @@ LayerDetached = Layers::Detach("Info", NullId);
 UIManager.UIAll.BigMessage		= "";
 UIManager.UIAll.StatusMessage	= "";
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Display result
 UIManager.UIAll.UISequence				= CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.BigMessageSound			= CUIConfig::EUISound::EndRound;
@@ -690,16 +709,16 @@ if (ClanMapWinner == 0) {
 	if (ClanMapScores[1] == ClanMapScores[2]) UIManager.UIAll.StatusMessage = TL::Compose(_("Victory by goal average: $<%1$> %2 - %3 $<%4$>"), Teams[0].ColorizedName, TL::TimeToText(ClanMapAdvantage[1], False), TL::TimeToText(ClanMapAdvantage[2], False), Teams[1].ColorizedName);
 	UIManager.UIAll.BigMessage = TL::Compose(_("$<%1$> wins the map"), Teams[ClanMapWinner - 1].ColorizedName);
 }
-sleep(C_SleepEndMap/2);
+MB_Sleep(C_SleepEndMap/2);
 UIManager.UIAll.UISequence				= CUIConfig::EUISequence::Podium;
-sleep(C_SleepEndMap/2);
+MB_Sleep(C_SleepEndMap/2);
 UIManager.UIAll.ScoreTableVisibility	= CUIConfig::EVisibility::Normal;
 UIManager.UIAll.BigMessage				= "";
 ***
 	
 ***EndServer***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Clean the UI
 SpawnScreen::DestroyRules();
 //SpawnScreen::DestroyMapInfo();
@@ -709,17 +728,17 @@ LayerDestroyed = Layers::Destroy("Info");
 UIManager.ResetAll();
 UIManager.UILayerDestroyAll();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Stop the library
 Color::Unload();
 ScoresTable::Unload();
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Functions
-/* -------------------------------------- */
+// ---------------------------------- //
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Get the time formatted turn score string
  *
  *	@return		The formatted score
@@ -747,7 +766,7 @@ Text GetScoresString(Integer _Clan1Score, Integer _Clan2Score, Integer _Majority
 	return TL::Compose("$<%1%2$> - $<%3%4$>", Team1Color, Team1Score, Team2Color, Team2Score);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Convert a number in letter
  *
  *	@param	_Number		The number to convert
@@ -786,7 +805,7 @@ Text GetLetterFromNumber(Integer _Number) {
 	return " ";
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Update the scores header
  *
  *	@param	_Points				The round scores of the clans
@@ -811,7 +830,53 @@ Void UpdateScoresHeader(Integer[Integer] _Points) {
 	UIManager.UIAll.ScoreSummary_Points2 = _Points[2];
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
+/// End map timer for MatchMaking
+Void UpdateBasesColors() {
+	foreach (Base in Bases) {
+		Base.Clan = 0;
+		Base.IsActive = True;
+	}
+	
+	declare UpdatedBases = Ident[];
+	
+	foreach (BlockSpawn in BlockSpawns) {
+		declare SpawnClan for BlockSpawn = 0;
+		
+		if (!UpdatedBases.exists(BlockSpawn.Base.Id)) {
+			if (BlockSpawn.Tag == "SpawnStart") {
+				BlockSpawn.Base.Clan = BlockSpawn.Order;
+			} else {
+				BlockSpawn.Base.Clan = SpawnClan;
+				if (SpawnClan == 0) BlockSpawn.Base.IsActive = False;
+			}
+		} else {
+			if (BlockSpawn.Tag == "SpawnStart") {
+				if (BlockSpawn.Base.Clan != BlockSpawn.Order) BlockSpawn.Base.Clan = 0;
+				BlockSpawn.Base.IsActive = True;
+			} else if (SpawnClan != BlockSpawn.Base.Clan) {
+				BlockSpawn.Base.Clan = 0;
+				BlockSpawn.Base.IsActive = True;
+			}
+		}
+		UpdatedBases.add(BlockSpawn.Base.Id);
+	}
+	
+	foreach (BlockPole in BlockPoles) {
+		declare PoleClan for BlockPole = 0;
+		
+		if (!UpdatedBases.exists(BlockPole.Base.Id)) {
+			BlockPole.Base.Clan = PoleClan;
+			if (PoleClan == 0) BlockPole.Base.IsActive = False;
+			UpdatedBases.add(BlockPole.Base.Id);
+		} else if (BlockPole.Base.Clan != PoleClan) {
+			BlockPole.Base.Clan = 0;
+			BlockPole.Base.IsActive = True;
+		}
+	}
+}
+
+// ---------------------------------- //
 /** Send the round score to the interface
  *
  *	@param	_RoundScores		The round scores
@@ -833,7 +898,7 @@ Void UpdateRoundScores(Integer[Integer] _RoundScores) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Send the status of the poles to the interface
  *
  *	@param	_BaseClanList		The owners of each poles
@@ -850,7 +915,7 @@ Void UpdatePolesStatus(Integer[Integer] _BaseClanList) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Send the spawn status of a player to the interface
  *
  *	@param	_Player				Tee player to update
@@ -865,7 +930,7 @@ Void UpdateSpawnStatus(CSmPlayer _Player) {
 	Net_NextSpawnTime = NextSpawnTime;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /**	Create the spawn selection manialink
  *
  *	@return		The spawn selection manialink string
@@ -1073,7 +1138,7 @@ main() {
 """;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /**	Create the script managing the poles UI
  *
  *	@return		The script
@@ -1326,7 +1391,7 @@ main() {
 """;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /**	Create the markers manialink
  *
  *	@return		The markers manialink string
@@ -1355,7 +1420,7 @@ Text CreateLayerMarkers() {
 	return MarkersML;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /**	Create the info manialink
  *
  *	@return		The info manialink string
@@ -1370,7 +1435,7 @@ Text CreateLayerInfo() {
 	foreach (Pole in BlockPoles) {
 		if (Pole.Tag == "Pole") {
 			MarkersML ^= """
-<frame posn="{{{90 + (Pole.Order * 10)}}} 86 15" id="Marker_Pole_{{{Pole.Order}}}">
+<frame posn="{{{90 + (Pole.Order * 10)}}} 86 30" id="Marker_Pole_{{{Pole.Order}}}">
 	<gauge id="Gauge_Capture" posn="4 -3 -1" sizen="{{{ImgSize*1.5}}} 8." style="EnergyBar" drawbg="false" rotation="-90" drawblockbg="false" />
 	<!--<gauge id="Gauge_Capture" posn="2.5 -3. -1" sizen="{{{ImgSize*1.5}}} 6." style="EnergyBar" drawbg="false" rotation="-90" drawblockbg="false" />-->
 	<quad sizen="{{{WidthFactor*ImgSize}}} {{{ImgSize}}}" halign="center" valign="center" image="{{{ImgPole}}}" colorize="{{{Teams[0].ColorPrimary.X}}} {{{Teams[0].ColorPrimary.Y}}} {{{Teams[0].ColorPrimary.Z}}}" autoscale="False" id="Quad_PoleClan1" hidden="1" />

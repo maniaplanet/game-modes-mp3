@@ -1,4 +1,4 @@
-#Const	Version				"2013-04-10"
+#Const	Version				"2013-04-30"
 #Const	ScriptName			"KingOfTheLobby.Script.txt"
 #Const	C_NbBots			0
 
@@ -190,24 +190,10 @@ Boolean PlayLoop()
 
 Void LoadScoresTable() {
 	declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
-	ScoresTable::Unload();
 	ScoresTable::Load();
-	ScoresTable::SetTableFormat(2, 8);
-	ScoresTable::SetColumnsWidth(
-		2.,	
-		1.5,
-		1.5,
-		20.,
-		1.5,
-		1.5,
-		0.,
-		0.,
-		0.,
-		8.,
-		8.
-	);
-	ScoresTable::SetTableWidth(250.);
-	ScoresTable::SetTableBackgroundImage(BgImage, <0., 65.>, <272., 210.>);
+	ScoresTable::SetTableFormat(2, 6);
+	ScoresTable::SetColumnsWidth(2.,	1.5, 1.5, 20., 1.5, 1.5, 0., 0., 0., 8., 8.);
+	ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 56.>, <207., 178.>);
 	ScoresTable::SetColumnsName("", "", "", _("Current Combo"), _("Best Combo"));
 	ScoresTable::Build();
 }
@@ -226,7 +212,7 @@ Void StartMap() {
 	SpawnScreen::CreateRules(ModeName, ModeRules, False);
 	SpawnScreen::AttachRules();
 	
-	//SetNbFakePlayers(C_NbBots, 0);
+	//Users_SetNbFakeUsers(C_NbBots, 0);
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 	
 	ClearScores();

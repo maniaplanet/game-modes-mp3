@@ -2,7 +2,7 @@
 
 #Extends "Modes/ShootMania/Royal.Script.txt"
 
-#Const DeluxeVersion 		"2012-04-09"
+#Const DeluxeVersion 		"2012-04-26"
 #Const DeluxeScriptName		"RoyalExp.Script.txt"
 
 #Include "Libs/Nadeo/ShootMania/RoyalExp/RoyalExpCharacter.Script.txt" as Character
@@ -48,7 +48,6 @@ MB_LogVersion(CharacterXp::GetScriptName(), CharacterXp::GetScriptVersion());
 
 ***ScoresTable***
 ***
-// ScoresTable::SetColumnsName(_("Level"), _("|Hit/Survival,6 chars max|Hit/Sv"), _("Pole"), _("Round"), _("Total"));
 ScoresTable::SetColumnsName(_("Level"), _("|Hit/Survival,6 chars max|Hit/Sv"), _("Pole"), _("Round"), _("Total"));
 ***
 
@@ -236,7 +235,7 @@ foreach(Player in Players)
 		"XpTab" => "Profile",
 		"TopTab" => "Buddies",
 		"ScoresTab" => "Rankings"
-	], -5, -1, False);
+	], 29, -5, False);
 	
 	TabPane.Type = CUILayer::EUILayerType::AltMenu;
 	G_TabPaneID = TabPane.Id;
@@ -719,7 +718,7 @@ Void BuildBushidoUI()
 	declare Integer YMargin   = -IconsSize;
 	declare Integer XMargin   = 10;
 	declare ManiaLinkText 	= """
-	<frame posn="-118 -30 2">
+	<frame posn="-92 -16 2">
 		<quad id="BushidoHit" posn="0 0" sizen="{{{IconsSize}}} {{{IconsSize}}}" style="UIConstructionSimple_Buttons" substyle="Author" ScriptEvents="true"/>
 		<label id="BushidoHitLabel" posn="0 {{{YMargin}}}" scale=".8"/>
 		<label id="BushidoHitSmallLabel" posn="{{{IconsSize - 1.5}}} {{{IconsSize - 16}}}" scale=".6"/>
@@ -732,7 +731,7 @@ Void BuildBushidoUI()
 		<label id="BushidoPoleLabel" posn="{{{2*(IconsSize + XMargin)}}} {{{YMargin}}}" scale=".8"/>
 		<label id="BushidoPoleSmallLabel" posn="{{{2*(IconsSize + XMargin) + IconsSize - 1.5}}} {{{IconsSize - 16}}}" scale=".6"/>
 		
-		<label id="BushidoDescLabel" posn="0 {{{YMargin - 5}}}" scale=".8"/>
+		<label id="BushidoDescLabel" posn="0 {{{YMargin - 5}}}" sizen="100 10" scale=".8"/>
 	</frame>
 	""";
 	
@@ -743,12 +742,12 @@ Void BuildBushidoUI()
 
 
 Void CreateCustomMarkupsFusionButton() {
-	declare PosnX = -15;
-	declare PosnY = -45;
+	declare PosnX = -4;
+	declare PosnY = -31;
 	declare MLText = CharacterUI::CreateLabel("FusionLabel", PosnX , PosnY, True );
 	
-	MLText = MLText^"""<frame posn="{{{PosnX}}} {{{PosnY+4}}} 3" id="Frame_ConfirmFusion" hidden="true">""";
-	//MLText = MLText^"""<quad  posn="-31 5" sizen="55 12" bgcolor="000c" />""";
+	MLText = MLText^"""<frame posn="{{{PosnX-10}}} {{{PosnY-12}}} 3" id="Frame_ConfirmFusion" hidden="true">""";
+	MLText = MLText^"""<quad  posn="-31 5" sizen="75 13" bgcolor="0007" />""";
 	MLText = MLText^CharacterUI::CreateLabel("Label_ConfirmFusion", -30 , 4, False );
 	MLText = MLText^CharacterUI::CreateLabel("Button_ConfirmFusion", -14 , -4, True );
 	MLText = MLText^CharacterUI::CreateLabel("Button_CancelFusion", 0 , -4, True );

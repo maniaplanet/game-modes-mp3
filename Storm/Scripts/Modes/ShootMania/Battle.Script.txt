@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2013-04-16"
+#Const	Version				"2013-05-07"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -24,9 +24,9 @@
 #Include "Libs/Nadeo/ShootMania/BeginnersWelcome.Script.txt" as Beginners
 #Include "Libs/Nadeo/ShootMania/AFK.Script.txt" as AFK
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Settings
-/* -------------------------------------- */
+// ---------------------------------- //
 #Setting	S_RespawnTime		6001	as _("Respawn time")		///< Time before respawn
 #Setting	S_AutoBalance		True	as _("Use autobalance")		///< Use auto balance at the start of the map
 #Setting	S_RoundsToWin		2		as _("Rounds to win")		///< Number of rounds to win a map
@@ -106,6 +106,8 @@ declare Ident G_TimeLeftLayerId;
 declare Integer G_CurrentRoundIndex;
 declare Integer G_CaptureMaxValue;
 
+declare CSmBlockSpawn[Integer] G_ClanSpawnAnchors;
+
 ***LogVersion***
 ***
 MB_LogVersion(ScriptName, Version);
@@ -157,11 +159,12 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 	// Tops
 	
 	Top::Load();
-	declare Real TopXPosition	= -75.;
-	declare Real TopYPosition	= 37.;//40.;//30.;
-	declare Real TopXOffset 	= 50.;
-	declare Integer NbPlayersPerTop = 15;
-	Top::SetTopWidth(49.);
+	declare Real TopXPosition	= -70.5;
+	declare Real TopYPosition	= 31.;
+	declare Real TopXOffset 	= 47.;
+	declare Integer NbPlayersPerTop = 12;
+	declare Text TopBGImg		= C_ImgBaseDir^"topsBg.dds";
+	Top::SetTopWidth(46.);
 	Top::Create(C_TopId_Hit, _("Top Hit"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 	TopXPosition += TopXOffset;
 	Top::Create(C_TopId_Capture, _("Top Capture"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
@@ -169,12 +172,7 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 	Top::Create(C_TopId_Defense, _("Top Defense"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 	TopXPosition += TopXOffset;
 	Top::Create(C_TopId_Attack, _("Top Attack"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
-	
-	declare Text TopBGImg		= C_ImgBaseDir^"topsBg.dds";
-	
-	Top::SetCommonBackgroundImage(TopBGImg,  <0., 102.>, <260., 200.>);
-	//Top::SetCommonBackgroundImage(TopBGImg,  <0., 42.>, <236., 99.5>);
-	//Top::SetCommonBackgroundImage("",  <.0, 42.>, <236., 99.5>); // Sets a common color
+	Top::SetCommonBackgroundImage(TopBGImg,  <0.05, 98.>, <207., 178.>);
 	Top::SetLayerType(CUILayer::EUILayerType::AltMenu);
 
 	// /////////	
@@ -204,7 +202,7 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 	[
 		"TopTab"	=> "Buddies",
 		"ScoresTab" => "Rankings"
-	], 5, -5, False);
+	], 29, -5, False);
 	
 	TabsLayer.Type = CUILayer::EUILayerType::AltMenu;
 	UIManager.UIAll.UILayers.add(TabsLayer);
@@ -226,36 +224,16 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 
 ***ScoresTable***
 ***
-	ScoresTable::Unload();
-	ScoresTable::Load();
-	ScoresTable::SetColumnsWidth(
-		2.,	
-		1.5,
-		1.5,
-		20.,
-		1.5,
-		1.5,
-		3.,
-		3.,
-		3.,
-		4.,
-		5.
-	);
-	ScoresTable::SetTableWidth(236.);
-	ScoresTable::SetTableFormat(2,7);
-	ScoresTable::SetColumnsName(_("|Capture,Substantive|Cap"), _("|Attack,Substantive|Atk"), _("|Defense|Def"), _("|Substantive|Hit"), _("Score"));
-	ScoresTable::SetHeaderHeight(13.);
-	
 	declare Text Clan1Color 	= Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
 	declare Text Clan2Color 	= Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
 	declare Text ScoresBGImg		= C_ImgBaseDir^"scoresBg.dds";
 	declare Text ScoresBGImgLeft	= C_ImgBaseDir^"scoresBg_left.dds";
 	declare Text ScoresBGImgRight	= C_ImgBaseDir^"scoresBg_right.dds";
 	
-	//ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, <0., 60.>, <260., 200.>);
-	//ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 94, 57, 66, <0., 60.>, <260., 200.>);
-	ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 94, 56, 66, <0., 60.>, <260., 200.>);
-	
+	ScoresTable::Load();
+	ScoresTable::SetColumnsWidth(2., 1.5, 2.5, 18., 1.5, 1.5, 3., 3., 3., 4., 5.);
+	ScoresTable::SetColumnsName(_("|Capture,Substantive|Cap"), _("|Attack,Substantive|Atk"), _("|Defense|Def"), _("|Substantive|Hit"), _("Score"));
+	ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0.05, 53.5>, <207., 175.>);
 	ScoresTable::Build();
 	ScoresTable::GetLayerScoresTable().Type = CUILayer::EUILayerType::Normal;
 ***
@@ -274,9 +252,9 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 ***
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Match begin
-/* -------------------------------------- */	
+// ---------------------------------- //	
 ***StartMatch***
 ***
 	// Init libs
@@ -294,9 +272,9 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 ***
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Map begin
-/* -------------------------------------- */
+// ---------------------------------- //
 ***StartMap***
 ***
 	G_CurrentRoundIndex = 0;
@@ -333,9 +311,9 @@ Void ComputeCaptureMaxValue()
 	if(G_CaptureMaxValue < 500) G_CaptureMaxValue = 500; // 0.5 sec. min 
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Round initalization
-/* -------------------------------------- */
+// ---------------------------------- //
 ***InitRound***
 ***
 	declare Boolean RoundBattleWaves = S_BattleWaves;
@@ -344,7 +322,7 @@ Void ComputeCaptureMaxValue()
 	declare ClanPoles = [1=>CSmBlockPole[], 2=>CSmBlockPole[]];
 	
 	declare MapSidesIndices = [1=>(MB_SectionRoundNb % 2)+1, 2=>2-(MB_SectionRoundNb % 2)];
-	declare CSmBlockSpawn[Integer] ClanSpawnAnchors = [
+	G_ClanSpawnAnchors = [
 		1=>SM::GetSpawn("Spawn", MapSidesIndices[1]),
 		2=>SM::GetSpawn("Spawn", MapSidesIndices[2])
 	];
@@ -422,9 +400,9 @@ Void ComputeCaptureMaxValue()
 ***
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Round begin
-/* -------------------------------------- */
+// ---------------------------------- //
 ***StartRound***
 ***
 	G_CurrentRoundIndex += 1;
@@ -446,24 +424,21 @@ Void ComputeCaptureMaxValue()
 	StartTime = Now + S_RespawnTime;
 	---EndTime---
 
-	foreach (Clan => Spawn in ClanSpawnAnchors) {
-		Spawn.Base.Clan = Clan;
-		Spawn.Base.IsActive = True;
-	}	
+	UpdateBasesColors();
 	
 	foreach (Player in AllPlayers) {
 		InitializePlayer(Player, NbPolesByClan, LayerMarkers, PoleMarkers);
 	}
 	
 
-	/* -------------------------------------- */
+	// ---------------------------------- //
 	// Update the players clublinks
 	if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
 	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 	Clublink::SyncUpdate();
 	---ScoresTable---
 	
-	yield;
+	MB_Sleep(1);
 	CreateRoundInfoUI(LayerRoundInfo, ClanPoles);
 	UIManager.UIAll.UILayers.add(LayerRoundInfo);
 	
@@ -516,9 +491,9 @@ Void UpdateScoreTeamsUI(CSmPlayer Player) {
 
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Play loop
-/* -------------------------------------- */
+// ---------------------------------- //
 ***PlayLoop***
 ***
 if(S_BattleWaves != RoundBattleWaves) {
@@ -639,6 +614,7 @@ foreach (Event in PendingEvents) {
 		XmlRpc::OnArmorEmpty(Event);
 		PassOn(Event);
 	} else if (Event.Type == CSmModeEvent::EType::OnCapture) {
+		UpdateBasesColors();
 		LastestCapturedGoalId = Event.BlockPole.Id;
 		XmlRpc::OnCapture(Event);
 		PassOn(Event);
@@ -744,7 +720,7 @@ foreach (Player in Players) {
 	Player.Armor	= TotalArmor;
 	
 	SetPlayerClan(Player, Player.RequestedClan);
-	SM::SpawnPlayer(Player, Player.CurrentClan, ClanSpawnAnchors[Player.CurrentClan], Now + S_RespawnTime);
+	SM::SpawnPlayer(Player, Player.CurrentClan, G_ClanSpawnAnchors[Player.CurrentClan], Now + S_RespawnTime);
 	
 	if(S_AllowBeginners) {
 		Beginners::HighlightPlayer(Player);
@@ -1142,6 +1118,35 @@ Text GetLetterFromNumber(Integer N) {
 	return " ";
 }
 
+// ---------------------------------- //
+/// End map timer for MatchMaking
+Void UpdateBasesColors() {
+	foreach (Base in Bases) {
+		Base.Clan = 0;
+		Base.IsActive = True;
+	}
+	
+	declare UpdatedBases = Ident[];
+	
+	foreach (Clan => Spawn in G_ClanSpawnAnchors) {
+		Spawn.Base.Clan = Clan;
+		Spawn.Base.IsActive = True;
+		UpdatedBases.add(Spawn.Base.Id);
+	}
+	
+	foreach (BlockPole in BlockPoles) {
+		declare Clan = 0;
+		if (BlockPole.Gauge.Value < BlockPole.Gauge.Max) Clan = 3 - BlockPole.Gauge.Clan;
+		else Clan = BlockPole.Gauge.Clan;
+		
+		if (!UpdatedBases.exists(BlockPole.Base.Id)) {
+			BlockPole.Base.Clan = Clan;
+			UpdatedBases.add(BlockPole.Base.Id);
+		} else if (BlockPole.Base.Clan != Clan) {
+			BlockPole.Base.Clan = 0;
+		}
+	}
+}
 
 Void UpdatePlayerScore(CSmPlayer Player, Integer CaptureMaxValue) {
 	if(Player.Score == Null) return;
@@ -1239,9 +1244,9 @@ Void InitializePlayer(CSmPlayer Player, Integer NbPolesByClan, CUILayer LayerMar
 	UpdateScoreTeamsUI(Player);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Round end
-/* -------------------------------------- */
+// ---------------------------------- //
 ***EndRound***
 ***
 //declare Integer Dummy;
@@ -1358,9 +1363,9 @@ if(S_BattleWaves) {
 }
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Map end
-/* -------------------------------------- */
+// ---------------------------------- //
 ***EndMap***
 ***
 ResetAllUIs();
@@ -1392,28 +1397,28 @@ BalancedWeapons::MatchEnd();
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-sleep(6*1000);
+MB_Sleep(6*1000);
 
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;		
-sleep(10*1000);
+MB_Sleep(10*1000);
 
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 ResetAllUIs();
 ***
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Match end
-/* -------------------------------------- */
+// ---------------------------------- //
 ***EndMatch***
 ***
 +++MatchEnd+++
 Victory::MatchEnd();
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Server end
-/* -------------------------------------- */
+// ---------------------------------- //
 ***EndServer***
 ***
 ScoresTable::Unload();
@@ -1423,7 +1428,7 @@ UIManager.UILayerDestroy(LayerRoundInfo);
 ***
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Set the EndTime of the round
 ***EndTime***
 ***
@@ -1435,7 +1440,7 @@ UIManager.UILayerDestroy(LayerRoundInfo);
 	
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Define when a capture is possible
 ***IsCapturePossible***
 ***
@@ -1451,7 +1456,7 @@ UIManager.UILayerDestroy(LayerRoundInfo);
 	}
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Set the rules in the SpawnScreen
 ***Rules***
 ***

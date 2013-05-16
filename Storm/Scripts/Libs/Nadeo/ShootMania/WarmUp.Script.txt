@@ -1,7 +1,7 @@
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 
-#Const Version		"2013-04-18"
+#Const Version		"2013-05-14"
 #Const ScriptName	"WarmUp.Script.txt"
 
 #Const C_UIUpdateInterval 400
@@ -285,6 +285,7 @@ if (Event.ControlId == "Quad_Slot_{{{I}}}") {
 		if (I >= C_MaxSlots) break;
 	}
 	
+	declare PlayersOrderText = _("Players order");
 	ML = 
 """
 <script><!--
@@ -310,7 +311,7 @@ if (Event.ControlId == "Quad_Slot_{{{I}}}") {
 <frame posn="0 -48 1">
 	<quad posn="0 0 2" sizen="{{{SizeX+2}}} 23" halign="center" valign="center" style="Bgs1InRace" substyle="BgList" />
 	<frame posn="0 4 3">
-		<label posn="0 6 4" halign="center" textemboss="1" text="{{{_("Players order")}}}" />
+		<label posn="0 6 4" halign="center" textemboss="1" text="{{{PlayersOrderText}}}" />
 		<frame posn="{{{PosX}}} 0 3">
 			{{{SlotList}}}
 		</frame>
@@ -816,6 +817,8 @@ Void Loop() {
 			} else {
 				PassOn(Event);
 			}
+		} else if (Event.Type == CSmModeEvent::EType::OnPlayerTouchesObject) {
+			Discard(Event);
 		} else {
 			PassOn(Event);
 		}

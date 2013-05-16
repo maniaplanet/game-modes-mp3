@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2013-04-16"
+#Const	Version		"2013-05-07"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -37,6 +37,37 @@ Text Private_GetRankings() {
 		if (Total < Scores.count) Rankings ^= ";";
 	}
 	return Rankings;
+}
+
+// ---------------------------------- //
+/** Find a player from his login
+ *	
+ *	@param	_Login	The login of the player to find
+ *
+ *	@return			The player if found, null otherwise
+ */
+CSmPlayer Private_FindPlayer(Text _Login) {
+	foreach (Player in AllPlayers) {
+		if (Player.Login == _Login) return Player;
+	}
+	return Null;
+}
+
+// ---------------------------------- //
+/** Hide/Show the alt layers when pressing the alt key
+ *
+ *	@param	_Action		True -> show, False -> hide
+ *	@param	_Login		Login of the player to update
+ */
+Void Private_ToggleAltMenu(Boolean _Action, Text _Login) {
+	declare Player <=> Private_FindPlayer(_Login);
+	if (Player == Null) return;
+	
+	declare UI <=> UIManager.GetUI(Player);
+	if (UI == Null) return;
+	
+	UI.AltMenuNoDefaultScores = !_Action;
+	UI.AltMenuNoCustomScores = !_Action;
 }
 
 // ---------------------------------- //
@@ -331,6 +362,10 @@ Void OnPlayerRequestRespawn(CSmModeEvent _Event) {
 }
 
 // ---------------------------------- //
+// Listening on XmlRpc port
+// ---------------------------------- //
+
+// ---------------------------------- //
 /// Wait for XmlRpc callbacks
 Void Loop() {
 	if (!G_UseLibXmlRpc) return;
@@ -339,7 +374,9 @@ Void Loop() {
 		if (Event.Type == CXmlRpcEvent::EType::Callback) {
 			switch (Event.Param1) {
 				// Get the current rankings
-				case "LibXmlRpc_GetRankings": SendRankings();
+				case "LibXmlRpc_GetRankings"	: SendRankings();
+				case "LibXmlRpc_DisableAltMenu"	: Private_ToggleAltMenu(False, Event.Param2);
+				case "LibXmlRpc_EnableAltMenu"	: Private_ToggleAltMenu(True, Event.Param2);
 			}
 		}
 	}

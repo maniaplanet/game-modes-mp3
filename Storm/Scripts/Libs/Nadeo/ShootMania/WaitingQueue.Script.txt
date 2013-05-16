@@ -2,7 +2,7 @@
 //   Waiting Queue Lib
 //////////////////////////////////////////
 
-#Const Version 				"2013-04-18"
+#Const Version 				"2013-05-04"
 #Const ScriptName			"WaitingQueue.Script.txt"
 
 #Const DEBUG				False						///< Active debug mode
@@ -583,10 +583,10 @@ Text UpdateLayerWaitingQueue() {
 	if(Taille > 1) quadsize = Taille - 2;
 	declare Real Width = 42.;//35.; // 33. & 31.
 	
-	Frame = """<frame posn="-160 25 2">""";
+	Frame = """<frame posn="-162 25 2">""";
 	
-	Frame ^= """<quad posn="0 -2 4" sizen="{{{Width}}} 6" halign="left" bgcolor="0007" />
-		<quad posn="0 -2 3" sizen="{{{Width}}} {{{ quadsize*5+6+Marge }}}" halign="left" bgcolor="0007" />
+	Frame ^= """
+		<quad posn="0 -2 3" sizen="{{{Width}}} {{{ quadsize*5+7+Marge }}}" halign="left" image="file://Media/Manialinks/ShootMania/Common/RoleChoiceBg.dds" colorize="777" />
 		<label posn="{{{Width/2.}}} -3 5" halign="center" text="{{{_("Waiting Queue")}}}" sizen="40 0" textemboss="1" />""";
 
 	for(j, 2, Taille-1) {

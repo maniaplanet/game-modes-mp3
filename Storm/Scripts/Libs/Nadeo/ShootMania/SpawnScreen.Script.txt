@@ -3,7 +3,7 @@
  *	Show the rules in the spawn screen
  */
 
-#Const Version		"2013-01-24"
+#Const Version		"2013-05-14"
 #Const ScriptName	"SpawnScreen.Script.txt"
 
 #Include "TextLib" as TextLib
@@ -55,18 +55,20 @@ Text Private_CreateLayerRules(Boolean _Hidden) {
 	declare RulesTip = _("Press F1 to show rules");
 	
 	ML = """
-<frame posn="0 -70 0" id="FrameShow">
-	<quad posn="0 0 10" sizen="140 20" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle3_5" />
-	<label posn="0 0 11" sizen="70 10" scale="2" halign="center" valign="center" style="TextTitle3" text="{{{ RulesTip }}}" />
-</frame>
-<frame posn="0 50 10" id="FrameRules">
-	<frame posn="0 0 5">
-		<quad posn="0 0 10" sizen="120 20" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle3_5" />
-		<label posn="0 0 11" sizen="60 10" scale="2" halign="center" valign="center" style="TextTitle3" textprefix="$fff" text="{{{ G_LibSpawnScreen_ModeName }}}" />
+<frame posn="0 0 55">
+	<frame posn="0 -70" id="FrameShow">
+		<quad posn="0 0" sizen="140 20" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle3_5" />
+		<label posn="0 0" sizen="70 10" scale="2" halign="center" valign="center" style="TextTitle3" text="{{{ RulesTip }}}" />
 	</frame>
-	<frame posn="0 -10 5">
-		<quad posn="0 0 10" sizen="300 120" halign="center" bgcolor="222e" />
-		<label posn="-145 -5 11" sizen="145 5" scale="2" autonewline="1" style="TextCardSmallScores2" text="{{{ G_LibSpawnScreen_ModeRules }}}" />
+	<frame posn="0 50" id="FrameRules">
+		<frame posn="0 0">
+			<quad posn="0 0" sizen="120 20" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle3_5" />
+			<label posn="0 0" sizen="60 10" scale="2" halign="center" valign="center" style="TextTitle3" textprefix="$fff" text="{{{ G_LibSpawnScreen_ModeName }}}" />
+		</frame>
+		<frame posn="0 -10">
+			<quad posn="0 0" sizen="300 120" halign="center" bgcolor="222e" />
+			<label posn="-145 -5" sizen="145 5" scale="2" autonewline="1" style="TextCardSmallScores2" text="{{{ G_LibSpawnScreen_ModeRules }}}" />
+		</frame>
 	</frame>
 </frame>
 <script><!--
@@ -178,7 +180,7 @@ Void DetachRules() {
  */
 Text Private_CreateLayerMapInfo() {	
 	return """
-<frame posn="-145 75 0">
+<frame posn="-145 75 50">
 	<label posn="0 0 1" sizen="40 10" textsize="10" valign="center" text="Map:" />
 	<label posn="40 0 1" sizen="250 10" textsize="10" valign="center" id="Label_MapName" />
 	<label posn="0 -15 2" sizen="40 10" textsize="10" valign="center" text="{{{_("|Author|By:")}}}" />
@@ -273,7 +275,7 @@ Text Private_CreateLayerScores() {
 	for (I, 1, 3) {		
 		PlayersListML ^=
 """
-<frame posn="-140 {{{ (I-1) * -30 }}} -25">
+<frame posn="-140 {{{ (I-1) * -30 }}} 41">
 	<quad posn="0 -2" sizen="30 30" valign="center" style="Icons64x64_1" substyle="{{{ Icons[I-1] }}}" />
 	<label posn="30 0" sizen="200 20" textsize="15" valign="center" id="Label_Name_{{{I}}}" />
 	<label posn="270 0" sizen="20 20" textsize="15" halign="right" valign="center" id="Label_Score_{{{I}}}" />
@@ -282,9 +284,9 @@ Text Private_CreateLayerScores() {
 	}
 	
 	return """
-<frame posn="0 85 -20">
+<frame posn="0 85">
 	<frame posn="0 -65">
-		<quad posn="0 15 -30" sizen="290 92" halign="center" bgcolor="222c" />
+		<quad posn="0 15 40" sizen="290 92" halign="center" bgcolor="222c" />
 		{{{ PlayersListML }}}
 	</frame>
 </frame>

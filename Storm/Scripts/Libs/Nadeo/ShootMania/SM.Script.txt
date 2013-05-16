@@ -1,7 +1,7 @@
 //////////////////////////////////////////
 //   Utils
 //////////////////////////////////////////
-#Const Version		"2013-02-19"
+#Const Version		"2013-04-16"
 #Const ScriptName	"SM.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -60,7 +60,7 @@ Void SpawnPlayerNoLadder(CSmPlayer _Player, Integer _ClanNum, Integer _Armor, CS
 
 Void UnspawnAllPlayers()
 {
-	foreach(Player in Players) {	
+	foreach(Player in AllPlayers) {	
 		UnspawnPlayer(Player);
 	}
 }

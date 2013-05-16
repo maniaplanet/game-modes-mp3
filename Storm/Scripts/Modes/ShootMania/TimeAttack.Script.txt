@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"TimeAttackArena"
-#Const Version				"2013-04-16"
+#Const Version				"2013-04-30"
 #Const ScriptName			"TimeAttack.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -19,9 +19,9 @@
 #Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Settings
-/* -------------------------------------- */
+// ---------------------------------- //
 #Setting S_TimeLimit 360 as _("Time limit (in seconds)")
 
 #Const C_NbTopTimes			5		///< Number of players in the top times UI
@@ -30,18 +30,18 @@
 
 #Const Description _("TYPE: Individual\nOBJECTIVE: Finish the race as fast as possible after going through all the checkpoints.\nYou can start over and improve your time as much as you want. The player with the best time at the end to the time limit wins the map.")
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Globales
-/* -------------------------------------- */
+// ---------------------------------- //
 declare Text[Integer]		G_TopTimesNames;	///< Names of the players in TopTimes
 declare Integer[Integer]	G_TopTimesRuns;		///< Times of the players in TopTimes
 declare Integer				G_TimeLimit;		///< Time limit on the map
 declare Integer[Ident]		G_StartList;		///< List of player in the starting block
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Extend
-/* -------------------------------------- */
+// ---------------------------------- //
 
 ***LogVersion***
 ***
@@ -53,18 +53,18 @@ MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Server start
-/* -------------------------------------- */
+// ---------------------------------- //
 ***StartServer***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Set mode options
 UsePvPCollisions	= False;
 UsePvPWeapons		= False;
 UseClans			= False;
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Create the rules
 declare ModeName = "Time Attack";
 declare ModeRulesBase = _("Individual mode\n\n- You must finish the race as fast as possible.\n- To validate a race you must touch the finish after going through all the checkpoints.\n- You can start over and improve your time as often as you want during %1 minutes.\n- The player with the best time after %1 minutes wins the map.\n\n- Press the respawn button to restart from the beginning.");
@@ -74,7 +74,7 @@ ModeStatusMessage = _("TYPE: Individual\nOBJECTIVE: Finish the race as fast as p
 
 SpawnScreen::CreateMapInfo();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Create the UI layers
 declare LayerAttached	= False;
 declare LayerDetached	= False;
@@ -90,13 +90,13 @@ LayerAttached = Layers::Attach("Info", NullId);
 
 Chrono::Load();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Create the scores table
 declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
 ScoresTable::Load();
 ScoresTable::SetTableFormat(2, 6);
 ScoresTable::SetColumnsWidth(3., 2., 3., 16., 2., 2., 8., 0., 0., 0., 0.);
-ScoresTable::SetTableBackgroundImage(BgImage, <0., 56.>, <180., 180.>);
+ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 56.>, <207., 178.>);
 ScoresTable::SetColumnName("Custom1", _("Best time"));
 ScoresTable::SetDefaultCustom1("--:--.--");
 ScoresTable::SetDefaultFooterScore(" ");
@@ -104,12 +104,12 @@ ScoresTable::SetDefaultFooterStats(TextLib::Compose(_("Time limit: %1"), TextLib
 ScoresTable::Build();
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Map start
-/* -------------------------------------- */
+// ---------------------------------- //
 ***StartMap***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // New map message
 UIManager.UIAll.SendNotice(
 	"",
@@ -120,15 +120,15 @@ UIManager.UIAll.SendNotice(
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Attach and update layers
 LayerUpdated = Layers::Update("TopTimes", "");
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Debug
 Users_SetNbFakeUsers(C_NbBot, 0);
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Initalization
 G_TopTimesNames	= Text[Integer];
 G_TopTimesRuns	= Integer[Integer];
@@ -154,6 +154,13 @@ if (G_TimeLimit != S_TimeLimit) {
 
 InitPlayers();
 
+// ---------------------------------- //
+// Turn the lights on
+foreach (Base in Bases) {
+	Base.Clan = 0;
+	Base.IsActive = True;
+}
+
 Mode::Ladder_OpenMatch_All();
 ScoresTable::StartMatch();
 
@@ -161,12 +168,12 @@ StartTime = Now + 3000;
 EndTime = StartTime + (G_TimeLimit * 1000);
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // When a new player arrives
-/* -------------------------------------- */
+// ---------------------------------- //
 ***OnNewPlayer***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update the layers when a new player arrives
 LayerAttached = Layers::Attach("TimeDiff", Player.Id);
 LayerUpdated = Layers::Update("TimeDiff", CreateLayerTimeDiff());
@@ -188,12 +195,12 @@ if (UI != Null) {
 ScoresTable::RestoreCustomScores(Player);
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // When a new spectator arrives
-/* -------------------------------------- */
+// ---------------------------------- //
 ***OnNewSpectator***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update the layers when a new spectator arrives
 LayerDetached = Layers::Detach("Info", Spectator.Id);
 LayerDetached = Layers::Detach("TimeDiff", Spectator.Id);
@@ -203,12 +210,12 @@ ScoresTable::SetFooterStats(Spectator, TextLib::Compose(_("Time limit: %1"), Tex
 ScoresTable::RestoreCustomScores(Spectator);
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Play loop
-/* -------------------------------------- */
+// ---------------------------------- //
 ***PlayLoop***
 ***
-/* -------------------------------------- */
+// ---------------------------------- //
 // Manage starting list
 declare PlayerToRemove = Ident[];
 foreach (PlayerId => PlayerStartTime in G_StartList) {
@@ -223,7 +230,7 @@ foreach (PlayerId in PlayerToRemove) {
 	declare Removed = G_StartList.removekey(PlayerId);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Manage event
 foreach(Event in PendingEvents) {	
 	if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
@@ -247,7 +254,7 @@ foreach(Event in PendingEvents) {
 	}
 }
 	
-/* -------------------------------------- */
+// ---------------------------------- //
 // Spawn players
 foreach (Player in Players) {			
 	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !Player.RequestsSpectate) {
@@ -267,7 +274,7 @@ foreach (Player in Players) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Check finish or checkpoint
 foreach (Player in Players) {
 	declare CheckpointsTimeLast for Player = Integer[Ident];
@@ -304,10 +311,10 @@ foreach (Player in Players) {
 }
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Update Player UI
 foreach (Player in Players) {	
-	/* -------------------------------------- */
+	// ---------------------------------- //
 	// Refresh the status message of the player
 	declare StatusStopTime for Player = 0;
 	if (StatusStopTime >= 0 && StatusStopTime < Now) {
@@ -318,14 +325,14 @@ foreach (Player in Players) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Next map
 if (Now >= EndTime) MB_StopMap = True;
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Map end
-/* -------------------------------------- */
+// ---------------------------------- //
 ***EndMap***
 ***
 declare WinnerId = NullId;
@@ -334,7 +341,7 @@ declare Worst = -1;
 
 ScoresTable::EndMatch();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Search the user id of the winner
 foreach (Score in Scores) {
 	declare RunBest for Score = -1;
@@ -345,7 +352,7 @@ foreach (Score in Scores) {
 	if (RunBest > Worst) Worst = RunBest;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Erase players messages
 foreach (Player in Players) {
 	declare UI <=> UIManager.GetUI(Player);
@@ -356,7 +363,7 @@ foreach (Player in Players) {
 	Chrono::Reset(Player.Id);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Sort scores for the ladder
 foreach (Score in Scores) {
 	declare RunBest for Score = 1;
@@ -381,9 +388,9 @@ sleep(3000);
 UIManager.UIAll.BigMessage = "";
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Server end
-/* -------------------------------------- */
+// ---------------------------------- //
 ***EndServer***
 ***
 ScoresTable::Unload();
@@ -395,9 +402,9 @@ UIManager.UILayerDestroyAll();
 ***
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Functions
-/* -------------------------------------- */
+// ---------------------------------- //
 
 /* ------------------------------------- */
 /** Update the ranking of the players
@@ -585,7 +592,7 @@ Void UpdateLayerTimeDiff(CSmPlayer _Player, Integer _Time1, Integer _Time2) {
 	Net_Time2 = _Time2;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Generate the top times manialink
  *
  * @param _Name		The name of the player who made a time
@@ -641,7 +648,7 @@ Text UpdateLayerTopTimes(Text _Name, Integer _Time) {
 	return ML;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Initialize the players
 Void InitPlayers() {
 	foreach (Player in Players) {
@@ -668,7 +675,7 @@ Void InitPlayers() {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Disable player weapons
  *
  * @param _Player		Disable the weapons of this player
@@ -682,7 +689,7 @@ Void DisableWeapon(CSmPlayer _Player) {
 	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Nucleus, 0);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Restart a player
  *
  * @param _PlayerId		The player to restart
@@ -713,7 +720,7 @@ Void RestartPlayer(CSmPlayer _Player) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** A player touch a checkpoint
  *
  * @param _Player			The player who touched the checkpoint
@@ -758,7 +765,7 @@ Void ActiveCheckpoint(CSmPlayer _Player, Ident _CheckpointId) {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** A player touch the goal
  *
  * @param _PlayerId		The if of the player who touched the goal

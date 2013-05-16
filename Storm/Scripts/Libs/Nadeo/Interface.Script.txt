@@ -4,9 +4,9 @@
 #Const Version		"2013-04-22"
 #Const ScriptName	"Interface.Script.txt"
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Constantes
-/* ------------------------------------- */
+// ---------------------------------- //
 #Const C_TeamNamesManialink """
 <script><!--
 	main() {
@@ -33,6 +33,10 @@
 </frame>
 """
 
+#Const C_LibUI_VisibilityAll		1
+#Const C_LibUI_VisibilityPlayers	2
+#Const C_LibUI_VisibilitySpectators	3
+
 #Const C_LibUI_ImgSrc				"file://Media/Manialinks/Shootmania/Common/"
 #Const C_LibUI_SlidePause			5000	///< Time spent on each slide
 #Const C_LibUI_SlideType_Top		1
@@ -40,9 +44,10 @@
 #Const C_LibUI_SlideType_Img		3
 #Const C_LibUI_SlideBufferDuration	1000
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Globales
-/* ------------------------------------- */
+// ---------------------------------- //
+declare Ident G_LibUI_LayerPlayersListsId;	///< Id of the players lists layer
 declare Ident G_LibUI_LayerRankId;			///< Id of the rank layer
 declare Ident G_LibUI_LayerSliderId;		///< Id the slider layer
 declare Boolean G_LibUI_SliderIsVisible;	///< Save the slider visibility
@@ -50,11 +55,11 @@ declare Integer[Integer] G_LibUI_SlideType;	///< Type of each slide in the slide
 declare Text[Integer] G_LibUI_SlideTitle;	///< Title of each slide in tyhe slider
 declare Text[Integer] G_LibUI_SlideContent;	///< Content of each slide of the slider
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Funtions
-/* ------------------------------------- */
+// ---------------------------------- //
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Return the version number of the script
  *
  *	@return		The version number of the script
@@ -63,7 +68,7 @@ Text GetScriptVersion() {
 	return Version;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Return the name of the script
  *
  *	@return		The name of the script
@@ -72,7 +77,7 @@ Text GetScriptName() {
 	return ScriptName;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 Void SetLayerTeams(CUILayer _LayerTeams) {
 	_LayerTeams.ManialinkPage = 
 	C_TeamNamesManialink^"""
@@ -81,7 +86,7 @@ Void SetLayerTeams(CUILayer _LayerTeams) {
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 Void SetLayerTeamsForSpectators(CUILayer _LayerTeams) {
 	_LayerTeams.ManialinkPage = 
 	C_TeamNamesManialink^"""
@@ -90,10 +95,157 @@ Void SetLayerTeamsForSpectators(CUILayer _LayerTeams) {
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
+/** Create the PlayersLists manialink
+ *
+ *	@return		The manialink string
+ */
+Text Private_CreateLayerPlayersLists() {
+return """
+<frame id="Frame_PlayersLists">
+	<frame posn="-160 68">	
+		<quad posn="0.25 0" sizen="39.45 3.5" halign="left" valign="center" bgcolor="fff8" />
+		<quad posn="0.5 2.9 1" sizen="10.8 10.5" halign="left" valign="center" style="Emblems" substyle="#1" /> 
+		<label posn="12.5 0.4 1" sizen="39.5 3.5" halign="left" valign="center" textsize="2.3" textemboss="1" text="Blue" id="Label_Team1Name" />
+		<playerlist posn="0 -2" scale="0.67" halign="left" substyle="Medium" lines="10" columns="1" team="1" status="Playing"/>
+	</frame>
+	<frame>
+		<quad posn="159.75 68" sizen="39.45 3.5" halign="right" valign="center" bgcolor="fff8" />
+		<quad posn="159.5 70.9 1" sizen="10.8 10.5" halign="right" valign="center" style="Emblems" substyle="#2" /> 
+		<label posn="148.5 68.4 1" sizen="39.5 3.5" halign="right" valign="center" textsize="2.3" textemboss="1" text="Red" id="Label_Team2Name" />
+		<playerlist posn="160 66" scale="0.67" halign="right" substyle="Medium" lines="10" columns="1" team="2" status="Playing"/>
+	</frame>
+</frame>
+<quad posn="32 0" sizen="8 8" halign="center" valign="center" image="file://Media/Manialinks/Shootmania/Common/AttackerShieldLeft.dds" colorize="f00" />
+<quad posn="40 0" sizen="8 8" halign="center" valign="center" image="file://Media/Manialinks/Shootmania/Common/DefendersLeft.dds" colorize="00f" />
+<script><!--
+#Const C_LibUI_VisibilityAll		{{{C_LibUI_VisibilityAll}}}
+#Const C_LibUI_VisibilityPlayers	{{{C_LibUI_VisibilityPlayers}}}
+#Const C_LibUI_VisibilitySpectators	{{{C_LibUI_VisibilitySpectators}}}
+
+declare CMlFrame Frame_PlayersLists;
+
+Void UpdateVisibility() {
+	declare netread Integer Net_LibUI_PlayersListVisibility for Teams[0];
+	
+	switch (Net_LibUI_PlayersListVisibility) {
+		case C_LibUI_VisibilityAll: {
+			Frame_PlayersLists.Show();
+		}
+		case C_LibUI_VisibilityPlayers: {
+			if (IsSpectatorMode) Frame_PlayersLists.Hide();
+			else Frame_PlayersLists.Show();
+		}
+		case C_LibUI_VisibilitySpectators: {
+			if (IsSpectatorMode) Frame_PlayersLists.Show();
+			else Frame_PlayersLists.Hide();
+		}
+	}
+}
+
+main() {
+	Frame_PlayersLists <=> (Page.GetFirstChild("Frame_PlayersLists") as CMlFrame);
+	declare Label_Team1Name <=> (Frame_PlayersLists.GetFirstChild("Label_Team1Name") as CMlLabel);
+	declare Label_Team2Name <=> (Frame_PlayersLists.GetFirstChild("Label_Team2Name") as CMlLabel);
+	
+	declare netread Integer Net_LibUI_PlayersListVisibility for Teams[0];
+	
+	declare PrevTeam1Name = "";
+	declare PrevTeam2Name = "";
+	declare PrevVisibility = 0;
+	declare PrevIsSpectator = False;
+	
+	UpdateVisibility();
+	
+	while (True) {
+		sleep(200);
+		
+		if (InputPlayer == Null) continue;
+		if (!PageIsVisible) continue;
+		
+		if (PrevTeam1Name != Teams[0].ColorizedName) {
+			PrevTeam1Name = Teams[0].ColorizedName;
+			Label_Team1Name.SetText(Teams[0].ColorizedName);
+		}
+		if (PrevTeam2Name != Teams[1].ColorizedName) {
+			PrevTeam2Name = Teams[1].ColorizedName;
+			Label_Team2Name.SetText(Teams[1].ColorizedName);
+		}
+		
+		if (PrevVisibility != Net_LibUI_PlayersListVisibility) {
+			PrevVisibility = Net_LibUI_PlayersListVisibility;
+			UpdateVisibility();
+		}
+		
+		if (PrevIsSpectator != IsSpectatorMode) {
+			PrevIsSpectator = IsSpectatorMode;
+			UpdateVisibility();
+		}
+	}
+}
+--></script>
+""";
+}
+
+// ---------------------------------- //
+/// Destroy the PlayersLists UI
+Void DestroyPlayersLists() {
+	if (G_LibUI_LayerPlayersListsId != NullId && UIManager.UILayers.existskey(G_LibUI_LayerPlayersListsId)) {
+		UIManager.UILayerDestroy(UIManager.UILayers[G_LibUI_LayerPlayersListsId]);
+		G_LibUI_LayerPlayersListsId = NullId;
+	}
+}
+
+// ---------------------------------- //
+/// Create the PlayersLists UI
+Void CreatePlayersLists() {
+	// Check if a rank layer was already created and destroy it if it's the case
+	DestroyPlayersLists();
+	
+	// Create and assign the layer
+	declare LayerPlayersLists <=> UIManager.UILayerCreate();
+	LayerPlayersLists.ManialinkPage = Private_CreateLayerPlayersLists();
+	G_LibUI_LayerPlayersListsId = LayerPlayersLists.Id;
+	UIManager.UIAll.UILayers.add(LayerPlayersLists);
+	
+	// Ste the default visibility
+	declare netwrite Integer Net_LibUI_PlayersListVisibility for Teams[0];
+	Net_LibUI_PlayersListVisibility = C_LibUI_VisibilityAll;
+}
+
+// ---------------------------------- //
+/// Attach the PlayersLists layer to all players
+Void AttachPlayersLists() {
+	if (UIManager.UIAll.UILayers.existskey(G_LibUI_LayerPlayersListsId)) return;
+	if (!UIManager.UILayers.existskey(G_LibUI_LayerPlayersListsId)) return;
+	
+	UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibUI_LayerPlayersListsId]);
+}
+
+// ---------------------------------- //
+/// Detach the PlayersLists layer from all players
+Void DetachPlayersLists() {
+	if (!UIManager.UIAll.UILayers.existskey(G_LibUI_LayerPlayersListsId)) return;
+	if (!UIManager.UILayers.existskey(G_LibUI_LayerPlayersListsId)) return;
+	
+	declare Detached = UIManager.UIAll.UILayers.removekey(G_LibUI_LayerPlayersListsId);
+}
+
+// ---------------------------------- //
+/** Set the players lists visibility
+ *
+ *	@param	_Visibility		The new visibility: 1 -> All, 2 -> Only players, 3 Only spectators
+ */
+Void SetPlayersListsVisibility(Integer _Visibility) {
+	declare netwrite Integer Net_LibUI_PlayersListVisibility for Teams[0];
+	if (_Visibility < 1 || _Visibility > 3) Net_LibUI_PlayersListVisibility = 1;
+	else Net_LibUI_PlayersListVisibility = _Visibility;
+}
+
+// ---------------------------------- //
 // Ranking
-/* ------------------------------------- */
-/* ------------------------------------- */
+// ---------------------------------- //
+// ---------------------------------- //
 /** Deprecated - Use the rank functions instead
  *	Set the content of the Position layer
  *
@@ -156,7 +308,7 @@ Void SetLayerPosition(CUILayer _LayerPosition) {
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Deprecated - Use the rank functions instead
  *	Update a player position UI
  *
@@ -199,10 +351,10 @@ Void UpdatePosition(CSmPlayer _Player) {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Ranking
-/* ------------------------------------- */
-/* ------------------------------------- */
+// ---------------------------------- //
+// ---------------------------------- //
 /** Create the Rank manialink
  *
  *	@return		The manialink string
@@ -272,7 +424,7 @@ main() {
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Destroy the rank UI
 Void DestroyRank() {
 	if (G_LibUI_LayerRankId != NullId && UIManager.UILayers.existskey(G_LibUI_LayerRankId)) {
@@ -281,7 +433,7 @@ Void DestroyRank() {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Create the rank UI
 Void CreateRank() {
 	// Check if a rank layer was already created and destroy it if it's the case
@@ -294,7 +446,7 @@ Void CreateRank() {
 	UIManager.UIAll.UILayers.add(LayerRank);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Attach the rank layer to all players
 Void AttachRank() {
 	if (UIManager.UIAll.UILayers.existskey(G_LibUI_LayerRankId)) return;
@@ -303,7 +455,7 @@ Void AttachRank() {
 	UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibUI_LayerRankId]);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Detach the rank layer from all players
 Void DetachRank() {
 	if (!UIManager.UIAll.UILayers.existskey(G_LibUI_LayerRankId)) return;
@@ -312,11 +464,11 @@ Void DetachRank() {
 	declare Detached = UIManager.UIAll.UILayers.removekey(G_LibUI_LayerRankId);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Slider display
-/* ------------------------------------- */
+// ---------------------------------- //
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Create the different models of slides
  *
  *	@return		The slides models
@@ -359,7 +511,7 @@ Text Private_CreateSlideModel() {
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Create the maniascript for the slider ML
  *
  *	@return		The maniascript of the slider ML
@@ -577,7 +729,7 @@ main() {
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Update the slider manialink
 Void Private_UpdateSliderML() {
 	if (G_LibUI_LayerSliderId == NullId || !UIManager.UILayers.existskey(G_LibUI_LayerSliderId)) return;
@@ -598,7 +750,7 @@ Void Private_UpdateSliderML() {
 	UIManager.UILayers[G_LibUI_LayerSliderId].ManialinkPage = ML;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Update the slider visibility
  *
  *	@param	_Player		The player who'll see the slider
@@ -623,7 +775,7 @@ Void Private_UpdateSliderVisibity(CSmPlayer _Player, Integer _Delay, Boolean _Vi
 	Net_LibUI_SliderVisibility[Now + _Delay] = _Visibility;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Destroy the slider
 Void DestroySlider() {
 	// Destroy the slider layer
@@ -638,7 +790,7 @@ Void DestroySlider() {
 	G_LibUI_SlideContent.clear();
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Create the slider
 Void CreateSlider() {
 	// Destroy any existing slider
@@ -650,7 +802,7 @@ Void CreateSlider() {
 	UIManager.UIAll.UILayers.add(LayerSlider);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Attach the slider to UIAll
 Void AttachSlider() {
 	if (UIManager.UIAll.UILayers.existskey(G_LibUI_LayerSliderId)) return;
@@ -659,7 +811,7 @@ Void AttachSlider() {
 	UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibUI_LayerSliderId]);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Detach the slider from UIAll
 Void DetachSlider() {
 	if (!UIManager.UIAll.UILayers.existskey(G_LibUI_LayerSliderId)) return;
@@ -668,7 +820,7 @@ Void DetachSlider() {
 	declare Removed = UIManager.UIAll.UILayers.removekey(G_LibUI_LayerSliderId);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Add a slide to the slider
  *	Three types of slide are allowed:
  *	- Top  -> you have to use the Top2 library for this type to work
@@ -712,7 +864,7 @@ Void AddSlide(Integer _Id, Text _Type, Text _Title, Text _Content) {
 	Net_LibUI_SlideContent	= G_LibUI_SlideContent;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Remove a slide
  *
  *	@param	_Id		The id of the slide to remove
@@ -726,7 +878,7 @@ Void RemoveSlide(Integer _Id) {
 	Private_UpdateSliderML();
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Update a slide
  *	The add slide function overwrite a slide with the same id that the one passed in parameter
  *
@@ -738,7 +890,7 @@ Void UpdateSlide(Integer _Id, Text _Title, Text _Content) {
 	AddSlide(_Id, "", _Title, _Content);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Display the slider for a player
  *
  *	@param	_Player		The player who'll see the slider
@@ -748,7 +900,7 @@ Void ShowSlider(CSmPlayer _Player, Integer _Delay) {
 	Private_UpdateSliderVisibity(_Player, _Delay, True);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Hide the slider for a player
  *
  *	@param	_Player		The player who'll see the slider
@@ -758,7 +910,7 @@ Void HideSlider(CSmPlayer _Player, Integer _Delay) {
 	Private_UpdateSliderVisibity(_Player, _Delay, False);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Change the pause duration on slides
  *
  *	@param	_Player		The affected player

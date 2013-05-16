@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2013-04-23"
+#Const	ModeSportVersion	"2013-05-14"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -26,7 +26,7 @@
 // ---------------------------------- //
 // Settings
 // ---------------------------------- //
-#Setting S_Mode				0	as _("Mode 0: classic, 1: free, 2: king")///< Less restrictive mode for casual play
+#Setting S_Mode				0	as _("Mode 0: classic, 1: free")		///< Less restrictive mode for casual play
 #Setting S_TimeLimit		60	as _("Attack time limit")				///< Time for an attack on a map
 #Setting S_TimePole			15	as _("Capture time limit")				///< Time allowed to reach the pole by the end of the attack
 #Setting S_TimeCapture		1.5	as _("Capture duration by pole")		///< Time to capture a pole for the attack clan (* NbPoles)
@@ -65,8 +65,8 @@
 #Const C_WeaponRocket	2
 #Const C_WeaponNucleus	3
 
-#Const C_BlueBotsNb	0	///< Blue bots number
-#Const C_RedBotsNb	0	///< Red bots number
+#Const C_BlueBotsNb	2	///< Blue bots number
+#Const C_RedBotsNb	3	///< Red bots number
 
 #Const C_SpecRefreshInterval	250 ///< Interval between the refresh of the spectators properties
 #Const C_SequenceWarmUp			1	///< Scores table mode warm up
@@ -161,7 +161,7 @@ declare LayerDestroyed = False;
 ***
 // ---------------------------------- //
 // Init Settings
-assert(S_Mode == 0 || S_Mode == 1 || S_Mode == 2);
+assert(S_Mode == 0 || S_Mode == 1);
 VoteClanNb = 1;
 MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 G_MapOrder = [1 => Integer[Ident], 2 => Integer[Ident]];
@@ -176,7 +176,7 @@ G_InitDefHit = [1 => -1, 2 => 0, 3 => -1];
 // Layers creation
 // UI All
 declare LayerScoresTableId	= Layers::Create("ScoresTable", CreateLayerScoresTable());
-declare LayerPlayersListsId	= Layers::Create("PlayersLists");
+//declare LayerPlayersListsId	= Layers::Create("PlayersLists");
 // UI Players
 declare LayerSpawnScreenAttackId	= Layers::Create("SpawnScreenAttack");
 declare LayerSpawnScreenDefendId	= Layers::Create("SpawnScreenDefend");
@@ -185,9 +185,11 @@ Layers::GetFromId(LayerScoresTableId).Type = CUILayer::EUILayerType::ScoresTable
 Layers::GetFromId(LayerSpawnScreenAttackId).Type = CUILayer::EUILayerType::ScreenIn3d;
 Layers::GetFromId(LayerSpawnScreenDefendId).Type = CUILayer::EUILayerType::ScreenIn3d;
 
-Interface::SetLayerTeams(Layers::GetFromId(LayerPlayersListsId));
+//Interface::SetLayerTeams(Layers::GetFromId(LayerPlayersListsId));
 LayerUpdated = Layers::Update("SpawnScreenAttack", UpdateLayerSpawnScreen("Attack"));
 LayerUpdated = Layers::Update("SpawnScreenDefend", UpdateLayerSpawnScreen("Defend"));
+
+Interface::CreatePlayersLists();
 ***
 
 // ---------------------------------- //
@@ -203,8 +205,7 @@ declare Integer TossWinner;
 // ---------------------------------- //
 ***StartMatch***
 ***
-XmlRpc.SendCallback("BeginMatch", Json::Enfold(Json::Stringify("MatchNumber", MB_SectionMatchNb)));
-//XmlRpc.SendCallback("startMatch",""^MB_SectionMatchNb);
+if (MB_UseScriptCallbacks) XmlRpc.SendCallback("BeginMatch", Json::Enfold(Json::Stringify("MatchNumber", MB_SectionMatchNb)));
 // ---------------------------------- //
 // Initialize match goal average
 G_MapScores				= [1 => 0, 2 => 0];
@@ -245,8 +246,7 @@ declare CSmBlockPole[] Checkpoints;
 // ---------------------------------- //
 ***StartMap***
 ***
-XmlRpc.SendCallback("BeginMap", Json::Enfold(Json::Stringify("MapNumber", MB_SectionMapNb)));
-//XmlRpc.SendCallback("beginMap",MapName);
+if (MB_UseScriptCallbacks) XmlRpc.SendCallback("BeginMap", Json::Enfold(Json::Stringify("MapNumber", MB_SectionMapNb)));
 G_MapSpecCamDirection = GetOverviewCamDirection();
 
 // ---------------------------------- //
@@ -293,6 +293,12 @@ foreach (Score in Scores) {
 }
 Clan1Score = 0;
 Clan2Score = 0;
+foreach (Player in AllPlayers) {
+	declare netwrite Net_LayerST_DefPoints for Player = 0;
+	declare netwrite Net_LayerST_AtkPoints for Player = 0;
+	Net_LayerST_DefPoints = 0;
+	Net_LayerST_AtkPoints = 0;
+}
 
 // ---------------------------------- //
 // Update the players clublinks
@@ -306,8 +312,9 @@ UIManager.ResetAll();
 InitUi();
 SpawnScreen::AttachRules();
 LayerAttached = Layers::Attach("ScoresTable", NullId);
-LayerAttached = Layers::Attach("PlayersLists", NullId);
+//LayerAttached = Layers::Attach("PlayersLists", NullId);
 LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
+Interface::AttachPlayersLists();
 
 // ---------------------------------- //
 // Initialize roles for first round
@@ -337,8 +344,7 @@ declare MapWinnerName = "";
 // ---------------------------------- //
 ***StartSubmatch***
 ***
-XmlRpc.SendCallback("BeginSubmatch", Json::Enfold(Json::Stringify("SubmatchNumber", MB_SectionSubmatchNb)));
-//XmlRpc.SendCallback("startSubmatch",""^MB_SectionSubmatchNb);
+if (MB_UseScriptCallbacks) XmlRpc.SendCallback("BeginSubmatch", Json::Enfold(Json::Stringify("SubmatchNumber", MB_SectionSubmatchNb)));
 // ---------------------------------- //
 // Initialize all scores
 Score::MatchBegin();
@@ -360,6 +366,12 @@ foreach (Score in Scores) {
 }
 Clan1Score = 0;
 Clan2Score = 0;
+foreach (Player in AllPlayers) {
+	declare netwrite Net_LayerST_DefPoints for Player = 0;
+	declare netwrite Net_LayerST_AtkPoints for Player = 0;
+	Net_LayerST_DefPoints = 0;
+	Net_LayerST_AtkPoints = 0;
+}
 
 // ---------------------------------- //
 // Reset the attack order
@@ -388,7 +400,7 @@ declare AtkIsEliminated = False;
 // Wait players sycnhro
 Mode::Synchro_DoBarrier();
 
-//XmlRpc.SendCallback("startTurn", ""^MB_SectionTurnNb);
+if (MB_UseScriptCallbacks) XmlRpc.SendCallback("startTurn", ""^MB_SectionTurnNb);
 SM::UnspawnAllPlayers();
 Score::RoundBegin();
 InitUi();
@@ -424,7 +436,7 @@ if (NeedWarmUp || MatchStartConditions < 0) {
 	
 	// ---------------------------------- //
 	// Restart the script if the mode settings has changed
-	assert(S_Mode == 0 || S_Mode == 1 || S_Mode == 2);
+	assert(S_Mode == 0 || S_Mode == 1);
 	if (S_Mode != OldMode) {
 		OldMode = S_Mode;
 		MatchEndRequested = True;
@@ -595,14 +607,16 @@ UpdateMarkers();
 		
 declare AtkPlayer <=> CSmPlayer;
 if (Players.existskey(G_AtkPlayerId)) AtkPlayer <=> Players[G_AtkPlayerId];
-XmlRpc.SendCallback("BeginTurn", Json::Enfold(Json::Merge([
-	Json::Stringify("TurnNumber", MB_SectionTurnNb),
-	TurnStringify(),
-	Json::Stringify("AttackingClan", G_AtkClan),
-	Json::Stringify("DefendingClan", G_DefClan),
-	PlayerStringify("AttackingPlayer", AtkPlayer),
-	PlayersStringify("DefendingPlayers", G_DefClan)
-])));
+if (MB_UseScriptCallbacks) {
+	XmlRpc.SendCallback("BeginTurn", Json::Enfold(Json::Merge([
+		Json::Stringify("TurnNumber", MB_SectionTurnNb),
+		TurnStringify(),
+		Json::Stringify("AttackingClan", G_AtkClan),
+		Json::Stringify("DefendingClan", G_DefClan),
+		PlayerStringify("AttackingPlayer", AtkPlayer),
+		PlayersStringify("DefendingPlayers", G_DefClan)
+	])));
+}
 ***
 
 // ---------------------------------- //
@@ -758,7 +772,7 @@ foreach (Player in Players) {
 
 // Display the "attacker capture the pole" message
 if (WinType == C_WinCapture) {
-	//sleep(290);
+	//MB_Sleep(290);
 	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::VictoryPoint;
 	UIManager.UIAll.BigMessageSoundVariant = 0;
 	UIManager.UIAll.BigMessage = _("Goal captured!");
@@ -779,7 +793,6 @@ if (Players.existskey(G_AtkPlayerId)) {
 declare Text Side;
 if (WinnerTurnClan == G_AtkClan) Side = "Attack";
 else Side = "Defence";
-//XmlRpc.SendCallback("endTurn",WinnerTurnClan^";"^Side^";"^WinType);
 declare AtkPlayer <=> CSmPlayer;
 declare HeaderClanScores = Integer[Integer];
 if (Players.existskey(G_AtkPlayerId)) AtkPlayer <=> Players[G_AtkPlayerId];
@@ -797,20 +810,22 @@ switch(WinType) {
 	case C_WinDefenseEliminated: WinTypeString = "DefenseEliminated";
 }
 
-XmlRpc.SendCallback("EndTurn", Json::Enfold(Json::Merge([
-	Json::Stringify("TurnNumber", MB_SectionTurnNb),
-	TurnStringify(),
-	Json::Stringify("AttackingClan", G_AtkClan),
-	Json::Stringify("DefendingClan", G_DefClan),
-	PlayerStringify("AttackingPlayer", AtkPlayer),
-	Json::Stringify("TurnWinnerClan", WinnerTurnClan),
-	Json::Stringify("WinType", WinTypeString),
-	Json::Stringify("Clan1RoundScore", Clan1Score),
-	Json::Stringify("Clan2RoundScore", Clan2Score),
-	Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
-	Json::Stringify("Clan2MapScore", HeaderClanScores[2]),
-	PlayersStringify("ScoresTable", 0)
-])));
+if (MB_UseScriptCallbacks) {
+	XmlRpc.SendCallback("EndTurn", Json::Enfold(Json::Merge([
+		Json::Stringify("TurnNumber", MB_SectionTurnNb),
+		TurnStringify(),
+		Json::Stringify("AttackingClan", G_AtkClan),
+		Json::Stringify("DefendingClan", G_DefClan),
+		PlayerStringify("AttackingPlayer", AtkPlayer),
+		Json::Stringify("TurnWinnerClan", WinnerTurnClan),
+		Json::Stringify("WinType", WinTypeString),
+		Json::Stringify("Clan1RoundScore", Clan1Score),
+		Json::Stringify("Clan2RoundScore", Clan2Score),
+		Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
+		Json::Stringify("Clan2MapScore", HeaderClanScores[2]),
+		PlayersStringify("ScoresTable", 0)
+	])));
+}
 
 // ---------------------------------- //
 // Update UI
@@ -821,7 +836,7 @@ UpdateLayerScoresTable(C_SequencePlaying);
 
 // ---------------------------------- //
 // Restart the script if the mode settings has changed
-assert(S_Mode == 0 || S_Mode == 1 || S_Mode == 2);
+assert(S_Mode == 0 || S_Mode == 1);
 if (S_Mode != OldMode) {
 	OldMode = S_Mode;
 	MatchEndRequested = True;
@@ -854,7 +869,7 @@ if (MostActivatedGoal != Null
 	UIManager.UIAll.GaugeClan = MostActivatedGoal.Gauge.Clan;
 	UIManager.UIAll.GaugeMessage = "" ^ MathLib::FloorInteger(UIManager.UIAll.GaugeRatio*100) ^ "%";
 }
-sleep(MathLib::NearestInteger(2000*S_SleepMultiplier));
+MB_Sleep(MathLib::NearestInteger(2000*S_SleepMultiplier));
 StartTime = -1;
 EndTime = -1;
 SM::UnspawnAllPlayers();
@@ -962,10 +977,10 @@ if (!MB_StopSubmatch && !MB_StopMap) {
 		UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> wins the turn!"), DefTeamName);
 	
 	if(S_Mode == 2 && PlayerDisconnected) 
-		UIManager.UIAll.BigMessage = TextLib::Compose(_("Clan Disconnected"));
+		UIManager.UIAll.BigMessage = TextLib::Compose(_("Clan disconnected"));
 		
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-	sleep(MathLib::NearestInteger(3000*S_SleepMultiplier));
+	MB_Sleep(MathLib::NearestInteger(3000*S_SleepMultiplier));
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 }
 
@@ -992,8 +1007,6 @@ if(S_Mode == 2)  {
 // ---------------------------------- //
 ***EndRound***
 ***
-//XmlRpc.SendCallback("endRound",""^MB_SectionRoundNb);
-
 // ---------------------------------- //
 // Skip the round end sequence if a vote passed
 if (MatchEndRequested) break;
@@ -1004,8 +1017,7 @@ if (MatchEndRequested) break;
 // ---------------------------------- //
 ***EndSubmatch***
 ***
-XmlRpc.SendCallback("EndSubmatch", Json::Enfold(Json::Stringify("SubmatchNumber", MB_SectionSubmatchNb)));
-//XmlRpc.SendCallback("endSubmatch","");
+if (MB_UseScriptCallbacks) XmlRpc.SendCallback("EndSubmatch", Json::Enfold(Json::Stringify("SubmatchNumber", MB_SectionSubmatchNb)));
 
 // ---------------------------------- //
 // Skip the submatch end sequence if a vote passed
@@ -1073,7 +1085,7 @@ UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 UIManager.UIAll.BigMessageSoundVariant = 0;
 UIManager.UIAll.BigMessage = Message;
 UpdateHeader();
-sleep(MathLib::NearestInteger(10000*S_SleepMultiplier));
+MB_Sleep(MathLib::NearestInteger(10000*S_SleepMultiplier));
 UIManager.UIAll.BigMessage = "";
 UIManager.UIAll.StatusMessage = "";
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
@@ -1092,16 +1104,15 @@ if (S_Mode == 2) {
 } else {
 	HeaderClanScores = [1 => G_MapScores[1], 2 => G_MapScores[2]];
 }
-XmlRpc.SendCallback("EndMap", Json::Enfold(Json::Merge([
-	Json::Stringify("MapNumber", MB_SectionMapNb),
-	Json::Stringify("MapWinnerClan", WinnerMapClan),
-	Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
-	Json::Stringify("Clan2MapScore", HeaderClanScores[2]),
-	PlayersStringify("ScoresTable", 0)
-])));
-
-//XmlRpc.SendCallback("endMap","");
-//sleep(1000);
+if (MB_UseScriptCallbacks) {
+	XmlRpc.SendCallback("EndMap", Json::Enfold(Json::Merge([
+		Json::Stringify("MapNumber", MB_SectionMapNb),
+		Json::Stringify("MapWinnerClan", WinnerMapClan),
+		Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
+		Json::Stringify("Clan2MapScore", HeaderClanScores[2]),
+		PlayersStringify("ScoresTable", 0)
+	])));
+}
 
 // ---------------------------------- //
 // Play map end sequence
@@ -1162,9 +1173,9 @@ if (WinnerMapClan != -1) {
 	if (UIManager.UIAll.StatusMessage == "" && S_Mode != 2)
 		UIManager.UIAll.StatusMessage = "$<"^Teams[0].ColorizedName^"$> "^Clan1Score^" - "^Clan2Score^" $<"^Teams[1].ColorizedName^"$>";
 	UpdateHeader();
-	sleep(MathLib::NearestInteger(6000*S_SleepMultiplier));
+	MB_Sleep(MathLib::NearestInteger(5000*S_SleepMultiplier));
 	UpdateLayerScoresTable(C_SequencePodium);
-	sleep(MathLib::NearestInteger(2000*S_SleepMultiplier));
+	MB_Sleep(MathLib::NearestInteger(3000*S_SleepMultiplier));
 }
 UIManager.UIAll.StatusMessage = "";
 UIManager.UIAll.BigMessage = "";
@@ -1188,7 +1199,12 @@ if (MatchEndRequested) {
 	
 	MB_SectionMapNb -= 1;
 	
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	UIManager.UIAll.StatusMessage = "";
+	UIManager.UIAll.BigMessage = _("Map skipped, going to the next.");
+	MB_Sleep(1500);
 	MatchmakingWait();
+	UIManager.UIAll.BigMessage = "";
 	Mode::UnloadMap();
 	
 	continue;
@@ -1235,7 +1251,7 @@ if (S_Mode != 2) {
 		UIManager.UIAll.BigMessage = Message;
 		UIManager.UIAll.StatusMessage = "$<"^Teams[0].ColorizedName^"$> "^G_MapScores[1]^" - "^G_MapScores[2]^" $<"^Teams[1].ColorizedName^"$>";
 		UpdateHeader();
-		sleep(MathLib::NearestInteger(10000*S_SleepMultiplier));
+		MB_Sleep(MathLib::NearestInteger(10000*S_SleepMultiplier));
 	}
 	
 	MatchmakingWait();
@@ -1257,22 +1273,21 @@ if (S_Mode == 2) {
 } else {
 	HeaderClanScores = [1 => G_MapScores[1], 2 => G_MapScores[2]];
 }
-XmlRpc.SendCallback("EndMatch", Json::Enfold(Json::Merge([
-	Json::Stringify("MatchNumber", MB_SectionMatchNb),
-	Json::Stringify("MatchWinnerClan", WinnerMatchClan),
-	Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
-	Json::Stringify("Clan2MapScore", HeaderClanScores[2])
-])));
-
-//XmlRpc.SendCallback("EndMatch", Json::Enfold(Json::Stringify("MatchNumber", MB_SectionMatchNb)));
-//XmlRpc.SendCallback("endMatch","");
+if (MB_UseScriptCallbacks) {
+	XmlRpc.SendCallback("EndMatch", Json::Enfold(Json::Merge([
+		Json::Stringify("MatchNumber", MB_SectionMatchNb),
+		Json::Stringify("MatchWinnerClan", WinnerMatchClan),
+		Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
+		Json::Stringify("Clan2MapScore", HeaderClanScores[2])
+	])));
+}
 ***
 
 ***EndServer***
 ***
 // Destroy Layers
 LayerDestroyed = Layers::Destroy("ScoresTable");
-LayerDestroyed = Layers::Destroy("PlayersLists");
+//LayerDestroyed = Layers::Destroy("PlayersLists");
 LayerDestroyed = Layers::Destroy("SpawnScreenAttack");
 LayerDestroyed = Layers::Destroy("SpawnScreenDefend");
 Layers::Clean();
@@ -1436,7 +1451,11 @@ Void UpgradeScore(Integer _iClan, Integer _iPlus) {
 		if (_iClan == G_AtkClan) {
 			G_MatchAtkPoints[1] += 1;
 			G_MapAtkPoints[1] += 1;
-			if (Players.existskey(G_AtkPlayerId)) Score::AddPoints(Players[G_AtkPlayerId], 1);
+			if (Players.existskey(G_AtkPlayerId)) {
+				Score::AddPoints(Players[G_AtkPlayerId], 1);
+				declare netwrite Net_LayerST_AtkPoints for Players[G_AtkPlayerId] = 0;
+				Net_LayerST_AtkPoints += 1;
+			}
 		}
 	} else {
 		Clan2Score += _iPlus;
@@ -1444,7 +1463,11 @@ Void UpgradeScore(Integer _iClan, Integer _iPlus) {
 		if (_iClan == G_AtkClan) {
 			G_MatchAtkPoints[2] += 1;
 			G_MapAtkPoints[2] += 1;
-			if (Players.existskey(G_AtkPlayerId)) Score::AddPoints(Players[G_AtkPlayerId], 1);
+			if (Players.existskey(G_AtkPlayerId)) {
+				Score::AddPoints(Players[G_AtkPlayerId], 1);
+				declare netwrite Net_LayerST_AtkPoints for Players[G_AtkPlayerId] = 0;
+				Net_LayerST_AtkPoints += 1;
+			}
 		}
 	}
 }
@@ -1570,85 +1593,15 @@ Text UpdateLayerSpawnScreen(Text _Objective) {
 }
 
 // ---------------------------------- //
-/** Draw the scores list for a clan
- * 
- * @param _ClanNb	Clan number wich to draw the scores list
- *
- * @return		The manialink string
- */
-Text DrawClanScoresList(Integer _ClanNb) {
-	declare ML = "";
-	declare I = 0;
-	declare Order = WarmUp::GetOrder();
-	if (!Order.existskey(_ClanNb)) return "";
-	Order[_ClanNb] = Order[_ClanNb].sort();
-	
-	foreach (PlayerId => PlayerOrder in Order[_ClanNb]) {
-		if (!Players.existskey(PlayerId)) continue;
-		
-		declare Player <=> Players[PlayerId];
-		declare Pseudo = Player.Name;
-		declare ScoreAtk = 0;
-		declare ScoreDef = 0;
-		declare Color = "0009";
-		declare Style = "BgCardPlayer";
-		
-		if (PlayerId == G_AtkPlayerId) { Color = "522b"; Style = "BgCardChallenge"; }
-		//else if (I % 2 == 0) Color = "222b";
-		
-		if (Player.Score != Null) {
-			declare NbHit for Player.Score = 0;
-			ScoreDef = NbHit;
-			ScoreAtk = Player.Score.Points;
-		}
-		
-		declare ReadyIcon = "";
-		if (WarmUp::IsRunning()) {
-			if (WarmUp::IsReady(Player)) {
-				ReadyIcon = "LvlGreen";
-			} else {
-				ReadyIcon = "LvlRed";
-			}
-		}
-		
-		if (_ClanNb == 1) {			
-			ML ^= """	
-				<frame posn="0 {{{ -(I * 10) }}} 40">
-					<quad  posn="0 0 0" sizen="80 9.7" bgcolor="{{{Color}}}" />
-					<quad  posn="-6 -2 11" sizen="5 5" style="Icons64x64_1"  id="IconReady" substyle="{{{ReadyIcon}}}" />
-					<label posn="5 -4.2 10" sizen="15 10" halign="center" valign="center" textemboss="1" text="{{{ ScoreDef }}}" />
-					<label posn="9 -4.2 10" sizen="60 10" textsize="4" halign="left" valign="center" textemboss="1" text=" {{{ TextLib::MLEncode(Pseudo) }}}" />
-					<label posn="75 -4.2 10" sizen="15 10" halign="center" valign="center" textemboss="1" text="{{{ ScoreAtk }}}" />
-				</frame>
-			""";
-		} else {
-			ML ^= """
-				<frame posn="0 {{{ -(I * 10) }}} 40">
-					<quad  posn="0 0 0" sizen="80 9.7" bgcolor="{{{Color}}}" />
-					<label posn="4.5 -4.2 10" sizen="15 10" halign="center" valign="center" textemboss="1" text="{{{ ScoreAtk }}}" />
-					<label posn="70 -4.2 10" sizen="60 10" textsize="4" halign="right" valign="center" textemboss="1" text=" {{{ TextLib::MLEncode(Pseudo) }}}" />
-					<label posn="75 -4.2 10" sizen="15 10" halign="center" valign="center" textemboss="1" text="{{{ ScoreDef }}}" />
-					<quad  posn="81 -2 11" sizen="5 5" style="Icons64x64_1"  id="IconReady" substyle="{{{ReadyIcon}}}" />
-				</frame>
-			""";
-		}
-		
-		I += 1;
-	}
-	
-	return ML;
-}
-
-
-// ---------------------------------- //
 /** Generate players list for the score table
  *
+ *	@param	_Mode	The mode creating the list: 1 = Elite, 2 = Heroes
  *	@param	_Nb		Number of players in the list
  *	@param	_Scale	Width scale
  *
  *	@return	The players list Text
  */
-Text CreatePlayersListBig(Integer _Nb, Real _Scale) {
+Text CreatePlayersListBig(Integer _Mode, Integer _Nb, Real _Scale) {
 	declare ML ="";
 	declare PosX = 0.;
 	declare PosY = 0.;
@@ -1657,6 +1610,9 @@ Text CreatePlayersListBig(Integer _Nb, Real _Scale) {
 	declare S = _Scale;
 	declare K = 1;
 	declare AvatarSize = 10.75;
+	
+	declare RocketHidden = 0;
+	if (_Mode == 2) RocketHidden = 1;
 	
 	ML ^= """
 <framemodel posn="0 0" id="Frame_PlayerLeft">
@@ -1667,13 +1623,20 @@ Text CreatePlayersListBig(Integer _Nb, Real _Scale) {
 	<quad posn="{{{(3*S)+6}}} {{{11.5/-2.}}} 2" sizen="{{{AvatarSize}}} {{{AvatarSize}}}" halign="center" valign="center" bgcolor="0003" opacity="0.9" id="Quad_Avatar" />
 	<label posn="{{{17*S}}} -6.4 3" sizen="{{{45*S}}} 12" textsize="3" valign="bottom" id="Label_Name" />
 	<label posn="{{{17*S}}} -10.4 3" sizen="{{{24*S}}} 5" textsize="1" valign="bottom" textemboss="1" id="Label_Rank" />
+	<frame posn="{{{14.6*S}}} -2.7 4" id="Frame_Stars">
+		<quad posn="0 0" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_5" hidden="1" />
+		<quad posn="0 -1.5" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_4" hidden="1" />
+		<quad posn="0 -3" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_3" hidden="1" />
+		<quad posn="0 -4.5" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_2" hidden="1" />
+		<quad posn="0 -6" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_1" hidden="1" />
+	</frame>
 	<frame posn="{{{63*S}}} -10.4 2" id="Frame_LadderPoints" hidden="1">
 		<quad posn="0 -2" sizen="{{{7*S}}} 7" halign="right" valign="bottom" style="Icons128x128_1" substyle="LadderPoints" />
-		<label posn="-8 0" sizen="{{{12*S}}} 5" textsize="1" halign="right" valign="bottom" id="Label_LadderPoints" />
+		<label posn="-8 0" sizen="{{{12*S}}} 5" textsize="1" textcolor="bb8" halign="right" valign="bottom" id="Label_LadderPoints" />
 	</frame>
 	<frame posn="{{{70*S}}} -5.5 2" id="Frame_DefPointsSimple">
 		<label posn="0 0" sizen="{{{5*S}}} 3" textsize="2" halign="left" valign="center" id="Label_DefPoints" />
-		<quad posn="-0.5 -0.2" sizen="5 5" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket.dds" />
+		<quad posn="-0.5 -0.2" sizen="5 5" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket.dds" hidden="{{{RocketHidden}}}" />
 	</frame>
 	<frame posn="{{{70*S}}} 0 2" id="Frame_DefPointsDetailed" hidden="1">
 		<label posn="0 -1.75" sizen="{{{5*S}}} 3" textsize="2" halign="left" valign="center" id="Label_DefLaser" />
@@ -1693,16 +1656,20 @@ Text CreatePlayersListBig(Integer _Nb, Real _Scale) {
 	<quad posn="{{{(-3*S)-6}}} {{{11.5/-2.}}} 2" sizen="{{{AvatarSize}}} {{{AvatarSize}}}" halign="center" valign="center" bgcolor="0003" opacity="0.9" id="Quad_Avatar" />
 	<label posn="{{{-17*S}}} -6.4 3" sizen="{{{45*S}}} 12" textsize="3" halign="right" valign="bottom" id="Label_Name" />
 	<label posn="{{{-17*S}}} -10.4 3" sizen="{{{24*S}}} 5" textsize="1" halign="right" valign="bottom" textemboss="1" id="Label_Rank" />
+	<frame posn="{{{-14.6*S}}} -2.7 4" id="Frame_Stars">
+		<quad posn="0 0" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_5" hidden="1" />
+		<quad posn="0 -1.5" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_4" hidden="1" />
+		<quad posn="0 -3" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_3" hidden="1" />
+		<quad posn="0 -4.5" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_2" hidden="1" />
+		<quad posn="0 -6" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_1" hidden="1" />
+	</frame>
 	<frame posn="{{{-63*S}}} -10.4 2" id="Frame_LadderPoints" hidden="1">
 		<quad posn="{{{13*S}}} -2" sizen="{{{7*S}}} 7" valign="bottom" style="Icons128x128_1" substyle="LadderPoints" />
-		<label posn="0 0" sizen="{{{12*S}}} 5" textsize="1" valign="bottom" id="Label_LadderPoints" />
+		<label posn="{{{12*S}}} 0" sizen="{{{12*S}}} 5" textsize="1" textcolor="bb8" halign="right" valign="bottom" id="Label_LadderPoints" />
 	</frame>
 	<frame posn="{{{-70*S}}} -5.5 2" id="Frame_DefPointsSimple">
 		<label posn="0 0" sizen="{{{5*S}}} 3" textsize="2" halign="right" valign="center" id="Label_DefPoints" />
-		<!-- Next data update
-		<quad posn="0.5 -0.2" sizen="5 5" halign="left" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket2.dds" />
-		-->
-		<quad posn="0.5 -0.2" sizen="5 5" halign="left" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket.dds" />
+		<quad posn="0.5 -0.2" sizen="5 5" halign="left" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket2.dds" hidden="{{{RocketHidden}}}" />
 	</frame>
 	<frame posn="{{{-70*S}}} 0 2"id="Frame_DefPointsDetailed" hidden="1">
 		<label posn="0 -1.75" sizen="{{{5*S}}} 3" textsize="2" halign="right" valign="center" id="Label_DefLaser" />
@@ -1715,19 +1682,22 @@ Text CreatePlayersListBig(Integer _Nb, Real _Scale) {
 	<label posn="{{{-76*S}}} -5.5 3" sizen="{{{5*S}}} 5" textsize="5" halign="right" valign="center" id="Label_AtkPoints" />
 </framemodel>
 """;
+	declare BgColor = C_UI_Colors["BG"];
+	if (_Mode == 2) BgColor = "667c";
+	
 	for (J, 1, 2) {
 		for (I, 1, PlayersByCol) {
 			if (J % 2 == 1) {
 				ML ^= """
 <frame posn="{{{PosX}}} {{{PosY}}}">
-	<quad posn="0 0 -6" sizen="{{{81.8*S}}} 11.5" bgcolor="{{{C_UI_Colors["BG"]}}}" />
+	<quad posn="0 0 -6" sizen="{{{81.8*S}}} 11.5" bgcolor="{{{BgColor}}}" />
 	<frameinstance modelid="Frame_PlayerLeft" id="Frame_Player_{{{K}}}" />
 </frame>
 """;
 			} else {
 				ML ^= """
 <frame posn="{{{PosX+(164*S/2.)}}} {{{PosY}}}">
-	<quad posn="0 0 -6" sizen="{{{81.8*S}}} 11.5" bgcolor="{{{C_UI_Colors["BG"]}}}" halign="right" />
+	<quad posn="0 0 -6" sizen="{{{81.8*S}}} 11.5" bgcolor="{{{BgColor}}}" halign="right" />
 	<frameinstance modelid="Frame_PlayerRight" id="Frame_Player_{{{K}}}" />
 </frame>
 """;
@@ -1783,7 +1753,7 @@ Void UpdateHeader() {
 			Player2 <=> Player;
 		}
 	}
-
+	
 	UIManager.UIAll.OverlayScoreSummary = True;
 	if (Player1 != Null) {
 		UIManager.UIAll.ScoreSummary_Player1 = Player1.Id;
@@ -2013,9 +1983,9 @@ Integer CanStartTurn(Boolean _MinimumCriteria) {
 /// Warmup.
 Void DoWarmUp() {
 	// Waiting that the UI receives initial data
-	sleep(1000);
+	MB_Sleep(1000);
 	
-	XmlRpc.SendCallback("BeginWarmup", Json::Enfold(Json::Stringify("AllReady", False)));
+	if (MB_UseScriptCallbacks) XmlRpc.SendCallback("BeginWarmup", Json::Enfold(Json::Stringify("AllReady", False)));
 
 	declare RazorTime = -1;
 	StartTime = Now + 1000;
@@ -2062,6 +2032,7 @@ Void DoWarmUp() {
 		}
 		
 		WarmUp::Loop();
+		XmlRpc::Loop();
 		
 		if (WarmUp::OrderHasChanged() || WarmUp::ReadyHasChanged()) {
 			G_MapOrder = WarmUp::GetOrder();
@@ -2100,7 +2071,7 @@ Void DoWarmUp() {
 	StartTime = -1;
 	EndTime = -1;
 	
-	XmlRpc.SendCallback("EndWarmup", Json::Enfold(Json::Stringify("AllReady", True)));
+	if (MB_UseScriptCallbacks) XmlRpc.SendCallback("EndWarmup", Json::Enfold(Json::Stringify("AllReady", True)));
 	
 	PlaySound(CUIConfig::EUISound::StartMatch, 0);
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;

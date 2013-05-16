@@ -2,7 +2,7 @@
  * ScoresTable library
  */
 
-#Const Version		"2013-04-18"
+#Const Version		"2013-05-14"
 #Const ScriptName	"ScoresTable.Script.txt"
 
 #Include "TextLib" as TL
@@ -14,7 +14,7 @@
 #Const C_LibST_Z							20
 #Const C_LibST_TablePosX					0.
 #Const C_LibST_TablePosY					42.
-#Const C_LibST_TableSizeX					165.
+#Const C_LibST_TableSizeX					188.
 #Const C_LibST_HeaderSizeY					12.
 #Const C_LibST_PlayerSizeY					10.
 #Const C_LibST_FooterSizeY					15.
@@ -35,7 +35,8 @@
 	"Background" => "0007",
 	"PlayerCardTop" => "222d",
 	"PlayerCardBottom" => "111d",
-	"PlayerCardOff" => "111a"
+	"PlayerCardOff" => "111a",
+	"PlayerCardMe" => "fff3"
 ]
 #Const C_LibST_PlayerCardDimensions [
 	"Position"		=> <2.	, 6.>,
@@ -57,8 +58,13 @@
 	"RoundPoints"	=> _("Points"),
 	"Points"		=> _("Total")
 ]
-#Const C_LibST_RoundScoreFormat	"$s$0c0+"//"$s$050+"
-#Const C_LibST_DisplayTeamScore	True
+#Const C_LibST_RoundPointsFormat	"$0c0+"
+#Const C_LibST_PointsFormat			""
+#Const C_LibST_DisplayTeamScore		False
+#Const C_LibST_FooterStatsTextSize 	2
+#Const C_LibST_DisplayPlayerInfo 	True
+#Const C_LibST_DisplayManiaStars 	True
+#Const C_ImgBaseDir					"file://Media/Manialinks/Shootmania/Common/"
 
 // ---------------------------------- //
 // Globales
@@ -101,6 +107,8 @@ declare Text	G_LibST_DefaultCustom2;
 declare Text	G_LibST_DefaultCustom3;
 declare Text	G_LibST_DefaultPIScore;
 declare Text	G_LibST_DefaultPIStats;
+declare Text	G_LibST_DefaultPICustom1;
+declare Text	G_LibST_DefaultPICustom2;
 // Scores table colors
 declare Text[Text]	G_LibST_Colors;
 // Player card dimensions
@@ -110,9 +118,13 @@ declare Text[Text]	G_LibST_ColumnsNames;
 // 
 declare Integer		G_LibST_CustomUpdateCount;
 
-declare Text 	G_LibST_RoundScoreFormat;
+declare Text 	G_LibST_RoundPointsFormat;
+declare Text	G_LibST_PointsFormat;
 declare Real 	G_LibST_Height;
 declare Boolean G_LibST_DisplayTeamScore;
+declare Integer	G_LibST_FooterStatsTextSize;
+declare Boolean G_LibST_DisplayPlayerInfo;
+declare Boolean G_LibST_DisplayManiaStars;
 
 // ---------------------------------- //
 // Functions
@@ -284,15 +296,19 @@ Void Load() {
 	// Initialize columns names
 	G_LibST_ColumnsNames = C_LibST_ColumnsNames;
 	
-	G_LibST_RoundScoreFormat = C_LibST_RoundScoreFormat;
+	G_LibST_RoundPointsFormat = C_LibST_RoundPointsFormat;
+	G_LibST_PointsFormat = C_LibST_PointsFormat;
 	G_LibST_DisplayTeamScore = C_LibST_DisplayTeamScore; // By default, use team scores
+	G_LibST_FooterStatsTextSize = C_LibST_FooterStatsTextSize;
+	G_LibST_DisplayPlayerInfo = C_LibST_DisplayPlayerInfo;
+	G_LibST_DisplayManiaStars = C_LibST_DisplayManiaStars;
 	
 	// Disable the default scores table
 	UIManager.UIAll.ScoreTableOnlyManialink = True;
 	
 	// Initialize players custom fields
 	G_LibST_CustomUpdateCount = 0;
-	foreach (Player in Players) {
+	foreach (Player in AllPlayers) {
 		declare UI <=> UIManager.GetUI(Player);
 		if (UI == Null) continue;
 		
@@ -302,33 +318,18 @@ Void Load() {
 		declare netwrite Text		Net_LibST_Custom3		for Player;
 		declare netwrite Text		Net_LibST_PIScore		for Player;
 		declare netwrite Text		Net_LibST_PIStats		for Player;
+		declare netwrite Text		Net_LibST_PICustom1		for Player;
+		declare netwrite Text		Net_LibST_PICustom2		for Player;
 		Net_LibST_CustomUpdate	= 0;
 		Net_LibST_Custom1		= "";
 		Net_LibST_Custom2		= "";
 		Net_LibST_Custom3		= "";
 		Net_LibST_PIScore		= "";
 		Net_LibST_PIStats		= "";
+		Net_LibST_PICustom1		= "";
+		Net_LibST_PICustom2		= "";
 	}
 }
-
-// ---------------------------------- //
-/// Initialize the players scores
-Void StartMatch() {
-	foreach (Score in Scores) {
-		declare Text LibST_Custom1 for Score;
-		declare Text LibST_Custom2 for Score;
-		declare Text LibST_Custom3 for Score;
-		declare Text LibST_PIScore for Score;
-		declare Text LibST_PIStats for Score;
-		LibST_Custom1 = G_LibST_DefaultCustom1;
-		LibST_Custom2 = G_LibST_DefaultCustom2;
-		LibST_Custom3 = G_LibST_DefaultCustom3;
-		LibST_PIScore = G_LibST_DefaultPIScore;
-		LibST_PIStats = G_LibST_DefaultPIStats;
-	}
-}
-
-Void EndMatch() {}
 
 // ---------------------------------- //
 /** Set the custom1 score of a player
@@ -416,6 +417,40 @@ Void SetFooterStats(CSmPlayer _Player, Text _Value) {
 }
 
 // ---------------------------------- //
+/** Set the footer custom 1 of a player
+ *
+ *	@param	_Player		The player to update
+ *	@param	_Value		The new value
+ */
+Void SetFooterCustom1(CSmPlayer _Player, Text _Value) {
+	if (_Player.Score == Null) return;
+	declare netwrite Integer	Net_LibST_CustomUpdate	for _Player;
+	declare netwrite Text		Net_LibST_PICustom1		for _Player;
+	declare Text 				LibST_PICustom1			for _Player.Score;
+	Net_LibST_PICustom1			= _Value;
+	LibST_PICustom1				= Net_LibST_PICustom1;
+	G_LibST_CustomUpdateCount	+= 1;
+	Net_LibST_CustomUpdate		= G_LibST_CustomUpdateCount;
+}
+
+// ---------------------------------- //
+/** Set the footer custom 2 of a player
+ *
+ *	@param	_Player		The player to update
+ *	@param	_Value		The new value
+ */
+Void SetFooterCustom2(CSmPlayer _Player, Text _Value) {
+	if (_Player.Score == Null) return;
+	declare netwrite Integer	Net_LibST_CustomUpdate	for _Player;
+	declare netwrite Text		Net_LibST_PICustom2		for _Player;
+	declare Text 				LibST_PICustom2			for _Player.Score;
+	Net_LibST_PICustom2			= _Value;
+	LibST_PICustom2				= Net_LibST_PICustom2;
+	G_LibST_CustomUpdateCount	+= 1;
+	Net_LibST_CustomUpdate		= G_LibST_CustomUpdateCount;
+}
+
+// ---------------------------------- //
 /** Set the default custom1 score
  *
  *	@param	_Value		The new value
@@ -460,14 +495,40 @@ Void SetDefaultFooterStats(Text _Value) {
 	G_LibST_DefaultPIStats = TL::MLEncode(_Value);
 }
 
+// ---------------------------------- //
+/** Set the default footer custom 1 value
+ *
+ *	@param	_Value		The new value
+ */
+Void SetDefaultFooterCustom1(Text _Value) {
+	G_LibST_DefaultPICustom1 = TL::MLEncode(_Value);
+}
 
 // ---------------------------------- //
-/** Set the default format for Round Scores
+/** Set the default footer custom 2 value
+ *
+ *	@param	_Value		The new value
+ */
+Void SetDefaultFooterCustom2(Text _Value) {
+	G_LibST_DefaultPICustom2 = TL::MLEncode(_Value);
+}
+
+// ---------------------------------- //
+/** Set the default format for round points
  *
  *	@param	_RoundScoreFormat		a text format, e.g. "$f00$s+"
  */
 Void SetRoundScoreFormat(Text _RoundScoreFormat){
-	G_LibST_RoundScoreFormat = TL::MLEncode(_RoundScoreFormat);
+	G_LibST_RoundPointsFormat = TL::MLEncode(_RoundScoreFormat);
+}
+
+// ---------------------------------- //
+/** Set the default format for points
+ *
+ *	@param	_ScoreFormat		a text format, e.g. "$f00$s+"
+ */
+Void SetScoreFormat(Text _ScoreFormat){
+	G_LibST_PointsFormat = TL::MLEncode(_ScoreFormat);
 }
 
 // ---------------------------------- //
@@ -485,11 +546,15 @@ Void RestoreCustomScores(CSmPlayer _Player) {
 	declare netwrite Text		Net_LibST_Custom3		for _Player;
 	declare netwrite Text		Net_LibST_PIScore 		for _Player;
 	declare netwrite Text		Net_LibST_PIStats		for _Player;
+	declare netwrite Text		Net_LibST_PICustom1		for _Player;
+	declare netwrite Text		Net_LibST_PICustom2		for _Player;
 	declare LibST_Custom1 for _Player.Score = G_LibST_DefaultCustom1;
 	declare LibST_Custom2 for _Player.Score = G_LibST_DefaultCustom2;
 	declare LibST_Custom3 for _Player.Score = G_LibST_DefaultCustom3;
 	declare LibST_PIScore for _Player.Score = G_LibST_DefaultPIScore;
 	declare LibST_PIStats for _Player.Score = G_LibST_DefaultPIStats;
+	declare LibST_PICustom1 for _Player.Score = G_LibST_DefaultPICustom1;
+	declare LibST_PICustom2 for _Player.Score = G_LibST_DefaultPICustom2;
 	
 	G_LibST_CustomUpdateCount	+= 1;
 	Net_LibST_CustomUpdate	= G_LibST_CustomUpdateCount;
@@ -498,7 +563,36 @@ Void RestoreCustomScores(CSmPlayer _Player) {
 	Net_LibST_Custom3		= LibST_Custom3;
 	Net_LibST_PIScore		= LibST_PIScore;
 	Net_LibST_PIStats		= LibST_PIStats;
+	Net_LibST_PICustom1		= LibST_PICustom1;
+	Net_LibST_PICustom2		= LibST_PICustom2;
 }
+
+// ---------------------------------- //
+/// Initialize the players scores
+Void StartMatch() {
+	foreach (Score in Scores) {
+		declare Text LibST_Custom1 for Score;
+		declare Text LibST_Custom2 for Score;
+		declare Text LibST_Custom3 for Score;
+		declare Text LibST_PIScore for Score;
+		declare Text LibST_PIStats for Score;
+		declare Text LibST_PICustom1 for Score;
+		declare Text LibST_PICustom2 for Score;
+		LibST_Custom1 = G_LibST_DefaultCustom1;
+		LibST_Custom2 = G_LibST_DefaultCustom2;
+		LibST_Custom3 = G_LibST_DefaultCustom3;
+		LibST_PIScore = G_LibST_DefaultPIScore;
+		LibST_PIStats = G_LibST_DefaultPIStats;
+		LibST_PICustom1 = G_LibST_DefaultPICustom1;
+		LibST_PICustom2 = G_LibST_DefaultPICustom2;
+	}
+	
+	foreach (Player in AllPlayers) {
+		RestoreCustomScores(Player);
+	}
+}
+
+Void EndMatch() {}
 
 // ---------------------------------- //
 /** Get the scores table layer
@@ -728,11 +822,43 @@ Void SetColumnWidth(Text _Column, Real _Width) {
 	}
 }
 
+// ---------------------------------- //
 /**
  * Display scores of teams or not
+ *
+ *	@param	_DisplayTeamScore	The new display value
  */
 Void SetDisplayTeamScore(Boolean _DisplayTeamScore) {
 	G_LibST_DisplayTeamScore = _DisplayTeamScore;
+}
+
+// ---------------------------------- //
+/** Set the text size of the stats line in the footer
+ *
+ *	@param	_Size	New size of the text
+ */
+Void SetFooterStatsTextSize(Integer _Size) {
+	G_LibST_FooterStatsTextSize = _Size;
+}
+
+// ---------------------------------- //
+/**
+ * Display the local player info in the footer
+ *
+ *	@param	_DisplayPlayerInfo	The new display value
+ */
+Void SetDisplayPlayerInfo(Boolean _DisplayPlayerInfo) {
+	G_LibST_DisplayPlayerInfo = _DisplayPlayerInfo;
+}
+
+// ---------------------------------- //
+/**
+ * Display the maniastars of the players
+ *
+ *	@param	_DisplayManiaStars	The new display value
+ */
+Void SetDisplayManiaStars(Boolean _DisplayManiaStars) {
+	G_LibST_DisplayManiaStars = _DisplayManiaStars;
 }
 
 // ---------------------------------- //
@@ -767,8 +893,8 @@ Void Build() {
 	// With 2 images
 	if(G_LibST_TableBackgroundImageLeft!="") {
 		declare Pos			= G_LibST_TableBackgroundPos.X^" "^G_LibST_TableBackgroundPos.Y^" "^(C_LibST_Z);
-		declare PosLeft		= (G_LibST_TableBackgroundPos.X-G_LibST_TableBgLeftRightXOffset)^" "^(G_LibST_TableBackgroundPos.Y-G_LibST_TableBgLeftRightYOffset)^" "^(C_LibST_Z + 10);
-		declare PosRight	= (G_LibST_TableBackgroundPos.X+G_LibST_TableBgLeftRightXOffset)^" "^(G_LibST_TableBackgroundPos.Y-G_LibST_TableBgLeftRightYOffset)^" "^(C_LibST_Z + 10);
+		declare PosLeft		= (G_LibST_TableBackgroundPos.X-G_LibST_TableBgLeftRightXOffset)^" "^(G_LibST_TableBackgroundPos.Y-G_LibST_TableBgLeftRightYOffset)^" "^(C_LibST_Z + 16);
+		declare PosRight	= (G_LibST_TableBackgroundPos.X+G_LibST_TableBgLeftRightXOffset)^" "^(G_LibST_TableBackgroundPos.Y-G_LibST_TableBgLeftRightYOffset)^" "^(C_LibST_Z + 16);
 		declare Size		= G_LibST_TableBackgroundSize.X^" "^G_LibST_TableBackgroundSize.Y;
 		BGSizeY	= G_LibST_TableBackgroundSize.Y;
 		declare SizeLeftRight = G_LibST_TableBgLeftRightSize^" "^G_LibST_TableBgLeftRightSize;
@@ -809,43 +935,50 @@ Void Build() {
 	declare HeaderML = "";
 	// For teams mode
 	if (UseClans) {
-		declare NTScale = 0.6;
-		declare NTSizeX = ((G_LibST_TableSizeX/2.) - 45.) / NTScale;
+		declare NTSizeX = ((G_LibST_TableSizeX/2.) - 45.);
+		declare NTPosX = (NTSizeX/2.) + 32.5;
 		declare STScale = 0.7;
 		declare STSizeX = 12. / STScale;
 		
 		declare Real EmblemSize = 15.;
 		HeaderML = """
-			<frame posn="0 -1" id="Frame_VS">
+			<frame posn="0 0" id="Frame_VS">
 				<quad posn="-6 -11 {{{C_LibST_Z+5}}}" sizen="{{{EmblemSize}}} {{{EmblemSize}}}" halign="right" valign="bottom" style="Emblems" substyle="#1" />
 				<quad posn="6 -11 {{{C_LibST_Z+5}}}" sizen="{{{EmblemSize}}} {{{EmblemSize}}}" valign="bottom" style="Emblems" substyle="#2" />
 				<label posn="-21 -3 {{{ZText}}}" sizen="{{{STSizeX}}} 5" scale="{{{STScale}}}" halign="right" valign="center" style="TextRaceMessageBig" text="0" id="Label_ScoreTeam1" />
 				<label posn="21 -3 {{{ZText}}}" sizen="{{{STSizeX}}} 5" scale="{{{STScale}}}" valign="center" style="TextRaceMessageBig" text="0" id="Label_ScoreTeam2" />
-				<label posn="-36 -3 {{{ZText}}}" sizen="{{{NTSizeX}}} 5" scale="{{{NTScale}}}" halign="right" valign="center" style="TextRaceMessageBig" id="Label_NameTeam1" />
-				<label posn="36 -3 {{{ZText}}}" sizen="{{{NTSizeX}}} 5" scale="{{{NTScale}}}" valign="center" style="TextRaceMessageBig" id="Label_NameTeam2" />
+				<label posn="{{{-NTPosX}}} -3 {{{ZText}}}" sizen="{{{NTSizeX}}} 5" halign="center" valign="center" textemboss="1" id="Label_NameTeam1" />
+				<label posn="{{{NTPosX}}} -3 {{{ZText}}}" sizen="{{{NTSizeX}}} 5" halign="center" valign="center" textemboss="1" id="Label_NameTeam2" />
 			</frame>
 			""";
 	}
 	// For solo mode
 	else {
 		HeaderML = """
-<label posn="0 -2.5 {{{ZText}}}" sizen="{{{G_LibST_TableSizeX - 20.}}} {{{G_LibST_HeaderSizeY}}}" halign="center" textsize="6" textprefix="$s" text="{{{_("Ranking")}}}" />
+<label posn="{{{-(G_LibST_TableSizeX/2.)+3.}}} -2.5 {{{ZText}}}" sizen="{{{G_LibST_TableSizeX - 20.}}} {{{G_LibST_HeaderSizeY}}}" textsize="6" textemboss="1" text="{{{_("Ranking")}}}" id="Label_Header" />
 """;
 	}
 	
 	// ---------------------------------- //
 	// Create the pager
-	declare PagerImagePath = "file://Media/Manialinks/Shootmania/Common/Pager/";
+	declare PagerImagePath = C_ImgBaseDir^"Pager/";
 	declare PagerUp 	= PagerImagePath^"pagerUpOff.dds";
 	declare PagerDown 	= PagerImagePath^"pagerDownOff.dds";
 	declare PagerEnd	= PagerImagePath^"pagerEmpty.dds";
+	declare PagerPosX	= 3.;
+	declare PagerPosY	= 8.5;
+	if (UseClans) {
+		PagerPosX	= 3.;
+		PagerPosY	= 1.8;
+	}
 	
 	declare PagerML = """
-<frame posn="{{{(G_LibST_TableSizeX/2.) - 4.}}} {{{-G_LibST_HeaderSizeY+3}}} 3" id="Frame_Pager" hidden="1">
-	<quad posn="0 -4 {{{C_LibST_Z+1}}}" sizen="4 4" halign="right" valign="bottom" image="{{{PagerUp}}}" scriptevents="1" id="Button_PagePrev" />
-	<quad posn="0 -4 {{{C_LibST_Z+1}}}" sizen="4 4" halign="left"  valign="bottom" image="{{{PagerDown}}}" scriptevents="1" id="Button_PageNext" />
-	<quad posn="0 -4 {{{C_LibST_Z+1}}}" sizen="4 4" halign="right" valign="bottom" image="{{{PagerEnd}}}" hidden="1" id="Button_PagePrevOff" />
-	<quad posn="0 -4 {{{C_LibST_Z+1}}}" sizen="4 4" halign="left"  valign="bottom" image="{{{PagerEnd}}}" hidden="1" id="Button_PageNextOff" />
+<frame posn="{{{(G_LibST_TableSizeX/2.)-PagerPosX}}} {{{-G_LibST_HeaderSizeY+PagerPosY}}} 3" id="Frame_Pager" hidden="1">
+	<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="5 5" halign="center"  valign="center" image="{{{PagerDown}}}" scriptevents="1" id="Button_PageNext" />
+	<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="5 5" halign="center"  valign="center" image="{{{PagerEnd}}}" hidden="1" id="Button_PageNextOff" />
+	<quad posn="-4.5 0 {{{C_LibST_Z+1}}}" sizen="5 5" halign="center" valign="center" image="{{{PagerUp}}}" scriptevents="1" id="Button_PagePrev" />
+	<quad posn="-4.5 0 {{{C_LibST_Z+1}}}" sizen="5 5" halign="center" valign="center" image="{{{PagerEnd}}}" hidden="1" id="Button_PagePrevOff" />
+	<quad posn="-6.7 0 {{{C_LibST_Z+1}}}" sizen="4.4 4.4" halign="right" valign="center" style="Icons64x64_1" substyle="Maximize" scriptevents="1" id="Button_PagePlayer" />
 </frame>
 """;
 
@@ -884,8 +1017,13 @@ Void Build() {
 	declare TagSizeX		= TagsSizeX/3.;
 	declare TagSize			= Private_ResizeKeepRatio(16., 9., TagSizeX, PTopSizeY);
 	
-	//declare StarSizeX		= _X("Name")/5.;
+	
 	declare StarSizeX		= 3.;
+	declare ManiaStarsHidden = 0;
+	if (!G_LibST_DisplayManiaStars)	{
+		ManiaStarsHidden = 1;
+		StarSizeX = 0.;
+	}
 	
 	declare StatusSize		= Private_ResizeSquare(_X("Status"), PTopSizeY);
 	declare AvatarSize		= Private_ResizeSquare(_X("Avatar"), PTopSizeY);
@@ -923,8 +1061,8 @@ Void Build() {
 	// ---------------------------------- //
 	// Column legend
 	declare LegendModel = """
-	<framemodel posn="0 0.5" id="Frame_Legends">
-		<frame posn="0 0 {{{ZText}}}">
+	<framemodel id="Frame_Legends">
+		<frame posn="0 1 {{{ZText}}}">
 			<label posn="{{{Custom1PosX-1.}}} 0" sizen="{{{_X("Custom1")-1.}}} {{{PLegendSizeY}}}" halign="right" valign="bottom" style="TextCardSmallScores2Rank" textprefix="$s" text="{{{G_LibST_ColumnsNames["Custom1"]}}}" hidden="{{{Custom1Hidden}}}" />
 			<label posn="{{{Custom2PosX-1.}}} 0" sizen="{{{_X("Custom2")-1.}}} {{{PLegendSizeY}}}" halign="right" valign="bottom" style="TextCardSmallScores2Rank" textprefix="$s" text="{{{G_LibST_ColumnsNames["Custom2"]}}}" hidden="{{{Custom2Hidden}}}" />
 			<label posn="{{{Custom3PosX-1.}}} 0" sizen="{{{_X("Custom3")-1.}}} {{{PLegendSizeY}}}" halign="right" valign="bottom" style="TextCardSmallScores2Rank" textprefix="$s" text="{{{G_LibST_ColumnsNames["Custom3"]}}}" hidden="{{{Custom3Hidden}}}" />
@@ -941,8 +1079,8 @@ Void Build() {
 	// Without an image
 	if (G_LibST_PlayerCardBackgroundImage1 == "") {
 		BGPlayerCardML = """
-<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="{{{PSize}}}" valign="center" bgcolor="{{{G_LibST_Colors["PlayerCardTop"]}}}" />
-<quad posn="0 0 {{{C_LibST_Z+9}}}" sizen="{{{PSize}}}" valign="center" bgcolor="{{{G_LibST_Colors["PlayerCardOff"]}}}" id="Quad_Off" hidden="1" />
+<quad posn="{{{AvatarPosX}}} 0 {{{C_LibST_Z+1}}}" sizen="{{{PSizeX-AvatarPosX+1.}}} {{{PSizeY+0.5}}}" valign="center" image="{{{C_ImgBaseDir}}}ScoresRectangle.dds" />
+<quad posn="{{{AvatarPosX}}} 0 {{{C_LibST_Z+9}}}" sizen="{{{PSizeX-AvatarPosX+1.}}} {{{PSizeY+0.5}}}" valign="center" image="{{{C_ImgBaseDir}}}ScoresRectangleUnspawn.dds" id="Quad_Off" hidden="1" />
 """;
 	} 
 	// With an image
@@ -961,20 +1099,18 @@ Void Build() {
 <framemodel id="Frame_Player">
 	{{{BGPlayerCardML}}}
 	
-	<quad posn="0 0 {{{C_LibST_Z+2}}}" sizen="{{{_X("Position")+_X("Status")}}} {{{PSizeY}}}" valign="center" bgcolor="000a" hidden="{{{PositionHidden}}}" />
-	
-	<label posn="{{{PositionPosX+(_X("Position")/2.)}}} 0 {{{ZText}}}" sizen="{{{_X("Position")/0.3}}} {{{_Y("Position")/0.3}}}" scale="0.3" halign="center" valign="center" style="TextRaceMessageBig" id="Label_Position" hidden="{{{PositionHidden}}}" />
+	<quad posn="0 0 {{{C_LibST_Z+14}}}" sizen="{{{_X("Position")+_X("Status")+1.}}} {{{PSizeY+0.5}}}" valign="center" bgcolor="000a" image="{{{C_ImgBaseDir}}}ScoresSquare.dds" hidden="{{{PositionHidden}}}" />
+	<label posn="{{{PositionPosX+(_X("Position")/2.)+(_X("Status")*(10./100.))+0.8}}} 0.3 {{{C_LibST_Z+15}}}" sizen="{{{(_X("Position")-0.8)/0.7}}} {{{_Y("Position")/0.7}}}" scale="0.7" halign="center" valign="center" id="Label_Position" hidden="{{{PositionHidden}}}" />
 
-	<quad posn="{{{StatusPosX+(_X("Status")/2.)}}} 0 {{{C_LibST_Z+3}}}" sizen="{{{StatusSize.X}}} {{{StatusSize.Y}}}" scale="0.7" halign="center" valign="center" style="Icons64x64_1" id="Quad_Status" hidden="{{{StatusHidden}}}" />
+	<quad posn="{{{StatusPosX+(_X("Status")/2.)}}} 0 {{{C_LibST_Z+15}}}" sizen="{{{StatusSize.X}}} {{{StatusSize.Y}}}" scale="0.7" halign="center" valign="center" style="Icons64x64_1" id="Quad_Status" hidden="{{{StatusHidden}}}" />
 	
 	
 	<frame posn="0 {{{PTopPosY}}}">
-	
 		<quad posn="{{{AvatarPosX+(_X("Avatar")/2.)}}} 0 {{{C_LibST_Z+3}}}" sizen="{{{AvatarSize.X}}} {{{AvatarSize.Y}}}" scale="0.9" halign="center" valign="center" bgcolor="0007" id="Quad_Avatar" hidden="{{{AvatarHidden}}}" />
 		
-		<label posn="{{{NamePosX}}} 0.4 {{{ZText}}}" sizen="{{{_X("Name")-StarSize.X}}} {{{_Y("Name")}}}" valign="center" style="TextRaceMessage" id="Label_Name" hidden="{{{NameHidden}}}" />
+		<label posn="{{{NamePosX}}} 0.4 {{{ZText}}}" sizen="{{{_X("Name")-(2*StarSize.X)}}} {{{_Y("Name")}}}" valign="center" style="TextRaceMessage" id="Label_Name" hidden="{{{NameHidden}}}" />
 		
-		<frame posn="{{{NamePosX+_X("Name")}}} 0 {{{C_LibST_Z+3}}}">
+		<frame posn="{{{NamePosX+_X("Name")}}} 0 {{{C_LibST_Z+3}}}" hidden="{{{ManiaStarsHidden}}}">
 			<quad posn="0 0" sizen="{{{StarSize.X}}} {{{StarSize.Y}}}" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_1" />
 			<quad posn="{{{-StarSize.X*1.}}} 0" sizen="{{{StarSize.X}}} {{{StarSize.Y}}}" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_2" />
 			<quad posn="{{{-StarSize.X*2.}}} 0" sizen="{{{StarSize.X}}} {{{StarSize.Y}}}" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_3" />
@@ -1007,7 +1143,7 @@ Void Build() {
 	
 	</frame>
 	<frame posn="0 {{{PBotPosY}}}">
-		<quad posn="{{{AvatarPosX}}} 0 {{{C_LibST_Z+4}}}" sizen="{{{PSizeX-AvatarPosX}}} {{{PBotSizeY}}}" valign="center" bgcolor="{{{G_LibST_Colors["PlayerCardBottom"]}}}" />
+		<!--<quad posn="{{{AvatarPosX}}} 0 {{{C_LibST_Z+4}}}" sizen="{{{PSizeX-AvatarPosX}}} {{{PBotSizeY}}}" valign="center" bgcolor="{{{G_LibST_Colors["PlayerCardBottom"]}}}" />-->
 		
 		<frame posn="{{{AvatarPosX}}} 0.2">
 			<frame posn="1 0 {{{ZText}}}">
@@ -1035,17 +1171,20 @@ Void Build() {
 	</frame>
 </framemodel>
 """;
-
-	PlayersML ^= """{{{LegendModel}}}{{{PlayerCardModel}}}""";
+	
+	declare InputPlayerBG = """<quad posn="0 0 {{{C_LibST_Z}}}" sizen="{{{PSizeX+1.5}}} {{{PSizeY+1.5}}}" valign="center" style="Icons128x128_Blink" substyle="ShareBlink" id="Quad_Me" hidden="1" />""";
+	
+	PlayersML ^= """{{{LegendModel}}}{{{InputPlayerBG}}}{{{PlayerCardModel}}}""";
 	
 	for (I, 1, G_LibST_ColNb) {
 		PlayersML ^= """
 <frame posn="{{{(I-1)*PShiftX}}} {{{-PLegendSizeY}}} 1" id="Frame_Col_{{{I}}}">
 	<frameinstance modelid="Frame_Legends" id="Frame_Legends" />
 """;
-		for (J, 1, G_LibST_LinesByColNb) {			
+		for (J, 1, G_LibST_LinesByColNb) {
 			PlayersML ^= """
 	<frame posn="0 {{{(-(J-1)*PShiftY)-(PSizeY/2.)}}}">
+		<label posn="{{{((I-1)*PShiftX)-0.5}}} {{{(-(J-1)*PShiftY)-(PSizeY/2.)-PLegendSizeY}}}" hidden="1" id="Label_PlayerPos_{{{J}}}" />
 		<frameinstance modelid="Frame_Player" id="Frame_Player_{{{J}}}" />
 		<frame posn="0 {{{PTopPosY}}}" id="Frame_Buttons">
 			<quad posn="{{{SpectatorPosX-(_X("Spectator")/2.)}}} 0 {{{C_LibST_Z+11}}}" sizen="{{{SpectatorSize.X}}} {{{SpectatorSize.Y}}}" halign="center" valign="center" style="UIConstructionSimple_Buttons" substyle="Camera" scriptevents="1" id="Button_Spec_{{{Key}}}" />
@@ -1062,7 +1201,8 @@ Void Build() {
 	
 	// ---------------------------------- //
 	// Create the footer
-	declare RPosX = G_LibST_TableSizeX - 1.;
+	declare LPosX = 2.;
+	declare RPosX = G_LibST_TableSizeX - 2.;
 	declare NameScale = 0.4;
 	declare NameSizeX = (((G_LibST_TableSizeX - 20.) / 10.) * 6.) / NameScale;
 	declare PointsScale = 0.4;
@@ -1070,12 +1210,23 @@ Void Build() {
 	declare PositionScale = 0.6;
 	declare PositionSizeX = (((G_LibST_TableSizeX - 20.) / 10.) * 2.) / PositionScale;
 	declare StatsSizeX = (((G_LibST_TableSizeX - 20.) / 10.) * 8.);
+	declare FooterCustom1SizeX = (((G_LibST_TableSizeX - 20.) / 10.) * 6.) + 16.;
+	declare FooterCustom2SizeX = (((G_LibST_TableSizeX - 20.) / 10.) * 2.) + 16.;
+	declare DisplayPlayerInfo = 0;
+	if (!G_LibST_DisplayPlayerInfo) DisplayPlayerInfo = 1;
 	declare FooterML = """
-<quad posn="1 -1 {{{C_LibST_Z+1}}}" sizen="13 13" bgcolor="0003" id="Quad_PIAvatar" />
-<label posn="16 -7 {{{ZText}}}" sizen="{{{NameSizeX}}} 5" scale="{{{NameScale}}}" valign="bottom" style="TextRaceMessageBig" id="Label_PIName" />
+<frame id="Frame_PlayerInfoDefault" hidden="{{{DisplayPlayerInfo}}}">
+	<quad posn="1 -1 {{{C_LibST_Z+1}}}" sizen="13 13" bgcolor="0003" id="Quad_PIAvatar" />
+	<format style="TextRaceMessageBig" />
+	<label posn="16 -7 {{{ZText}}}" sizen="{{{NameSizeX}}} 5" scale="{{{NameScale}}}" valign="bottom" id="Label_PIName" />
+	<label posn="16 -15 {{{ZText}}}" sizen="{{{PositionSizeX}}} 5" scale="{{{PositionScale}}}" valign="bottom" id="Label_PIPosition" />
+</frame>
+<frame id="Frame_PlayerInfoCustom" hidden="{{{1-DisplayPlayerInfo}}}">
+	<label posn="{{{LPosX}}} -7 {{{ZText}}}" sizen="{{{FooterCustom1SizeX}}} 5" valign="bottom" textemboss="1" id="Label_PICustom1" />
+	<label posn="{{{LPosX}}} -14 {{{ZText}}}" sizen="{{{FooterCustom2SizeX}}} 5" valign="bottom" textemboss="1"  id="Label_PICustom2" />
+</frame>
 <label posn="{{{RPosX}}} -7 {{{ZText}}}" sizen="{{{PointsSizeX}}} 5" scale="0.4" halign="right" valign="bottom" style="TextRaceMessageBig" id="Label_PIScore" />
-<label posn="16 -15 {{{ZText}}}" sizen="{{{PositionSizeX}}} 5" scale="{{{PositionScale}}}" valign="bottom" style="TextRaceMessageBig" id="Label_PIPosition" />
-<label posn="{{{RPosX}}} -14 {{{ZText}}}" sizen="{{{StatsSizeX}}} 5" halign="right" valign="bottom" style="TextCardSmallScores2" id="Label_PIStats" />
+<label posn="{{{RPosX}}} -14 {{{ZText}}}" sizen="{{{StatsSizeX}}} 5" textsize="{{{G_LibST_FooterStatsTextSize}}}" halign="right" valign="bottom" textemboss="1" id="Label_PIStats" />
 """;
 	
 	// ---------------------------------- //
@@ -1104,6 +1255,11 @@ Void Build() {
 #Const C_LinesByColNb		{{{G_LibST_LinesByColNb}}}
 #Const C_ColNb				{{{G_LibST_ColNb}}}
 #Const C_RefreshInterval	{{{C_LibST_RefreshInterval}}}
+#Const C_StarSize			{{{StarSize.X}}}
+#Const C_DisplayTeamScores	{{{G_LibST_DisplayTeamScore}}}
+#Const C_RoundPointsFormat	"{{{G_LibST_RoundPointsFormat}}}"
+#Const C_PointsFormat		"{{{G_LibST_PointsFormat}}}"
+#Const C_DisplayPlayerInfo	{{{G_LibST_DisplayPlayerInfo}}}
 
 #Const C_Disconnected	0
 #Const C_Spawned		1
@@ -1115,6 +1271,8 @@ Void Build() {
 #Const C_DefaultCustom3	"{{{G_LibST_DefaultCustom3}}}"
 #Const C_DefaultPIScore	"{{{G_LibST_DefaultPIScore}}}"
 #Const C_DefaultPIStats "{{{G_LibST_DefaultPIStats}}}"
+#Const C_DefaultPICustom1 "{{{G_LibST_DefaultPICustom1}}}"
+#Const C_DefaultPICustom2 "{{{G_LibST_DefaultPICustom2}}}"
 
 declare Integer G_PageCurrent;
 declare Integer G_PageMax;
@@ -1133,11 +1291,14 @@ declare CMlQuad		Button_PagePrev;
 declare CMlQuad		Button_PagePrevOff;
 declare CMlFrame	Frame_Players;
 declare CMlFrame	Frame_Footer;
+declare CMlQuad		Quad_Me;
 declare CMlQuad		Quad_PIAvatar;
 declare CMlLabel	Label_PIName;
 declare CMlLabel	Label_PIScore;
 declare CMlLabel	Label_PIPosition;
 declare CMlLabel	Label_PIStats;
+declare CMlLabel	Label_PICustom1;
+declare CMlLabel	Label_PICustom2;
 
 Void UpdatePlayersList() {
 	declare Col = 1;
@@ -1147,10 +1308,12 @@ Void UpdatePlayersList() {
 	declare Clan1Cnt = 0;
 	declare Clan2Cnt = 0;
 	declare Count = 0;
+	Quad_Me.Hide();
 	
 	declare CMlFrame Frame_Col;
 	declare CMlFrame Frame_Legends;
 	declare CMlFrame Frame_Player;
+	declare CMlLabel Label_PlayerPos;
 	declare CMlQuad Quad_Off;
 	declare CMlLabel Label_Position;
 	declare CMlQuad Quad_Status;
@@ -1212,6 +1375,7 @@ Void UpdatePlayersList() {
 		Frame_Col				<=> (Frame_Players.GetFirstChild("Frame_Col_"^Col)						as CMlFrame);
 		Frame_Legends			<=> (Frame_Col.GetFirstChild("Frame_Legends")							as CMlFrame);
 		Frame_Player			<=> (Frame_Col.GetFirstChild("Frame_Player_"^Row)						as CMlFrame);
+		Label_PlayerPos			<=> (Frame_Col.GetFirstChild("Label_PlayerPos_"^Row)					as CMlLabel);
 		Quad_Off				<=> (Frame_Player.GetFirstChild("Quad_Off")								as CMlQuad);
 		Label_Position			<=> (Frame_Player.GetFirstChild("Label_Position")						as CMlLabel);
 		Quad_Status				<=> (Frame_Player.GetFirstChild("Quad_Status")							as CMlQuad);
@@ -1247,6 +1411,14 @@ Void UpdatePlayersList() {
 		
 		Frame_Player.Show();
 		Label_Position.SetText(TL::ToText(Key+1));
+		if (InputPlayer != Null && InputPlayer.Score != Null && InputPlayer.Score.Id == Score.Id) {
+			Quad_Me.Show();
+			Quad_Me.PosnX = Label_PlayerPos.PosnX;
+			Quad_Me.PosnY = Label_PlayerPos.PosnY;
+			if (LibST_PrevStatus == C_Spawned) Quad_Me.Show();
+			else if (UI.UISequence != CUIConfig::EUISequence::Playing) Quad_Me.Show();
+			else Quad_Me.Hide();
+		}
 		
 		declare StatusStyle = "Icons64x64_1";
 		declare StatusSubStyle = "Empty";
@@ -1283,7 +1455,7 @@ Void UpdatePlayersList() {
 		if (Score.User.LadderRank > 0) Label_Rank.SetText(TL::Compose("%1: %2", ZonePath, TL::ToText(Score.User.LadderRank)));
 		else Label_Rank.SetText(TL::Compose("%1: %2", ZonePath, "{{{_("Not ranked")}}}"));
 		
-		declare StarSize = {{{StarSize.X}}};
+		declare StarSize = C_StarSize;
 		declare Fame = Score.User.FameStars;
 		declare FameStop = 1;
 		if (Fame > 5 || Fame < 0) Fame = 0;
@@ -1381,11 +1553,11 @@ Void UpdatePlayersList() {
 		Label_Custom3.SetText(Custom3String);
 		
 		if(Score.RoundPoints > 0) {
-			Label_RoundPoints.SetText("{{{G_LibST_RoundScoreFormat}}}"^TL::ToText(Score.RoundPoints));
+			Label_RoundPoints.SetText(C_RoundPointsFormat^TL::ToText(Score.RoundPoints));
 		} else {
 			Label_RoundPoints.SetText("");
 		}
-		Label_Points.SetText("$s"^TL::ToText(Score.Points));
+		Label_Points.SetText(C_PointsFormat^TL::ToText(Score.Points));
 		
 		/*if (UI.UISequence == CUIConfig::EUISequence::Podium) {
 			Frame_Scores.Hide();
@@ -1440,24 +1612,32 @@ Void UpdatePlayersList() {
 }
 
 Void UpdateHeader() {
-	if (!IsTeamMode) return;
-	
-	declare Frame_VS <=> (Page.GetFirstChild("Frame_VS") as CMlFrame);
-	if (Frame_VS == Null) return;
-	
-	declare Label_NameTeam1		<=> (Frame_VS.GetFirstChild("Label_NameTeam1")	as CMlLabel);
-	declare Label_NameTeam2		<=> (Frame_VS.GetFirstChild("Label_NameTeam2")	as CMlLabel);
-	declare Label_ScoreTeam1	<=> (Frame_VS.GetFirstChild("Label_ScoreTeam1")	as CMlLabel);
-	declare Label_ScoreTeam2	<=> (Frame_VS.GetFirstChild("Label_ScoreTeam2")	as CMlLabel);
-	
-	Label_NameTeam1.SetText(Teams[0].ColorizedName);
-	Label_NameTeam2.SetText(Teams[1].ColorizedName);
-	if ({{{G_LibST_DisplayTeamScore}}}) {
-		Label_ScoreTeam1.SetText(TL::ToText(ClanScores[1]));
-		Label_ScoreTeam2.SetText(TL::ToText(ClanScores[2]));
+	if (IsTeamMode) {
+		declare Frame_VS <=> (Page.GetFirstChild("Frame_VS") as CMlFrame);
+		if (Frame_VS == Null) return;
+		
+		declare Label_NameTeam1		<=> (Frame_VS.GetFirstChild("Label_NameTeam1")	as CMlLabel);
+		declare Label_NameTeam2		<=> (Frame_VS.GetFirstChild("Label_NameTeam2")	as CMlLabel);
+		declare Label_ScoreTeam1	<=> (Frame_VS.GetFirstChild("Label_ScoreTeam1")	as CMlLabel);
+		declare Label_ScoreTeam2	<=> (Frame_VS.GetFirstChild("Label_ScoreTeam2")	as CMlLabel);
+		
+		if (Teams[0].ColorizedName == "$<$00fBlue$>") Label_NameTeam1.SetText("$<$fffBlue$>");
+		else Label_NameTeam1.SetText(Teams[0].ColorizedName);
+		if (Teams[1].ColorizedName == "$<$f00Red$>") Label_NameTeam2.SetText("$<$fffRed$>");
+		else Label_NameTeam2.SetText(Teams[1].ColorizedName);
+		
+		if (C_DisplayTeamScores) {
+			Label_ScoreTeam1.SetText(TL::ToText(ClanScores[1]));
+			Label_ScoreTeam2.SetText(TL::ToText(ClanScores[2]));
+		} else {
+			Label_ScoreTeam1.SetText("");
+			Label_ScoreTeam2.SetText("");
+		}
 	} else {
-		Label_ScoreTeam1.SetText("");
-		Label_ScoreTeam2.SetText("");
+		declare Label_Header <=> (Page.GetFirstChild("Label_Header") as CMlLabel);
+		if (Label_Header == Null) return;
+		
+		Label_Header.SetText(CurrentServerName);
 	}
 }
 
@@ -1473,20 +1653,26 @@ Void UpdatePlayerInfo() {
 		if (InputPlayer != Null && InputPlayer.Score != Null) {
 			declare LibST_PrevPIScore for InputPlayer.Score = C_DefaultPIScore;
 			declare LibST_PrevPIStats for InputPlayer.Score = C_DefaultPIStats;
+			declare LibST_PrevPICustom1 for InputPlayer.Score = C_DefaultPICustom1;
+			declare LibST_PrevPICustom2 for InputPlayer.Score = C_DefaultPICustom2;
 			declare PIScoreString = C_DefaultPIScore;
 			declare PIStatsString = C_DefaultPIStats;
+			declare PICustom1String = C_DefaultPICustom1;
+			declare PICustom2String = C_DefaultPICustom2;
 			if (LibST_PrevPIScore != "") PIScoreString = LibST_PrevPIScore;
 			if (LibST_PrevPIStats != "") PIStatsString = LibST_PrevPIStats;
+			if (LibST_PrevPICustom1 != "") PICustom1String = LibST_PrevPICustom1;
+			if (LibST_PrevPICustom2 != "") PICustom2String = LibST_PrevPICustom2;
 			
 			if (LibST_PrevPIScore == "" && C_DefaultPIScore == "") {
 				declare PointString = "point";
-				if (InputPlayer.Score.RoundPoints + InputPlayer.Score.Points > 1) 
+				if (InputPlayer.Score.RoundPoints/* + InputPlayer.Score.Points*/ > 1) 
 					Label_PIScore.SetText(
-						TL::Compose(_("%1 + %2 points"), TL::ToText(InputPlayer.Score.RoundPoints), TL::ToText(InputPlayer.Score.Points))
+						TL::Compose("$<%1$>$<%2$> %3", C_PointsFormat^TL::ToText(InputPlayer.Score.Points), C_RoundPointsFormat^TL::ToText(InputPlayer.Score.RoundPoints), _("points"))
 					);
 				else 
 					Label_PIScore.SetText(
-						TL::Compose(_("%1 + %2 point"), TL::ToText(InputPlayer.Score.RoundPoints), TL::ToText(InputPlayer.Score.Points))
+						TL::Compose("$<%1$>$<%2$> %3", C_PointsFormat^TL::ToText(InputPlayer.Score.Points), C_RoundPointsFormat^TL::ToText(InputPlayer.Score.RoundPoints), _("point"))
 					);
 			} else {
 				Label_PIScore.SetText(PIScoreString);
@@ -1494,6 +1680,9 @@ Void UpdatePlayerInfo() {
 			
 			if (Scores.exists(InputPlayer.Score)) Label_PIPosition.SetText("#"^Scores.keyof(InputPlayer.Score)+1);
 			Label_PIStats.SetText(PIStatsString);
+			
+			Label_PICustom1.SetText(PICustom1String);
+			Label_PICustom2.SetText(PICustom2String);
 		}
 	} else {
 		Frame_Footer.Hide();
@@ -1511,7 +1700,7 @@ Void UpdatePager(Integer _Step) {
 		G_PageMax = ((G_ClansNbPlayers[0] - 1) / G_PageRange) + 1;
 		if (G_PageMax <= 0) G_PageMax = 1;
 	}
-		
+	
 	if (G_PageMax <= 1) Frame_Pager.Hide();
 	else Frame_Pager.Show();
 	
@@ -1529,6 +1718,30 @@ Void UpdatePager(Integer _Step) {
 		Button_PagePrev.Hide(); Button_PagePrevOff.Show(); 
 	} else if (G_PageCurrent == G_PageMax) { 
 		Button_PageNext.Hide(); Button_PageNextOff.Show();
+	}
+}
+
+Void FindPlayer() {
+	if (InputPlayer == Null) return;
+	if (InputPlayer.Score == Null) return;
+	
+	declare Rank = 0;
+	declare LibST_PrevClan for InputPlayer.Score.User = 0;
+	
+	foreach (Score in Scores) {
+		declare LibST_PrevClan as LibST_PrevClan2 for Score.User = 0;
+		if (Score.Id == InputPlayer.Score.Id) break;
+		
+		if (IsTeamMode && LibST_PrevClan == LibST_PrevClan2) Rank += 1;
+		else if (!IsTeamMode) Rank += 1;
+	}
+	
+	declare PageNb = (Rank / G_PageRange) + 1;
+	declare PageShift = PageNb - G_PageCurrent;
+	
+	if (PageShift != 0) {
+		UpdatePager(PageShift);
+		UpdatePlayersList();
 	}
 }
 
@@ -1576,6 +1789,7 @@ main() {
 	
 	declare PrevClanScores	= [1 => 0, 2 => 0];
 	declare PrevTeamsName	= [0 => "", 1 => ""];
+	declare PrevServerName	= "";
 	
 	G_PageCurrent	= 1;
 	G_PageMax		= 1;
@@ -1594,11 +1808,14 @@ main() {
 	Button_PagePrevOff	<=> (Frame_Pager.GetFirstChild("Button_PagePrevOff")	as CMlQuad);
 	Frame_Players		<=> (Page.GetFirstChild("Frame_Players")				as CMlFrame);
 	Frame_Footer		<=> (Page.GetFirstChild("Frame_Footer")					as CMlFrame);
+	Quad_Me				<=> (Frame_Players.GetFirstChild("Quad_Me")				as CMlQuad);
 	Quad_PIAvatar		<=> (Frame_Footer.GetFirstChild("Quad_PIAvatar")		as CMlQuad);
 	Label_PIName		<=> (Frame_Footer.GetFirstChild("Label_PIName")			as CMlLabel);
 	Label_PIScore		<=> (Frame_Footer.GetFirstChild("Label_PIScore")		as CMlLabel);
 	Label_PIPosition	<=> (Frame_Footer.GetFirstChild("Label_PIPosition")		as CMlLabel);
 	Label_PIStats		<=> (Frame_Footer.GetFirstChild("Label_PIStats")		as CMlLabel);
+	Label_PICustom1		<=> (Frame_Footer.GetFirstChild("Label_PICustom1")		as CMlLabel);
+	Label_PICustom2		<=> (Frame_Footer.GetFirstChild("Label_PICustom2")		as CMlLabel);
 	
 	declare CMlFrame MainFrame <=> (Page.GetFirstChild("Frame_ScoresTable") as CMlFrame);
 	
@@ -1608,7 +1825,7 @@ main() {
 	while (True) {
 		// We have to yield, and not sleep, because we have events
 		yield;
-		
+		if (InputPlayer == Null) continue;
 		
 		// We have to update this even if the frame is not visible
 		// to manage disconnected players
@@ -1625,16 +1842,22 @@ main() {
 				declare netread Text Net_LibST_Custom3 for Player;
 				declare netread Text Net_LibST_PIScore for Player;
 				declare netread Text Net_LibST_PIStats for Player;
+				declare netread Text Net_LibST_PICustom1 for Player;
+				declare netread Text Net_LibST_PICustom2 for Player;
 				declare LibST_Custom1 for Player.Score = C_DefaultCustom1;
 				declare LibST_Custom2 for Player.Score = C_DefaultCustom2;
 				declare LibST_Custom3 for Player.Score = C_DefaultCustom3;
 				declare LibST_PIScore for Player.Score = C_DefaultPIScore;
 				declare LibST_PIStats for Player.Score = C_DefaultPIStats;
+				declare LibST_PICustom1 for Player.Score = C_DefaultPICustom1;
+				declare LibST_PICustom2 for Player.Score = C_DefaultPICustom2;
 				LibST_Custom1 = Net_LibST_Custom1;
 				LibST_Custom2 = Net_LibST_Custom2;
 				LibST_Custom3 = Net_LibST_Custom3;
 				LibST_PIScore = Net_LibST_PIScore;
 				LibST_PIStats = Net_LibST_PIStats;
+				LibST_PICustom1 = Net_LibST_PICustom1;
+				LibST_PICustom2 = Net_LibST_PICustom2;
 			}
 		}
 		
@@ -1645,9 +1868,7 @@ main() {
 			MainFrame.Show();
 		}
 		UpdateFrameTab(UI, Page, "ScoresTab", MainFrame);
-		if (!MainFrame.Visible) continue;
-		
-		
+		if (!MainFrame.Visible) continue;		
 		
 		if (PrevRefresh + C_RefreshInterval < Now) {
 			PrevRefresh = Now;
@@ -1705,8 +1926,12 @@ main() {
 				
 				declare Text LibST_PIScore for Score;
 				declare Text LibST_PIStats for Score;
+				declare Text LibST_PICustom1 for Score;
+				declare Text LibST_PICustom2 for Score;
 				declare LibST_PrevPIScore for Score = C_DefaultPIScore;
 				declare LibST_PrevPIStats for Score = C_DefaultPIStats;
+				declare LibST_PrevPICustom1 for Score = C_DefaultPICustom1;
+				declare LibST_PrevPICustom2 for Score = C_DefaultPICustom2;
 				
 				if (LibST_PrevUpdate != PrevRefresh) LibST_Status = C_Disconnected;
 				
@@ -1730,6 +1955,8 @@ main() {
 				
 				if (LibST_PIScore != LibST_PrevPIScore) { LibST_PrevPIScore = LibST_PIScore; NeedUpdatePI = True; }
 				if (LibST_PIStats != LibST_PrevPIStats) { LibST_PrevPIStats = LibST_PIStats; NeedUpdatePI = True; }
+				if (LibST_PICustom1 != LibST_PrevPICustom1) { LibST_PrevPICustom1 = LibST_PICustom1; NeedUpdatePI = True; }
+				if (LibST_PICustom2 != LibST_PrevPICustom2) { LibST_PrevPICustom2 = LibST_PICustom2; NeedUpdatePI = True; }
 				
 				G_ClansNbPlayers[LibST_PrevClan] += 1;
 			}
@@ -1747,6 +1974,9 @@ main() {
 				PrevTeamsName[1] = Teams[1].ColorizedName;
 				PrevClanScores[1] = ClanScores[1];
 				PrevClanScores[2] = ClanScores[2];
+				NeedUpdateHeader = True;
+			} else if (!IsTeamMode && PrevServerName != CurrentServerName) {
+				PrevServerName = CurrentServerName;
 				NeedUpdateHeader = True;
 			}
 		}
@@ -1774,16 +2004,16 @@ main() {
 		foreach (Event in PendingEvents) {
 			if (Event.Type == CMlEvent::Type::MouseOver) {
 				if (Event.ControlId == "Button_PageNext") {
-					Button_PageNext.ImageUrl = "file://Media/Manialinks/Shootmania/Common/Pager/pagerDownOn.dds";
+					Button_PageNext.ImageUrl = "{{{C_ImgBaseDir}}}Pager/pagerDownOn.dds";
 				} else if (Event.ControlId == "Button_PagePrev") {
-					Button_PagePrev.ImageUrl = "file://Media/Manialinks/Shootmania/Common/Pager/pagerUpOn.dds";
+					Button_PagePrev.ImageUrl = "{{{C_ImgBaseDir}}}Pager/pagerUpOn.dds";
 				}
 			}
 			else if (Event.Type == CMlEvent::Type::MouseOut) {
 				if (Event.ControlId == "Button_PageNext") {
-					Button_PageNext.ImageUrl = "file://Media/Manialinks/Shootmania/Common/Pager/pagerDownOff.dds";
+					Button_PageNext.ImageUrl = "{{{C_ImgBaseDir}}}Pager/pagerDownOff.dds";
 				} else if (Event.ControlId == "Button_PagePrev") {
-					Button_PagePrev.ImageUrl = "file://Media/Manialinks/Shootmania/Common/Pager/pagerUpOff.dds";
+					Button_PagePrev.ImageUrl = "{{{C_ImgBaseDir}}}Pager/pagerUpOff.dds";
 				}
 			}
 			else if (Event.Type == CMlEvent::Type::MouseClick) {
@@ -1793,6 +2023,8 @@ main() {
 				} else if (Event.ControlId == "Button_PagePrev") {
 					UpdatePager(-1);
 					UpdatePlayersList();
+				} else if (Event.ControlId == "Button_PagePlayer") {
+					FindPlayer();
 				} else {
 					declare ShortControlId = TL::SubString(Event.ControlId, 0, 12);
 					if (ShortControlId == "Button_Spec_") {
@@ -1820,6 +2052,8 @@ main() {
 				} else if (Event.CharPressed == "6750208") {
 					UpdatePager(-1);
 					UpdatePlayersList();
+				} else if (Event.CharPressed == "3604480") {
+					FindPlayer();
 				}
 			}
 		}

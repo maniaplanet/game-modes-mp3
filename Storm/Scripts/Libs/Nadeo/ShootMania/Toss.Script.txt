@@ -2,7 +2,7 @@
  *	Toss library
  */
 
-#Const Version		"2012-10-12"
+#Const Version		"2013-05-15"
 #Const ScriptName	"Toss.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -186,8 +186,11 @@ Text GetVoteUI(Integer _ClanNb) {
 		declare netread		Net_VoteForDefend for UI = 0;
 		declare netread		Net_EndTime for UI = 0;
 		declare netread		Net_Result for UI = 0;
+		declare netread		Net_BarrierServer for UI = 0;
+		declare netwrite	Net_BarrierClient for UI = 0;
 		
 		Net_SelectedSide = 0;
+		Net_BarrierClient = 0;
 		
 		declare Title			<=> (Page.GetFirstChild("Title") as CMlLabel);
 		declare VoteButtons		<=> (Page.GetFirstChild("VoteButtons") as CMlFrame);
@@ -203,6 +206,7 @@ Text GetVoteUI(Integer _ClanNb) {
 		Left2.Hide();
 		Right2.Hide();
 		
+		declare PrevBarrier = 0;
 		declare TimeLeft = {{{C_LibToss_VoteTime}}} / 1000;
 		declare VotingClan = {{{_ClanNb}}};
 		declare TeamName = "";
@@ -211,6 +215,11 @@ Text GetVoteUI(Integer _ClanNb) {
 		
 		while (True) {
 			yield;
+			
+			if (PrevBarrier != Net_BarrierServer) {
+				PrevBarrier = Net_BarrierServer;
+				Net_BarrierClient = Net_BarrierServer;
+			}
 			
 			if (InputPlayer != Null && InputPlayer.CurrentClan == VotingClan && Net_SelectedSide == 0) {
 				VoteButtons.Show();
@@ -305,8 +314,8 @@ Text GetVoteUI(Integer _ClanNb) {
 		<quad posn="10 -1.5 10" sizen="20 20" halign="left" valign="center" style="Icons64x64_1" substyle="ShowRight" id="Right1" />
 		<quad posn="10 -1.5 10" sizen="20 20" halign="left" valign="center" style="Icons64x64_1" substyle="ShowRight2" id="Right2" />
 		
-		<label posn="-30 0 10" textprefix="$s" text="{{{_("Attack")}}}" textsize="10" halign="right" valign="center" />
-		<label posn="30 0 10" textprefix="$s" text="{{{_("Defend")}}}" textsize="10" halign="left" valign="center" />
+		<label posn="-30 0 10" textprefix="$s" text="{{{_("|Imperative|Attack")}}}" textsize="10" halign="right" valign="center" />
+		<label posn="30 0 10" textprefix="$s" text="{{{_("|Imperative|Defend")}}}" textsize="10" halign="left" valign="center" />
 	</frame>
 	
 	<frame posn="0 18 7">
@@ -318,8 +327,8 @@ Text GetVoteUI(Integer _ClanNb) {
 	
 	<frame posn="0 0 7" id="VoteButtons">
 		<quad posn="0 0 11" sizen="0.5 12.5" halign="center" valign="bottom" bgcolor="aaaf" />
-		<label posn="-42.5 6 10" sizen="85 12" focusareacolor1="000f" focusareacolor2="ffff" halign="center" valign="center" style="TextButtonNav" textprefix="$fff" text="{{{_("Attack")}}}" scriptevents="True" id="VoteAttack" />
-		<label posn=" 42.5 6 10" sizen="85 12" focusareacolor1="000f" focusareacolor2="ffff" halign="center" valign="center" style="TextButtonNav" textprefix="$fff" text="{{{_("Defend")}}}" scriptevents="True" id="VoteDefend" />
+		<label posn="-42.5 6 10" sizen="85 12" focusareacolor1="000f" focusareacolor2="ffff" halign="center" valign="center" style="TextButtonNav" textprefix="$fff" text="{{{_("|Imperative|Attack")}}}" scriptevents="True" id="VoteAttack" />
+		<label posn=" 42.5 6 10" sizen="85 12" focusareacolor1="000f" focusareacolor2="ffff" halign="center" valign="center" style="TextButtonNav" textprefix="$fff" text="{{{_("|Imperative|Defend")}}}" scriptevents="True" id="VoteDefend" />
 	</frame>
 	<frame posn="0 7 7">
 		<label posn="0 0 10" textsize="4" halign="center" valign="center" textprefix="$s" id="Result" />
@@ -468,6 +477,7 @@ Integer SelectSide(Integer _ClanNb) {
 	declare SelectedSide = 0;
 	declare VoteForAttack = 0;
 	declare VoteForDefend = 0;
+	declare BarrierServer = Now;
 	
 	// Save UISequence
 	declare OldUISequence = UIManager.UIAll.UISequence;
@@ -479,6 +489,7 @@ Integer SelectSide(Integer _ClanNb) {
 	
 	// Initialize player
 	declare VoteEndTime = Now + C_LibToss_VoteTime;
+	declare MaxVote = 0;
 	
 	foreach (Player in Players) {
 		declare UI <=> UIManager.GetUI(Player);
@@ -486,9 +497,12 @@ Integer SelectSide(Integer _ClanNb) {
 		
 		SetPlayerClan(Player, Player.RequestedClan);
 		UI.UILayers.add(LayerVote);
+		if (Player.CurrentClan == _ClanNb) MaxVote += 1;
 		
+		declare netwrite Net_BarrierServer for UI = 0;
 		declare netwrite Net_EndTime for UI = 0;
 		declare netwrite Net_Result for UI = 0;
+		Net_BarrierServer = BarrierServer;
 		Net_EndTime = VoteEndTime;
 		Net_Result = 0;
 	}
@@ -499,8 +513,10 @@ Integer SelectSide(Integer _ClanNb) {
 		SetPlayerClan(Spectator, 0);
 		UI.UILayers.add(LayerVote);
 		
+		declare netwrite Net_BarrierServer for UI = 0;
 		declare netwrite Net_EndTime for UI = 0;
 		declare netwrite Net_Result for UI = 0;
+		Net_BarrierServer = BarrierServer;
 		Net_EndTime = VoteEndTime;
 		Net_Result = 0;
 	}
@@ -517,17 +533,20 @@ Integer SelectSide(Integer _ClanNb) {
 			declare UI <=> UIManager.GetUI(Player);
 			if (UI == Null) continue;
 			
-			if (!UI.UILayers.exists(LayerVote)) {	
+			if (!UI.UILayers.exists(LayerVote)) {
+				declare netwrite Net_BarrierServer for UI = 0;
 				declare netwrite Net_EndTime for UI = 0;
 				declare netwrite Net_Result for UI = 0;
+				Net_BarrierServer = BarrierServer;
 				Net_EndTime = VoteEndTime;
-				Net_Result = 0;				
+				Net_Result = 0;
 				UI.UILayers.add(LayerVote);
 				if (C_LibToss_Debug) log(Now^"> Created missing player vote layer for "^Player.Login);
 			}
 			
 			// Only count vote from the voting clan
-			if (Player.CurrentClan != _ClanNb) continue;
+			declare netread Net_BarrierClient for UI = 0;
+			if (Player.CurrentClan != _ClanNb || Net_BarrierClient != BarrierServer) continue;
 			declare netread Net_SelectedSide for UI = 0;
 			if (Net_SelectedSide == 1) {
 				VoteForAttack += 1;
@@ -540,8 +559,10 @@ Integer SelectSide(Integer _ClanNb) {
 			if (UI == Null) continue;
 			
 			if (!UI.UILayers.exists(LayerVote)) {
+				declare netwrite Net_BarrierServer for UI = 0;
 				declare netwrite Net_EndTime for UI = 0;
 				declare netwrite Net_Result for UI = 0;
+				Net_BarrierServer = BarrierServer;
 				Net_EndTime = VoteEndTime;
 				Net_Result = 0;				
 				UI.UILayers.add(LayerVote);
@@ -571,8 +592,19 @@ Integer SelectSide(Integer _ClanNb) {
 			Net_VoteForDefend = VoteForDefend;
 		}
 		
+		if (VoteForAttack + VoteForDefend >= MaxVote) {
+			VoteEndTime = Now;
+			foreach (Player in AllPlayers) {
+				declare UI <=> UIManager.GetUI(Player);
+				if (UI == Null) continue;
+				
+				declare netwrite Net_EndTime for UI = 0;
+				Net_EndTime = VoteEndTime;
+			}
+		}
+		
 		// Stop the vote when time run out
-		if (Now > VoteEndTime) break;
+		if (Now >= VoteEndTime) break;
 	}
 	
 	// Calculate result
@@ -584,15 +616,8 @@ Integer SelectSide(Integer _ClanNb) {
 		SelectedSide = MathLib::Rand(1, 2);
 	}
 	// Send the result
-	foreach (Player in Players) {
+	foreach (Player in AllPlayers) {
 		declare UI <=> UIManager.GetUI(Player);
-		if (UI == Null) continue;
-		
-		declare netwrite Net_Result for UI = 0;
-		Net_Result = SelectedSide;
-	}
-	foreach (Spectator in Spectators) {
-		declare UI <=> UIManager.GetUI(Spectator);
 		if (UI == Null) continue;
 		
 		declare netwrite Net_Result for UI = 0;

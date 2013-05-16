@@ -53,6 +53,7 @@ Text CreateLayerChrono() {
 		declare netread ChronoNet_Reset for UI = False;
 		declare netread ChronoNet_PosX for UI = {{{C_ChronoPosX}}};
 		declare netread ChronoNet_PosY for UI = {{{C_ChronoPosY}}};
+		declare Boolean Chrono_HideChrono for UI = False;
 		
 		declare LayerChronoUpdated = 0;
 		declare StartTime = 0;
@@ -66,6 +67,12 @@ Text CreateLayerChrono() {
 			yield;
 			if (LastUpdate + 25 > Now) continue;
 			LastUpdate = Now;
+			
+			if(Chrono_HideChrono) {
+				Frame_Chrono.Hide();
+			} else {
+				Frame_Chrono.Show();
+			}
 			
 			if (ChronoNet_LayerUpdated != LayerChronoUpdated) {
 				LayerChronoUpdated = ChronoNet_LayerUpdated;

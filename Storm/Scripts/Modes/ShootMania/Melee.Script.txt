@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"MeleeArena"
-#Const	Version				"2013-04-16"
+#Const	Version				"2013-05-14"
 #Const	ScriptName			"Melee.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -85,7 +85,7 @@ declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
 ScoresTable::Load();
 ScoresTable::SetColumnsWidth(2., 2., 3., 15., 2., 2., 0., 0., 0., 4., 5.);
 ScoresTable::SetTableFormat(2, 6);
-ScoresTable::SetTableBackgroundImage(BgImage, <0., 56.>, <180., 180.>);
+ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 56.>, <207., 178.>);
 ScoresTable::Build();
 ***
 
@@ -103,8 +103,15 @@ Score::RoundBegin();
 SM::SetupDefaultVisibility();
 
 // ---------------------------------- //
+// Init bases
+foreach (Base in Bases) {
+	Base.Clan = 0;
+	Base.IsActive = True;
+}
+
+// ---------------------------------- //
 // Init scores
-yield; ///< Allow the scores array to be sorted
+MB_Sleep(1); ///< Allow the scores array to be sorted
 foreach (Score in Scores) {
 	declare Integer LastPoint for Score;
 	LastPoint = 0;
@@ -179,7 +186,7 @@ foreach (Event, PendingEvents) {
 					if (Event.Shooter.Score.RoundPoints / SoundGap > LastPoint) {
 						LastPoint = Event.Shooter.Score.RoundPoints / SoundGap;
 						declare Msg = TextLib::Compose(
-							_("$666Score : $fff%1 / %2"), TextLib::ToText(Event.Shooter.Score.RoundPoints), TextLib::ToText(S_PointLimit)
+							"$666%1 : $fff%2 / %3", _("Score"), TextLib::ToText(Event.Shooter.Score.RoundPoints), TextLib::ToText(S_PointLimit)
 						);
 						declare Variant = ((Event.Shooter.Score.RoundPoints / SoundGap) - 1);
 						Message::SendBigMessage(Event.Shooter, Msg, 3000, 0, CUIConfig::EUISound::ScoreProgress, Variant);
@@ -265,7 +272,7 @@ foreach (Player in Players) {
 	Interface::UpdatePosition(Player);
 }
 
-sleep(1000);
+MB_Sleep(1000);
 Message::CleanBigMessages();
 UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 UIManager.UIAll.BigMessageSoundVariant = 0;
@@ -274,10 +281,10 @@ if (Winner != Null) {
 } else {
 	UIManager.UIAll.BigMessage = _("|Match|Draw");
 }
-sleep(2000);
+MB_Sleep(2000);
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-sleep(5000);
+MB_Sleep(5000);
 
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
 wait(UIManager.UIAll.UISequenceIsCompleted);

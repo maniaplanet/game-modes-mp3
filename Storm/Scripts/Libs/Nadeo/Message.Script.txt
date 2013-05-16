@@ -2,32 +2,18 @@
  * Message library
  */
 
-#Const Version		"2013-04-02"
+#Const Version		"2013-05-06"
 #Const ScriptName	"Message.Script.txt"
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Functions
-/* ------------------------------------- */
+// ---------------------------------- //
 
-/* ------------------------------------- */
-/** Return the version number of the script
- *
- *	@return		The version number of the script
- */
-Text GetScriptVersion() {
-	return Version;
-}
+// ---------------------------------- //
+// Private
+// ---------------------------------- //
 
-/* ------------------------------------- */
-/** Return the name of the script
- *
- *	@return		The name of the script
- */
-Text GetScriptName() {
-	return ScriptName;
-}
-
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Send a big message to one player
  *
  *	@param	_UI				The UI who'll display the message
@@ -38,7 +24,7 @@ Text GetScriptName() {
  *	@param	_Sound			The sound to play with the message
  *	@param	_SoundVariant	The sound variant to play
  */
-Void DisplayMessage(
+Void Private_DisplayMessage(
 	CUIConfig _UI, 
 	Integer _Level,
 	CSmPlayer _Player, 
@@ -68,7 +54,7 @@ Void DisplayMessage(
 	LibMessage_MessageActive = True;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Send a big message to one player
  *
  *	@param	_Level			The level of the message - 1: Big, 2: Status
@@ -79,7 +65,7 @@ Void DisplayMessage(
  *	@param	_Sound			The sound to play with the message
  *	@param	_SoundVariant	The sound variant to play
  */
-Void SendMessageTo(
+Void Private_SendMessageTo(
 	Integer _Level, 
 	CSmPlayer _Player, 
 	Text _Message, 
@@ -107,7 +93,7 @@ Void SendMessageTo(
 				declare UI <=> UIManager.GetUI(Player);
 				
 				if (UI != Null) {				
-					DisplayMessage(UI, _Level, Player, _Message, _Duration, _Sound, _SoundVariant);
+					Private_DisplayMessage(UI, _Level, Player, _Message, _Duration, _Sound, _SoundVariant);
 				}
 			}
 		}
@@ -126,115 +112,15 @@ Void SendMessageTo(
 			UI <=> UIManager.GetUI(_Player);
 			
 			if (UI != Null) {			
-				DisplayMessage(UI, _Level, _Player, _Message, _Duration, _Sound, _SoundVariant);
+				Private_DisplayMessage(UI, _Level, _Player, _Message, _Duration, _Sound, _SoundVariant);
 			}
 		}
 	}
 }
 
-/* ------------------------------------- */
-/** Send a big message to all players
- *
- *	@param	_Message	The message to display
- *	@param	_Duration	The message to duration
- *	@param	_Priority		The message priority
- */
-Void SendBigMessage(Text _Message, Integer _Duration, Integer _Priority) {
-	SendMessageTo(1, Null, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
-}
-
-/* ------------------------------------- */
-/** Send a big message to one player
- *
- *	@param	_Player		The player who'll receive the message
- *	@param	_Message	The message to display
- *	@param	_Duration	The message to duration
- *	@param	_Priority		The message priority
- */
-Void SendBigMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
-	SendMessageTo(1, _Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
-}
-
-/* ------------------------------------- */
-/** Send a big message with sound to all players
- *
- *	@param	_Message		The message to display
- *	@param	_Duration		The message to duration
- *	@param	_Priority		The message priority
- *	@param	_Sound			The sound to play with the message
- *	@param	_SoundVariant	The sound variant to play
- */
-Void SendBigMessage(Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
-	SendMessageTo(1, Null, _Message, _Duration, _Priority, _Sound, _SoundVariant);
-}
-
-/* ------------------------------------- */
-/** Send a big message with sound to one player
- *
- *	@param	_Player			The player who'll receive the message
- *	@param	_Message		The message to display
- *	@param	_Duration		The message to duration
- *	@param	_Priority		The message priority
- *	@param	_Sound			The sound to play with the message
- *	@param	_SoundVariant	The sound variant to play
- */
-Void SendBigMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
-	SendMessageTo(1, _Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
-}
-
-/* ------------------------------------- */
-/** Send a status message to all players
- *
- *	@param	_Message	The message to display
- *	@param	_Duration	The message to duration
- *	@param	_Priority		The message priority
- */
-Void SendStatusMessage(Text _Message, Integer _Duration, Integer _Priority) {
-	SendMessageTo(2, Null, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
-}
-
-/* ------------------------------------- */
-/** Send a status message to one player
- *
- *	@param	_Player		The player who'll receive the message
- *	@param	_Message	The message to display
- *	@param	_Duration	The message to duration
- *	@param	_Priority		The message priority
- */
-Void SendStatusMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
-	SendMessageTo(2, _Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
-}
-
-/* ------------------------------------- */
-/** Send a status message with sound to all players
- *
- *	@param	_Message		The message to display
- *	@param	_Duration		The message to duration
- *	@param	_Priority		The message priority
- *	@param	_Sound			The sound to play with the message
- *	@param	_SoundVariant	The sound variant to play
- */
-Void SendStatusMessage(Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
-	SendMessageTo(2, Null, _Message, _Duration, _Priority, _Sound, _SoundVariant);
-}
-
-/* ------------------------------------- */
-/** Send a status message with sound to one player
- *
- *	@param	_Player			The player who'll receive the message
- *	@param	_Message		The message to display
- *	@param	_Duration		The message to duration
- *	@param	_Priority		The message priority
- *	@param	_Sound			The sound to play with the message
- *	@param	_SoundVariant	The sound variant to play
- */
-Void SendStatusMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
-	SendMessageTo(2, _Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
-}
-
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Clean all messages
-Void CleanMessages(Integer _Level) {
+Void Private_CleanMessages(Integer _Level) {
 	declare AllPlayers = CSmPlayer[];
 	foreach (Player in Players) { AllPlayers.add(Player); }
 	foreach (Spectator in Spectators) { AllPlayers.add(Spectator); }
@@ -262,25 +148,147 @@ Void CleanMessages(Integer _Level) {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
+// Public
+// ---------------------------------- //
+
+// ---------------------------------- //
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+// ---------------------------------- //
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+// ---------------------------------- //
+/** Send a big message to all players
+ *
+ *	@param	_Message	The message to display
+ *	@param	_Duration	The message to duration
+ *	@param	_Priority		The message priority
+ */
+Void SendBigMessage(Text _Message, Integer _Duration, Integer _Priority) {
+	Private_SendMessageTo(1, Null, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
+}
+
+// ---------------------------------- //
+/** Send a big message to one player
+ *
+ *	@param	_Player		The player who'll receive the message
+ *	@param	_Message	The message to display
+ *	@param	_Duration	The message to duration
+ *	@param	_Priority		The message priority
+ */
+Void SendBigMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
+	Private_SendMessageTo(1, _Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
+}
+
+// ---------------------------------- //
+/** Send a big message with sound to all players
+ *
+ *	@param	_Message		The message to display
+ *	@param	_Duration		The message to duration
+ *	@param	_Priority		The message priority
+ *	@param	_Sound			The sound to play with the message
+ *	@param	_SoundVariant	The sound variant to play
+ */
+Void SendBigMessage(Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
+	Private_SendMessageTo(1, Null, _Message, _Duration, _Priority, _Sound, _SoundVariant);
+}
+
+// ---------------------------------- //
+/** Send a big message with sound to one player
+ *
+ *	@param	_Player			The player who'll receive the message
+ *	@param	_Message		The message to display
+ *	@param	_Duration		The message to duration
+ *	@param	_Priority		The message priority
+ *	@param	_Sound			The sound to play with the message
+ *	@param	_SoundVariant	The sound variant to play
+ */
+Void SendBigMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
+	Private_SendMessageTo(1, _Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
+}
+
+// ---------------------------------- //
+/** Send a status message to all players
+ *
+ *	@param	_Message	The message to display
+ *	@param	_Duration	The message to duration
+ *	@param	_Priority		The message priority
+ */
+Void SendStatusMessage(Text _Message, Integer _Duration, Integer _Priority) {
+	Private_SendMessageTo(2, Null, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
+}
+
+// ---------------------------------- //
+/** Send a status message to one player
+ *
+ *	@param	_Player		The player who'll receive the message
+ *	@param	_Message	The message to display
+ *	@param	_Duration	The message to duration
+ *	@param	_Priority		The message priority
+ */
+Void SendStatusMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
+	Private_SendMessageTo(2, _Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
+}
+
+// ---------------------------------- //
+/** Send a status message with sound to all players
+ *
+ *	@param	_Message		The message to display
+ *	@param	_Duration		The message to duration
+ *	@param	_Priority		The message priority
+ *	@param	_Sound			The sound to play with the message
+ *	@param	_SoundVariant	The sound variant to play
+ */
+Void SendStatusMessage(Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
+	Private_SendMessageTo(2, Null, _Message, _Duration, _Priority, _Sound, _SoundVariant);
+}
+
+// ---------------------------------- //
+/** Send a status message with sound to one player
+ *
+ *	@param	_Player			The player who'll receive the message
+ *	@param	_Message		The message to display
+ *	@param	_Duration		The message to duration
+ *	@param	_Priority		The message priority
+ *	@param	_Sound			The sound to play with the message
+ *	@param	_SoundVariant	The sound variant to play
+ */
+Void SendStatusMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
+	Private_SendMessageTo(2, _Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
+}
+
+// ---------------------------------- //
 /// Clean all big messages
 Void CleanBigMessages() {
-	CleanMessages(1);
+	Private_CleanMessages(1);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Clean all big messages
 Void CleanStatusMessages() {
-	CleanMessages(2);
+	Private_CleanMessages(2);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Clean all messages
 Void CleanAllMessages() {
-	CleanMessages(0);
+	Private_CleanMessages(0);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Main loop
 Void Loop() {
 	foreach (Player in AllPlayers) {
