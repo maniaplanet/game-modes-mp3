@@ -1173,7 +1173,7 @@ Void UpdatePlayerScore(CSmPlayer Player, Integer CaptureMaxValue) {
 	
 	// declare Integer LadderScore  = Battle_ScoreAttack + Battle_ScoreDefense;
 	
-	Player.Score.RoundPoints = Battle_ScoreHit; //LadderScore;
+	Player.Score.RoundPoints = Battle_ScoreCapture + Battle_ScoreHit; //LadderScore
 }
 
 Void UpdatePlayersScores(Integer CaptureMaxValue)
