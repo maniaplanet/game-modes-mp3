@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2013-06-20"
+#Const ModeBaseVersion		"2013-07-03"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -66,6 +66,8 @@ declare Boolean MB_StopRound;
 declare Boolean MB_StopTurn;
 // Options for XmlRpc
 declare Boolean MB_UseScriptCallbacks;
+// Default neutral emblem
+declare Text MB_NeutralEmblemUrl;
 
 // ---------------------------------- //
 // Functions
@@ -102,8 +104,14 @@ Void MB_XmlRpcCheck() {
 
 // ---------------------------------- //
 /// Update the neutral emblem when necessary
-Void MB_NeutralEmblemUpdate() {
-	if (NeutralEmblemUrl != S_NeutralEmblemUrl) NeutralEmblemUrl = S_NeutralEmblemUrl;
+Void MB_NeutralEmblemUpdate() {	
+	if (S_NeutralEmblemUrl != "") {
+		if (NeutralEmblemUrl != S_NeutralEmblemUrl) NeutralEmblemUrl = S_NeutralEmblemUrl;
+	} else if (MB_NeutralEmblemUrl != "") {
+		if (NeutralEmblemUrl != MB_NeutralEmblemUrl) NeutralEmblemUrl = MB_NeutralEmblemUrl;
+	} else if (NeutralEmblemUrl != "") {
+		NeutralEmblemUrl = "";
+	}
 }
 
 // ---------------------------------- //
@@ -174,6 +182,7 @@ main() {
 	
 	MB_StopServer = False;
 	MB_SectionMatchNb = 0;
+	MB_NeutralEmblemUrl = "";
 	MB_XmlRpcCheck();
 	MB_NeutralEmblemUpdate();
 	
