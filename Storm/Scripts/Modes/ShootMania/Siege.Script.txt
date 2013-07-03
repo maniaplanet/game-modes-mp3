@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeArena"
-#Const Version				"2013-05-14"
+#Const Version				"2013-06-19"
 #Const ScriptName			"Siege.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -379,16 +379,15 @@ LayerDetached = Layers::Detach("PreRoundInfo", NullId);
 // ---------------------------------- //
 // Init players and UI
 foreach (Player in Players) {
-	if (Player.RequestedClan == G_CapturingClan) {
+	SetPlayerClan(Player, Player.RequestedClan);
+	if (Player.CurrentClan == G_CapturingClan) {
 		Player.ArmorMax = (C_StartingArmor * 100) + ((MB_SectionRoundNb - 1) * 100);
 	} else {
 		Player.ArmorMax = C_StartingArmor * 100;
 	}
 	declare OldArmor for Player = 0;
-	declare HasChangedClan for Player = False;
 	declare NewSpectator for Player = False;
 	OldArmor = Player.ArmorMax;
-	HasChangedClan = False;
 	NewSpectator = True;
 }
 foreach (Spectator in Spectators) {
@@ -454,20 +453,6 @@ UIManager.UIAll.CountdownEndTime = -1;
 Message::Loop();
 
 // ---------------------------------- //
-// Unspawn and mark players changing clan
-foreach (Player in Players) {
-	if (!Player.IsFakePlayer && Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
-		// if the player wants to change clan, then remove him from the current clan
-		// it will be added to the correct clan at next respawn.
-		if (Player.CurrentClan != 0 && Player.RequestedClan != Player.CurrentClan) {
-			UnspawnPlayer(Player);
-			declare HasChangedClan for Player = False;
-			HasChangedClan = True;
-		}
-	}
-}
-
-// ---------------------------------- //
 // Don't let players going spectate respawn afterward
 foreach (Spectator in Spectators) {
 	declare OldArmor for Spectator = 0;
@@ -493,17 +478,18 @@ if (G_GoalToCaptureIndex <= G_NbGoalsOnMap) {
 	declare SomeoneWasSpawned = False;
 	
 	foreach (Player in Players) {
-		declare HasChangedClan for Player = False;
 		declare NewSpectator for Player = True;
-		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !HasChangedClan) {
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
 			declare OldArmor for Player = 0;
 			if (OldArmor > Player.ArmorMax) OldArmor = Player.ArmorMax;
 			
+			if (Player.CurrentClan != 1 && Player.CurrentClan != 2) SetPlayerClan(Player, Player.RequestedClan);
+			
 			// Defending clan
-			if (Player.RequestedClan == 3 - G_CapturingClan && OldArmor > 0) {
+			if (Player.CurrentClan == 3 - G_CapturingClan && OldArmor > 0) {
 				declare SpawnDef <=> SM::GetSpawn("SpawnDefense"^G_GoalToCaptureIndex, 0);
 				if (SpawnDef != Null) {
-					SM::SpawnPlayer(Player, Player.RequestedClan, OldArmor, SpawnDef, -1);
+					SM::SpawnPlayer(Player, Player.CurrentClan, OldArmor, SpawnDef, -1);
 					SomeoneWasSpawned = True;
 					declare LastRoleMessageTime for Player = Now;
 					LastRoleMessageTime = Now;
@@ -555,7 +541,7 @@ if (G_GoalToCaptureIndex <= G_NbGoalsOnMap) {
 				}
 			}
 			// Capturing clan
-			else if (Player.RequestedClan == G_CapturingClan && OldArmor > 0) {
+			else if (Player.CurrentClan == G_CapturingClan && OldArmor > 0) {
 				declare CSmBlockSpawn SpawnAtk;
 				if (G_GoalToCaptureIndex <= 1) SpawnAtk <=> SM::GetSpawn("SpawnAttack", 0);
 				else SpawnAtk <=> SM::GetSpawn("SpawnDefense"^(G_GoalToCaptureIndex - 1), 0);
@@ -608,7 +594,7 @@ if (G_GoalToCaptureIndex <= G_NbGoalsOnMap) {
 						Player.AmmoGain = C_RocketGain;
 					}
 					
-					SM::SpawnPlayer(Player, Player.RequestedClan, OldArmor, SpawnAtk, -1);
+					SM::SpawnPlayer(Player, Player.CurrentClan, OldArmor, SpawnAtk, -1);
 					SomeoneWasSpawned = True;
 				}
 			}
@@ -2136,8 +2122,7 @@ Boolean WaitForPlayers(Integer _MinimumNbPlayers) {
 	StartTime = Now;
 	
 	while ((ClansNbPlayers[1] < _MinimumNbPlayers || ClansNbPlayers[2] < _MinimumNbPlayers) && !MatchEndRequested) {
-		yield;
-		XmlRpc::Loop();
+		MB_Yield();
 		
 		HadToWait = True;
 		SM::UnspawnPlayersChangingClan();

@@ -113,6 +113,42 @@ Text Private_ReadXmlText(CXmlNode _Node, Text _ChildName) {
 	return Private_ReadXmlText(_Node, _ChildName, "");
 }
 
+// ---------------------------------- //
+/** Check that all the players in a clan are listed in the clublink before activating it
+ *
+ *	@param	_ClanNb		The clan to set
+ *	@param	_Xml		The XML document containing the info
+ *	@param	_ClubLinkUrl	The url of the clublink to use
+ *
+ *	@return				True if all the players of the clan are listed in the clublink
+ */
+Boolean Private_CheckPlayersList(Integer _ClanNb, CXmlDocument _Xml, Text _ClubLinkUrl) {
+	declare CXmlNode Root;
+	if (_Xml != Null && _Xml.Root != Null && _Xml.Root.Name == "club") Root <=> _Xml.Root;
+	else return False;
+	
+	declare Logins = Text[];
+	declare TeamPlayers = Root.GetFirstChild("players");
+	if (TeamPlayers != Null) {
+		foreach (Player in TeamPlayers.Children) {
+			if (Player.Name != "player") continue;
+			declare Login = Player.GetAttributeText("login", "");
+			if (Login == "") continue;
+			Logins.add(Login);
+		}
+	}
+	
+	foreach (Player in Players) {
+		if (Player.CurrentClan != _ClanNb) continue;
+		if (Player.User.ClubLink != _ClubLinkUrl) return False;
+		if (!Logins.exists(Player.Login)) return False;
+	}
+	
+	return True;
+}
+
+// ---------------------------------- //
+/// Check if a team has a defined player list
 Void Private_SwitchForceClan() {
 	if (!G_LibClubLink_SettingForceClans) return;
 	
@@ -173,13 +209,19 @@ Void Private_ResetClan(Integer _ClanNb) {
 // ---------------------------------- //
 /** Set the team info from XML
  *
- *	@param	_ClanNb		The clan to set
- *	@param	_Xml		THe XML document containing the info
+ *	@param	_ClanNb			The clan to set
+ *	@param	_Xml			The XML document containing the info
+ *	@param	_ClubLinkUrl	The url of the clublink to use
  */
 Void Private_SetClan(Integer _ClanNb, CXmlDocument _Xml, Text _ClubLinkUrl) {
 	declare CXmlNode Root;
 	if (_Xml != Null && _Xml.Root != Null && _Xml.Root.Name == "club") Root <=> _Xml.Root;
 	else return;
+	
+	if (UseClans && !Private_CheckPlayersList(_ClanNb, _Xml, _ClubLinkUrl)) {
+		Private_ResetClan(_ClanNb);
+		return;
+	}
 	
 	declare Team <=> Teams[_ClanNb - 1];
 	Team.Name		= Private_ReadXmlText(Root, "name");

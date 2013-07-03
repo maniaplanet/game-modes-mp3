@@ -6,7 +6,7 @@
  *	You'll have to update both at the same time
  */
 
-#Const Version		"2013-03-06"
+#Const Version		"2013-07-03"
 #Const ScriptName	"Top2.Script.txt"
 
 #Include "TextLib" as TL
@@ -95,18 +95,9 @@ Text Private_CreateBackgroundML() {
 /// Add a title to the common top display
 Text Private_CreateTitleML() {
 	declare Text TitleML = "";
-	if(G_LibTop_Title != "") {
-		// <label textemboss="true" text="{{{G_LibTop_Title}}}" halign="center" valign="top" posn="0 {{{G_LibTop_CommonBackgroundPos.Y-2.5}}} 50" />""";
-		if (G_LibTop_CommonBackgroundImage == "") {
-			TitleML = """
-			<label textemboss="true" text="{{{G_LibTop_Title}}}" halign="center" valign="{{{G_LibTop_CommonBackgroundPos.Y-2.5}}}" posn="0 39.5 50" />""";
-		} else {
-			TitleML = """
-			<label textemboss="true" text="{{{G_LibTop_Title}}}" halign="center" valign="{{{(G_LibTop_CommonBackgroundPos.Y/4.)-2.5}}}" posn="0 39.5 50" />""";
-		}
-		
+	if(G_LibTop_Title != "") {	
 		TitleML = """
-		<label textemboss="true" text="{{{G_LibTop_Title}}}" halign="center" valign="top" posn="0 39.5 50" />""";
+		<label textemboss="true" text="{{{G_LibTop_Title}}}" halign="center" valign="top" posn="0 39 50" textsize="5" />""";
 	}
 	
 	return TitleML;

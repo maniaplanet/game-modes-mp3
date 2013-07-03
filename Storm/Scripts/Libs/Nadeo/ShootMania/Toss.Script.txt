@@ -2,7 +2,7 @@
  *	Toss library
  */
 
-#Const Version		"2013-05-15"
+#Const Version		"2013-06-24"
 #Const ScriptName	"Toss.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -143,7 +143,7 @@ Text GetTossUI(Boolean _Spectator) {
 		}
 	}
 --></script>
-<frame posn="0 0 5" id="Frame_Toss" >
+<frame posn="0 -18 5" id="Frame_Toss" >
 	<quad posn="0 0 0" sizen="170 38" halign="center" valign="bottom" bgcolor="0007" />
 	
 	<frame posn="0 26 2">
@@ -285,7 +285,7 @@ Text GetVoteUI(Integer _ClanNb) {
 		declare AttackString = TextLib::Compose(_("$s$<%1$> will start in attack."), TeamName);
 		declare DefendString = TextLib::Compose(_("$s$<%1$> will start in defense."), TeamName);
 		VoteButtons.Hide();
-		Result.SetText(_("Fetching result."));
+		//Result.SetText(_("Fetching result."));
 		while (Now < ResultEndTime) {
 			yield;
 			if (Net_Result == 1) {
@@ -300,7 +300,7 @@ Text GetVoteUI(Integer _ClanNb) {
 		}
 	}
 --></script>
-<frame posn="0 -10 5" id="Frame_Vote">
+<frame posn="0 -26 5" id="Frame_Vote">
 	<quad posn="0 0 0" sizen="170 55" halign="center" valign="bottom" bgcolor="0007" />
 	
 	<frame posn="0 32 6">
@@ -345,7 +345,7 @@ Text GetVoteUI(Integer _ClanNb) {
 Integer Toss() {
 	// Save UISequence
 	declare OldUISequence = UIManager.UIAll.UISequence;
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+	//UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 	 
 	// Create layer
 	declare LayerTossPlayer <=> UIManager.UILayerCreate();
@@ -481,7 +481,7 @@ Integer SelectSide(Integer _ClanNb) {
 	
 	// Save UISequence
 	declare OldUISequence = UIManager.UIAll.UISequence;
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+	//UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 	
 	// Create layer
 	declare LayerVote <=> UIManager.UILayerCreate();

@@ -1,6 +1,8 @@
-#Const	Version				"2013-04-30"
+#Const	Version				"2013-07-03"
 #Const	ScriptName			"KingOfTheLobby.Script.txt"
 #Const	C_NbBots			0
+
+#Const C_DisplayRulesReminder	True
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
@@ -50,6 +52,12 @@ Void SpawnPlayers() {
 	// Spawn players
 	foreach (Player in Players) {
 		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+			declare UI <=> UIManager.GetUI(Player);
+			if(UI != Null) {
+				declare netread Boolean Net_RulesReminder_StopIntro for UI;
+				if(! Net_RulesReminder_StopIntro) continue;
+			}
+		
 			if(Player.Score != Null) {
 				if(Player.Score.Points == 0) {
 					// new map or fresh player
@@ -66,7 +74,14 @@ Void SpawnPlayers() {
 				}
 			}
 			
+			declare Boolean LibKOL_Spawned for Player;
 			SM::SpawnPlayer(Player, 0, BlockSpawns[MathLib::Rand(0, BlockSpawns.count - 1)], Now);
+			LibKOL_Spawned = True;
+			declare LayerScores = ScoresTable::GetLayerScoresTable();
+			if(UI != Null && !UI.UILayers.exists(LayerScores)) {
+				declare Added = UI.UILayers.add(LayerScores);
+			}
+			
 			
 			if(Player.Score != Null) {
 				declare Integer CurrentArmor for Player.Score = 0;
@@ -142,7 +157,29 @@ Void NotifyHit(CSmPlayer _Shooter)
 	}
 }
 
+Void RemoveScoresLayerIfNotSpawned() {
+	foreach(Spectator in Spectators) {
+		declare Boolean LibKOL_Spawned for Spectator;
+		if(LibKOL_Spawned) {
+			LibKOL_Spawned = False;
+			declare LayerScores = ScoresTable::GetLayerScoresTable();
+			declare UI <=> UIManager.GetUI(Spectator);
+			if(UI != Null && UI.UILayers.exists(LayerScores)) {
+				declare Removed = UI.UILayers.remove(LayerScores);
+			}
+		}
+	}
+}
 
+Void LoopIntroEnds() {
+	foreach(Player in Players) {
+		declare UI <=> UIManager.GetUI(Player);
+		if(UI != Null) {
+			declare netread Boolean Net_RulesReminder_StopIntro for UI;
+			if(Net_RulesReminder_StopIntro) UI.UISequence = CUIConfig::EUISequence::Playing;
+		}
+	}
+}
 
 Boolean PlayLoop() 
 {
@@ -184,6 +221,8 @@ Boolean PlayLoop()
 		return False;
 	}
 	
+	LoopIntroEnds();
+	RemoveScoresLayerIfNotSpawned();	
 	SpawnPlayers();
 	return True;
 }
@@ -196,6 +235,7 @@ Void LoadScoresTable() {
 	ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 56.>, <207., 178.>);
 	ScoresTable::SetColumnsName("", "", "", _("Current Combo"), _("Best Combo"));
 	ScoresTable::Build();
+	declare Removed = UIManager.UIAll.UILayers.remove(ScoresTable::GetLayerScoresTable());
 }
 
 Void StartMap() {
@@ -203,17 +243,24 @@ Void StartMap() {
 	
 	/* -------------------------------------- */
 	// Create the rules
-	declare ModeName = "King of the Lobby";
-	declare ModeRules = """
+	declare ModeName = _("Lobby");
+	declare ModeRules = TextLib::Compose("%1\n\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, you can play 'King Of The Lobby'."), _("In this mode, perform as much hits as possible without being eliminated."));
+	
+	/*
+	\nWhile waiting, you can play 'King Of The Lobby'.\nIn this mode, perform as much hits as possible before being eliminated.");
+	
+	"""
 	Free for all. 
 	Perform as much hits as possible without beeing eliminated.
 	""";
+	*/
 	
 	SpawnScreen::CreateRules(ModeName, ModeRules, False);
 	SpawnScreen::AttachRules();
 	
 	//Users_SetNbFakeUsers(C_NbBots, 0);
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	//UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::UIInteraction;
 	
 	ClearScores();
 	foreach (Score in Scores) {
@@ -252,6 +299,96 @@ Void EndMap()
 	UIManager.UIAll.BigMessage = "";
 }
 
+Void CreateRulesReminderLayer() {
+	if(! C_DisplayRulesReminder) return;
+
+	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
+	declare Text WelcomeBgImage		= ImgBaseDir^"WelcomeBg.dds";
+
+	declare Text TitleText 			= _("Waiting for your match to start");
+	declare Text ModeName	 		= _("Lobby");
+	declare Text RulesReminder = TextLib::Compose("%1\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, you can play 'King Of The Lobby'."), _("In this mode, perform as much hits as possible without being eliminated."));
+	
+	declare Text DoNotShowAgain		= _("Do Not Show Again");
+	declare Text Close				= _("Close");
+	
+	declare Integer WindowWidth		= 192;
+	declare Integer WindowHeight	= 30;
+	declare Real 	WindowX			= 0.;
+	declare Real 	WindowY			= 22.;	
+	
+	declare Text MLText = """
+	<script><!--
+		main() 
+		{
+			// for the "do not show again" feature
+			declare persistent Boolean NadeoKoL_PersistentShowRulesReminder for This = True;
+			declare netwrite Boolean Net_RulesReminder_StopIntro for UI;
+						
+			if(! NadeoKoL_PersistentShowRulesReminder) {
+				Net_RulesReminder_StopIntro = True;
+				return;
+			}
+			
+			Net_RulesReminder_StopIntro = False;
+			
+			while(InputPlayer == Null) yield;
+			
+			if ((InputPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) ||
+				(InputPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning))
+			{
+				return;
+			}
+	
+			declare Button_DoNotShowAgain <=> (Page.GetFirstChild("Button_DoNotShowAgain") as CMlLabel);
+			declare Button_Close <=> (Page.GetFirstChild("Button_Close") as CMlLabel);
+			declare RulesReminderMainFrame <=> (Page.GetFirstChild("RulesReminderMainFrame") as CMlFrame);
+	
+			while(True) {
+				yield;
+				
+				if(IsSpectatorMode) {
+					RulesReminderMainFrame.Hide();
+					continue;
+				} else {
+					RulesReminderMainFrame.Show();
+				}
+	
+				foreach(Event in PendingEvents) {
+					switch(Event.Type){
+						case CMlEvent::Type::MouseClick: {
+							if(Event.ControlId == "Button_DoNotShowAgain") {
+								NadeoKoL_PersistentShowRulesReminder = False;
+								RulesReminderMainFrame.Hide();
+								Net_RulesReminder_StopIntro = True;
+								return; 
+							}
+							if(Event.ControlId == "Button_Close") {
+								RulesReminderMainFrame.Hide();
+								Net_RulesReminder_StopIntro = True;
+								return; 
+							}
+						}
+					}
+				}
+			}
+		}
+	--></script>
+	<frame id="RulesReminderMainFrame" posn="{{{WindowX}}} {{{WindowY}}} 0" hidden="true" >
+		<format  textemboss="1" />
+		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="210 51" image="{{{WelcomeBgImage}}}" />
+		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
+		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
+			<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
+			<label posn="{{{(WindowWidth/2)-42}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" />
+		<!-- <label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2)-2}}}"  text="{{{
+				_("Press $<$o$f00F1$> to close this window.")}}}" textsize="2"/>-->
+	</frame>
+	""";
+	
+	declare Ident RulesReminderLayerId	= Layers::Create("RulesReminder", MLText);
+	declare Boolean Attached			= Layers::Attach("RulesReminder", NullId);
+}
 
 Void StartLobbyMode(Integer _RoundDuration, Boolean _UseAllies) 
 {
@@ -267,8 +404,12 @@ Void StartLobbyMode(Integer _RoundDuration, Boolean _UseAllies)
 	UseClans = False;
 	UIManager.UIAll.AlliesLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
 	UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
-	
 	UIManager.UIAll.OverlayHideCountdown = True;
+	UIManager.UIAll.AltMenuNoCustomScores = True;
+	
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	
+	CreateRulesReminderLayer();
 	
 	while(True) {
 		MatchEndRequested = False;
@@ -306,3 +447,5 @@ Void StartLobbyMode() {
 Void StartLobbyMode(Integer _NbHitsToCombo, Integer _RoundDuration, Boolean _UseAllies) {
 	StartLobbyMode(_RoundDuration, _UseAllies);
 }
+
+

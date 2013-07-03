@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"MeleeArena"
-#Const	Version				"2013-05-14"
+#Const	Version				"2013-06-19"
 #Const	ScriptName			"Melee.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -287,7 +287,9 @@ UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 MB_Sleep(5000);
 
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
-wait(UIManager.UIAll.UISequenceIsCompleted);
+while(!UIManager.UIAll.UISequenceIsCompleted) {
+	MB_Yield();
+}
 
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 UIManager.UIAll.BigMessage = "";

@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-05-14"
+#Const Version		"2013-07-02"
 #Const ScriptName	"Heroes.Script.txt"
 
 #Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
@@ -209,7 +209,7 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 				declare NbHit for Event.Shooter.Score = 0;
 				NbHit += 1;
 				declare netwrite Net_LayerST_DefPoints for Event.Shooter = 0;
-				Net_LayerST_DefPoints += 1;
+				Net_LayerST_DefPoints = NbHit;
 			}
 			
 			if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) DisplayHitDistance(Event.Shooter, Event.Victim, False);
@@ -234,8 +234,7 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 				NbLeft = (Players[G_AtkPlayerId].Armor - 100) / 100;
 				if (NbLeft <= 1) {
 					UIManager.UIAll.StatusMessage = TextLib::Compose(
-						_("%1 1 armor left."), 
-						Teams[G_AtkClan - 1].ColorText
+						"%1%2", Teams[G_AtkClan - 1].ColorText, _("1 armor left.")
 					);
 				} else {
 					UIManager.UIAll.StatusMessage = TextLib::Compose(
@@ -248,8 +247,7 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 				NbLeft = ClansNbPlayersAlive[G_AtkClan] - 1;
 				if (NbLeft <= 1) {
 					UIManager.UIAll.StatusMessage = TextLib::Compose(
-						_("%1 1 attacker left."), 
-						Teams[G_AtkClan - 1].ColorText
+						"%1%2", Teams[G_AtkClan - 1].ColorText, _("1 attacker left.")
 					);
 				} else {
 					UIManager.UIAll.StatusMessage = TextLib::Compose(
@@ -266,10 +264,10 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 				if (Event.Victim.Id == G_AtkPlayerId) {
 					NbHit += C_AtkEliminationPoints;
 					Event.ShooterPoints = C_AtkEliminationPoints;
-					Net_LayerST_DefPoints += C_AtkEliminationPoints;
+					Net_LayerST_DefPoints = NbHit;
 				} else {
 					NbHit += 1;
-					Net_LayerST_DefPoints += 1;
+					Net_LayerST_DefPoints = NbHit;
 				}
 			}
 		}
@@ -342,18 +340,20 @@ if (Event.Shooter != Null && Event.Shooter.CurrentClan == G_AtkClan && Event.Mis
 	if (Event.MissDist < 0.01) {
 		Message::SendStatusMessage(
 			TextLib::Compose(
-				_("%1$<%2$> misses by %3cm."), 
+				_("%1$<%2$> misses $<%3$> by %4cm."), 
 				Teams[G_AtkClan - 1].ColorText,
 				Event.Shooter.Name, 
+				Event.Victim.Name,
 				TextLib::ToText(1)
 			), 3000, 2
 		);
 	} else {
 		Message::SendStatusMessage(
 			TextLib::Compose(
-				_("%1$<%2$> misses by %3cm."), 
+				_("%1$<%2$> misses $<%3$> by %4cm."), 
 				Teams[G_AtkClan - 1].ColorText,
 				Event.Shooter.Name, 
+				Event.Victim.Name,
 				TextLib::ToText(MathLib::CeilingInteger(Event.MissDist*100))
 			), 3000, 2
 		);
@@ -368,6 +368,116 @@ if (Event.Shooter != Null && Event.Shooter.CurrentClan == G_AtkClan && Event.Mis
 ***AllDefElim***
 ***
 AllDefElim = ((ClansNbPlayersAlive[G_DefClan] <= 0 && S_TimePoleElimination <= 0) || LastDefSelfElim);
+***
+
+***CreatePlayersListBig***
+***
+declare ML ="";
+	declare PosX = 0.;
+	declare PosY = 0.;
+	declare Col = 2.;
+	declare PlayersByCol = MathLib::NearestInteger(_Nb/Col);
+	declare S = _Scale;
+	declare K = 1;
+	declare AvatarSize = 10.75;
+	
+	declare RocketHidden = 0;
+	if (_Mode == 2) RocketHidden = 1;
+	
+	ML ^= """
+<framemodel posn="0 0" id="Frame_PlayerLeft">
+	<quad posn="0 0 2" sizen="{{{3*S}}} 11.5" image="file://Media/Manialinks/ShootMania/Elite/NotReady.dds" id="Quad_NotReady" />
+	<quad posn="0 0 2" sizen="{{{3*S}}} 11.5" image="file://Media/Manialinks/ShootMania/Elite/Ready.dds" hidden="1" id="Quad_Ready" />
+	<quad posn="{{{0*S}}} 0 1" sizen="{{{81.8*S}}} 11.5" bgcolor="a007" id="Quad_Attacker" hidden="1" />
+	<quad posn="{{{0*S}}} 0 5" sizen="{{{81.8*S}}} 11.5" bgcolor="0009" id="Quad_Eliminated" hidden="1" />
+	<quad posn="{{{(3*S)+6}}} {{{11.5/-2.}}} 2" sizen="{{{AvatarSize}}} {{{AvatarSize}}}" halign="center" valign="center" bgcolor="0003" opacity="0.9" id="Quad_Avatar" />
+	<label posn="{{{17*S}}} -6.4 3" sizen="{{{45*S}}} 12" textsize="3" valign="bottom" id="Label_Name" />
+	<label posn="{{{17*S}}} -10.4 3" sizen="{{{24*S}}} 5" textsize="1" valign="bottom" textemboss="1" id="Label_Rank" />
+	<frame posn="{{{14.6*S}}} -2.7 4" id="Frame_Stars">
+		<quad posn="0 0" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_5" hidden="1" />
+		<quad posn="0 -1.5" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_4" hidden="1" />
+		<quad posn="0 -3" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_3" hidden="1" />
+		<quad posn="0 -4.5" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_2" hidden="1" />
+		<quad posn="0 -6" sizen="2 2" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_1" hidden="1" />
+	</frame>
+	<frame posn="{{{63*S}}} -10.4 2" id="Frame_LadderPoints" hidden="1">
+		<quad posn="0 -2" sizen="{{{7*S}}} 7" halign="right" valign="bottom" style="Icons128x128_1" substyle="LadderPoints" />
+		<label posn="-8 0" sizen="{{{12*S}}} 5" textsize="1" textcolor="bb8" halign="right" valign="bottom" id="Label_LadderPoints" />
+	</frame>
+	<frame posn="{{{68*S}}} -5.5 2" id="Frame_DefPointsSimple">
+		<label posn="0 0" sizen="{{{6*S}}} 3" textsize="2" halign="left" valign="center" id="Label_DefPoints" />
+		<quad posn="-0.5 -0.2" sizen="5 5" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket.dds" hidden="{{{RocketHidden}}}" />
+	</frame>
+	<frame posn="{{{70*S}}} 0 2" id="Frame_DefPointsDetailed" hidden="1">
+		<label posn="0 -1.75" sizen="{{{5*S}}} 3" textsize="2" halign="left" valign="center" id="Label_DefLaser" />
+		<label posn="0 -5.25" sizen="{{{5*S}}} 3" textsize="2" halign="left" valign="center" id="Label_DefRocket" />
+		<label posn="0 -8.75" sizen="{{{5*S}}} 3" textsize="2" halign="left" valign="center" id="Label_DefNucleus" />
+		<quad posn="-0.5 -1.95" sizen="3 3" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Laser.dds" />
+		<quad posn="-0.5 -5.45" sizen="3 3" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket.dds" />
+		<quad posn="-0.5 -8.95" sizen="3 3" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Nucleus.dds" />
+	</frame>
+	<label posn="{{{76*S}}} -5.5 3" sizen="{{{5*S}}} 5" textsize="5" halign="left" valign="center" id="Label_AtkPoints" />
+</framemodel>
+<framemodel posn="0 0" id="Frame_PlayerRight">
+	<quad posn="0 0 2" sizen="{{{3*S}}} 11.5" halign="right" image="file://Media/Manialinks/ShootMania/Elite/NotReady.dds" id="Quad_NotReady" />
+	<quad posn="0 0 2" sizen="{{{3*S}}} 11.5" halign="right" image="file://Media/Manialinks/ShootMania/Elite/Ready.dds" hidden="1" id="Quad_Ready" />
+	<quad posn="{{{0*S}}} 0 1" sizen="{{{81.8*S}}} 11.5" bgcolor="a007" halign="right" id="Quad_Attacker" hidden="1" />
+	<quad posn="{{{0*S}}} 0 5" sizen="{{{81.8*S}}} 11.5" bgcolor="0009" halign="right" id="Quad_Eliminated" hidden="1" />
+	<quad posn="{{{(-3*S)-6}}} {{{11.5/-2.}}} 2" sizen="{{{AvatarSize}}} {{{AvatarSize}}}" halign="center" valign="center" bgcolor="0003" opacity="0.9" id="Quad_Avatar" />
+	<label posn="{{{-17*S}}} -6.4 3" sizen="{{{45*S}}} 12" textsize="3" halign="right" valign="bottom" id="Label_Name" />
+	<label posn="{{{-17*S}}} -10.4 3" sizen="{{{24*S}}} 5" textsize="1" halign="right" valign="bottom" textemboss="1" id="Label_Rank" />
+	<frame posn="{{{-14.6*S}}} -2.7 4" id="Frame_Stars">
+		<quad posn="0 0" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_5" hidden="1" />
+		<quad posn="0 -1.5" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_4" hidden="1" />
+		<quad posn="0 -3" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_3" hidden="1" />
+		<quad posn="0 -4.5" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_2" hidden="1" />
+		<quad posn="0 -6" sizen="2 2" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_1" hidden="1" />
+	</frame>
+	<frame posn="{{{-63*S}}} -10.4 2" id="Frame_LadderPoints" hidden="1">
+		<quad posn="{{{13*S}}} -2" sizen="{{{7*S}}} 7" valign="bottom" style="Icons128x128_1" substyle="LadderPoints" />
+		<label posn="{{{12*S}}} 0" sizen="{{{12*S}}} 5" textsize="1" textcolor="bb8" halign="right" valign="bottom" id="Label_LadderPoints" />
+	</frame>
+	<frame posn="{{{-68*S}}} -5.5 2" id="Frame_DefPointsSimple">
+		<label posn="0 0" sizen="{{{6*S}}} 3" textsize="2" halign="right" valign="center" id="Label_DefPoints" />
+		<quad posn="0.5 -0.2" sizen="5 5" halign="left" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket2.dds" hidden="{{{RocketHidden}}}" />
+	</frame>
+	<frame posn="{{{-70*S}}} 0 2"id="Frame_DefPointsDetailed" hidden="1">
+		<label posn="0 -1.75" sizen="{{{5*S}}} 3" textsize="2" halign="right" valign="center" id="Label_DefLaser" />
+		<label posn="0 -5.25" sizen="{{{5*S}}} 3" textsize="2" halign="right" valign="center" id="Label_DefRocket" />
+		<label posn="0 -8.75" sizen="{{{5*S}}} 3" textsize="2" halign="right" valign="center" id="Label_DefNucleus" />
+		<quad posn="0.5 -1.95" sizen="3 3" halign="left" valign="center" image="file://Media/Manialinks/ShootMania/Common/Laser.dds" />
+		<quad posn="0.5 -5.45" sizen="3 3" halign="left" valign="center" image="file://Media/Manialinks/ShootMania/Common/Rocket.dds" />
+		<quad posn="0.5 -8.95" sizen="3 3" halign="left" valign="center" image="file://Media/Manialinks/ShootMania/Common/Nucleus.dds" />
+	</frame>
+	<label posn="{{{-76*S}}} -5.5 3" sizen="{{{5*S}}} 5" textsize="5" halign="right" valign="center" id="Label_AtkPoints" />
+</framemodel>
+""";
+	
+	for (J, 1, 2) {
+		for (I, 1, PlayersByCol) {
+			if (J % 2 == 1) {
+				ML ^= """
+<frame posn="{{{PosX}}} {{{PosY}}}">
+	<quad posn="0 0 -6" sizen="{{{81.8*S}}} 11.5" bgcolor="{{{C_UI_Colors["BG"]}}}" id="Quad_Player_{{{K}}}" scriptevents="1" />
+	<frameinstance modelid="Frame_PlayerLeft" id="Frame_Player_{{{K}}}" />
+</frame>
+""";
+			} else {
+				ML ^= """
+<frame posn="{{{PosX+(164*S/2.)}}} {{{PosY}}}">
+	<quad posn="0 0 -6" sizen="{{{81.8*S}}} 11.5" bgcolor="{{{C_UI_Colors["BG"]}}}" halign="right" id="Quad_Player_{{{K}}}" scriptevents="1" />
+	<frameinstance modelid="Frame_PlayerRight" id="Frame_Player_{{{K}}}" />
+</frame>
+""";
+			}
+			PosY -= 11.9;
+			K += 1;
+		}
+		PosX += 164*S/2.;
+		PosY = 0.;
+	}
+	
+	return ML;
 ***
 
 ***CreateLayerScoresTable***
@@ -695,6 +805,57 @@ Net_LayerST_AttackerLogin = AttackerLogin;
 Net_LayerST_Sequence = _Mode;
 ***
 
+***StartTurn***
+***
+Interface::CreatePlayersLists("Small", 1., 10, 1);
+***
+
+***EndTurnUIStart***
+***
+Interface::DestroyPlayersLists();
+***
+
+***StartWarmUp***
+***
+Interface::CreatePlayersLists("Medium", 0.67, 10, 1);
+***
+
+***EndWarmUp***
+***
+Interface::DestroyPlayersLists();
+***
+
+***LadderPoints***
+***
+foreach (Score in Scores) {
+	declare PrevPoints for Score = 0;
+	declare NbHit for Score = 0;
+	PrevPoints = Score.Points;
+	Score.LadderMatchScoreValue = (Score.Points * 1.) + (NbHit * 0.3);
+	// Winner
+	if (Score.LadderClan == WinnerMapClan) {
+		Score.LadderMatchScoreValue *= 2.;
+		Score.Points = 3;
+	}
+	// Looser
+	else if (Score.LadderClan == 3 - WinnerMapClan) {
+		Score.LadderMatchScoreValue *= 1.;
+		Score.Points = 2;
+	}
+	// Other
+	else {
+		Score.LadderMatchScoreValue *= 0.5;
+		Score.Points = 1;
+	}
+}
+Ladder_SetResultsVersion(1);
+Score::MatchEnd(True);
+foreach (Score in Scores) {
+	declare PrevPoints for Score = 0;
+	Score.Points = PrevPoints;
+}
+***
+
 /* ------------------------------------- */
 /// Update the Hud3dMarkers.
 Void UpdateMarkers() {
@@ -714,10 +875,12 @@ Void UpdateMarkers() {
 	
 	declare PolesMarker = "";
 	foreach (Goal in BlockPoles) {
-		declare Icon = "PointA";
-		declare Name = "$w$s$oA";
-		if (Goal.Tag == "Goal B") { Icon = "PointB"; Name = "$w$s$oB"; }
+		declare Icon = "";
+		declare Name = "";
+		if (Goal.Tag == "Goal A") { Icon = "PointA"; Name = "$w$s$oA"; }
+		else if (Goal.Tag == "Goal B") { Icon = "PointB"; Name = "$w$s$oB"; }
 		else if (Goal.Tag == "Goal C") { Icon = "PointC"; Name = "$w$s$oC"; }
+		else continue;
 		PolesMarker ^= """<marker icon="{{{Icon}}}" pos="{{{Goal.Position.X}}} {{{Goal.Position.Y + 25}}} {{{Goal.Position.Z}}}" />""";
 	}
 		

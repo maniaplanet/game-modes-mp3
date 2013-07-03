@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2013-05-07"
+#Const	Version		"2013-06-27"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -132,6 +132,33 @@ Void SendRankings() {
 	if (!G_UseLibXmlRpc) return;
 	
 	Private_SendCallbackArray("LibXmlRpc_Rankings", [Private_GetRankings()]);
+}
+
+// ---------------------------------- //
+/** Send the current rankings
+ *	Data:
+ *	[Match Team 1, Match Team 2, Map Team 1, Map Team 2]
+ */
+Void SendScores() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_Scores", [
+		TL::ToText(UIManager.UIAll.ScoreSummary_MatchPoints1),
+		TL::ToText(UIManager.UIAll.ScoreSummary_MatchPoints2),
+		TL::ToText(UIManager.UIAll.ScoreSummary_Points1), 
+		TL::ToText(UIManager.UIAll.ScoreSummary_Points2)
+	]);
+}
+
+// ---------------------------------- //
+/** Callback sent when starting to load the map
+ *	Data:
+ *	[Number of the map]
+ */
+Void LoadingMap(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_LoadingMap", [TL::ToText(_Number)]);
 }
 
 // ---------------------------------- //
@@ -377,6 +404,7 @@ Void Loop() {
 				case "LibXmlRpc_GetRankings"	: SendRankings();
 				case "LibXmlRpc_DisableAltMenu"	: Private_ToggleAltMenu(False, Event.Param2);
 				case "LibXmlRpc_EnableAltMenu"	: Private_ToggleAltMenu(True, Event.Param2);
+				case "LibXmlRpc_GetScores"		: SendScores();
 			}
 		}
 	}

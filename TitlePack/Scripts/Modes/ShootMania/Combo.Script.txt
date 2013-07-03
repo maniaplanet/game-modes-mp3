@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2013-05-14"
+#Const	Version				"2013-06-18"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "TextLib" as TL
@@ -27,9 +27,10 @@
 #Setting S_WarmUpDuration		90		as _("Warmup duration (0: disabled)")
 #Setting S_AllowUnbalancedTeams	False	as _("Allow a game to begin without the same number of players in each team")
 #Setting S_UseArmorReduction	False	as _("Reduce the armor of players above two armor points")
-#Setting S_UseLobby				False	as "<hidden>" // _("Launch server in lobby mode")
-#Setting S_LobbyTimePerMap		86400	as "<hidden>" // _("Time limit in lobby mode (sec., 0: no limit)")
-#Setting S_MatchmakingSleep		0		as "<hidden>" // _("Matchmaking match end duration (-1: infinite)")
+#Setting S_UseLobby				False	as "<hidden>" 	///< _("Launch server in lobby mode")
+#Setting S_LobbyTimePerMap		86400	as "<hidden>" 	///< _("Time limit in lobby mode (sec., 0: no limit)")
+#Setting S_Matchmaking			False	as "<hidden>"	///< Use Elite with matchmaking
+#Setting S_MatchmakingSleep		0		as "<hidden>" 	///< _("Matchmaking match end duration (-1: infinite)")
 // Clublinks settings
 #Setting S_UsePlayerClublinks	False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1	""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
@@ -83,7 +84,8 @@
 #Const C_OffZoneDuration		60
 #Const C_MaxDamage				100
 #Const C_ImgBaseDir 			"file://Media/Manialinks/Shootmania/Common/"
-#Const C_SleepEndMap			15000
+#Const C_WaitConnectionTimeLimit	45000
+#Const C_SleepEndMap				15000
 
 #Const Description _("TYPE: 2 vs 2\nOBJECTIVE:\n- Eliminate the two opponents within a short range of time (Combo Time).\n- Your Combo Time starts when you eliminate one opponent: eliminate the second one before it ends to win the round.\n- Each time you eliminate an opponent, your Combo Time increases.\n- Use '1', '2', '3' and '4' on your keyboard to switch weapon. Collecting a weapon item grants your team with the ability to use it this round, or with 1 extra ammo max if you already own it.")
 
@@ -264,7 +266,8 @@ if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
 
 // ---------------------------------- //
 // Do warm up
-WarmUp();
+if (S_Matchmaking) WaitConnection();
+else WarmUp();
 declare ClansOrder = WarmUp::GetOrder();
 foreach (Clan => ClanOrder in ClansOrder) {
 	if (!G_ClansPlayers.existskey(Clan)) continue;
@@ -817,8 +820,7 @@ Void MatchmakingWait() {
 			if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
 			else UIManager.UIAll.CountdownEndTime = -1;
 		}
-		+++SleepLoop+++
-		yield;
+		MB_Yield();
 	}
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
@@ -830,10 +832,10 @@ Void InitializePlayer(CSmPlayer _Player) {
 	declare NextArmorReduction for _Player = -1;
 	NextArmorReduction = -1;
 	
-	declare netwrite Net_Combo_AmmoUpdate for _Player = Now;
+	declare netwrite Net_Combo_AmmoUpdate for _Player = _Player.Login^"_"^Now;
 	declare netwrite Net_Combo_AmmoMax for _Player = C_AmmoMax;
 	declare netwrite Net_Combo_Weapon for _Player = "Rocket";
-	Net_Combo_AmmoUpdate = Now;
+	Net_Combo_AmmoUpdate = _Player.Login^"_"^Now;
 	Net_Combo_AmmoMax = C_AmmoMax;
 	Net_Combo_Weapon = "Rocket";
 	
@@ -1033,6 +1035,7 @@ Void UpdateWeapon(Text _PrevWeapon, Text _NewWeapon) {
 }
 
 main() {
+	declare Frame_WeaponInfo	<=> (Page.GetFirstChild("Frame_WeaponInfo")		as CMlFrame);
 	declare Label_Team1Name		<=> (Page.GetFirstChild("team1name")			as CMlLabel);
 	declare Label_Team2Name		<=> (Page.GetFirstChild("team2name")			as CMlLabel);
 	declare Label_ComboClan1	<=> (Page.GetFirstChild("Label_ComboClan1")		as CMlLabel);
@@ -1053,11 +1056,11 @@ main() {
 	declare PrevTeam2Name		= "";
 	declare PrevComboClan1		= 0;
 	declare PrevComboClan2		= 0;
-	declare PrevAmmoUpdate		= 0;
+	declare PrevAmmoUpdate		= "";
 	declare PrevWeapon			= "";
 	
 	while (True) {
-		sleep(100);
+		sleep(250);
 		if (!PageIsVisible) continue;
 		if (InputPlayer == Null) continue;
 		
@@ -1079,7 +1082,7 @@ main() {
 		}
 		
 		if (IsSpectatorMode && GUIPlayer != Null) {
-			declare netread Integer			Net_Combo_AmmoUpdate	for GUIPlayer;
+			declare netread Text			Net_Combo_AmmoUpdate	for GUIPlayer;
 			declare netread Integer[Text]	Net_Combo_AmmoMax		for GUIPlayer;
 			declare netread Text			Net_Combo_Weapon		for GUIPlayer;
 			
@@ -1092,8 +1095,12 @@ main() {
 				UpdateWeapon(PrevWeapon, Net_Combo_Weapon);
 				PrevWeapon = Net_Combo_Weapon;
 			}
+			
+			if (!Frame_WeaponInfo.Visible) Frame_WeaponInfo.Show();
+		} else if (IsSpectatorMode) {
+			if (Frame_WeaponInfo.Visible) Frame_WeaponInfo.Hide();
 		} else {
-			declare netread Integer			Net_Combo_AmmoUpdate	for InputPlayer;
+			declare netread Text			Net_Combo_AmmoUpdate	for InputPlayer;
 			declare netread Integer[Text]	Net_Combo_AmmoMax		for InputPlayer;
 			declare netread Text			Net_Combo_Weapon		for InputPlayer;
 			
@@ -1106,6 +1113,8 @@ main() {
 				UpdateWeapon(PrevWeapon, Net_Combo_Weapon);
 				PrevWeapon = Net_Combo_Weapon;
 			}
+			
+			if (!Frame_WeaponInfo.Visible) Frame_WeaponInfo.Show();
 		}
 	}
 }
@@ -1198,9 +1207,9 @@ Void AddAmmoMax(CSmPlayer _Player, Text _Weapon, Integer _Ammo) {
 		default			: return;
 	}
 	
-	declare netwrite Net_Combo_AmmoUpdate	for _Player = Now;
+	declare netwrite Net_Combo_AmmoUpdate	for _Player = _Player.Login^"_"^Now;
 	declare netwrite Net_Combo_AmmoMax		for _Player = C_AmmoMax;
-	Net_Combo_AmmoUpdate = Now;
+	Net_Combo_AmmoUpdate = _Player.Login^"_"^Now;
 	Net_Combo_AmmoMax[_Weapon] += 1;
 	SetPlayerAmmoMax(_Player, Weapon, Net_Combo_AmmoMax[_Weapon]);
 }
@@ -1357,15 +1366,19 @@ Void SwitchWeapon(CSmPlayer _Player, CSmModeEvent::EActionSlots _Weapon) {
  */
 Void CycleWeapon(CSmPlayer _Player, Integer _Step) {
 	declare Weapons for _Player = C_Default_Weapons;
-	if (Weapons.count <= 0) return;
+	if (Weapons.count <= 1) return;
+	
+	declare Step = 0;
+	if (_Step < 0) Step = -1;
+	else if (_Step > 0) Step = 1;
 	
 	declare CurrentWeapon for _Player = C_Default_Weapon;
 	if (!Weapons.exists(CurrentWeapon)) return;
 	
-	declare Key = Weapons.keyof(CurrentWeapon) + _Step;
+	declare Key = Weapons.keyof(CurrentWeapon) + Step;
 	
 	while (!Weapons.existskey(Key)) {
-		Key += _Step;
+		Key += Step;
 		if (Key > 4) Key = 1;
 		else if (Key < 1) Key = 4;
 	}
@@ -1460,6 +1473,52 @@ Boolean CanStopWarmUp(Boolean _MinimumCriteria) {
 }
 
 // ---------------------------------- //
+/// Wait player connection
+Void WaitConnection() {
+	WarmUp::Before(S_WarmUpDuration, True, True, S_Script_NbPlayersPerTeam);
+	WarmUp::ResetOrder();
+	
+	declare PrevClansNbPlayers = [1 => 0, 2 => 0];
+	StartTime = Now;
+	EndTime = -1;
+	
+	while (True) {
+		MB_Sleep(250);
+		foreach (Player in AllPlayers) {
+			SetPlayerClan(Player, Player.RequestedClan);
+		}
+		
+		UIManager.UIAll.StatusMessage = _("Waiting for players");
+		UIManager.UIAll.BigMessage = TL::Compose(
+			"""%1 1: %2/{{{S_Script_NbPlayersPerTeam}}} | %1 2: %3/{{{S_Script_NbPlayersPerTeam}}}""", 
+			_("Team"), TL::ToText(ClansNbPlayers[1]), TL::ToText(ClansNbPlayers[2])
+		);
+		
+		if (PrevClansNbPlayers[1] != ClansNbPlayers[1] || PrevClansNbPlayers[2] != ClansNbPlayers[2]) {
+			PrevClansNbPlayers[1] = ClansNbPlayers[1];
+			PrevClansNbPlayers[2] = ClansNbPlayers[2];
+			declare Cleaned = WarmUp::CleanOrder();
+			declare Filled = WarmUp::FillOrder();
+		}
+		
+		if (EndTime == -1 && ClansNbPlayers[1] >= 1 && ClansNbPlayers[2] >= 1) EndTime = Now + C_WaitConnectionTimeLimit;
+		
+		if (ClansNbPlayers[1] >= S_Script_NbPlayersPerTeam && ClansNbPlayers[2] >= S_Script_NbPlayersPerTeam) break;
+		if (EndTime != -1 && Now >= EndTime) break;
+	}
+	
+	StartTime = -1;
+	EndTime = -1;
+	
+	WarmUp::After();
+	declare Cleaned = WarmUp::CleanOrder();
+	declare Filled = WarmUp::FillOrder();
+	MB_Sleep(1000);
+	UIManager.UIAll.StatusMessage = "";
+	UIManager.UIAll.BigMessage = "";
+}
+
+// ---------------------------------- //
 /// Manage the warm up sequence
 Void WarmUp() {
 	// Init warm up
@@ -1493,12 +1552,11 @@ Void WarmUp() {
 	}
 	
 	while ((EndTime == -1 || Now <= EndTime) && !ServerShutdownRequested && !MatchEndRequested) {
-		yield;
+		MB_Yield();
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
 		
-		XmlRpc::Loop();
 		WarmUp::Loop();
 		SM::UnspawnPlayersChangingClan();
 		

@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"TimeAttackArena"
-#Const Version				"2013-04-30"
+#Const Version				"2013-06-19"
 #Const ScriptName			"TimeAttack.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -380,11 +380,11 @@ if (Users.existskey(WinnerId)) {
 } else {
 	UIManager.UIAll.BigMessage = _("|Match|Draw");
 }
-sleep(3000);
+MB_Sleep(3000);
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-sleep(7000);
+MB_Sleep(7000);
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
-sleep(3000);		
+MB_Sleep(3000);		
 UIManager.UIAll.BigMessage = "";
 ***
 

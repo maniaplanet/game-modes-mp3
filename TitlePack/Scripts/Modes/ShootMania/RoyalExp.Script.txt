@@ -2,7 +2,7 @@
 
 #Extends "Modes/ShootMania/Royal.Script.txt"
 
-#Const DeluxeVersion 		"2012-04-26"
+#Const DeluxeVersion 		"2012-06-14"
 #Const DeluxeScriptName		"RoyalExp.Script.txt"
 
 #Include "Libs/Nadeo/ShootMania/RoyalExp/RoyalExpCharacter.Script.txt" as Character
@@ -128,7 +128,6 @@ foreach(Player in Players)
 
 ***PlayLoop***
 ***
-	+++UpdatePlayersStatusFromUI+++
 	foreach(Event in PendingEvents) 
 	{
 		if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
@@ -168,7 +167,7 @@ foreach(Player in Players)
 	
 ***
 
-***SleepLoop***
+***Yied***
 ***
 	+++UpdatePlayersStatusFromUI+++
 ***
@@ -376,18 +375,21 @@ else {
 			
 			// declare persistent Integer RoyalEvolution_PersistentRebirth for Player.User = 0;
 			
-			Incremented = True;
+			if (XpCharacter_Level >= C_RebirthLevelMin) {
 			
-			XpCharacter_FusionLvl += 1;
-			XpCharacter_XpPoints = 0;
-			XpCharacter_Level = 1;
-			// RoyalEvolution_PersistentRebirth += 1;
-			CaracImpactsArmor = True;
-			
-			CharacterXp::Respecialize(UI);
-			declare Boolean LvlUp = CharacterXp::NotifyXpGain(Player,  0, -1); // GiveXp(Player, 0);
-			declare CSmPlayer _Player <=> Player;
-			---SetLvlRebirthScoreText---
+				Incremented = True;
+				
+				XpCharacter_FusionLvl += 1;
+				XpCharacter_XpPoints = 0;
+				XpCharacter_Level = 1;
+				// RoyalEvolution_PersistentRebirth += 1;
+				CaracImpactsArmor = True;
+				
+				CharacterXp::Respecialize(UI);
+				declare Boolean LvlUp = CharacterXp::NotifyXpGain(Player,  0, -1); // GiveXp(Player, 0);
+				declare CSmPlayer _Player <=> Player;
+				---SetLvlRebirthScoreText---
+			}
 		}
 		
 		if (Incremented) {

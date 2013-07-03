@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2013-05-07"
+#Const	Version				"2013-06-04"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -34,6 +34,7 @@
 #Setting	S_RoundsLimit		3		as _("Rounds limit")		///< Point limit on map
 #Setting	S_TimeLimit			300 	as _("Time limit (seconds)") 		///< Time limit (seconds)
 #Setting	S_CaptureMaxValue	30000	as _("Capture time (milliseconds)") ///< Pole capture time (milliseconds)
+#Setting	S_AlternativePoints	False	as _("Use atk and def points as score")
 #Setting 	S_AllowBeginners	False	as _("Is a Beginners Welcome server")
 #Setting 	S_AutoManageAFK		True	as _("Switch inactive players to spectators")
 #Setting	S_ArmorPoints		2		as _("Armor points")
@@ -151,10 +152,7 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 	// * LayerRoundInfo - infos about the game always shown in the UI (e.g. captured poles, capture state, etc.).
 	// * LayerMarkers	- markers above poles
 	// * TabsLayer		- A layer for the tabs and tabs management
-	
-	
-	
-	
+		
 	// /////////
 	// Tops
 	
@@ -165,15 +163,17 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 	declare Integer NbPlayersPerTop = 12;
 	declare Text TopBGImg		= C_ImgBaseDir^"topsBg.dds";
 	Top::SetTopWidth(46.);
-	Top::Create(C_TopId_Hit, _("Top Hit"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+	Top::SetDefaultTitle();
+	Top::Create(C_TopId_Hit, _("Hit"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 	TopXPosition += TopXOffset;
-	Top::Create(C_TopId_Capture, _("Top Capture"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+	Top::Create(C_TopId_Capture, _("Capture"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 	TopXPosition += TopXOffset;
-	Top::Create(C_TopId_Defense, _("Top Defense"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+	Top::Create(C_TopId_Defense, _("Defense"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 	TopXPosition += TopXOffset;
-	Top::Create(C_TopId_Attack, _("Top Attack"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
-	Top::SetCommonBackgroundImage(TopBGImg,  <0.05, 98.>, <207., 178.>);
+	Top::Create(C_TopId_Attack, _("|Substantive|Attack"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+	Top::SetCommonBackgroundImage(TopBGImg,  <0.05, 95.75>, <207., 175.75>);
 	Top::SetLayerType(CUILayer::EUILayerType::AltMenu);
+	
 
 	// /////////	
 	// Round info
@@ -1156,6 +1156,7 @@ Void UpdatePlayerScore(CSmPlayer Player, Integer CaptureMaxValue) {
 	
 	declare Integer Battle_ScoreDefenseBonus	for Player.Score;
 	declare Integer Battle_ScoreAttackBonus  	for Player.Score;
+	declare Integer Battle_ScoreAlternative		for Player.Score;
 	declare Integer Battle_ScoreHit 			for Player.Score;
 	declare Integer Battle_TotalCaptureTime		for Player.Score;
 	declare Integer Battle_TotalDenyTime 		for Player.Score;
@@ -1169,11 +1170,9 @@ Void UpdatePlayerScore(CSmPlayer Player, Integer CaptureMaxValue) {
 	Battle_ScoreCapture = MathLib::NearestInteger(ScoreCapture);
 	Battle_ScoreAttack  = Battle_ScoreAttackBonus  + Battle_ScoreCapture;  //  etc.
 	Battle_ScoreDefense = Battle_ScoreDefenseBonus + MathLib::NearestInteger(ScoreDeny); // etc.
+	Battle_ScoreAlternative = Battle_ScoreAttack + Battle_ScoreDefense;
 	
-	
-	// declare Integer LadderScore  = Battle_ScoreAttack + Battle_ScoreDefense;
-	
-	Player.Score.RoundPoints = Battle_ScoreHit; //LadderScore;
+	Player.Score.RoundPoints = Battle_ScoreHit;
 }
 
 Void UpdatePlayersScores(Integer CaptureMaxValue)
@@ -1193,6 +1192,7 @@ Void InitializePlayer(CSmPlayer Player, Integer NbPolesByClan, CUILayer LayerMar
 	declare Integer Battle_TotalDenyTime 	 for Player.Score;
 	declare Integer Battle_ScoreDefenseBonus for Player.Score;
 	declare Integer Battle_ScoreAttackBonus  for Player.Score;
+	declare Integer Battle_ScoreAlternative  for Player.Score;
 	declare Integer Battle_ScoreHit 		 for Player.Score;
 	
 	declare Integer Battle_RoundIndex for Player.Score = -1;
@@ -1205,6 +1205,7 @@ Void InitializePlayer(CSmPlayer Player, Integer NbPolesByClan, CUILayer LayerMar
 		Battle_TotalDenyTime	 = 0;
 		Battle_ScoreDefenseBonus = 0;
 		Battle_ScoreAttackBonus  = 0;
+		Battle_ScoreAlternative  = 0;
 		Battle_ScoreHit			 = Player.Score.RoundPoints; // keep trace of previous score if the player disconnects.
 	}
 	
@@ -1339,6 +1340,12 @@ MB_Sleep(7*1000);
 // -------------------------------------- //
 
 +++RoundEnd+++
+if (S_AlternativePoints) {
+	foreach (Score in Scores) {
+		declare Integer Battle_ScoreAlternative for Score;
+		Score.RoundPoints = Battle_ScoreAlternative;
+	}
+}
 Score::RoundEnd();
 BalancedWeapons::RoundEnd();
 Victory::RoundEnd();
@@ -2368,7 +2375,7 @@ Void CreateRulesReminderLayer() {
 		
 	--></script>
 	<frame id="RulesReminderMainFrame" hidden="true" posn="{{{WindowX}}} {{{WindowY}}} 100" >
-		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="292 160" image="{{{WelcomeBgImage}}}" />
+		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="292 44" image="{{{WelcomeBgImage}}}" />
 		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
 		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-8}}}" 	halign="left" valign="center" text="{{{ModeName}}}" textsize="3" textprefix="$0f0"/>
 		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>

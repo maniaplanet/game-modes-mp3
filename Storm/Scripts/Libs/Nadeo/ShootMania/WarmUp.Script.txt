@@ -1,7 +1,7 @@
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 
-#Const Version		"2013-05-14"
+#Const Version		"2013-06-26"
 #Const ScriptName	"WarmUp.Script.txt"
 
 #Const C_UIUpdateInterval 400
@@ -83,7 +83,7 @@ Boolean IsReady(CSmPlayer _Player) {
 	return False;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /**	Create the warm up layer
  *
  *	@return		The warm up manialink
@@ -97,8 +97,8 @@ Text CreateLayerWarmUp() {
 	if (UseClans && G_UseTeamSelection) {
 		JoinTeamButtons =
 """
-	<label posn="-32 0 4" halign="right" style="CardButtonMedium" text="(F3) Join {{{Teams[0].ColorizedName}}}" ScriptEvents="1" id="BtnJoinClan1" />
-	<label posn="32 0 4" halign="left" style="CardButtonMedium" text="(F4) Join {{{Teams[1].ColorizedName}}}" ScriptEvents="1" id="BtnJoinClan2" />
+	<label posn="-41 0 4" halign="right" style="CardButtonMedium" text="(F3) Join {{{Teams[0].ColorizedName}}}" ScriptEvents="1" id="BtnJoinClan1" />
+	<label posn="41 0 4" halign="left" style="CardButtonMedium" text="(F4) Join {{{Teams[1].ColorizedName}}}" ScriptEvents="1" id="BtnJoinClan2" />
 """;
 		MouseClickEvent =
 """
@@ -114,7 +114,7 @@ Text CreateLayerWarmUp() {
 
 	ML =
 """
-<frame posn="0 -59.6 2">
+<frame posn="0 -57 2" scale="0.85">
 	{{{ JoinTeamButtons }}}
 	<frame posn="0 0 0">
 		<label posn="0 0 4" halign="center" style="CardButtonMedium" text="  (F6) Ready"  id="BtnReady" ScriptEvents="1" />
@@ -157,11 +157,11 @@ Text CreateLayerWarmUp() {
 			
 			if (PrevNameClan1 != Teams[0].ColorizedName) {
 				PrevNameClan1 = Teams[0].ColorizedName;
-				BtnJoinClan1.SetText(TL::Compose(_("|(Shorcut) Join 'team name'|(F3) Join %1"), Teams[0].ColorizedName));
+				if (BtnJoinClan1 != Null) BtnJoinClan1.SetText(TL::Compose(_("|(Shorcut) Join 'team name'|(F3) Join %1"), Teams[0].ColorizedName));
 			}
 			if (PrevNameClan2 != Teams[1].ColorizedName) {
 				PrevNameClan2 = Teams[1].ColorizedName;
-				BtnJoinClan2.SetText(TL::Compose(_("|(Shorcut) Join 'team name'|(F4) Join %1"), Teams[1].ColorizedName));
+				if (BtnJoinClan2 != Null) BtnJoinClan2.SetText(TL::Compose(_("|(Shorcut) Join 'team name'|(F4) Join %1"), Teams[1].ColorizedName));
 			}
 			
 			// Update UI
@@ -279,7 +279,7 @@ if (Event.ControlId == "Quad_Slot_{{{I}}}") {
 		
 		SlotList ^=
 """
-<label posn="{{{SlotPosX}}} -0.5 4" sizen="{{{SlotSizeX-2}}} 5" halign="center" textsize="2" textemboss="1" text="{{{SlotName}}}" />
+<label posn="{{{SlotPosX}}} -0.5 4" sizen="{{{SlotSizeX-2}}} 5" halign="center" textsize="1" textemboss="1" text="{{{SlotName}}}" />
 """;
 		
 		if (I >= C_MaxSlots) break;
@@ -309,14 +309,14 @@ if (Event.ControlId == "Quad_Slot_{{{I}}}") {
 	}
 --></script>
 <frame posn="0 -48 1">
-	<quad posn="0 0 2" sizen="{{{SizeX+2}}} 23" halign="center" valign="center" style="Bgs1InRace" substyle="BgList" />
+	<quad posn="0 0.5 2" sizen="{{{SizeX+1}}} 19" halign="center" valign="center" style="Bgs1InRace" substyle="BgList" />
 	<frame posn="0 4 3">
-		<label posn="0 6 4" halign="center" textemboss="1" text="{{{PlayersOrderText}}}" />
-		<frame posn="{{{PosX}}} 0 3">
+		<label posn="0 5 4" halign="center" textemboss="1" textsize="2" text="{{{PlayersOrderText}}}" />
+		<frame posn="{{{PosX}}} 1 3">
 			{{{SlotList}}}
 		</frame>
 	</frame>
-	<frame posn="{{{PosX}}} -5.5 3">
+	<frame posn="{{{PosX}}} -3 3">
 		{{{PlayerList}}}
 	</frame>
 </frame>
@@ -343,7 +343,7 @@ Void UpdateWaitingList() {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Warm up state
  *
  *	@return		True if the warm up is running, false otherwise
@@ -352,7 +352,7 @@ Boolean IsRunning() {
 	return G_IsRunning;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** End of warm up requested
  *
  *	@return		True if the warm up must end
@@ -361,7 +361,7 @@ Boolean EndRequested() {
 	return G_EndWarmUp;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Check if a change occured in the order
  *
  *	@return		True if the order has changed during the frame
@@ -370,7 +370,7 @@ Boolean OrderHasChanged() {
 	return G_OrderChanged;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Check if a change occured in the ready state
  *
  *	@return		True if the ready state has changed during the frame
@@ -380,7 +380,7 @@ Boolean ReadyHasChanged() {
 }
 
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Get the current order
  *
  * @return 		Return the current order
@@ -389,7 +389,7 @@ Integer[Ident][Integer] GetOrder() {
 	return G_Order;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Get a player in a designated slot
  *
  *	@param	_ClanNb		In which clan order to search
@@ -406,7 +406,7 @@ CSmPlayer GetSlot(Integer _ClanNb, Integer _SlotNb) {
 	return Players[G_Order[_ClanNb].keyof(_SlotNb)];
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Get the first player in a clan order
  *
  *	@param	_ClanNb		In which clan order to search
@@ -425,7 +425,7 @@ CSmPlayer GetNextPlayer(Integer _ClanNb) {
 	return Player;
 }	
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Get the first player in the list and put it at the end after
  *
  *	@param	_ClanNb		The clan order to cycle
@@ -457,7 +457,7 @@ Void CycleOrder(Integer _ClanNb) {
 	//log(Now^"> CycleOrder() > after - G_Order[_ClanNb]: "^G_Order[_ClanNb]);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Check if a player id is in the order array
  *
  *	@param	_PlayerId		The id of the player to check
@@ -471,7 +471,7 @@ Boolean IsInOrder(Ident _PlayerId) {
 	return False;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Check if a slot in the order is empty
  *
  *	@param	_Clan	The clan to check
@@ -491,7 +491,7 @@ Boolean SlotIsEmpty(Integer _Clan, Integer _Slot) {
 	return False;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Withdraw a player from a slot
  *
  *	@param	_PlayerId	The id of the player to withdraw
@@ -516,7 +516,7 @@ Void LeaveSlot(Ident _PlayerId, Integer _Clan) {
 	//log(Now^"> LeaveSlot() > "^Player.Login^" leave slot");
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Swamp slot between players
  *
  *	@param	_PlayerId		The id of the player who request the swap
@@ -524,8 +524,9 @@ Void LeaveSlot(Ident _PlayerId, Integer _Clan) {
  *	@param	_OldSlot		The current slot of the player
  *	@param	_NewClan		The clan requested by the player
  *	@param	_NewSlot		The slot requested by the player
+ *	@param	_Forced			Force the swap
  */
-Void SwapSlot(Ident _PlayerId, Integer _OldClan, Integer _OldSlot, Integer _NewClan, Integer _NewSlot) {
+Void SwapSlot(Ident _PlayerId, Integer _OldClan, Integer _OldSlot, Integer _NewClan, Integer _NewSlot, Boolean _Forced) {
 	// If the slot is not valid return
 	if (_NewSlot <= 0 && _NewSlot > G_RequiredPlayersNb) return;
 	// If the new and old slot/clan are the same return
@@ -556,7 +557,7 @@ Void SwapSlot(Ident _PlayerId, Integer _OldClan, Integer _OldSlot, Integer _NewC
 		declare WU_CurrentClan as WU_OtherCurrentClan for OtherPlayer = -1;
 		
 		// If the other player is ready, you can't take it's place
-		if (IsReady(OtherPlayer) && (WU_CurrentSlot < 0 || WU_CurrentClan < 0)) {
+		if (!_Forced && IsReady(OtherPlayer) && (WU_CurrentSlot < 0 || WU_CurrentClan < 0)) {
 			//log(Now^"> "^OtherPlayer.Login^" is ready, can't take its slot");
 		}
 		// Otherwise take its place
@@ -582,7 +583,13 @@ Void SwapSlot(Ident _PlayerId, Integer _OldClan, Integer _OldSlot, Integer _NewC
 	//log(Now^"> SwapSlot() > G_Order: "^G_Order);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
+/// Overload of SwapSlot()
+Void SwapSlot(Ident _PlayerId, Integer _OldClan, Integer _OldSlot, Integer _NewClan, Integer _NewSlot) {
+	SwapSlot(_PlayerId, _OldClan, _OldSlot, _NewClan, _NewSlot, False);
+}
+
+// ---------------------------------- //
 /// Erase the current order
 Void ResetOrder() {
 	G_Order = [1 => Integer[Ident], 2 => Integer[Ident]];
@@ -597,7 +604,7 @@ Void ResetOrder() {
 	//log(Now^"> ResetOrder() > G_Order: "^G_Order);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /// Restore the order based on the info saved in the players
 Void RestoreOrder() {
 	G_Order = [1 => Integer[Ident], 2 => Integer[Ident]];
@@ -747,7 +754,7 @@ Boolean CleanOrder() {
 	return Cleaned;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /**	Call before the warm up
  *
  *	@param	_Duration				Duration of the warm up countdown
@@ -795,7 +802,7 @@ Void Before(Integer _Duration, Boolean _UseTeamSelection, Boolean _UseOrder, Int
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /// Call during the warm up
 Void Loop() {
 	// Manage events
@@ -900,9 +907,9 @@ Void Loop() {
 		}
 	}
 	
-	/* -------------------------------------- */
+	// ---------------------------------- //
 	// Skip the rest if we don't use order
-	/* -------------------------------------- */
+	// ---------------------------------- //
 	if (!G_UseOrder) return;
 	
 	declare OrderUpdated = 0;
@@ -989,7 +996,7 @@ Void Loop() {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /// Call after the warm up
 Void After() {
 	// Delete the layers

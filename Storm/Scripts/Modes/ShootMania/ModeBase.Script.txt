@@ -3,26 +3,25 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2013-04-18"
+#Const ModeBaseVersion		"2013-06-20"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
 #Include "Libs/Nadeo/Clublink.Script.txt" as Clublink
-#Include "Libs/Nadeo/ShootMania/Stats.Script.txt" as Stats
 #Include "Libs/Nadeo/ShootMania/XmlRpc.Script.txt" as XmlRpc
 
-#Setting S_UseScriptCallbacks False as "<hidden>"	///< Turn on/off the script callbacks, usefull for server manager
+#Setting S_UseScriptCallbacks	False	as "<hidden>"	///< Turn on/off the script callbacks, usefull for server manager
+#Setting S_NeutralEmblemUrl		""		as "<hidden>"	///< Replace the default neutral emblem by another one
 
 #Const C_PlayersPresentationTime	4000	///< Duration of the player presentation sequence (default: 4000)
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Extends
-/* -------------------------------------- */
+// ---------------------------------- //
 ***LogVersion***
 ***
 MB_LogVersion(ModeBaseScriptName, ModeBaseVersion);
 MB_LogVersion(Mode::GetScriptName(), Mode::GetScriptVersion());
-MB_LogVersion(Stats::GetScriptName(), Stats::GetScriptVersion());
 MB_LogVersion(XmlRpc::GetScriptName(), XmlRpc::GetScriptVersion());
 MB_LogVersion(Clublink::GetScriptName(), Clublink::GetScriptVersion());
 ***
@@ -32,7 +31,9 @@ MB_LogVersion(Clublink::GetScriptName(), Clublink::GetScriptVersion());
 if (MB_UseLogging) MB_Log("MapIntro");
 Clublink::Update();
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
-wait(UIManager.UIAll.UISequenceIsCompleted);
+while (!UIManager.UIAll.UISequenceIsCompleted) {
+	MB_Yield();
+}
 ***
 
 ***MapOutro***
@@ -40,18 +41,22 @@ wait(UIManager.UIAll.UISequenceIsCompleted);
 if (MB_UseLogging) MB_Log("MapOutro");
 Clublink::Update();
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Outro;
-wait(UIManager.UIAll.UISequenceIsCompleted);
+while (!UIManager.UIAll.UISequenceIsCompleted) {
+	MB_Yield();
+}
 ***
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Globales
-/* -------------------------------------- */
+// ---------------------------------- //
 // Number of time the mode have gone through a section
 declare Integer MB_SectionMatchNb;
 declare Integer MB_SectionMapNb;
 declare Integer MB_SectionSubmatchNb;
 declare Integer MB_SectionRoundNb;
 declare Integer MB_SectionTurnNb;
+// Current section
+declare Text MB_CurrentSection;
 // Section switch
 declare Boolean MB_StopServer;
 declare Boolean MB_StopMatch;
@@ -62,10 +67,10 @@ declare Boolean MB_StopTurn;
 // Options for XmlRpc
 declare Boolean MB_UseScriptCallbacks;
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Functions
-/* -------------------------------------- */
-/* -------------------------------------- */
+// ---------------------------------- //
+// ---------------------------------- //
 /** Log the version of a script
  *
  *	@param	_Name		Name of the script
@@ -75,7 +80,7 @@ Void MB_LogVersion(Text _Name, Text _Version) {
 	log(Now^"> Script: "^_Name^" | Version: "^_Version);
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 /** Custom log function
  *
  *	@param	_Message	The message to log
@@ -84,35 +89,7 @@ Void MB_Log(Text _Message) {
 	log(Now^"> "^_Message);
 }
 
-/* -------------------------------------- */
-/** Custom sleep function
- *
- *	@param	_Duration	The time to spend sleeping in ms
- */
-Void MB_Sleep(Integer _Duration) {
-	declare End = Now + _Duration;
-	while(Now < End) {
-		yield;
-		XmlRpc::Loop();
-		Clublink::Update();
-		+++SleepLoop+++
-	}
-}
-
-/* -------------------------------------- */
-/// Do the player presentation sequence (aka versus screen)
-Void MB_PlayersPresentationSequence() {
-	Clublink::SyncUpdate();
-	
-	declare Start = Now;
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::PlayersPresentation;
-	while (Now < Start + C_PlayersPresentationTime) {
-		yield;
-		+++SleepLoop+++
-	}
-}
-
-/* -------------------------------------- */
+// ---------------------------------- //
 /// Check the status of the script callbacks
 Void MB_XmlRpcCheck() {
 	if (MB_UseScriptCallbacks != S_UseScriptCallbacks) {
@@ -123,10 +100,62 @@ Void MB_XmlRpcCheck() {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
+/// Update the neutral emblem when necessary
+Void MB_NeutralEmblemUpdate() {
+	if (NeutralEmblemUrl != S_NeutralEmblemUrl) NeutralEmblemUrl = S_NeutralEmblemUrl;
+}
+
+// ---------------------------------- //
+/** Custom yield function
+ *	Call all the update functions from ModeBase after the yield
+ */
+Void MB_Yield() {
+	yield;
+	MB_XmlRpcCheck();
+	MB_NeutralEmblemUpdate();
+	XmlRpc::Loop();
+	Clublink::Update();
+	+++Yield+++
+}
+
+// ---------------------------------- //
+/** Custom sleep function
+ *
+ *	@param	_Duration	The time to spend sleeping in ms
+ */
+Void MB_Sleep(Integer _Duration) {
+	declare End = Now + _Duration;
+	while(Now < End) {
+		MB_Yield();
+		+++SleepLoop+++
+	}
+}
+
+// ---------------------------------- //
+/// Do the player presentation sequence (aka versus screen)
+Void MB_PlayersPresentationSequence(Integer _Duration) {
+	Clublink::SyncUpdate();
+	
+	declare End = Now + _Duration;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::PlayersPresentation;
+	while (Now < End) {
+		MB_Yield();
+	}
+}
+
+// ---------------------------------- //
+/// Overload of the MB_PlayersPresentationSequence() function
+Void MB_PlayersPresentationSequence() {
+	MB_PlayersPresentationSequence(C_PlayersPresentationTime);
+}
+
+// ---------------------------------- //
 // Main // Server start
-/* -------------------------------------- */
+// ---------------------------------- //
 main() {
+	MB_CurrentSection = "StartServer";
+	
 	// Display the version of each script used in the game mode
 	+++LogVersion+++
 	// Server initialization
@@ -139,7 +168,6 @@ main() {
 	declare MB_UseSectionRound		= False;	///< Use the round section
 	declare MB_UseSectionTurn		= False;	///< Use the turn section
 	// Options for Clublinks
-	declare MB_NeutralEmblemUrl			= "";
 	declare MB_CustomClublinkLayerUrl	= "";
 	declare MB_UsePlayerClublinks		= False;
 	declare MB_ForceClansFromClublinks 	= False;		///< only active if MB_UsePlayerClublinks
@@ -147,6 +175,7 @@ main() {
 	MB_StopServer = False;
 	MB_SectionMatchNb = 0;
 	MB_XmlRpcCheck();
+	MB_NeutralEmblemUpdate();
 	
 	if (MB_UseLogging) MB_Log("StartServer");
 
@@ -155,18 +184,20 @@ main() {
 	XmlRpc::Load();
 	Clublink::Load(MB_UsePlayerClublinks);
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Match sequence start
-/* -------------------------------------- */
+// ---------------------------------- //
 	while (
 		!ServerShutdownRequested
 		&& !MB_StopServer
 	) {
 		// Match initialization
+		MB_CurrentSection = "StartMatch";
 		MB_SectionMatchNb	+= 1;
 		MB_SectionMapNb		= 0;
 		MB_StopMatch		= False;
 		MB_XmlRpcCheck();
+		MB_NeutralEmblemUpdate();
 		
 		if (MB_UseLogging) MB_Log("StartMatch");
 		
@@ -175,21 +206,24 @@ main() {
 		+++StartMatch+++
 		Clublink::Update();
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Map sequence start
-/* -------------------------------------- */
+// ---------------------------------- //
 		while (
 			!ServerShutdownRequested
 			&& !MB_StopServer
 			&& !MB_StopMatch
 		) {
 			// Map initialization
+			MB_CurrentSection = "StartMap";
 			MB_SectionMapNb += 1;
 			MB_SectionSubmatchNb = 0;
 			MB_StopMap = False;
 			MatchEndRequested = False;
 			MB_XmlRpcCheck();
+			MB_NeutralEmblemUpdate();
 			
+			XmlRpc::LoadingMap(MB_SectionMapNb);
 			Mode::LoadMap();
 			
 			if (MB_UseLogging) MB_Log("StartMap");
@@ -207,9 +241,9 @@ main() {
 			+++StartMap+++
 			Clublink::Update();
 		
-/* -------------------------------------- */
+// ---------------------------------- //
 // Submatch sequence start (King of the Map style)
-/* -------------------------------------- */
+// ---------------------------------- //
 			while (
 				!ServerShutdownRequested
 				&& !MB_StopServer
@@ -218,7 +252,9 @@ main() {
 				&& !MB_StopMap
 			) {
 				// Submatch initialization
+				MB_CurrentSection = "StartSubmatch";
 				MB_XmlRpcCheck();
+				MB_NeutralEmblemUpdate();
 				+++InitSubmatch+++
 				MB_StopSubmatch = False;
 				if (MB_UseSectionSubmatch) {
@@ -231,9 +267,9 @@ main() {
 				MB_SectionRoundNb = 0;
 				Clublink::Update();
 				
-/* -------------------------------------- */
+// ---------------------------------- //
 // Round sequence start
-/* -------------------------------------- */				
+// ---------------------------------- //				
 				while (!ServerShutdownRequested
 					&& !MB_StopServer
 					&& !MatchEndRequested
@@ -242,7 +278,9 @@ main() {
 					&& !MB_StopSubmatch
 				) {
 					// Round initialization
+					MB_CurrentSection = "StartRound";
 					MB_XmlRpcCheck();
+					MB_NeutralEmblemUpdate();
 					+++InitRound+++
 					MB_StopRound = False;
 					if (MB_UseSectionRound) {
@@ -255,9 +293,9 @@ main() {
 					}
 					MB_SectionTurnNb = 0;
 					
-/* -------------------------------------- */
+// ---------------------------------- //
 // Turn begin
-/* -------------------------------------- */
+// ---------------------------------- //
 					while (!ServerShutdownRequested
 						&& !MB_StopServer
 						&& !MatchEndRequested
@@ -267,15 +305,14 @@ main() {
 						&& !MB_StopRound
 					) {
 						// Turn initialization
+						MB_CurrentSection = "StartTurn";
 						MB_XmlRpcCheck();
+						MB_NeutralEmblemUpdate();
 						+++InitTurn+++
 						MB_StopTurn = False;
-						/* -------------------------------------- */
+						// ---------------------------------- //
 						// Initialize players and spectators
-						declare MB_AllPlayers = CSmPlayer[];
-						foreach (Player in Players) MB_AllPlayers.add(Player);
-						foreach (Spectator in Spectators) MB_AllPlayers.add(Spectator);
-						foreach (Player in MB_AllPlayers) {
+						foreach (Player in AllPlayers) {
 							declare MB_NewPlayer for Player = True;
 							declare MB_NewSpectator for Player = True;
 							MB_NewPlayer = True;
@@ -295,9 +332,10 @@ main() {
 							Clublink::Update();
 						}
 						
-/* -------------------------------------- */
+						MB_CurrentSection = "PlayLoop";
+// ---------------------------------- //
 // Play loop
-/* -------------------------------------- */
+// ---------------------------------- //
 						while (!ServerShutdownRequested
 							&& !MB_StopServer
 							&& !MatchEndRequested
@@ -307,11 +345,9 @@ main() {
 							&& !MB_StopRound
 							&& !MB_StopTurn
 						) {
-							yield;
+							MB_Yield();
 							
-							MB_XmlRpcCheck();
-							
-							/* -------------------------------------- */
+							// ---------------------------------- //
 							// Create a custom event when a player is added to the Players array
 							foreach (Player in Players) {
 								declare MB_NewPlayer for Player = True;
@@ -324,7 +360,7 @@ main() {
 									+++OnNewPlayer+++
 								}
 							}
-							/* -------------------------------------- */
+							// ---------------------------------- //
 							// Create a custom event when a spectator is added to the Spectators array
 							foreach (Spectator in Spectators) {
 								declare MB_NewPlayer for Spectator = True;
@@ -337,7 +373,7 @@ main() {
 									+++OnNewSpectator+++
 								}
 							}
-							/* -------------------------------------- */
+							// ---------------------------------- //
 							// Create a custom event when a bot is added to the BotPlayers array
 							foreach (Bot in  BotPlayers) {
 								declare MB_NewBot for Bot = True;
@@ -348,48 +384,57 @@ main() {
 									+++OnNewBot+++
 								}
 							}
-							XmlRpc::Loop();
-							Clublink::Update();
 							
 							+++PlayLoop+++
 						}
-/* -------------------------------------- */
+// ---------------------------------- //
 // Turn end
-/* -------------------------------------- */
+// ---------------------------------- //
+						MB_CurrentSection = "EndTurn";
 						MB_XmlRpcCheck();
+						MB_NeutralEmblemUpdate();
 						if (MB_UseSectionTurn) {
 							if (MB_UseLogging) MB_Log("EndTurn");
 							
 							XmlRpc::EndTurn(MB_SectionTurnNb);
 							+++EndTurn+++
+							XmlRpc::SendScores();
 						}
 					}
-/* -------------------------------------- */
+// ---------------------------------- //
 // Round end
-/* -------------------------------------- */
+// ---------------------------------- //
+					MB_CurrentSection = "EndRound";
 					MB_XmlRpcCheck();
+					MB_NeutralEmblemUpdate();
 					if (MB_UseSectionRound) {
 						if (MB_UseLogging) MB_Log("EndRound");
 						
 						XmlRpc::EndRound(MB_SectionRoundNb);
 						+++EndRound+++
+						XmlRpc::SendScores();
 					}
 				}
-/* -------------------------------------- */
+// ---------------------------------- //
 // Submatch end
-/* -------------------------------------- */
+// ---------------------------------- //
+				MB_CurrentSection = "EndSubmatch";
 				MB_XmlRpcCheck();
+				MB_NeutralEmblemUpdate();
 				if (MB_UseSectionSubmatch) {
 					if (MB_UseLogging) MB_Log("EndSubmatch");
 					
 					XmlRpc::EndSubmatch(MB_SectionSubmatchNb);
 					+++EndSubmatch+++
+					XmlRpc::SendScores();
 				}
 			}
-/* -------------------------------------- */
+// ---------------------------------- //
 // Map end
-/* -------------------------------------- */
+// ---------------------------------- //
+			MB_CurrentSection = "EndMap";
 			MB_XmlRpcCheck();
+			MB_NeutralEmblemUpdate();
 			if (MB_UseLogging) MB_Log("EndMap");
 			
 			XmlRpc::EndMap(MB_SectionMapNb);
@@ -400,21 +445,27 @@ main() {
 			}
 			
 			+++EndMap+++
+			XmlRpc::SendScores();
 			Mode::UnloadMap();
 		}
-/* -------------------------------------- */
+// ---------------------------------- //
 // Match end
-/* -------------------------------------- */
+// ---------------------------------- //
+		MB_CurrentSection = "EndMatch";
 		MB_XmlRpcCheck();
+		MB_NeutralEmblemUpdate();
 		if (MB_UseLogging) MB_Log("EndMatch");
 		
 		XmlRpc::EndMatch(MB_SectionMatchNb);
 		+++EndMatch+++
+		XmlRpc::SendScores();
 	}
-/* -------------------------------------- */
+// ---------------------------------- //
 // Server end
-/* -------------------------------------- */
+// ---------------------------------- //
+	MB_CurrentSection = "EndServer";
 	MB_XmlRpcCheck();
+	MB_NeutralEmblemUpdate();
 	if (MB_UseLogging) MB_Log("EndServer");
 	
 	Clublink::Unload();

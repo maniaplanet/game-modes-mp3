@@ -2,21 +2,53 @@
  * Chrono library
  */
 
-#Const Version		"2012-10-11"
+#Const Version		"2013-05-24"
 #Const ScriptName	"Chrono.Script.txt"
 
 #Const C_ChronoPosX 95.
 #Const C_ChronoPosY -88.
-/* ------------------------------------- */
+// ---------------------------------- //
 // Globales
-/* ------------------------------------- */
+// ---------------------------------- //
 declare Ident	G_LayerChronoId;
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Functions
-/* ------------------------------------- */
+// ---------------------------------- //
 
-/* ------------------------------------- */
+// ---------------------------------- //
+// Private
+// ---------------------------------- //
+
+// ---------------------------------- //
+/** Toggle the visibility of the chrono
+ *
+ *	@param	_PlayerId		The id of the timer owner, NullId for all players
+ *	@param	_Visible		The new visibility status of the chrono
+ */
+Void Private_ToggleVisibility(Ident _PlayerId, Boolean _Visible) {
+	if (_PlayerId == NullId) {
+		declare netwrite Integer Net_LibChrono_VisibilityAllUpdate for Teams[0];
+		declare netwrite Boolean Net_LibChrono_VisibilityAll for Teams[0];
+		Net_LibChrono_VisibilityAllUpdate = Now;
+		Net_LibChrono_VisibilityAll = _Visible;
+	} else {
+		if (!AllPlayers.existskey(_PlayerId)) return;
+		declare UI <=> UIManager.GetUI(AllPlayers[_PlayerId]);
+		if (UI == Null) return;
+		
+		declare netwrite Integer Net_LibChrono_VisibilityUpdate for UI;
+		declare netwrite Boolean Net_LibChrono_Visibility for UI;
+		Net_LibChrono_VisibilityUpdate = Now;
+		Net_LibChrono_Visibility = _Visible;
+	}
+}
+
+// ---------------------------------- //
+// Public
+// ---------------------------------- //
+
+// ---------------------------------- //
 /** Return the version number of the script
  *
  *	@return		The version number of the script
@@ -25,7 +57,7 @@ Text GetScriptVersion() {
 	return Version;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Return the name of the script
  *
  *	@return		The name of the script
@@ -34,7 +66,7 @@ Text GetScriptName() {
 	return ScriptName;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Create the chrono manialink
  *
  * @return	The manialink Text
@@ -53,7 +85,11 @@ Text CreateLayerChrono() {
 		declare netread ChronoNet_Reset for UI = False;
 		declare netread ChronoNet_PosX for UI = {{{C_ChronoPosX}}};
 		declare netread ChronoNet_PosY for UI = {{{C_ChronoPosY}}};
-		declare Boolean Chrono_HideChrono for UI = False;
+		
+		declare netread Integer Net_LibChrono_VisibilityAllUpdate for Teams[0];
+		declare netread Integer Net_LibChrono_VisibilityUpdate for UI;
+		declare netread Boolean Net_LibChrono_VisibilityAll for Teams[0];
+		declare netread Boolean Net_LibChrono_Visibility for UI;
 		
 		declare LayerChronoUpdated = 0;
 		declare StartTime = 0;
@@ -63,15 +99,30 @@ Text CreateLayerChrono() {
 		declare IsReset = True;
 		declare LastUpdate = 0;
 		
+		declare PrevVisibilityAllUpdate = 0;
+		declare PrevVisibilityUpdate = 0;
+		
 		while (True) {
 			yield;
 			if (LastUpdate + 25 > Now) continue;
 			LastUpdate = Now;
 			
-			if(Chrono_HideChrono) {
-				Frame_Chrono.Hide();
-			} else {
-				Frame_Chrono.Show();
+			if (PrevVisibilityAllUpdate != Net_LibChrono_VisibilityAllUpdate) {
+				PrevVisibilityAllUpdate = Net_LibChrono_VisibilityAllUpdate;
+				if (Net_LibChrono_VisibilityAll) {
+					Frame_Chrono.Show();
+				} else {
+					Frame_Chrono.Hide();
+				}
+			}
+			
+			if (PrevVisibilityUpdate != Net_LibChrono_VisibilityUpdate) {
+				PrevVisibilityUpdate = Net_LibChrono_VisibilityUpdate;
+				if (Net_LibChrono_Visibility) {
+					Frame_Chrono.Show();
+				} else {
+					Frame_Chrono.Hide();
+				}
 			}
 			
 			if (ChronoNet_LayerUpdated != LayerChronoUpdated) {
@@ -122,7 +173,7 @@ Text CreateLayerChrono() {
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Update the Net variables
  *
  *	@param	_PlayerId		Id of the player to update
@@ -149,7 +200,7 @@ Void UpdateNetVariables(Ident _PlayerId, Integer _StartTime, Integer _StopTime, 
 	ChronoNet_Reset = _Reset;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Update the position Net variables
  *
  *	@param	_PlayerId		Id of the player to update
@@ -173,7 +224,7 @@ Void UpdatePositionNetVariables(Ident _PlayerId, Real _PosX, Real _PosY) {
 	ChronoNet_PosY = _PosY;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Set the position of the timer on the screen
  *
  *	@param	_PlayerId	Id of the timer owner
@@ -189,7 +240,7 @@ Void SetPosition(Ident _PlayerId, Real _PosX, Real _PosY) {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Start a timer
  *
  *	@param	_PlayerId		The id of the timer owner
@@ -204,7 +255,7 @@ Void Start(Ident _PlayerId, Integer _Delay) {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Stop a time
  *
  *	@param	_PlayerId		The id of the timer owner
@@ -218,7 +269,7 @@ Void Stop(Ident _PlayerId) {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Reset a timer
  *
  *	@param	_PlayerId		The id of the timer owner
@@ -232,26 +283,41 @@ Void Reset(Ident _PlayerId) {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Load the library
 Void StartServer() {
 	declare LayerChrono <=> UIManager.UILayerCreate();
 	LayerChrono.ManialinkPage = CreateLayerChrono();
 	G_LayerChronoId = LayerChrono.Id;
+	
+	declare netwrite Integer Net_LibChrono_VisibilityAllUpdate for Teams[0];
+	declare netwrite Boolean Net_LibChrono_VisibilityAll for Teams[0];
+	Net_LibChrono_VisibilityAllUpdate = Now;
+	Net_LibChrono_VisibilityAll = True;
+	
+	foreach (Player in AllPlayers) {
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI == Null) return;
+		
+		declare netwrite Integer Net_LibChrono_VisibilityUpdate for UI;
+		declare netwrite Boolean Net_LibChrono_Visibility for UI;
+		Net_LibChrono_VisibilityUpdate = Now;
+		Net_LibChrono_Visibility = True;
+	}
 }
 Void Load() { StartServer(); }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Unload the library
 Void EndServer() {
 	if (UIManager.UILayers.existskey(G_LayerChronoId)) UIManager.UILayerDestroy(UIManager.UILayers[G_LayerChronoId]);
 }
 Void Unload() { EndServer(); }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Create a timer
  *
- *	@param	_PlayerId		The id of the timer owner, NullId for all player
+ *	@param	_PlayerId		The id of the timer owner, NullId for all players
  */
 Void Create(Ident _PlayerId) {
 	if (_PlayerId == NullId) {
@@ -274,10 +340,10 @@ Void Create(Ident _PlayerId) {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Destroy a timer
  *
- *	@param	_PlayerId		The id of the timer owner, NullId for all player
+ *	@param	_PlayerId		The id of the timer owner, NullId for all players
  */
 Void Destroy(Ident _PlayerId) {
 	if (_PlayerId == NullId) {
@@ -292,4 +358,22 @@ Void Destroy(Ident _PlayerId) {
 		if (UI == Null) return;
 		declare Removed = UI.UILayers.removekey(G_LayerChronoId);
 	}
+}
+
+// ---------------------------------- //
+/** Show a timer
+ *
+ *	@param	_PlayerId		The id of the timer owner, NullId for all players
+ */
+Void Show(Ident _PlayerId) {
+	Private_ToggleVisibility(_PlayerId, True);
+}
+
+// ---------------------------------- //
+/** Hide a timer
+ *
+ *	@param	_PlayerId		The id of the timer owner, NullId for all players
+ */
+Void Hide(Ident _PlayerId) {
+	Private_ToggleVisibility(_PlayerId, False);
 }

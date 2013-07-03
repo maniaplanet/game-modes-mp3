@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"JoustArena"
-#Const	Version				"2013-05-14"
+#Const	Version				"2013-06-18"
 #Const	ScriptName			"Joust.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -33,8 +33,8 @@
 #Setting S_MatchPointsToWin	3		as _("Match points to win")
 #Setting S_MatchPointsGap	0		as _("Match points gap")
 #Setting S_MatchPointsLimit	3		as _("Match points limit")
-//#Setting S_MatchPointsAuto	True	as _("Match points auto")
-#Setting S_MatchmakingSleep	0		as "<hidden>" // _("Matchmaking match end duration (-1: infinite)")
+#Setting S_Matchmaking		False	as "<hidden>"	///< Use Elite with matchmaking
+#Setting S_MatchmakingSleep	0		as "<hidden>"	///< _("Matchmaking match end duration (-1: infinite)")
 
 // Clublinks settings
 #Setting S_UsePlayerClublinks		False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
@@ -140,7 +140,7 @@ LayerUpdated = Layers::Update("Spectator", CreateLayerSpectator());
 declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
 ScoresTable::Load();
 ScoresTable::SetTableFormat(1, 5);
-ScoresTable::SetColumnsWidth(1.5, 1., 2., 20., 1.5, 1.5, 0., 0., 0., 3., 3.);
+ScoresTable::SetColumnsWidth(1.5, 1., 2., 18., 1.5, 1.5, 0., 0., 0., 3., 3.);
 ScoresTable::SetTableWidth(148.);
 ScoresTable::SetPlayerCardHeight(12.);
 ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 56.>, <164., 178.>);
@@ -224,8 +224,14 @@ if (S_ForceClublinkTeam1 != "" && S_ForceClublinkTeam2 != "") Clublink::DefineTe
 UIManager.UIAll.BigMessage = "";
 UIManager.UIAll.OverlayScoreSummary = False;
 
+// ---------------------------------- //
+// Wait players when using matchmaking
+if (S_Matchmaking) {
+	WaitConnection();
+}
+// ---------------------------------- //
 // start warmup if requested
-if(S_UseWarmup) {
+else if(S_UseWarmup) {
 	WarmupSimple::Initialize(20);
 	WarmupSimple::SetMinimumPlayersNumber(2);
 	WarmupSimple::SetCountdownOnPlayersReady(3);
@@ -810,9 +816,7 @@ UIManager.UIAll.StatusMessage = "";
 
 // ---------------------------------- //
 // Stop the looser
-if (LoserId != NullId && Players.existskey(LoserId) 
-	&& Players[LoserId].SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned)
-{
+if (LoserId != NullId && Players.existskey(LoserId) && Players[LoserId].SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
 	Players[LoserId].Armor = 0;
 	Players[LoserId].IsHighlighted = False;
 }
@@ -825,9 +829,7 @@ EndTime = -1;
 
 // ---------------------------------- //
 // Display the submatch result
-if (WinnerId != NullId && LoserId != NullId && 
-	Players.existskey(WinnerId))
-{
+if (WinnerId != NullId && LoserId != NullId && Players.existskey(WinnerId)) {
 	// ---------------------------------- //
 	// Unspawn looser
 	if(Players.existskey(LoserId)) {
@@ -924,6 +926,13 @@ if (FirstPlayers[1] != Null && FirstPlayers[2] != Null) {
 		}
 	}
 }
+
+if (S_Matchmaking && PlayersNbTotal <= 1) {
+	foreach (Player in Players) {
+		MatchWinnerId = Player.Id;
+		MB_StopMap = True;
+	}
+}
 ***
 
 // ---------------------------------- //
@@ -997,8 +1006,7 @@ Void MatchmakingWait() {
 			if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
 			else UIManager.UIAll.CountdownEndTime = -1;
 		}
-		+++SleepLoop+++
-		yield;
+		MB_Yield();
 	}
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
@@ -1043,10 +1051,9 @@ Void WaitForPlayers(Integer _MinimumNbPlayers) {
 	EndTime = -1;
 	
 	while (!ServerShutdownRequested && !MatchEndRequested && WQ::WaitingQueueLength() < _MinimumNbPlayers ) {
-		yield;
+		MB_Yield();
 		HasWaited = True;
 		
-		XmlRpc::Loop();
 		WQ::UpdateLoop(3);
 		
 		foreach (Player in Players) {
@@ -1141,9 +1148,11 @@ Void RespawnPlayer(CSmPlayer _Player, Integer _SpawnDate, Integer _Armor) {
 	_Player.AmmoGain = 0.;
 	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Laser, 1);
 	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Nucleus, 2);
+	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Arrow, 3);
 	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 5);
 	SetPlayerAmmo(_Player, CSmMode::EWeapon::Laser, 0);
 	SetPlayerAmmo(_Player, CSmMode::EWeapon::Nucleus, 0);
+	SetPlayerAmmo(_Player, CSmMode::EWeapon::Arrow, 0);
 	SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
 	SetPlayerWeapon(_Player, CSmMode::EWeapon::Rocket, True);
 }
@@ -1176,6 +1185,7 @@ Void GiveEnergy(Integer PlayerIndex) {
 	declare Player <=> Players[G_CurrPlayerIds[PlayerIndex]];
 	SetPlayerAmmo(Player, CSmMode::EWeapon::Laser, 1);
 	SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, 2);
+	SetPlayerAmmo(Player, CSmMode::EWeapon::Arrow, 3);
 	SetPlayerAmmo(Player, CSmMode::EWeapon::Rocket, 5);
 	XmlRpc::Joust_OnReload(Player);
 }
@@ -1362,4 +1372,17 @@ Void UpdateTimer(CSmPlayer _Player) {
 	UpdateLayerSpectator();
 }
 
-
+// ---------------------------------- //
+/// Wait player connection
+Void WaitConnection() {
+	UIManager.UIAll.BigMessage = _("Waiting for players");
+	StartTime = Now;
+	
+	while (True) {
+		MB_Sleep(250);
+		if (PlayersNbTotal >= 2) break;
+	}
+	
+	StartTime = -1;
+	UIManager.UIAll.BigMessage = "";
+}

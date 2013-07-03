@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2013-05-07"
+#Const Version				"2013-06-18"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -26,11 +26,11 @@
 // Settings
 // ---------------------------------- //
 #Setting S_MapPointsLimit			200		as _("Points to win a map")
-#Setting S_OffZoneActivationTime	4		as _("OffZone activation duration")
-#Setting S_OffZoneAutoStartTime		90		as _("Time before auto activation of the OffZone")
-#Setting S_OffZoneTimeLimit			50		as _("OffZone shrink duration")
-#Setting S_OffZoneMaxSpeed			1.25	as _("Maximum speed multiplier for the OffZone")
-#Setting S_EndRoundTimeLimit		60		as _("Time limit after the OffZone is completly shrunk")
+#Setting S_OffZoneActivationTime	4		as _("Tornado activation duration")
+#Setting S_OffZoneAutoStartTime		90		as _("Time before auto activation of the tornado")
+#Setting S_OffZoneTimeLimit			50		as _("Tornado shrink duration")
+#Setting S_OffZoneMaxSpeed			1.25	as _("Maximum speed multiplier for the tornado")
+#Setting S_EndRoundTimeLimit		60		as _("Time limit after the tornado is completly shrunk")
 #Setting S_SpawnInterval			5		as _("Time between each wave of spawns")
 #Setting S_UseEarlyRespawn			True	as _("Allow early respawn")
 #Setting S_EndMapChatTime			20		as _("End map chat time")
@@ -156,13 +156,13 @@ declare Integer NbPlayersPerTop = 12;
 Top::Load();
 Top::SetTopWidth(46.);
 Top::SetDefaultTitle();
-Top::Create(C_TopId_Hit, _("Top Hit"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+Top::Create(C_TopId_Hit, _("Hit"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 TopXPosition += TopXOffset;
-Top::Create(C_TopId_Survival, _("Top Survival"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+Top::Create(C_TopId_Survival, _("Survival"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 TopXPosition += TopXOffset;
-Top::Create(C_TopId_Pole, _("Top Pole"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+Top::Create(C_TopId_Pole, _("Pole"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 TopXPosition += TopXOffset;
-Top::Create(C_TopId_Round, _("Top Round"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+Top::Create(C_TopId_Round, _("Round"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 Top::SetCommonBackgroundImage(C_TopsBgImage, <0.05, 98.>, G_AltMenuSize);
 
 UIManager.UIAll.AltMenuNoCustomScores = False;
@@ -520,18 +520,15 @@ if (UI!= Null) {
 Slider::ShowSlider(Spectator, 0);
 ***
 
-***SleepLoop***
+***Yield***
 ***
 Top::Loop();
 Tabs::XmlRpcLoop();
+Message::Loop();
 ***
 
 ***PlayLoop***
 ***
-Message::Loop();
-Top::Loop();
-Tabs::XmlRpcLoop();
-
 if(AllowBeginners != S_AllowBeginners) {
 	Beginners::ResetPlayers();
 	MB_StopMatch = True;
@@ -711,7 +708,7 @@ switch (GameplaySequence) {
 				declare RadiusSpeedBonus = (1 + ((S_OffZoneMaxSpeed - 1.) * (MathLib::ToReal(Pole.Gauge.Value) / MathLib::ToReal(Pole.Gauge.Max))));
 				OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed * RadiusSpeedBonus;
 				UIManager.UIAll.StatusMessage = TextLib::Compose(
-					_("OffZone speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(RadiusSpeedBonus * 100))
+					_("Tornado speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(RadiusSpeedBonus * 100))
 				);
 			} else Pole.Gauge.Speed = 0;
 		}
@@ -998,17 +995,17 @@ foreach (Event in PendingEvents) {
 			}
 			declare Message = "";
 			if (GameplaySequence == 2) {
-				Message = _("OffZone activated.");
+				Message = _("Tornado activated.");
 				if (AllowDoubleCapture) {
 					Message::SendStatusMessage(
-						_("Stay near the pole to speed up the OffZone"), 2000, 1, CUIConfig::EUISound::StartRound, 0
+						_("Stay near the pole to speed up the tornado"), 2000, 1, CUIConfig::EUISound::StartRound, 0
 					);
 				}
 			}
 			else if (GameplaySequence == 3) {
 				UIManager.UIAll.StatusMessage = "";
 				Message = TextLib::Compose(
-					_("OffZone speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
+					_("Tornado speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
 				);
 			}
 			UIManager.UIAll.SendNotice(
@@ -1021,9 +1018,9 @@ foreach (Event in PendingEvents) {
 			declare Message = "";
 			if (GameplaySequence == 2) {
 				if(PoleCapturedByAPlayer) {
-					Message = _("Pole captured and OffZone activated.");
+					Message = _("Pole captured and tornado activated.");
 				} else {
-					Message = _("OffZone auto-activated.");
+					Message = _("Tornado auto-activated.");
 				}
 				if (AllowDoubleCapture) {
 					Message::SendStatusMessage(
@@ -1033,7 +1030,7 @@ foreach (Event in PendingEvents) {
 			}
 			else if (GameplaySequence == 3) {
 				Message = TextLib::Compose(
-					_("OffZone speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
+					_("Tornado speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
 				);
 			}
 			Message::SendBigMessage(
@@ -1273,7 +1270,7 @@ foreach(Player in AllPlayers) {
 // ---------------------------------- //
 // Display the name of the round winner
 DisplayWinnerName("Round", RoundWinnerPlayer);
-CustomSleep(1500);
+MB_Sleep(1500);
 
 // ---------------------------------- //
 // Show round results
@@ -1285,10 +1282,10 @@ SM::UnspawnAllPlayers();
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 
-CustomSleep(6000);
+MB_Sleep(6000);
 ---ScoreRoundEnd---
 Score::RoundEnd();
-CustomSleep(4000);
+MB_Sleep(4000);
 
 LayerDetached = Layers::Detach("Tops", NullId);
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
@@ -1328,9 +1325,9 @@ UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 declare DisplayTime = (S_EndMapChatTime * 1000) / 2;
 DisplayWinnerName("Map", MapWinnerPlayer);
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
-CustomSleep(DisplayTime);
+MB_Sleep(DisplayTime);
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
-CustomSleep(DisplayTime);
+MB_Sleep(DisplayTime);
 
 LayerDetached = Layers::Detach("Tops", NullId);
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
@@ -1378,20 +1375,6 @@ Void UpdateFooterStat(CSmPlayer Player, Text EliminatedByName) {
 	---UpdateFooterStat---
 }
 
-/* -------------------------------------- */
-/** Custom sleep function
- *
- *	@param	_Duration		The time to spend sleeping in ms
- */
-Void CustomSleep(Integer _Duration) {
-	declare End = Now + _Duration;
-	while(Now < End) {
-		yield;
-		Message::Loop();
-		+++SleepLoop+++
-	}
-}
-
 // ---------------------------------- //
 /// Let the server sleep until there's enough players to start a game
 Void WaitForPlayers() {
@@ -1399,7 +1382,7 @@ Void WaitForPlayers() {
 	
 	while (!ServerShutdownRequested && !MatchEndRequested && PlayersNbTotal <= 0) {
 		Waited = True;
-		CustomSleep(1000);
+		MB_Sleep(1000);
 	}
 }
 
@@ -1901,7 +1884,7 @@ Void CreateRulesReminderLayer() {
 	--></script>
 	<frame id="RulesReminderMainFrame" hidden="true" posn="{{{WindowX}}} {{{WindowY}}} 5" >
 		<!--<quad  posn="0 0" 	halign="center"	valign="center" sizen="{{{WindowWidth}}} {{{WindowHeight}}}" image="{{{C_WelcomeBgImage}}}" />-->
-		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="292 160" image="{{{C_WelcomeBgImage}}}" />
+		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="292 44" image="{{{C_WelcomeBgImage}}}" />
 		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
 		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-8}}}" 	halign="left" valign="center" text="{{{ModeName}}}" textsize="3" textprefix="$0f0"/>
 		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>

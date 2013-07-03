@@ -2,7 +2,7 @@
  * ScoresTable library
  */
 
-#Const Version		"2013-05-14"
+#Const Version		"2013-06-28"
 #Const ScriptName	"ScoresTable.Script.txt"
 
 #Include "TextLib" as TL
@@ -329,6 +329,14 @@ Void Load() {
 		Net_LibST_PICustom1		= "";
 		Net_LibST_PICustom2		= "";
 	}
+	
+	// Initialize the filters
+	declare netwrite Net_LibST_FilterUpdate for Teams[0] = 0;
+	declare netwrite Net_LibST_FilterLogins for Teams[0] = Text[];
+	declare netwrite Net_LibST_FilterStatus for Teams[0] = "All";
+	Net_LibST_FilterUpdate = Now;
+	Net_LibST_FilterLogins = Text[];
+	Net_LibST_FilterStatus = "All";
 }
 
 // ---------------------------------- //
@@ -871,11 +879,44 @@ Real GetHeight() {
 }
 
 // ---------------------------------- //
+/** Filter the players displayed in the scores table by logins
+ *
+ *	@param	_Logins		The logins to display
+ */
+Void FilterLogins(Text[] _Logins) {
+	declare netwrite Net_LibST_FilterUpdate for Teams[0] = 0;
+	declare netwrite Net_LibST_FilterLogins for Teams[0] = Text[];
+	
+	Net_LibST_FilterUpdate = Now;
+	Net_LibST_FilterLogins = _Logins;
+}
+
+// ---------------------------------- //
+/** Filter the players displayed in the scores table by status
+ *
+ *	@param	_Status		The status to display:
+ *						- All
+ *						- Playing
+ *						- Alive
+ *						- Spectators
+ */
+Void FilterStatus(Text _Status) {
+	declare netwrite Net_LibST_FilterUpdate for Teams[0] = 0;
+	declare netwrite Net_LibST_FilterStatus for Teams[0] = "All";
+	
+	Net_LibST_FilterUpdate = Now;
+	Net_LibST_FilterStatus = _Status;
+}
+
+// ---------------------------------- //
 /** Build the scores table manialink
  *	This function must be called each time
  *	the scores table's manialink is updated
+ *
+ *	@param	_ForceUseClans		Force the use of clans or not in the scores table
+ *	@param	_UseClans			If _ForceUseClans is True, then use this value instead of the defaul UseClans
  */
-Void Build() {
+Void Build(Boolean _ForceUseClans, Boolean _UseClans) {
 	declare LayerScoresTable = GetLayerScoresTable();
 	if (LayerScoresTable == Null) return;
 	
@@ -885,6 +926,9 @@ Void Build() {
 	declare PMarginY		= 0.5;
 	declare PLegendSizeY	= 4.;
 	declare ZText			= C_LibST_Z + 8;
+	
+	declare LibST_UseClans	= UseClans;
+	if (_ForceUseClans) LibST_UseClans = _UseClans;
 	
 	// ---------------------------------- //
 	// Create the scores table background
@@ -934,7 +978,7 @@ Void Build() {
 	// Create the header
 	declare HeaderML = "";
 	// For teams mode
-	if (UseClans) {
+	if (LibST_UseClans) {
 		declare NTSizeX = ((G_LibST_TableSizeX/2.) - 45.);
 		declare NTPosX = (NTSizeX/2.) + 32.5;
 		declare STScale = 0.7;
@@ -947,8 +991,8 @@ Void Build() {
 				<quad posn="6 -11 {{{C_LibST_Z+5}}}" sizen="{{{EmblemSize}}} {{{EmblemSize}}}" valign="bottom" style="Emblems" substyle="#2" />
 				<label posn="-21 -3 {{{ZText}}}" sizen="{{{STSizeX}}} 5" scale="{{{STScale}}}" halign="right" valign="center" style="TextRaceMessageBig" text="0" id="Label_ScoreTeam1" />
 				<label posn="21 -3 {{{ZText}}}" sizen="{{{STSizeX}}} 5" scale="{{{STScale}}}" valign="center" style="TextRaceMessageBig" text="0" id="Label_ScoreTeam2" />
-				<label posn="{{{-NTPosX}}} -3 {{{ZText}}}" sizen="{{{NTSizeX}}} 5" halign="center" valign="center" textemboss="1" id="Label_NameTeam1" />
-				<label posn="{{{NTPosX}}} -3 {{{ZText}}}" sizen="{{{NTSizeX}}} 5" halign="center" valign="center" textemboss="1" id="Label_NameTeam2" />
+				<label posn="{{{-NTPosX}}} -3.4 {{{ZText}}}" sizen="{{{NTSizeX}}} 5" halign="center" valign="center" textemboss="1" id="Label_NameTeam1" />
+				<label posn="{{{NTPosX}}} -3.4 {{{ZText}}}" sizen="{{{NTSizeX}}} 5" halign="center" valign="center" textemboss="1" id="Label_NameTeam2" />
 			</frame>
 			""";
 	}
@@ -965,20 +1009,20 @@ Void Build() {
 	declare PagerUp 	= PagerImagePath^"pagerUpOff.dds";
 	declare PagerDown 	= PagerImagePath^"pagerDownOff.dds";
 	declare PagerEnd	= PagerImagePath^"pagerEmpty.dds";
-	declare PagerPosX	= 3.;
+	declare PagerPosX	= 2.5;
 	declare PagerPosY	= 8.5;
-	if (UseClans) {
-		PagerPosX	= 3.;
-		PagerPosY	= 1.8;
+	if (LibST_UseClans) {
+		PagerPosX	= 2.5;
+		PagerPosY	= 1.3;
 	}
 	
 	declare PagerML = """
 <frame posn="{{{(G_LibST_TableSizeX/2.)-PagerPosX}}} {{{-G_LibST_HeaderSizeY+PagerPosY}}} 3" id="Frame_Pager" hidden="1">
-	<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="5 5" halign="center"  valign="center" image="{{{PagerDown}}}" scriptevents="1" id="Button_PageNext" />
-	<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="5 5" halign="center"  valign="center" image="{{{PagerEnd}}}" hidden="1" id="Button_PageNextOff" />
-	<quad posn="-4.5 0 {{{C_LibST_Z+1}}}" sizen="5 5" halign="center" valign="center" image="{{{PagerUp}}}" scriptevents="1" id="Button_PagePrev" />
-	<quad posn="-4.5 0 {{{C_LibST_Z+1}}}" sizen="5 5" halign="center" valign="center" image="{{{PagerEnd}}}" hidden="1" id="Button_PagePrevOff" />
-	<quad posn="-6.7 0 {{{C_LibST_Z+1}}}" sizen="4.4 4.4" halign="right" valign="center" style="Icons64x64_1" substyle="Maximize" scriptevents="1" id="Button_PagePlayer" />
+	<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="4 4" halign="center"  valign="center" image="{{{PagerDown}}}" scriptevents="1" id="Button_PageNext" />
+	<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="4 4" halign="center"  valign="center" image="{{{PagerEnd}}}" hidden="1" id="Button_PageNextOff" />
+	<quad posn="-4 0 {{{C_LibST_Z+1}}}" sizen="4 4" halign="center" valign="center" image="{{{PagerUp}}}" scriptevents="1" id="Button_PagePrev" />
+	<quad posn="-4 0 {{{C_LibST_Z+1}}}" sizen="4 4" halign="center" valign="center" image="{{{PagerEnd}}}" hidden="1" id="Button_PagePrevOff" />
+	<quad posn="-6.1 0 {{{C_LibST_Z+1}}}" sizen="3.4 3.4" halign="right" valign="center" style="Icons64x64_1" substyle="Maximize" scriptevents="1" id="Button_PagePlayer" />
 </frame>
 """;
 
@@ -986,7 +1030,7 @@ Void Build() {
 	// Create the players list
 	declare PlayersML = "";
 	
-	if (UseClans) G_LibST_ColNb = 2;
+	if (LibST_UseClans) G_LibST_ColNb = 2;
 	//else G_LibST_ColNb = 1;
 	
 	declare PSizeX		= (G_LibST_TableSizeX - ((G_LibST_ColNb - 1.) * PMarginX)) / G_LibST_ColNb;
@@ -1062,7 +1106,7 @@ Void Build() {
 	// Column legend
 	declare LegendModel = """
 	<framemodel id="Frame_Legends">
-		<frame posn="0 1 {{{ZText}}}">
+		<frame posn="0 0.8 {{{ZText}}}">
 			<label posn="{{{Custom1PosX-1.}}} 0" sizen="{{{_X("Custom1")-1.}}} {{{PLegendSizeY}}}" halign="right" valign="bottom" style="TextCardSmallScores2Rank" textprefix="$s" text="{{{G_LibST_ColumnsNames["Custom1"]}}}" hidden="{{{Custom1Hidden}}}" />
 			<label posn="{{{Custom2PosX-1.}}} 0" sizen="{{{_X("Custom2")-1.}}} {{{PLegendSizeY}}}" halign="right" valign="bottom" style="TextCardSmallScores2Rank" textprefix="$s" text="{{{G_LibST_ColumnsNames["Custom2"]}}}" hidden="{{{Custom2Hidden}}}" />
 			<label posn="{{{Custom3PosX-1.}}} 0" sizen="{{{_X("Custom3")-1.}}} {{{PLegendSizeY}}}" halign="right" valign="bottom" style="TextCardSmallScores2Rank" textprefix="$s" text="{{{G_LibST_ColumnsNames["Custom3"]}}}" hidden="{{{Custom3Hidden}}}" />
@@ -1106,9 +1150,9 @@ Void Build() {
 	
 	
 	<frame posn="0 {{{PTopPosY}}}">
-		<quad posn="{{{AvatarPosX+(_X("Avatar")/2.)}}} 0 {{{C_LibST_Z+3}}}" sizen="{{{AvatarSize.X}}} {{{AvatarSize.Y}}}" scale="0.9" halign="center" valign="center" bgcolor="0007" id="Quad_Avatar" hidden="{{{AvatarHidden}}}" />
+		<quad posn="{{{AvatarPosX+(_X("Avatar")/2.)+1.}}} 0 {{{C_LibST_Z+3}}}" sizen="{{{AvatarSize.X}}} {{{AvatarSize.Y}}}" scale="0.9" halign="center" valign="center" bgcolor="0007" id="Quad_Avatar" hidden="{{{AvatarHidden}}}" />
 		
-		<label posn="{{{NamePosX}}} 0.4 {{{ZText}}}" sizen="{{{_X("Name")-(2*StarSize.X)}}} {{{_Y("Name")}}}" valign="center" style="TextRaceMessage" id="Label_Name" hidden="{{{NameHidden}}}" />
+		<label posn="{{{NamePosX+1.}}} 0.4 {{{ZText}}}" sizen="{{{_X("Name")-(2*StarSize.X)-1.}}} {{{_Y("Name")}}}" valign="center" style="TextRaceMessage" id="Label_Name" hidden="{{{NameHidden}}}" />
 		
 		<frame posn="{{{NamePosX+_X("Name")}}} 0 {{{C_LibST_Z+3}}}" hidden="{{{ManiaStarsHidden}}}">
 			<quad posn="0 0" sizen="{{{StarSize.X}}} {{{StarSize.Y}}}" halign="right" valign="center" style="BgRaceScore2" substyle="Fame" id="Quad_Star_1" />
@@ -1127,7 +1171,7 @@ Void Build() {
 			
 			<label posn="{{{RoundPointsPosX-1.}}} 0.4" sizen="{{{_X("RoundPoints")-1.}}} {{{_Y("RoundPoints")}}}" halign="right" valign="center" style="TextCardSmallScores2" id="Label_RoundPoints" hidden="{{{RoundPointsHidden}}}" />
 			
-			<label posn="{{{PointsPosX-1.}}} 0.4" sizen="{{{_X("Points")-1.}}} {{{_Y("Points")}}}" halign="right" valign="center" style="TextCardScores2" id="Label_Points" hidden="{{{PointsHidden}}}" />
+			<label posn="{{{PointsPosX-1.5}}} 0.4" sizen="{{{_X("Points")-1.5}}} {{{_Y("Points")}}}" halign="right" valign="center" style="TextCardScores2" id="Label_Points" hidden="{{{PointsHidden}}}" />
 		</frame>
 		
 		<frame posn="0 0 {{{C_LibST_Z+3}}}" id="Frame_Tags" hidden="1">
@@ -1147,8 +1191,11 @@ Void Build() {
 		
 		<frame posn="{{{AvatarPosX}}} 0.2">
 			<frame posn="1 0 {{{ZText}}}">
-				<quad posn="3 -0.2" sizen="3 3" halign="right" valign="center" style="Icons64x64_1" substyle="IconPlayersLadder" />
-				<label posn="3.5 0" sizen="{{{33-3.5}}} {{{PBotSizeY}}}" valign="center" style="TextCardSmallScores2Rank" id="Label_Rank" />
+				<quad posn="1.25 -0.3" sizen="1 3" halign="right" valign="center" id="Quad_Echelon" />
+			</frame>
+			<frame posn="3 0 {{{ZText}}}">
+				<quad posn="2.5 -0.3" sizen="2.5 2.5" halign="right" valign="center" style="Icons64x64_1" substyle="IconPlayersLadder" />
+				<label posn="3 0" sizen="{{{33-3.5}}} {{{PBotSizeY}}}" valign="center" textsize="1" style="TextCardSmallScores2Rank" textemboss="1" id="Label_Rank" />
 			</frame>
 			<frame posn="{{{PSizeX-AvatarPosX-1.}}} 0 {{{ZText}}}" id="Frame_LadderPointsTotal" hidden="1">
 				<quad posn="0 -0.2" sizen="3 3" halign="right" valign="center" style="Icons128x128_1" substyle="LadderPoints" />
@@ -1300,6 +1347,35 @@ declare CMlLabel	Label_PIStats;
 declare CMlLabel	Label_PICustom1;
 declare CMlLabel	Label_PICustom2;
 
+Boolean Filter(CGamePlayerInfo _User) {
+	declare netread Text[]	Net_LibST_FilterLogins for Teams[0];
+	declare netread Text	Net_LibST_FilterStatus for Teams[0];
+	
+	declare LibST_PrevStatus for _User = C_Disconnected;
+	
+	if (Net_LibST_FilterLogins.count > 0 && !Net_LibST_FilterLogins.exists(_User.Login)) return False;
+	
+	switch (Net_LibST_FilterStatus) {
+		case "Playing"	: {
+			if (LibST_PrevStatus == C_Spawned || LibST_PrevStatus == C_NotSpawned) return True;
+			else return False;
+		}
+		case "Alive"	: {
+			if (LibST_PrevStatus == C_Spawned) return True;
+			else return False;
+		}
+		case "Spectating": {
+			if (LibST_PrevStatus == C_Spectating) return True;
+			else return False;
+		}
+		default			: {
+			return True;
+		}
+	}
+	
+	return True;
+}
+
 Void UpdatePlayersList() {
 	declare Col = 1;
 	declare Row = 1;
@@ -1308,6 +1384,7 @@ Void UpdatePlayersList() {
 	declare Clan1Cnt = 0;
 	declare Clan2Cnt = 0;
 	declare Count = 0;
+	declare Shift = 0;
 	Quad_Me.Hide();
 	
 	declare CMlFrame Frame_Col;
@@ -1319,6 +1396,7 @@ Void UpdatePlayersList() {
 	declare CMlQuad Quad_Status;
 	declare CMlQuad Quad_Avatar;
 	declare CMlLabel Label_Name;
+	declare CMlQuad Quad_Echelon;
 	declare CMlLabel Label_Rank;
 	declare CMlFrame Frame_LadderPoints;
 	declare CMlLabel Label_LadderPoints;
@@ -1347,7 +1425,12 @@ Void UpdatePlayersList() {
 	foreach (Key => Score in Scores) {
 		declare LibST_PrevClan for Score.User = 0;
 		
-		if (IsTeamMode) {
+		if (!Filter(Score.User)) {
+			Shift += 1;
+			continue;
+		}
+		
+		if ({{{LibST_UseClans}}}) {
 			if (LibST_PrevClan == 1) {
 				Clan1Cnt += 1;
 				
@@ -1366,8 +1449,8 @@ Void UpdatePlayersList() {
 				Row = RowClan2;
 			} else if (LibST_PrevClan == 0) continue;
 		} else {
-			if (Key + 1 < G_PageStart) continue;
-			if (Key + 1 > G_PageEnd) break;
+			if (Key + 1 - Shift < G_PageStart) continue;
+			if (Key + 1 - Shift > G_PageEnd) break;
 		}
 		
 		Count = ((Col - 1) * C_LinesByColNb) + Row;
@@ -1381,6 +1464,7 @@ Void UpdatePlayersList() {
 		Quad_Status				<=> (Frame_Player.GetFirstChild("Quad_Status")							as CMlQuad);
 		Quad_Avatar				<=> (Frame_Player.GetFirstChild("Quad_Avatar")							as CMlQuad);
 		Label_Name				<=> (Frame_Player.GetFirstChild("Label_Name")							as CMlLabel);
+		Quad_Echelon			<=> (Frame_Player.GetFirstChild("Quad_Echelon")							as CMlQuad);
 		Label_Rank				<=> (Frame_Player.GetFirstChild("Label_Rank")							as CMlLabel);
 		Frame_LadderPoints		<=> (Frame_Player.GetFirstChild("Frame_LadderPoints")					as CMlFrame);
 		Label_LadderPoints		<=> (Frame_LadderPoints.GetFirstChild("Label_LadderPoints")				as CMlLabel);
@@ -1410,7 +1494,7 @@ Void UpdatePlayersList() {
 		declare LibST_PrevStatus		for Score.User = C_Disconnected;
 		
 		Frame_Player.Show();
-		Label_Position.SetText(TL::ToText(Key+1));
+		Label_Position.SetText(TL::ToText(Key+1-Shift));
 		if (InputPlayer != Null && InputPlayer.Score != Null && InputPlayer.Score.Id == Score.Id) {
 			Quad_Me.Show();
 			Quad_Me.PosnX = Label_PlayerPos.PosnX;
@@ -1452,14 +1536,24 @@ Void UpdatePlayersList() {
 		}
 		if (ZonePath == "") ZonePath = _("Other");
 		
+		declare Echelon = ML::FloorInteger(Score.User.LadderPoints / 10000.);
+		if (Echelon >= 1 && Echelon <= 9) {
+			Quad_Echelon.Show();
+			Quad_Echelon.ChangeImageUrl("file://Media/Manialinks/Common/Echelons/small_echelon"^Echelon^".dds");
+		} else {
+			Quad_Echelon.Hide();
+		}
+		
 		if (Score.User.LadderRank > 0) Label_Rank.SetText(TL::Compose("%1: %2", ZonePath, TL::ToText(Score.User.LadderRank)));
 		else Label_Rank.SetText(TL::Compose("%1: %2", ZonePath, "{{{_("Not ranked")}}}"));
 		
 		declare StarSize = C_StarSize;
 		declare Fame = Score.User.FameStars;
 		declare FameStop = 1;
-		if (Fame > 5 || Fame < 0) Fame = 0;
-		switch(Fame) {
+		if (Fame > 5) Fame = 5;
+		else if (Fame < 0) Fame = 0;
+		
+		switch (Fame) {
 			case 1: {
 				Quad_Stars[1].PosnX = 0.; Quad_Stars[1].PosnY = 0.;
 			}
@@ -1470,7 +1564,7 @@ Void UpdatePlayersList() {
 			case 3: {
 				Quad_Stars[1].PosnX = 0.;			Quad_Stars[1].PosnY = -StarSize/2.;
 				Quad_Stars[2].PosnX = -StarSize;	Quad_Stars[2].PosnY = -StarSize/2.;
-				Quad_Stars[3].PosnX = -StarSize/2;	Quad_Stars[3].PosnY = StarSize/2.;
+				Quad_Stars[3].PosnX = -StarSize/2.;	Quad_Stars[3].PosnY = StarSize/2.;
 			}
 			case 4: {
 				Quad_Stars[1].PosnX = 0.;			Quad_Stars[1].PosnY = -StarSize/2.;
@@ -1552,11 +1646,11 @@ Void UpdatePlayersList() {
 		Label_Custom2.SetText(Custom2String);
 		Label_Custom3.SetText(Custom3String);
 		
-		if(Score.RoundPoints > 0) {
+		//if(Score.RoundPoints > 0) {
 			Label_RoundPoints.SetText(C_RoundPointsFormat^TL::ToText(Score.RoundPoints));
-		} else {
+		/*} else {
 			Label_RoundPoints.SetText("");
-		}
+		}*/
 		Label_Points.SetText(C_PointsFormat^TL::ToText(Score.Points));
 		
 		/*if (UI.UISequence == CUIConfig::EUISequence::Podium) {
@@ -1569,7 +1663,7 @@ Void UpdatePlayersList() {
 			Frame_Tags.Hide();
 		}*/
 		
-		if (IsTeamMode) {
+		if ({{{LibST_UseClans}}}) {
 			if (LibST_PrevClan == 1) RowClan1 += 1;
 			else if (LibST_PrevClan == 2) RowClan2 += 1;
 		} else {
@@ -1582,9 +1676,9 @@ Void UpdatePlayersList() {
 		}
 	}
 		
-	if (IsTeamMode) Col = 1;
+	if ({{{LibST_UseClans}}}) Col = 1;
 	for (I, Col, C_ColNb) {
-		if (IsTeamMode) {
+		if ({{{LibST_UseClans}}}) {
 			if (I == 1) Row = RowClan1;
 			else if (I == 2) Row = RowClan2;
 		}
@@ -1612,7 +1706,7 @@ Void UpdatePlayersList() {
 }
 
 Void UpdateHeader() {
-	if (IsTeamMode) {
+	if ({{{LibST_UseClans}}}) {
 		declare Frame_VS <=> (Page.GetFirstChild("Frame_VS") as CMlFrame);
 		if (Frame_VS == Null) return;
 		
@@ -1690,7 +1784,7 @@ Void UpdatePlayerInfo() {
 }
 
 Void UpdatePager(Integer _Step) {
-	if (IsTeamMode) {
+	if ({{{LibST_UseClans}}}) {
 		declare MaxClan1 = ((G_ClansNbPlayers[1] - 1) / G_PageRange) + 1;
 		declare MaxClan2 = ((G_ClansNbPlayers[2] - 1) / G_PageRange) + 1;
 		if (MaxClan1 >= MaxClan2) G_PageMax = MaxClan1;
@@ -1732,8 +1826,8 @@ Void FindPlayer() {
 		declare LibST_PrevClan as LibST_PrevClan2 for Score.User = 0;
 		if (Score.Id == InputPlayer.Score.Id) break;
 		
-		if (IsTeamMode && LibST_PrevClan == LibST_PrevClan2) Rank += 1;
-		else if (!IsTeamMode) Rank += 1;
+		if ({{{LibST_UseClans}}} && LibST_PrevClan == LibST_PrevClan2) Rank += 1;
+		else if (!{{{LibST_UseClans}}}) Rank += 1;
 	}
 	
 	declare PageNb = (Rank / G_PageRange) + 1;
@@ -1787,9 +1881,13 @@ main() {
 	declare PrevRefresh		= 0;
 	declare PrevUISequence	= CUIConfig::EUISequence::None;
 	
-	declare PrevClanScores	= [1 => 0, 2 => 0];
-	declare PrevTeamsName	= [0 => "", 1 => ""];
-	declare PrevServerName	= "";
+	declare PrevClanScores		= [1 => 0, 2 => 0];
+	declare PrevTeamsName		= [0 => "", 1 => ""];
+	declare PrevServerName		= "";
+	declare PrevFilterUpdate	= 0;
+	
+	declare netread Integer Net_LibST_FilterUpdate for Teams[0];
+	declare netread Text[] Net_LibST_FilterLogins for Teams[0];
 	
 	G_PageCurrent	= 1;
 	G_PageMax		= 1;
@@ -1798,7 +1896,7 @@ main() {
 	
 	G_ClansNbPlayers = [0 => 0, 1 => 0, 2 => 0];
 	
-	if (IsTeamMode) G_PageRange = C_LinesByColNb;
+	if ({{{LibST_UseClans}}}) G_PageRange = C_LinesByColNb;
 	else G_PageRange = C_LinesByColNb * C_ColNb;
 	
 	Frame_Pager			<=> (Page.GetFirstChild("Frame_Pager")					as CMlFrame);
@@ -1876,6 +1974,11 @@ main() {
 			
 			if (UI.UISequence != PrevUISequence) {
 				PrevUISequence = UI.UISequence;
+				NeedUpdateAll = True;
+			}
+			
+			if (PrevFilterUpdate != Net_LibST_FilterUpdate) {
+				PrevFilterUpdate = Net_LibST_FilterUpdate;
 				NeedUpdateAll = True;
 			}
 	
@@ -1958,11 +2061,13 @@ main() {
 				if (LibST_PICustom1 != LibST_PrevPICustom1) { LibST_PrevPICustom1 = LibST_PICustom1; NeedUpdatePI = True; }
 				if (LibST_PICustom2 != LibST_PrevPICustom2) { LibST_PrevPICustom2 = LibST_PICustom2; NeedUpdatePI = True; }
 				
-				G_ClansNbPlayers[LibST_PrevClan] += 1;
+				if (Filter(Score.User)) {
+					G_ClansNbPlayers[LibST_PrevClan] += 1;
+				}
 			}
 			
 			if (
-				IsTeamMode &&
+				{{{LibST_UseClans}}} &&
 				(
 					Teams[0].ColorizedName != PrevTeamsName[0]
 					|| Teams[1].ColorizedName != PrevTeamsName[1]
@@ -1975,7 +2080,7 @@ main() {
 				PrevClanScores[1] = ClanScores[1];
 				PrevClanScores[2] = ClanScores[2];
 				NeedUpdateHeader = True;
-			} else if (!IsTeamMode && PrevServerName != CurrentServerName) {
+			} else if (!{{{LibST_UseClans}}} && PrevServerName != CurrentServerName) {
 				PrevServerName = CurrentServerName;
 				NeedUpdateHeader = True;
 			}
@@ -2063,4 +2168,10 @@ main() {
 """;
 
 	LayerScoresTable.ManialinkPage = ML;
+}
+
+// ---------------------------------- //
+/// Overload of the Build() function
+Void Build() {
+	Build(False, False);
 }
