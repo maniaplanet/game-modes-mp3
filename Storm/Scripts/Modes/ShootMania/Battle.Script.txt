@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2013-06-04"
+#Const	Version				"2013-07-10"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -1136,8 +1136,10 @@ Void UpdateBasesColors() {
 	
 	foreach (BlockPole in BlockPoles) {
 		declare Clan = 0;
-		if (BlockPole.Gauge.Value < BlockPole.Gauge.Max) Clan = 3 - BlockPole.Gauge.Clan;
-		else Clan = BlockPole.Gauge.Clan;
+		if (BlockPole.Gauge.Clan == 1 || BlockPole.Gauge.Clan == 2) {
+			if (BlockPole.Gauge.Value < BlockPole.Gauge.Max) Clan = 3 - BlockPole.Gauge.Clan;
+			else Clan = BlockPole.Gauge.Clan;
+		}
 		
 		if (!UpdatedBases.exists(BlockPole.Base.Id)) {
 			BlockPole.Base.Clan = Clan;

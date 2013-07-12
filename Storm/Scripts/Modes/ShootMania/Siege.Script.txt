@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeArena"
-#Const Version				"2013-06-19"
+#Const Version				"2013-07-05"
 #Const ScriptName			"Siege.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -952,7 +952,7 @@ foreach (Event in PendingEvents) {
 	// ---------------------------------- //
 	// On near miss
 	else if (Event.Type == CSmModeEvent::EType::OnNearMiss) {
-		if (Event.Shooter != Null && Event.Victim != Null) {
+		if (Event.Shooter != Null && Event.Victim != Null && Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) {
 			declare MaxMissDist = 0.5;
 			declare Distance = MathLib::Distance(Event.Shooter.Position, Event.Victim.Position);
 			MaxMissDist = Distance * 2 / 100;

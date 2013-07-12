@@ -1,0 +1,601 @@
+#Const	Version				"2013-07-11"
+#Const	ScriptName			"LobbyMelee.Script.txt"
+#Const	C_NbBots			0
+
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/Mode.Script.txt" as Mode
+#Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/Message.Script.txt" as Message
+#Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
+#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
+#Include "Libs/Nadeo/ShootMania/XmlRpc.Script.txt" as XmlRpc
+
+
+declare Ident	G_LibKOL_WinnerId;
+declare Integer G_LibLobbyMelee_BestScore;
+
+declare Integer G_LibKOL_RoundDuration;
+declare Boolean G_LibKOL_LaserMode;
+
+
+/* ------------------------------------- */
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+/* ------------------------------------- */
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+Void ResetPlayer(CSmPlayer _Player) {
+	declare Integer LibLobbyMelee_CurrentCombo	for _Player = 0;
+	LibLobbyMelee_CurrentCombo = 0;
+}
+
+// Spawn the players
+Void SpawnPlayers() {
+	// Spawn players
+	foreach (Player in Players) {
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+			declare Boolean LibLobbyMelee_Spawned for Player;
+			declare Boolean SpawnThePlayer = True;
+			
+			declare UI <=> UIManager.GetUI(Player);
+			if(UI != Null) {
+				declare netread Boolean Net_RulesReminder_StopIntro for UI;
+				if(! Net_RulesReminder_StopIntro) continue;
+			}
+			
+			if(SpawnThePlayer) {
+				if(G_LibKOL_LaserMode) {
+					SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
+				}
+				SM::SpawnPlayer(Player, 0, BlockSpawns[MathLib::Rand(0, BlockSpawns.count - 1)], Now);
+				ResetPlayer(Player);
+				LibLobbyMelee_Spawned = True;
+			}
+		}
+	}
+}
+
+
+Void SpawnBots() {
+	// Spawn players
+	foreach (Player in Players) {
+		if(! Player.User.IsFakeUser) continue;
+		
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+			declare Boolean LibLobbyMelee_Spawned for Player;
+			SM::SpawnPlayer(Player, 0, BlockSpawns[MathLib::Rand(0, BlockSpawns.count - 1)], Now);
+			ResetPlayer(Player);
+			LibLobbyMelee_Spawned = True;
+		}
+	}
+}
+
+
+Void ShowScore(CSmPlayer _Player) {
+	if ((_Player == Null) || (_Player.Score == Null)) return;
+
+	declare Text Message;
+	if(_Player.Score.Points <= 1) {
+		Message = TextLib::Compose( _("%1 point (Best score: %2)"), TextLib::ToText(_Player.Score.Points), ""^G_LibLobbyMelee_BestScore);
+	} else {
+		Message = TextLib::Compose( _("%1 points (Best score: %2)"), TextLib::ToText(_Player.Score.Points), ""^G_LibLobbyMelee_BestScore);
+	}
+	
+	Message::SendStatusMessage(
+		_Player,
+		Message,
+		3000,
+		0
+	);
+}
+
+Void ShowAllNewBestScore(CSmPlayer _BestPlayer, Integer _BestCombo) {
+	if(_BestCombo < 3 || _BestPlayer == Null) return;
+	
+	declare Text PlayerName = _BestPlayer.Name;
+	declare TheMessage = TextLib::Compose( _("$<%1$> is the King: %2 Points!"), PlayerName, TextLib::ToText(_BestPlayer.Score.Points));
+	
+	Message::SendBigMessage(
+		TheMessage,
+		3000,
+		0
+	);
+}
+
+
+Integer NotifyHit(CSmPlayer _Shooter)
+{
+	if ((_Shooter == Null) || (_Shooter.Score == Null)) return 0;
+	declare Integer LibLobbyMelee_CurrentCombo for _Shooter = 0;
+
+	declare Integer PointsEarned = 1+(LibLobbyMelee_CurrentCombo/2);
+	_Shooter.Score.Points += PointsEarned;
+	LibLobbyMelee_CurrentCombo += 1;
+	
+	if (_Shooter.Score.Points > G_LibLobbyMelee_BestScore) {
+		G_LibLobbyMelee_BestScore = _Shooter.Score.Points;
+		ShowAllNewBestScore(_Shooter, G_LibLobbyMelee_BestScore);
+		G_LibKOL_WinnerId = _Shooter.Id;
+	} else if (_Shooter.Score.Points == G_LibLobbyMelee_BestScore) {
+		G_LibKOL_WinnerId = NullId; // Draw
+	}
+	
+	// show score & rank
+	ShowScore(_Shooter);
+	
+	return PointsEarned;
+}
+
+Void LoopTimerUI() {
+	foreach(Player in AllPlayers) {
+		declare UI <=> UIManager.GetUI(Player);
+		if(UI == Null) continue;
+		
+		declare netwrite Integer	Net_TimerMax	for UI;
+		declare netwrite Integer	Net_Timer		for UI;
+		declare netwrite Boolean	Net_AutoDown	for UI;
+		declare netwrite Integer	Net_TimeDown	for UI;
+		
+		Net_TimerMax = EndTime - StartTime;
+		Net_Timer = Now - StartTime;
+		Net_AutoDown = False;
+		Net_TimeDown = 0;
+	}
+}
+
+Void SetTimerAutoDown(Integer _Duration) {
+	foreach(Player in AllPlayers) {
+		declare UI <=> UIManager.GetUI(Player);
+		if(UI == Null) continue;
+		
+		declare netwrite Integer	Net_TimerMax	for UI;
+		declare netwrite Integer	Net_Timer		for UI;
+		declare netwrite Boolean	Net_AutoDown	for UI;
+		declare netwrite Integer	Net_TimeDown	for UI;
+		
+		Net_TimerMax = 0;
+		Net_Timer = 0;
+		Net_AutoDown = True;
+		Net_TimeDown = _Duration;
+	}
+}
+
+
+Void LoopUpdateUI() {
+	foreach(Spectator in Spectators) {
+		declare UI <=> UIManager.GetUI(Spectator);
+		if(UI != Null) {
+			declare netwrite Boolean Net_LibKol_ShowRules for UI;
+			Net_LibKol_ShowRules = False;
+			
+			if(UI.UISequence != CUIConfig::EUISequence::Intro) {
+				UI.UISequence = CUIConfig::EUISequence::Intro;
+			}
+		}
+	}
+	
+	foreach(Player in Players) {
+		declare UI <=> UIManager.GetUI(Player);
+		if(UI != Null) {
+			declare netwrite Boolean Net_LibKol_ShowRules for UI;
+			declare netread Boolean Net_RulesReminder_StopIntro for UI;
+			Net_LibKol_ShowRules = ! Net_RulesReminder_StopIntro;
+			
+			if(Net_RulesReminder_StopIntro) {
+				if (UI.UISequence != CUIConfig::EUISequence::Playing) {
+					UI.UISequence = CUIConfig::EUISequence::Playing;
+				}
+			} else {
+				if (UI.UISequence != CUIConfig::EUISequence::Intro) {
+					UI.UISequence = CUIConfig::EUISequence::Intro;
+					if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
+						UnspawnPlayer(Player);
+					}
+				}
+			}
+		}
+	}
+}
+
+
+
+
+Void SetRoundDuration(Integer _RoundDuration) {
+	G_LibKOL_RoundDuration = _RoundDuration;
+}
+
+/**
+ * Handle XmlRpc events.
+ */
+Void XmlRpcLoop() {
+	foreach (Event in XmlRpc.PendingEvents) {
+		if (Event.Type == CXmlRpcEvent::EType::Callback) {
+			switch (Event.Param1) {
+				case "LibXmlRpc_Lobby_SetRoundDuration": {
+					declare Integer RoundDuration = TextLib::ToInteger(Event.Param2);
+					SetRoundDuration(RoundDuration);
+				}
+			}
+		}
+	}
+}
+
+Boolean PlayLoop()
+{
+	Message::Loop();
+	
+	foreach (Event in PendingEvents) 
+	{
+		if (Event.Type == CSmModeEvent::EType::OnHit) {
+			if(Event.Shooter != Event.Victim) {
+				declare Integer PointsEarned = NotifyHit(Event.Shooter);
+				Event.ShooterPoints = PointsEarned;
+				
+				PassOn(Event);
+			} else {
+				Discard(Event);
+			}
+		}
+		else if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
+			if (Event.Victim != Null) {
+				ResetPlayer(Event.Victim);
+			}
+			PassOn(Event);
+		} else if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
+			if(Event.Player != Null) {
+				ResetPlayer(Event.Player);
+			}
+			PassOn(Event);
+		}
+		else {
+			PassOn(Event);
+		}
+	}
+	
+	// end map conditions
+	if ((G_LibKOL_RoundDuration > 0) && (Now > (StartTime + (G_LibKOL_RoundDuration * 1000)))) {
+		return False;
+	}
+	
+	// LoopIntroEnds();
+	LoopUpdateUI();
+	XmlRpcLoop();
+	SpawnPlayers();
+	SpawnBots();
+	LoopTimerUI();
+	
+	return True;
+}
+
+Void StartRound() {
+	Message::CleanBigMessages();
+	Score::MatchBegin(False);
+	UIManager.UIAll.ScoreTableOnlyManialink = True;
+	
+	/* -------------------------------------- */
+	// Create the rules
+	declare ModeName = _("Lobby");
+	declare ModeRules = TextLib::Compose("%1\n\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, you can play 'King Of The Lobby'."), _("In this mode, perform as much hits as possible without being eliminated."));
+	
+	SpawnScreen::CreateRules(ModeName, ModeRules, False);
+	SpawnScreen::AttachRules();
+	
+	Users_SetNbFakeUsers(C_NbBots, 0);
+	
+	ClearScores();
+	foreach (Score in Scores) {
+		Score.Points = 0;
+		Score.RoundPoints = 0;
+	}
+
+	StartTime = Now;
+	if (G_LibKOL_RoundDuration > 0) {
+		EndTime = StartTime + (G_LibKOL_RoundDuration * 1000);
+	} else {
+		EndTime = -1;
+	}
+}
+
+Void EndRound()
+{
+	SpawnScreen::DestroyRules();
+	Message::CleanAllMessages();
+	SM::UnspawnAllPlayers();
+	
+	Score::MatchEnd(False);
+	
+	G_LibKOL_WinnerId = NullId;
+	declare Integer BestScore  = -1;
+	foreach(Player in Players) {
+		if (Player.Score != Null) {
+			if (Player.Score.Points > BestScore) {
+				BestScore = Player.Score.Points;
+				G_LibKOL_WinnerId = Player.Id;
+			} else if (Player.Score.Points == BestScore) {
+				G_LibKOL_WinnerId = NullId;
+			}
+		}
+	}
+	
+	if (G_LibKOL_WinnerId != NullId && Players.existskey(G_LibKOL_WinnerId)) {
+		Message::SendBigMessage(
+			TextLib::Compose(_("$<%1$> is King of the Lobby!"), Players[G_LibKOL_WinnerId].Name),
+			2000,
+			3
+		);
+	} else {
+		Message::SendBigMessage(
+			_("|Match|Draw"),
+			2000,
+			3
+		);
+	}
+	
+	sleep(2000);
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	sleep(3000);
+	
+	Message::CleanAllMessages();
+}
+
+Void RunMatchMaking() {
+	declare Integer SendingTime = 10000;
+	Message::SendBigMessage(
+		_("Matchmaking in progress..."),
+		SendingTime,
+		10
+	);
+	
+	SetTimerAutoDown(SendingTime);
+	XmlRpc.SendCallback("RunMatchMaker", "");
+	sleep(SendingTime);
+	XmlRpc.SendCallback("StopMatchMaker", "");
+	
+	Message::CleanAllMessages();
+}
+
+
+Void EndMap()
+{
+	SpawnScreen::DestroyRules();
+	Message::CleanAllMessages();
+	
+	if (G_LibKOL_WinnerId != NullId) {
+		UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> is King of the Lobby!"), Players[G_LibKOL_WinnerId].Name);
+	} else {
+		UIManager.UIAll.BigMessage = _("|Match|Draw");
+	}
+	
+	sleep(5000);
+	UIManager.UIAll.BigMessage = "";
+}
+
+Void CreateRulesReminderLayer() {
+
+	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
+	declare Text WelcomeBgImage		= ImgBaseDir^"WelcomeBg.dds";
+
+	declare Text TitleText 			= _("Waiting for your match to start");
+	declare Text ModeName	 		= _("Lobby");
+	declare Text RulesReminder = TextLib::Compose("%1\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, you can play 'King Of The Lobby'."), _("In this mode, perform as much hits as possible without being eliminated."));
+	
+	declare Text DoNotShowAgain		= _("Do Not Show Again");
+	declare Text Close				= _("Close");
+	
+	declare Integer WindowWidth		= 192;
+	declare Integer WindowHeight	= 30;
+	declare Real 	WindowX			= 0.;
+	declare Real 	WindowY			= 22.;	
+	
+	declare Text MLText = """
+	<script><!--
+		main() 
+		{
+			log(Now^"> NEW LAYER");
+			
+			while(InputPlayer == Null) yield;
+			
+			// for the "do not show again" feature
+			declare persistent Boolean NadeoKoL_PersistentShowRulesReminder for This = True;
+			declare netwrite Boolean Net_RulesReminder_StopIntro for UI;
+			declare netread Boolean Net_LibKol_ShowRules for UI;
+			
+			if(! NadeoKoL_PersistentShowRulesReminder) {
+				Net_RulesReminder_StopIntro = True;
+				return;
+			}
+			Net_RulesReminder_StopIntro = False;
+			
+			/*
+			if ((InputPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) ||
+				(InputPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning))
+			{
+				Net_RulesReminder_StopIntro = True;
+				//return;
+			}
+			*/
+	
+			declare Button_DoNotShowAgain <=> (Page.GetFirstChild("Button_DoNotShowAgain") as CMlLabel);
+			declare Button_Close <=> (Page.GetFirstChild("Button_Close") as CMlLabel);
+			declare RulesReminderMainFrame <=> (Page.GetFirstChild("RulesReminderMainFrame") as CMlFrame);
+	
+			while(True) {
+				yield;
+				
+				if(Net_LibKol_ShowRules) {
+					RulesReminderMainFrame.Show();
+				} else {
+					RulesReminderMainFrame.Hide();
+				}
+				
+				/*
+				if(IsSpectatorMode) {
+					if(RulesReminderMainFrame.Visible) {
+						RulesReminderMainFrame.Hide();
+						Net_RulesReminder_StopIntro = False;
+					}
+					continue;
+				} else {
+					RulesReminderMainFrame.Show();
+				}
+				*/
+	
+				foreach(Event in PendingEvents) {
+					switch(Event.Type){
+						case CMlEvent::Type::MouseClick: {
+							if(Event.ControlId == "Button_DoNotShowAgain") {
+								NadeoKoL_PersistentShowRulesReminder = False;
+								Net_RulesReminder_StopIntro = True;
+								//RulesReminderMainFrame.Hide();
+								//return; 
+							}
+							if(Event.ControlId == "Button_Close") {
+								Net_RulesReminder_StopIntro = True;
+								//RulesReminderMainFrame.Hide();
+								//return; 
+							}
+						}
+					}
+				}
+			}
+		}
+	--></script>
+	<frame id="RulesReminderMainFrame" posn="{{{WindowX}}} {{{WindowY}}} 0" hidden="true" >
+		<format  textemboss="1" />
+		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="210 51" image="{{{WelcomeBgImage}}}" />
+		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
+		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
+			<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
+			<label posn="{{{(WindowWidth/2)-42}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" />
+		<!-- <label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2)-2}}}"  text="{{{
+				_("Press $<$o$f00F1$> to close this window.")}}}" textsize="2"/>-->
+	</frame>
+	""";
+	
+	declare Ident RulesReminderLayerId	= Layers::Create("RulesReminder", MLText);
+	declare CUILayer LayerRules			= Layers::GetFromName("RulesReminder");
+	LayerRules.Type = CUILayer::EUILayerType::CutScene;
+	declare Boolean Attached			= Layers::Attach("RulesReminder", NullId);
+}
+
+Void CreateGaugeTimerLayer() 
+{
+	declare Text MLText = """
+	<frame>
+		<gauge posn="0 73.3 2" sizen="90 7" id="Gauge_Timer" drawbg="false" valign="center" halign="center" />
+	</frame>
+	<script><!--
+
+		main() {
+			declare CMlGauge Gauge_Timer <=> ( Page.GetFirstChild("Gauge_Timer") as CMlGauge);
+
+			declare netread Integer	Net_TimerMax	for UI;
+			declare netread Integer	Net_Timer		for UI;
+			declare netread Boolean	Net_AutoDown	for UI;
+			declare netread Integer	Net_TimeDown	for UI;
+			
+			declare Integer Period;
+			declare Integer PrevNow = Now;
+			
+			while(True) {
+				sleep(50);
+				Period = Now - PrevNow;
+				PrevNow = Now;
+				
+				if(Net_AutoDown && Net_TimeDown != 0) {
+					declare Real SpeedDown = (1. * Period)  / (1.* Net_TimeDown);
+					if ((Gauge_Timer.Ratio - SpeedDown) < 0) Gauge_Timer.Ratio = 0.;
+					else Gauge_Timer.Ratio -= SpeedDown;
+				} else {
+					if(Net_TimerMax > 0) {
+						Gauge_Timer.Ratio = (1. * Net_Timer) / Net_TimerMax;
+					}
+				}
+			}
+		}
+	--></script>
+	""";
+	
+	
+	declare Ident RulesReminderLayerId	= Layers::Create("GaugeTimer", MLText);
+	declare Boolean Attached			= Layers::Attach("GaugeTimer", NullId);
+}
+
+Void StartLobbyMode(Integer _RoundDuration, Integer _RoundsPerMap, Boolean _UseAllies, Boolean _LaserMode) 
+{
+	G_LibKOL_RoundDuration = _RoundDuration;
+	UseAllies = _UseAllies;
+	G_LibKOL_LaserMode = _LaserMode;// HACK
+
+	// save former variables
+	declare FormerUseClans = UseClans;
+	declare FormerAlliesLabelsVisibility = UIManager.UIAll.AlliesLabelsVisibility;
+	declare FormerOpposingTeamLabelsVisibility = UIManager.UIAll.OpposingTeamLabelsVisibility;
+
+	UseClans = False;
+	UIManager.UIAll.AlliesLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
+	UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
+	UIManager.UIAll.OverlayHideCountdown = True;
+	UIManager.UIAll.AltMenuNoCustomScores = True;
+	
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	
+	CreateRulesReminderLayer();
+	CreateGaugeTimerLayer();
+	
+	declare Integer RoundsPlayed = 0;
+	while(True) {
+		MatchEndRequested = False;
+		Mode::LoadMap();
+		StartRound();
+		declare Boolean DoLoop = True;
+		while(DoLoop && !MatchEndRequested) {
+			DoLoop = PlayLoop();
+			yield;
+		}
+		
+		RoundsPlayed += 1;
+		EndRound();
+		
+		if(MatchEndRequested || RoundsPlayed >= _RoundsPerMap) {
+			RoundsPlayed = 0;
+			Mode::UnloadMap();
+		} else {
+			RunMatchMaking();
+		}
+		
+		// reset best scores
+		G_LibKOL_WinnerId = NullId;
+		G_LibLobbyMelee_BestScore = 0;
+	}
+	
+	UseAllies = False;
+	
+	// restore former variables
+	UseClans = FormerUseClans;
+	UIManager.UIAll.AlliesLabelsVisibility = FormerAlliesLabelsVisibility;
+	UIManager.UIAll.OpposingTeamLabelsVisibility = FormerOpposingTeamLabelsVisibility;
+	// UIManager.UIAll.OverlayHideCountdown = False;
+}
+
+Void StartLobbyMode(Integer _RoundDuration, Integer _RoundsPerMap, Boolean _UseAllies) {
+	StartLobbyMode(_RoundDuration, _RoundsPerMap, _UseAllies, False);
+}
+
+Void StartLobbyMode() {
+	StartLobbyMode(60, 20, False);
+}

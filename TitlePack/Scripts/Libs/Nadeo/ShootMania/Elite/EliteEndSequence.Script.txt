@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2013-07-01"
+#Const Version    "2013-07-08"
 #Const ScriptName "EliteEndSequence.Script.txt"
 
 // ---------------------------------- //
@@ -778,7 +778,7 @@ Void InitPlayersList() {
 
 // ---------------------------------- //
 /// Save the last players who played during the last turn
-Void SavePlayersList(Integer[Ident][Integer] _PlayersList) {
+Void SavePlayersList(Ident[Integer][Integer] _PlayersList) {
 	for (I, 1, 2) {
 		if (!_PlayersList.existskey(I)) continue;
 		

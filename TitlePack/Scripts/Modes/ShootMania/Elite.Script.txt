@@ -4,15 +4,15 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-07-02"
+#Const Version		"2013-07-10"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
 #Include "Libs/Nadeo/ShootMania/Draft.Script.txt" as Draft
-#Include "Libs/Nadeo/ShootMania/KingOfTheLobby.Script.txt" as Lobby
+#Include "Libs/Nadeo/ShootMania/LobbyMelee.Script.txt" as Lobby
 #Include "Libs/Nadeo/ShootMania/WeaponSelection.Script.txt" as WeaponSelection
 #Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable	///< Fix: The lobby can't work without including this lib in Elite
-//#Include "Libs/Nadeo/ShootMania/Elite/ProjP.Script.txt" as ProjP
+#Include "Libs/Nadeo/ShootMania/Elite/ElitePractice.Script.txt" as ElitePractice
 #Include "Libs/Nadeo/ShootMania/Elite/EliteEndSequence.Script.txt" as EliteEndSequence
 
 #Setting S_TurnWin				6		as _("Number of points to win a map")					///< Score to reach to win a map
@@ -21,7 +21,8 @@
 #Setting S_DraftPickNb			3		as _("Number of map to pick during draft")				///< Number of map to pick during draft
 #Setting S_UseEliteB2			False	as _("Elite Beta 2 gameplay")							///< Use the beta 2 gameplay settings
 #Setting S_UseLobby				False	as "<hidden>" // _("Launch server in lobby mode")
-#Setting S_LobbyTimePerMap		86400	as "<hidden>" // _("Time limit in lobby mode (sec., 0: no limit)")
+#Setting S_LobbyTimePerRound 	60  	as "<hidden>" // _("Time limit per round in lobby mode (sec., 0: no limit)")
+#Setting S_LobbyRoundPerMap  	30  	as "<hidden>" // _("Nb of rounds per map in lobby mode
 
 #Const C_AtkRocketAmmoMax	4	///< Atk Rocket ammo max
 #Const C_AtkRocketAmmoGain	1.	///< Atk Rocket ammo gain
@@ -66,7 +67,7 @@ declare Integer G_CheckpointsCapturedNb;	///< Number of captured checkpoints
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(Draft::GetScriptName(), Draft::GetScriptVersion());
 MB_LogVersion(Settings::GetScriptName(), Settings::GetScriptVersion());
-//MB_LogVersion(ProjP::GetScriptName(), ProjP::GetScriptVersion());
+MB_LogVersion(ElitePractice::GetScriptName(), ElitePractice::GetScriptVersion());
 MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
 MB_LogVersion(WeaponSelection::GetScriptName(), WeaponSelection::GetScriptVersion());
 MB_LogVersion(EliteEndSequence::GetScriptName(), EliteEndSequence::GetScriptVersion());
@@ -85,6 +86,20 @@ declare ModeRules = TextLib::Compose(
 	TextLib::ToText(S_TurnGap)
 );
 SpawnScreen::CreateRules(ModeName, ModeRules);
+/*
+SpawnScreen::AddSubsection(_("Type"), _("Two teams - 1 vs 3"), 0.);
+SpawnScreen::AddSubsection(_("Objectives"), 20.);
+SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The game is divided in rounds of two turns each."));
+SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|During a round each team plays one turn in attack and one turn in defense."));
+SpawnScreen::AddSubsectionLine(_("Objectives"), TextLib::Compose(_("|EliteRules|The attacker has to eliminate all defenders\nor capture the pole between %1 seconds and %2 seconds."), TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit)));
+SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The defenders must eliminate the attacker\nor prevent him from capturing the pole."));
+SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The team in defense plays with 3 players using rockets."));
+SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The team in attack plays with 1 player using the laser."));
+SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The team which wins the turn scores 1 point."));
+SpawnScreen::AddSubsectionLine(_("Objectives"), TextLib::Compose(_("|EliteRules|The winning team is the first one to score at least %1 points\nwith %2 ahead of its opponents."), TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap)));
+SpawnScreen::CreatePrettyRules(ModeName);
+*/
+
 ModeStatusMessage = _("TYPE: Team versus Team (1 vs 3)\nOBJECTIVE: Capture the pole when you are the attacker. Defend the pole when you are a defender.");
 ***
 
@@ -92,9 +107,10 @@ ModeStatusMessage = _("TYPE: Team versus Team (1 vs 3)\nOBJECTIVE: Capture the p
 ***
 // ---------------------------------- //
 // Lobby mode
-// Change map once a day
-if (S_UseLobby) Lobby::StartLobbyMode(S_LobbyTimePerMap, True);
-//if (S_ProjP) ProjP::Run();
+if (S_UseLobby) Lobby::StartLobbyMode(S_LobbyTimePerRound, S_LobbyRoundPerMap, True);
+// ---------------------------------- //
+// Practice mode
+if (S_Practice) ElitePractice::Run();
 
 // ---------------------------------- //
 // Init
@@ -143,20 +159,16 @@ if (S_UseDraft) {
 	SpawnScreen::AttachRules();
 	LayerAttached = Layers::Attach("ScoresTable", NullId);
 	
-	// ---------------------------------- //
-	// Reset the attack order
-	WarmUp::ResetOrder();
-	
 	MB_CurrentSection = "WarmUp";
-	WarmUp();
+	WarmUp2();
 	MB_CurrentSection = "StartMatch";
 	
 	LayerDetached = Layers::Detach("ScoresTable", NullId);
 	
-	declare Order = WarmUp::GetOrder();
+	declare Order = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 	declare Selected = [1 => Ident[], 2 => Ident[]];
 	for (I, 1, 2) {
-		foreach (PlayerId => PlayerOrder in Order[I]) {
+		foreach (Slot => PlayerId in Order[I]) {
 			Selected[I].add(PlayerId);
 		}
 	}
@@ -219,7 +231,7 @@ if (Players.existskey(G_AtkPlayerId)) {
 	ReplayInfos_RegisterPlayerOfInterest(Players[G_AtkPlayerId]);
 }
 
-declare PlayersList = WarmUp::GetOrder();
+declare PlayersList = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 EliteEndSequence::SavePlayersList(PlayersList);
 ***
 
@@ -259,7 +271,7 @@ DemoToken_StartUsingToken();
 
 ***GetAndUseToken***
 ***
-declare TokenOrder = WarmUp::GetOrder();
+declare TokenOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 foreach (Clan => Order in TokenOrder) {
 	foreach (PlayerId => Slot in Order) {
 		if (!Players.existskey(PlayerId)) continue;
@@ -298,7 +310,8 @@ DefSpawned += 1;
 ***SpawnAtk***
 ***
 if (AtkSpawned >= MaxAtk) break;
-if (!Players.existskey(PlayerId)) continue;			
+if (PlayerId != G_AtkPlayerId) continue;
+if (!Players.existskey(PlayerId)) break;			
 declare Player <=> Players[PlayerId];
 
 SetPlayerAmmoMax(Player, CSmMode::EWeapon::Rocket, Settings::GetInteger(C_OAtkRocketAmmoMax, C_AtkRocketAmmoMax));
@@ -317,7 +330,7 @@ SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
 SM::SpawnPlayer(Player, G_AtkClan, Player.ArmorMax, AtkBlockSpawn, Now);
 SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, Settings::GetInteger(C_OAtkNucleusAmmoMax, C_AtkNucleusAmmoMax));
 Player.IsHighlighted = True;
-G_AtkPlayerId = PlayerId;
+//G_AtkPlayerId = PlayerId;
 AtkSpawned += 1;
 ***
 
@@ -599,7 +612,7 @@ if (
 ) {
 	declare LaserShot for Event.Shooter.Score = 0;
 	LaserShot += 1;
-	UpdateLayerScoresTable(C_SequencePlaying);
+	//UpdateLayerScoresTable(C_SequencePlaying);
 }
 
 // Stats
@@ -611,41 +624,45 @@ PassOn(Event);
 
 ***EventOnNearMiss***
 ***
-declare MaxMissDist = 0.5;
-if (Event.Shooter != Null && Event.Victim != Null) {
-	declare Distance = MathLib::Distance(Event.Shooter.Position, Event.Victim.Position);
-	MaxMissDist = Distance * 2 / 100;
-	if (MaxMissDist > 0.5) MaxMissDist = 0.5;
-}
-
-if (Event.Shooter.CurrentClan == G_AtkClan && Event.MissDist <= MaxMissDist) {
-	if (Event.MissDist < 0.01) {
-		Message::SendStatusMessage(
-			TextLib::Compose(
-				_("%1$<%2$> misses $<%3$> by %4cm."), 
-				Teams[G_AtkClan - 1].ColorText,
-				Event.Shooter.Name, 
-				Event.Victim.Name,
-				TextLib::ToText(1)
-			), 3000, 2
-		);
-	} else {
-		Message::SendStatusMessage(
-			TextLib::Compose(
-				_("%1$<%2$> misses $<%3$> by %4cm."), 
-				Teams[G_AtkClan - 1].ColorText,
-				Event.Shooter.Name, 
-				Event.Victim.Name,
-				TextLib::ToText(MathLib::CeilingInteger(Event.MissDist*100))
-			), 3000, 2
-		);
+if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) {
+	declare MaxMissDist = 0.5;
+	if (Event.Shooter != Null && Event.Victim != Null) {
+		declare Distance = MathLib::Distance(Event.Shooter.Position, Event.Victim.Position);
+		MaxMissDist = Distance * 2 / 100;
+		if (MaxMissDist > 0.5) MaxMissDist = 0.5;
 	}
 	
-	// Stats
-	declare JSON = Json::Enfold(EliteStringify("Event", Event));
-	if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnNearMiss", JSON);
-	
-	PassOn(Event);
+	if (Event.Shooter.CurrentClan == G_AtkClan && Event.MissDist <= MaxMissDist) {
+		if (Event.MissDist < 0.01) {
+			Message::SendStatusMessage(
+				TextLib::Compose(
+					_("%1$<%2$> misses $<%3$> by %4cm."), 
+					Teams[G_AtkClan - 1].ColorText,
+					Event.Shooter.Name, 
+					Event.Victim.Name,
+					TextLib::ToText(1)
+				), 3000, 2
+			);
+		} else {
+			Message::SendStatusMessage(
+				TextLib::Compose(
+					_("%1$<%2$> misses $<%3$> by %4cm."), 
+					Teams[G_AtkClan - 1].ColorText,
+					Event.Shooter.Name, 
+					Event.Victim.Name,
+					TextLib::ToText(MathLib::CeilingInteger(Event.MissDist*100))
+				), 3000, 2
+			);
+		}
+		
+		// Stats
+		declare JSON = Json::Enfold(EliteStringify("Event", Event));
+		if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnNearMiss", JSON);
+		
+		PassOn(Event);
+	} else {
+		Discard(Event);
+	}
 } else {
 	Discard(Event);
 }
@@ -720,8 +737,8 @@ LayerDetached = Layers::Detach("Players", NullId);
 			<quad posn="{{{-Star.X*4.}}} 0" sizen="{{{Star.X}}} {{{Star.Y}}}" halign="right" {{{StarStyle}}} id="Quad_Star_5" />
 		</frame>
 		<frame id="Frame_Points">
-			<frame posn="{{{70*S}}} -5 2">
-				<label posn="0 0" sizen="{{{4*S}}} 3" textsize="3" halign="left" valign="center" id="Label_Ratio" />
+			<frame posn="{{{69*S}}} -5 2">
+				<label posn="0 0" sizen="{{{5*S}}} 3" textsize="3" halign="left" valign="center" id="Label_Ratio" />
 				<quad posn="-0.5 -0.5" sizen="4 4" halign="right" valign="center" image="{{{PathCommon}}}Rocket.dds" hidden="{{{RocketHidden}}}" id="Quad_Ratio" />
 			</frame>
 			<label posn="{{{76*S}}} -5 3" sizen="{{{5*S}}} 5" textsize="5" halign="left" valign="center" id="Label_AtkPoints" />
@@ -729,8 +746,8 @@ LayerDetached = Layers::Detach("Players", NullId);
 	</frame>
 	<frame posn="0 -11.8 3">
 		<frame posn="{{{3.5*S}}} 0">
-			<quad posn="0 -0.3" sizen="2.5 2.5" halign="right" valign="center" style="Icons64x64_1" substyle="IconPlayersLadder" />
-			<label posn="0.5 0" sizen="{{{24*S}}} 5" textsize="1" textemboss="1" valign="center" id="Label_Rank" />
+			<quad posn="0 -0.3 4" sizen="2.5 2.5" halign="right" valign="center" image="file://Media/Manialinks/Common/AllyNo.dds" id="Quad_Ally" />
+			<label posn="1 0" sizen="{{{24*S}}} 5" textsize="1" textemboss="1" valign="center" id="Label_Rank" />
 		</frame>
 		<frame posn="{{{64*S}}} 0" id="Frame_LadderPoints" hidden="1">
 			<format textcolor="bb8" textsize="1" />
@@ -765,8 +782,8 @@ LayerDetached = Layers::Detach("Players", NullId);
 			<quad posn="{{{Star.X*4.}}} 0" sizen="{{{Star.X}}} {{{Star.Y}}}" {{{StarStyle}}} id="Quad_Star_5" />
 		</frame>
 		<frame id="Frame_Points">
-			<frame posn="{{{-70*S}}} -5 2">
-				<label posn="0 0" sizen="{{{4*S}}} 3" textsize="3" halign="right" valign="center" id="Label_Ratio" />
+			<frame posn="{{{-69*S}}} -5 2">
+				<label posn="0 0" sizen="{{{5*S}}} 3" textsize="3" halign="right" valign="center" id="Label_Ratio" />
 				<quad posn="0.5 -0.5" sizen="4 4" halign="left" valign="center" image="{{{PathCommon}}}Rocket2.dds" hidden="{{{RocketHidden}}}" id="Quad_Ratio" />
 			</frame>
 			<label posn="{{{-76*S}}} -5 3" sizen="{{{5*S}}} 5" textsize="5" halign="right" valign="center" id="Label_AtkPoints" />
@@ -774,8 +791,8 @@ LayerDetached = Layers::Detach("Players", NullId);
 	</frame>
 	<frame posn="0 -11.8 3">
 		<frame posn="{{{-3.5*S}}} 0">
-			<quad posn="0 -0.3" sizen="2.5 2.5" valign="center" style="Icons64x64_1" substyle="IconPlayersLadder" />
-			<label posn="-0.5 0" sizen="{{{24*S}}} 5" textsize="1" textemboss="1" halign="right" valign="center" id="Label_Rank" />
+			<quad posn="0 -0.3 4" sizen="2.5 2.5" valign="center" image="file://Media/Manialinks/Common/AllyNo.dds" id="Quad_Ally" />
+			<label posn="-1 0" sizen="{{{24*S}}} 5" textsize="1" textemboss="1" halign="right" valign="center" id="Label_Rank" />
 		</frame>
 		<frame posn="{{{-30*S}}} 0" id="Frame_LadderPoints" hidden="1">
 			<format textcolor="bb8" textsize="1" />
@@ -917,6 +934,7 @@ Void UpdatePlayersList(
 			declare Quad_Attacker			<=> (Frame_Player.GetFirstChild("Quad_Attacker")			as CMlQuad);
 			declare Label_Name				<=> (Frame_Player.GetFirstChild("Label_Name")				as CMlLabel);
 			declare Quad_Echelon			<=> (Frame_Player.GetFirstChild("Quad_Echelon")				as CMlQuad);
+			declare Quad_Ally				<=> (Frame_Player.GetFirstChild("Quad_Ally")				as CMlQuad);
 			declare Label_Rank				<=> (Frame_Player.GetFirstChild("Label_Rank")				as CMlLabel);
 			declare Frame_Stars				<=> (Frame_Player.GetFirstChild("Frame_Stars")				as CMlFrame);			
 			declare Label_Ratio				<=> (Frame_Player.GetFirstChild("Label_Ratio")				as CMlLabel);
@@ -968,9 +986,10 @@ Void UpdatePlayersList(
 			} else {
 				Label_Name.SetText("-");
 			}
-			// Echelons
 			if (_PlayersIds.existskey(I) && Players.existskey(_PlayersIds[I])) {
 				declare Player <=> Players[_PlayersIds[I]];
+				
+				// Echelons
 				declare Echelon = ML::FloorInteger(Player.User.LadderPoints / 10000.);
 				if (Echelon >= 1 && Echelon <= 9) {
 					Quad_Echelon.Show();
@@ -979,6 +998,14 @@ Void UpdatePlayersList(
 					Quad_Echelon.ChangeImageUrl("file://Media/Manialinks/Common/Echelons/small_echelon"^Echelon^EchelonSide^".dds");
 				} else {
 					Quad_Echelon.Hide();
+				}
+				
+				// Allies
+				declare netread Boolean Net_LayerST_IsAlly for Player;
+				if (Net_LayerST_IsAlly) {
+					Quad_Ally.ChangeImageUrl("file://Media/Manialinks/Common/AllyYes.dds");
+				} else {
+					Quad_Ally.ChangeImageUrl("file://Media/Manialinks/Common/AllyNo.dds");
 				}
 			}
 			// Rank
@@ -1117,14 +1144,14 @@ Void UpdateStats(
 		if (Distance > 0.) LaserLongest[Key] = Distance * -1.;
 	}
 	LaserLongest = LaserLongest.sort();
-	declare LaserAccuracy = Real[Integer];
 	
+	/*declare LaserAccuracy = Real[Integer];
 	foreach (Key => Nb in _LaserShot) {
 		if (Nb > 0 && _LaserHit.existskey(Key) && _LaserHit[Key] > 0) {
 			LaserAccuracy[Key] = ((_LaserHit[Key] * 1.) / (Nb * 1.)) * -100.;
 		}
 	}
-	LaserAccuracy = LaserAccuracy.sort();
+	LaserAccuracy = LaserAccuracy.sort();*/
 	
 	declare Longest = "-";
 	declare LongestName = "-";
@@ -1137,11 +1164,11 @@ Void UpdateStats(
 		break;
 	}
 	
-	foreach (Key => Percentage in LaserAccuracy) {
+	/*foreach (Key => Percentage in LaserAccuracy) {
 		Accuracy = _LaserHit[Key]^"/"^_LaserShot[Key]^" ("^TextLib::SubString(TextLib::ToText(Percentage*-1.), 0, 5)^"%)";
 		if (_Names.existskey(Key)) AccuracyName = _Names[Key];
 		break;
-	}
+	}*/
 	
 	Label_LongestLaser.SetText(TextLib::Compose(_("Longest Laser: %1 by %2"), Longest, LongestName));
 }
@@ -1391,12 +1418,12 @@ declare Eliminations	= [0 => 0];
 declare ReadyState		= Boolean[Integer];
 declare NbBeHits		= Integer[Integer];
 
+declare ClansOrders = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 for (I, 1, 2) {
 	declare J = 1;
-	G_MapOrder[I] = G_MapOrder[I].sort();
-	foreach (Id => Order in G_MapOrder[I]) {
+	foreach (Slot => Id in ClansOrders[I]) {
 		if (Players.existskey(Id)) {
-			declare Key = J+((I-1)*3);
+			declare Key = J+((I-1)*C_RequiredPlayersNb);
 			declare Player <=> Players[Id];
 			Logins[Key] = Player.Login;
 			if (Id == G_AtkPlayerId) AttackerKey = Key;
@@ -1413,7 +1440,24 @@ for (I, 1, 2) {
 				LasersShot[Key] = LaserShot;
 				NbBeHits[Key] = NbBeHit;
 			}
-			ReadyState[Key] = WarmUp::IsReady(Player);
+			ReadyState[Key] = WarmUp2::IsReady(Player);
+			
+			declare netwrite Boolean Net_LayerST_IsAlly as Ally1 for Player;
+			declare Integer AllyUpdate as AllyUpdate1 for Player;
+			if (AllyUpdate1 != Now) Ally1 = False;
+			AllyUpdate1 = Now;
+			for (K, J+1, C_RequiredPlayersNb) {
+				if (ClansOrders.existskey(I) && Players.existskey(ClansOrders[I][K])) {
+					declare Player2 <=> Players[ClansOrders[I][K]];
+					if (Users_AreAllies(Player.User, Player2.User)) {
+						declare netwrite Boolean Net_LayerST_IsAlly as Ally2 for Player2;
+						declare Integer AllyUpdate as AllyUpdate2 for Player2;
+						Ally1 = True;
+						Ally2 = True;
+						AllyUpdate2 = Now;
+					}
+				}
+			}
 		}
 		J += 1;
 	}
@@ -1462,6 +1506,11 @@ foreach (Player in AllPlayers) {
 ***StartWarmUp***
 ***
 Interface::CreatePlayersLists("Medium", 0.67, 10, 1);
+
+WarmUp2::SetAllSlotsIcons("Clan1", "file://Media/Manialinks/ShootMania/Common/Rocket.dds");
+WarmUp2::SetAllSlotsIcons("Clan2", "file://Media/Manialinks/ShootMania/Common/Rocket.dds");
+WarmUp2::SetSlotIcon("Clan1", G_AtkSlot[1], "file://Media/Manialinks/ShootMania/Common/Laser.dds");
+WarmUp2::SetSlotIcon("Clan2", G_AtkSlot[2], "file://Media/Manialinks/ShootMania/Common/Laser.dds");
 ***
 
 ***EndWarmUp***
@@ -1627,11 +1676,11 @@ Text CreateLayerPlayers() {
 	
 	declare PlayersLists = [1 => "", 2 => ""];
 	declare DefendersLogins = "";
+	declare ClansOrders = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 	
 	for (I, 1, 2) {
 		declare First = True;
-		G_MapOrder[I] = G_MapOrder[I].sort();
-		foreach (Id => Order in G_MapOrder[I]) {
+		foreach (Slot => Id in ClansOrders[I]) {
 			if (Players.existskey(Id)) {
 				declare Player <=> Players[Id];
 				if (!First) Logins[I] ^= ",";
@@ -1641,16 +1690,16 @@ Text CreateLayerPlayers() {
 				declare Align = "left";
 				if (I == 2) Align = "right";
 				PlayersLists[I] ^= """
-<playerlist posn="0 {{{-2+(-4.5*(Order-1))}}}" scale="0.67" halign="{{{Align}}}" substyle="Medium" logins="{{{Player.Login}}}" lines="1" columns="1" team="{{{I}}}" status="Playing"/>				
+<playerlist posn="0 {{{-2+(-4.5*(Slot-1))}}}" scale="0.67" halign="{{{Align}}}" substyle="Medium" logins="{{{Player.Login}}}" lines="1" columns="1" team="{{{I}}}" status="Playing"/>				
 """;
 			}
 		}
 	}
 	
-	if (G_MapOrder.existskey(G_DefClan)) {
+	if (ClansOrders.existskey(G_DefClan)) {
 		for (J, 1, 3) {
 			declare DefenderLogin = "";
-			if (G_MapOrder[G_DefClan].exists(J) && Players.existskey(G_MapOrder[G_DefClan].keyof(J))) DefenderLogin = Players[G_MapOrder[G_DefClan].keyof(J)].Login;
+			if (ClansOrders[G_DefClan].existskey(J) && Players.existskey(ClansOrders[G_DefClan][J])) DefenderLogin = Players[ClansOrders[G_DefClan][J]].Login;
 			DefendersLogins ^= """declare DefenderLogin{{{J}}} = "{{{DefenderLogin}}}";""";
 		}
 	}
@@ -1904,15 +1953,14 @@ main() {
 // ---------------------------------- //
 // Update the players layer
 Void UpdateLayerPlayers() {
+	declare ClansOrders = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 	declare netwrite Text[Integer][Integer] Net_Elite_PlayersOrder for Teams[0];
 	for (I, 1, 2) {
 		declare J = 1;
 		Net_Elite_PlayersOrder[I] = Text[Integer];
-		G_MapOrder[I] = G_MapOrder[I].sort();
-		foreach (Id => Order in G_MapOrder[I]) {
+		foreach (Slot => Id in ClansOrders[I]) {
 			if (Players.existskey(Id)) {
-				Net_Elite_PlayersOrder[I][J] = Players[Id].Login;
-				J += 1;
+				Net_Elite_PlayersOrder[I][Slot] = Players[Id].Login;
 			}
 		}
 	}
@@ -1948,9 +1996,6 @@ Void UpdateMarkers() {
 		
 		if (Name == "") continue;
 		
-		/*UIManager.UIAll.Hud3dMarkers ^= """
-			<marker label="{{{Name}}}" pos="{{{PosX}}} {{{PosY}}} {{{PosZ}}}" />
-		""";*/
 		UIManager.UIAll.Hud3dMarkers ^= """
 			<marker {{{Type}}} pos="{{{PosX}}} {{{PosY}}} {{{PosZ}}}" />
 		""";

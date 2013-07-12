@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-07-02"
+#Const Version		"2013-07-11"
 #Const ScriptName	"Heroes.Script.txt"
 
 #Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
@@ -93,11 +93,10 @@ SetPlayerAmmoMax(Player, CSmMode::EWeapon::Nucleus, C_AtkNucleusAmmoMax);
 Player.StaminaMax	= 1.;
 Player.StaminaGain	= 1.;
 Player.ArmorMax		= C_DefArmorMax;
-if (AtkSpawned <= 0) {
+if (Player.Id == G_AtkPlayerId) {
 	CurrentWeapon = 3;
 	Player.AmmoGain		= 1. * C_AtkNucleusAmmoGain;
 	SetPlayerWeapon(Player, CSmMode::EWeapon::Nucleus, False);
-	G_AtkPlayerId = PlayerId;
 } else {
 	CurrentWeapon = 2;
 	Player.AmmoGain		= 1. * C_AtkLaserAmmoGain;
@@ -329,37 +328,41 @@ PassOn(Event);
 
 ***EventOnNearMiss***
 ***
-declare MaxMissDist = 0.5;
-if (Event.Shooter != Null && Event.Victim != Null) {
-	declare Distance = MathLib::Distance(Event.Shooter.Position, Event.Victim.Position);
-	MaxMissDist = Distance * 2 / 100;
-	if (MaxMissDist > 0.5) MaxMissDist = 0.5;
-}
-
-if (Event.Shooter != Null && Event.Shooter.CurrentClan == G_AtkClan && Event.MissDist <= MaxMissDist) {
-	if (Event.MissDist < 0.01) {
-		Message::SendStatusMessage(
-			TextLib::Compose(
-				_("%1$<%2$> misses $<%3$> by %4cm."), 
-				Teams[G_AtkClan - 1].ColorText,
-				Event.Shooter.Name, 
-				Event.Victim.Name,
-				TextLib::ToText(1)
-			), 3000, 2
-		);
-	} else {
-		Message::SendStatusMessage(
-			TextLib::Compose(
-				_("%1$<%2$> misses $<%3$> by %4cm."), 
-				Teams[G_AtkClan - 1].ColorText,
-				Event.Shooter.Name, 
-				Event.Victim.Name,
-				TextLib::ToText(MathLib::CeilingInteger(Event.MissDist*100))
-			), 3000, 2
-		);
+if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) {
+	declare MaxMissDist = 0.5;
+	if (Event.Shooter != Null && Event.Victim != Null) {
+		declare Distance = MathLib::Distance(Event.Shooter.Position, Event.Victim.Position);
+		MaxMissDist = Distance * 2 / 100;
+		if (MaxMissDist > 0.5) MaxMissDist = 0.5;
 	}
-	XmlRpc::OnNearMiss(Event);
-	PassOn(Event);
+	
+	if (Event.Shooter != Null && Event.Shooter.CurrentClan == G_AtkClan && Event.MissDist <= MaxMissDist) {
+		if (Event.MissDist < 0.01) {
+			Message::SendStatusMessage(
+				TextLib::Compose(
+					_("%1$<%2$> misses $<%3$> by %4cm."), 
+					Teams[G_AtkClan - 1].ColorText,
+					Event.Shooter.Name, 
+					Event.Victim.Name,
+					TextLib::ToText(1)
+				), 3000, 2
+			);
+		} else {
+			Message::SendStatusMessage(
+				TextLib::Compose(
+					_("%1$<%2$> misses $<%3$> by %4cm."), 
+					Teams[G_AtkClan - 1].ColorText,
+					Event.Shooter.Name, 
+					Event.Victim.Name,
+					TextLib::ToText(MathLib::CeilingInteger(Event.MissDist*100))
+				), 3000, 2
+			);
+		}
+		XmlRpc::OnNearMiss(Event);
+		PassOn(Event);
+	} else {
+		Discard(Event);
+	}
 } else {
 	Discard(Event);
 }
@@ -781,16 +784,16 @@ main() {
 ***
 declare Logins = Integer[Text];
 declare AttackerLogin = "";
+declare ClansOrders = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 for (I, 1, 2) {
-	G_MapOrder[I] = G_MapOrder[I].sort();
-	foreach (Id => Order in G_MapOrder[I]) {
+	foreach (Slot => Id in ClansOrders[I]) {
 		if (Players.existskey(Id)) {
 			declare Player <=> Players[Id];
-			Logins[Player.Login] = Order + ((I-1) * C_RequiredPlayersNb);
+			Logins[Player.Login] = Slot + ((I-1) * C_RequiredPlayersNb);
 			if (Player.Id == G_AtkPlayerId) AttackerLogin = Player.Login;
 			
 			declare netwrite Net_LayerST_Ready for Player = False;
-			Net_LayerST_Ready = WarmUp::IsReady(Player);
+			Net_LayerST_Ready = WarmUp2::IsReady(Player);
 		}
 	}
 }
@@ -818,6 +821,11 @@ Interface::DestroyPlayersLists();
 ***StartWarmUp***
 ***
 Interface::CreatePlayersLists("Medium", 0.67, 10, 1);
+
+WarmUp2::SetAllSlotsIcons("Clan1", "file://Media/Manialinks/ShootMania/Common/Laser.dds");
+WarmUp2::SetAllSlotsIcons("Clan2", "file://Media/Manialinks/ShootMania/Common/Laser.dds");
+WarmUp2::SetSlotIcon("Clan1", G_AtkSlot[1], "file://Media/Manialinks/ShootMania/Common/Nucleus.dds");
+WarmUp2::SetSlotIcon("Clan2", G_AtkSlot[2], "file://Media/Manialinks/ShootMania/Common/Nucleus.dds");
 ***
 
 ***EndWarmUp***

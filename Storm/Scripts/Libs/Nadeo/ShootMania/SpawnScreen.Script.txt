@@ -3,7 +3,7 @@
  *	Show the rules in the spawn screen
  */
 
-#Const Version		"2013-06-20"
+#Const Version		"2013-07-11"
 #Const ScriptName	"SpawnScreen.Script.txt"
 
 #Include "TextLib" as TextLib
@@ -16,6 +16,12 @@ declare Text	G_LibSpawnScreen_ModeRules;		///< The rules of the mode
 declare Ident	G_LibSpawnScreen_LayerRulesId;	///< The id of the layer containing the rules
 declare Ident	G_LibSpawnScreen_LayerScoresId;	///< The id of the layer containing the scores
 declare Ident	G_LibSpawnScreen_LayerMapInfoId;///< The id of the layer containing the map info
+
+declare Text[]		G_LibSpawnScreen_Subsections;
+declare Text[Text] 	G_LibSpawnScreen_SubsectionsText;
+declare Real[Text] 	G_LibSpawnScreen_SubsectionsYOffset;
+
+declare Text[][Text] 	G_LibSpawnScreen_SubsectionsTextLines;
 
 // ---------------------------------- //
 // Functions
@@ -39,16 +45,48 @@ Text GetScriptName() {
 	return ScriptName;
 }
 
+
 // ---------------------------------- //
 // Rules
 // ---------------------------------- //
 
-// ---------------------------------- //
-/** Generate the rules manialink
- *
- *	@param	_Hidden		The rules are hidden by default
- *	@return				The manialink Text
+/**
+ * Add a subsection, with one highlighted text, to a given Y offset.
+ * @param _Title	text and identifier of the subsection
+ * @param _MainText	a text displayed on top of this subsection
+ * @param _YOffset	Y position of the subsection
  */
+Void AddSubsection(Text _Title, Text _MainText, Real _YOffset) {
+	G_LibSpawnScreen_Subsections.add(_Title);
+	G_LibSpawnScreen_SubsectionsText[_Title] = _MainText;
+	G_LibSpawnScreen_SubsectionsYOffset[_Title] = _YOffset;
+	
+	G_LibSpawnScreen_SubsectionsTextLines[_Title] = Text[];
+}
+
+/**
+ * Add an empty subsection to a given Y offset.
+ * @param _Title	text and identifier of the subsection
+ * @param _YOffset	Y position of the subsection
+ */
+Void AddSubsection(Text _Title, Real _YOffset) {
+	AddSubsection(_Title, "", _YOffset);
+}
+
+/**
+ * Add a line to an existing subsection. The function does nothing if the subsection does not exist.
+ * @param _Title	identifier of the subsection. Must be an existing one, added with "AddSubsection"
+ * @param _Text		Text of the line of rules
+ */
+Void AddSubsectionLine(Text _Title, Text _Text) {
+	if( ! G_LibSpawnScreen_Subsections.exists(_Title)) {
+		log("You must first add a subsection before adding lines to it.");
+		return;
+	}
+	
+	G_LibSpawnScreen_SubsectionsTextLines[_Title].add(_Text);
+}
+
 Text Private_CreateLayerRules(Boolean _Hidden) {
 	declare ML = "";
 	
@@ -114,6 +152,138 @@ main () {
 }
 
 // ---------------------------------- //
+/** Generate the rules manialink
+ *
+ *	@param	_Hidden		The rules are hidden by default
+ *	@return				The manialink Text
+ */
+Text Private_CreateLayerPrettyRules(Boolean _Hidden)  {
+	declare ML = "";
+	
+	//declare Text MainColor	= "05a";
+	declare Text MainColor	= "256";
+	declare Text AltColor	= "256";
+	//declare Text AltColor	= "a05";
+	declare Text TextColor	= "bbb";//123
+	declare Text TextTitleColor = "860";
+	declare Text CenterAlign = """ valign="center" halign="center" """;
+	declare Text BackgroundImage = "file://Media/Manialinks/Shootmania/Common/SpawnScreen.dds";
+	
+	declare RulesTip = _("Press F1 to show rules");
+	
+	ML = """
+<frame posn="0 0 55">
+	<frame id="Frame_BlackBg" hidden="1">
+		<quad posn="0 0 0" sizen="400 200" bgcolor="000f" valign="center" halign="center"/>
+		<quad posn="0 -15 1" sizen="305 305" valign="center" halign="center" image="{{{BackgroundImage}}}"/>
+	</frame>
+	<frame posn="-150 -70" id="FrameShow">
+		<quad posn="150 0" sizen="140 20" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle3_5" />
+		<label posn="150 0" sizen="70 10" scale="2" halign="center" valign="center" style="TextTitle3" text="{{{ RulesTip }}}" />
+	</frame>
+	<frame id="FrameRules" posn="0 3 3">
+	
+<frame posn="0 76"> 
+	<label style="TextTitle3" {{{CenterAlign}}} scale="1.7" sizen="40 16" text="{{{_("Mode")}}}" textcolor="{{{TextColor}}}"/>
+	<label posn="0 -16" sizen="60 10" scale="3.5" {{{CenterAlign}}} style="TextTitle3" text="{{{G_LibSpawnScreen_ModeName}}}" textcolor="{{{TextColor}}}"/>
+	<label posn="0 -43" style="TextTitle3" scale="1.4"  {{{CenterAlign}}}  sizen="40 16" text="{{{_("Rules")}}}" textcolor="{{{TextColor}}}"/>
+</frame>
+
+<frame>
+""";
+
+foreach(Subsection in G_LibSpawnScreen_Subsections) {
+	declare Text SubsectionText 	= G_LibSpawnScreen_SubsectionsText[Subsection];
+	declare Real SubsectionYOffset	= G_LibSpawnScreen_SubsectionsYOffset[Subsection];
+	ML ^= """
+	<frame posn="-140 {{{25 - SubsectionYOffset}}}">
+		<label sizen="270 5" textsize="7" textcolor="{{{TextTitleColor}}}" text="{{{
+			Subsection}}}" style="TextTitle3"/>""";
+		
+		declare Integer YOffset = 7;
+		declare Integer LineYOffset = 0;
+		if(G_LibSpawnScreen_SubsectionsText[Subsection] != "") {
+			ML ^= """<label sizen="280 5" textsize="5" textcolor="{{{TextTitleColor}}}" autonewline="1" posn="5 -10" text="{{{SubsectionText}}}" />""";
+			LineYOffset += YOffset;
+		}
+		if(G_LibSpawnScreen_SubsectionsTextLines[Subsection].count > 0) {
+			declare Integer LineIndex = 0;
+			foreach(Line in G_LibSpawnScreen_SubsectionsTextLines[Subsection]) {
+				declare Integer NbLines = TextLib::Split("\n", Line).count;				
+				declare YPos = - (LineIndex*YOffset) - 10 - LineYOffset;
+				ML ^= """
+				<label textsize="5" textcolor="{{{TextColor}}}" autonewline="0" posn="5 {{{YPos}}}" text="$<${{{TextTitleColor}}}{{{LineIndex+1}}}. $>" />
+				<label sizen="280 5" textsize="5" textcolor="{{{TextColor}}}" autonewline="0" posn="13 {{{YPos}}}" text="{{{Line}}}" />""";
+				// log(TextLib::Split(Line, "\\n"));
+				if(NbLines > 1) {
+					LineYOffset += YOffset;
+				}
+				LineIndex += 1;
+			}
+		}
+	ML ^= """
+	</frame>""";
+}
+
+// log(ML);
+
+ML ^= """
+</frame>
+	</frame>
+</frame>
+<script><!--
+main () {
+	declare FrameRules		<=> Page.GetFirstChild("FrameRules");
+	declare FrameShow		<=> Page.GetFirstChild("FrameShow");
+	declare Frame_BlackBg	<=> Page.GetFirstChild("Frame_BlackBg");
+	
+	declare ShowRules		= {{{ !_Hidden }}};
+	declare PrevShowRules	= !ShowRules;
+
+	if(ShowRules) Frame_BlackBg.Show();
+	else Frame_BlackBg.Hide();
+		
+	while(True) {
+		yield;
+		
+		if (PrevShowRules != ShowRules) {
+			PrevShowRules = ShowRules;
+			if (ShowRules) {
+				FrameRules.Show();
+				FrameShow.Hide();
+			} else {
+				FrameRules.Hide();
+				FrameShow.Show();
+			}
+		}
+
+		foreach (Event in PendingEvents) {
+			switch (Event.Type) {
+				case CMlEvent::Type::MouseClick :
+				{		
+					if (Event.ControlId == "FrameRules") ShowRules = !ShowRules;
+				}
+		
+				case CMlEvent::Type::KeyPress:
+				{
+					if (Event.CharPressed == "2424832") {
+						ShowRules = !ShowRules;	// F1
+						
+						if(ShowRules) Frame_BlackBg.Show();
+						else Frame_BlackBg.Hide();
+					}
+				}
+			}
+		}
+	}
+}
+--></script>
+	""";
+
+	return ML;
+}
+
+// ---------------------------------- //
 /// Destroy the rules in the spawn screen
 Void DestroyRules() {
 	if (G_LibSpawnScreen_LayerRulesId != NullId && UIManager.UILayers.existskey(G_LibSpawnScreen_LayerRulesId)) {
@@ -140,7 +310,12 @@ Void CreateRules(Text _Name, Text _Rules, Boolean _StartHidden) {
 	// Create and assign the layer
 	declare LayerRules <=> UIManager.UILayerCreate();
 	LayerRules.Type = CUILayer::EUILayerType::ScreenIn3d;
-	LayerRules.ManialinkPage = Private_CreateLayerRules(_StartHidden);
+	if(_Rules == "") {
+		LayerRules.ManialinkPage = Private_CreateLayerPrettyRules(_StartHidden);
+	} else {
+		LayerRules.ManialinkPage = Private_CreateLayerRules(_StartHidden);
+	}
+	
 	G_LibSpawnScreen_LayerRulesId = LayerRules.Id;
 	UIManager.UIAll.UILayers.add(LayerRules);
 }
@@ -149,6 +324,15 @@ Void CreateRules(Text _Name, Text _Rules, Boolean _StartHidden) {
 // Create Overload 
 Void CreateRules(Text _Name, Text _Rules) {
 	CreateRules(_Name, _Rules, True);
+}
+
+// ---------------------------------- //
+// Create Overload 
+Void CreatePrettyRules(Text _Name, Boolean _StartHidden) {
+	CreateRules(_Name, "", _StartHidden);
+}
+Void CreatePrettyRules(Text _Name) {
+	CreatePrettyRules(_Name, True);
 }
 
 // ---------------------------------- //
