@@ -1,6 +1,12 @@
-#Const	Version				"2013-07-11"
+#Const	Version				"2013-07-12"
 #Const	ScriptName			"LobbyMelee.Script.txt"
 #Const	C_NbBots			0
+
+#Const C_NoShootDuringMatchmaking	False
+
+// ENUMS
+#Const C_PHASE_Playing		0
+#Const C_PHASE_MatchMaking	1
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
@@ -18,7 +24,14 @@ declare Integer G_LibLobbyMelee_BestScore;
 
 declare Integer G_LibKOL_RoundDuration;
 declare Boolean G_LibKOL_LaserMode;
+declare Integer G_LibKOL_MatchMakingTime;
+declare Integer G_LibKol_RoundsPlayed;
+declare Integer G_LibKol_RoundsPerMap;
 
+// Timers a States
+declare Integer G_LibKol_StartTime;
+declare Integer G_LibKol_EndTime;
+declare Integer G_LibKol_RoundPhase;
 
 /* ------------------------------------- */
 /** Return the version number of the script
@@ -43,8 +56,25 @@ Void ResetPlayer(CSmPlayer _Player) {
 	LibLobbyMelee_CurrentCombo = 0;
 }
 
+Void ReinitPlayers() {
+	foreach(Player in AllPlayers) {
+		Player.Armor = Player.ArmorMax;
+		declare Integer LibLobbyMelee_CurrentCombo for Player;
+		LibLobbyMelee_CurrentCombo = 0;
+		
+		if(C_NoShootDuringMatchmaking && Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Rocket, 	0);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Laser, 		0);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, 	0);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Arrow, 		0);
+		}
+	}
+}
+
 // Spawn the players
 Void SpawnPlayers() {
+	if(C_NoShootDuringMatchmaking && EndTime != -1) return;
+	
 	// Spawn players
 	foreach (Player in Players) {
 		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
@@ -99,7 +129,7 @@ Void ShowScore(CSmPlayer _Player) {
 		_Player,
 		Message,
 		3000,
-		0
+		2
 	);
 }
 
@@ -128,10 +158,8 @@ Integer NotifyHit(CSmPlayer _Shooter)
 	
 	if (_Shooter.Score.Points > G_LibLobbyMelee_BestScore) {
 		G_LibLobbyMelee_BestScore = _Shooter.Score.Points;
-		ShowAllNewBestScore(_Shooter, G_LibLobbyMelee_BestScore);
+		// ShowAllNewBestScore(_Shooter, G_LibLobbyMelee_BestScore);
 		G_LibKOL_WinnerId = _Shooter.Id;
-	} else if (_Shooter.Score.Points == G_LibLobbyMelee_BestScore) {
-		G_LibKOL_WinnerId = NullId; // Draw
 	}
 	
 	// show score & rank
@@ -150,10 +178,12 @@ Void LoopTimerUI() {
 		declare netwrite Boolean	Net_AutoDown	for UI;
 		declare netwrite Integer	Net_TimeDown	for UI;
 		
-		Net_TimerMax = EndTime - StartTime;
-		Net_Timer = Now - StartTime;
-		Net_AutoDown = False;
-		Net_TimeDown = 0;
+		Net_TimerMax = G_LibKol_EndTime - G_LibKol_StartTime;
+		Net_Timer = Now - G_LibKol_StartTime;
+		if(G_LibKol_RoundPhase == C_PHASE_Playing) {
+			Net_AutoDown = False;
+			Net_TimeDown = 0;
+		}
 	}
 }
 
@@ -234,6 +264,120 @@ Void XmlRpcLoop() {
 	}
 }
 
+Void ScoreEndRound()
+{
+	SpawnScreen::DestroyRules();
+	Message::CleanAllMessages();
+	ReinitPlayers();
+	
+	Score::MatchEnd(False);
+	
+	if(G_LibKOL_WinnerId == NullId || ! Players.existskey(G_LibKOL_WinnerId)) {
+		// recompute the winner
+		G_LibKOL_WinnerId = NullId;
+		declare Integer BestScore  = 0;
+		foreach(Player in Players) {
+			if (Player.Score != Null) {
+				if (Player.Score.Points > BestScore) {
+					BestScore = Player.Score.Points;
+					G_LibKOL_WinnerId = Player.Id;
+				}
+			}
+		}
+	}
+	
+	if (G_LibKOL_WinnerId != NullId && Players.existskey(G_LibKOL_WinnerId)) {
+		Message::SendBigMessage(
+			TextLib::Compose(_("$<%1$> is King of the Lobby!"), Players[G_LibKOL_WinnerId].Name),
+			5000,
+			3
+		);
+	} else {
+		Message::SendBigMessage(
+			_("|Match|Draw"),
+			5000,
+			3
+		);
+	}
+	UIManager.UIAll.SendNotice(
+		"", CUIConfig::ENoticeLevel::Default, 
+		Null, CUIConfig::EAvatarVariant::Default, 
+		CUIConfig::EUISound::EndRound, 0
+	);
+	
+	G_LibKOL_WinnerId 			= NullId;
+	G_LibLobbyMelee_BestScore 	= 0;
+	
+	ClearScores();
+	foreach (Score in Scores) {
+		Score.Points = 0;
+		Score.RoundPoints = 0;
+	}
+}
+
+Void StartRound() {
+	G_LibKol_StartTime = Now;
+	if(C_NoShootDuringMatchmaking) StartTime = Now;
+	
+	if (G_LibKOL_RoundDuration > 0) {
+		G_LibKol_EndTime = G_LibKol_StartTime + (G_LibKOL_RoundDuration * 1000);
+	} else {
+		G_LibKol_EndTime = -1;
+	}
+}
+
+/**
+ *  Return true iff the play loop should continue (i.e. False iff the map should end)
+ */
+Boolean CheckRoundTimers() {
+	// end map conditions
+	declare Integer PreviousPhase = G_LibKol_RoundPhase;
+	
+	// update G_RoundPhase
+	switch(G_LibKol_RoundPhase) {
+		case C_PHASE_Playing : {
+			if ((G_LibKOL_RoundDuration > 0) && (Now > (G_LibKol_StartTime + (G_LibKOL_RoundDuration * 1000)))) {
+				G_LibKol_RoundsPlayed += 1;
+				if( G_LibKol_RoundsPlayed >= G_LibKol_RoundsPerMap) {
+					return False;
+				}
+				
+				// end of this round
+				ScoreEndRound();
+				
+				Message::SendStatusMessage(
+					_("Matchmaking in progress..."),
+					G_LibKOL_MatchMakingTime,
+					1
+				);
+			
+				SetTimerAutoDown(G_LibKOL_MatchMakingTime);
+				XmlRpc.SendCallback("RunMatchMaker", "");
+				
+				// switch phase
+				G_LibKol_RoundPhase = C_PHASE_MatchMaking;
+				if(C_NoShootDuringMatchmaking) {
+					EndTime = Now;
+					sleep(G_LibKOL_MatchMakingTime);
+				}
+			}
+		}
+		case C_PHASE_MatchMaking : {
+			if (Now > (G_LibKol_StartTime + G_LibKOL_MatchMakingTime + (G_LibKOL_RoundDuration * 1000))) {
+				XmlRpc.SendCallback("StopMatchMaker", "");
+				StartRound();
+				G_LibKol_RoundPhase = C_PHASE_Playing;
+				
+				if(C_NoShootDuringMatchmaking) {
+					EndTime = -1;
+				}
+			}
+		}
+	}
+	
+	return True;
+}
+
 Boolean PlayLoop()
 {
 	Message::Loop();
@@ -266,22 +410,21 @@ Boolean PlayLoop()
 		}
 	}
 	
-	// end map conditions
-	if ((G_LibKOL_RoundDuration > 0) && (Now > (StartTime + (G_LibKOL_RoundDuration * 1000)))) {
-		return False;
-	}
-	
 	// LoopIntroEnds();
 	LoopUpdateUI();
 	XmlRpcLoop();
 	SpawnPlayers();
 	SpawnBots();
 	LoopTimerUI();
-	
-	return True;
+	return CheckRoundTimers();
 }
 
-Void StartRound() {
+
+
+Void StartMap() {
+	StartTime = Now;
+	EndTime = -1;
+	
 	Message::CleanBigMessages();
 	Score::MatchBegin(False);
 	UIManager.UIAll.ScoreTableOnlyManialink = True;
@@ -294,94 +437,21 @@ Void StartRound() {
 	SpawnScreen::CreateRules(ModeName, ModeRules, False);
 	SpawnScreen::AttachRules();
 	
-	Users_SetNbFakeUsers(C_NbBots, 0);
-	
+	Users_SetNbFakeUsers(C_NbBots, 0);	
 	ClearScores();
 	foreach (Score in Scores) {
 		Score.Points = 0;
 		Score.RoundPoints = 0;
 	}
-
-	StartTime = Now;
-	if (G_LibKOL_RoundDuration > 0) {
-		EndTime = StartTime + (G_LibKOL_RoundDuration * 1000);
-	} else {
-		EndTime = -1;
-	}
+	StartRound();
 }
-
-Void EndRound()
-{
-	SpawnScreen::DestroyRules();
-	Message::CleanAllMessages();
-	SM::UnspawnAllPlayers();
-	
-	Score::MatchEnd(False);
-	
-	G_LibKOL_WinnerId = NullId;
-	declare Integer BestScore  = -1;
-	foreach(Player in Players) {
-		if (Player.Score != Null) {
-			if (Player.Score.Points > BestScore) {
-				BestScore = Player.Score.Points;
-				G_LibKOL_WinnerId = Player.Id;
-			} else if (Player.Score.Points == BestScore) {
-				G_LibKOL_WinnerId = NullId;
-			}
-		}
-	}
-	
-	if (G_LibKOL_WinnerId != NullId && Players.existskey(G_LibKOL_WinnerId)) {
-		Message::SendBigMessage(
-			TextLib::Compose(_("$<%1$> is King of the Lobby!"), Players[G_LibKOL_WinnerId].Name),
-			2000,
-			3
-		);
-	} else {
-		Message::SendBigMessage(
-			_("|Match|Draw"),
-			2000,
-			3
-		);
-	}
-	
-	sleep(2000);
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
-	sleep(3000);
-	
-	Message::CleanAllMessages();
-}
-
-Void RunMatchMaking() {
-	declare Integer SendingTime = 10000;
-	Message::SendBigMessage(
-		_("Matchmaking in progress..."),
-		SendingTime,
-		10
-	);
-	
-	SetTimerAutoDown(SendingTime);
-	XmlRpc.SendCallback("RunMatchMaker", "");
-	sleep(SendingTime);
-	XmlRpc.SendCallback("StopMatchMaker", "");
-	
-	Message::CleanAllMessages();
-}
-
 
 Void EndMap()
 {
-	SpawnScreen::DestroyRules();
-	Message::CleanAllMessages();
-	
-	if (G_LibKOL_WinnerId != NullId) {
-		UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> is King of the Lobby!"), Players[G_LibKOL_WinnerId].Name);
-	} else {
-		UIManager.UIAll.BigMessage = _("|Match|Draw");
-	}
-	
+	SM::UnspawnAllPlayers();
+	ScoreEndRound();
 	sleep(5000);
-	UIManager.UIAll.BigMessage = "";
+	Message::CleanAllMessages();
 }
 
 Void CreateRulesReminderLayer() {
@@ -399,18 +469,18 @@ Void CreateRulesReminderLayer() {
 	declare Integer WindowWidth		= 192;
 	declare Integer WindowHeight	= 30;
 	declare Real 	WindowX			= 0.;
-	declare Real 	WindowY			= 22.;	
+	declare Real 	WindowY			= 0.;
 	
 	declare Text MLText = """
 	<script><!--
 		main() 
 		{
-			log(Now^"> NEW LAYER");
-			
 			while(InputPlayer == Null) yield;
 			
 			// for the "do not show again" feature
 			declare persistent Boolean NadeoKoL_PersistentShowRulesReminder for This = True;
+			// NadeoKoL_PersistentShowRulesReminder = True;
+			
 			declare netwrite Boolean Net_RulesReminder_StopIntro for UI;
 			declare netread Boolean Net_LibKol_ShowRules for UI;
 			
@@ -420,15 +490,6 @@ Void CreateRulesReminderLayer() {
 			}
 			Net_RulesReminder_StopIntro = False;
 			
-			/*
-			if ((InputPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) ||
-				(InputPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning))
-			{
-				Net_RulesReminder_StopIntro = True;
-				//return;
-			}
-			*/
-	
 			declare Button_DoNotShowAgain <=> (Page.GetFirstChild("Button_DoNotShowAgain") as CMlLabel);
 			declare Button_Close <=> (Page.GetFirstChild("Button_Close") as CMlLabel);
 			declare RulesReminderMainFrame <=> (Page.GetFirstChild("RulesReminderMainFrame") as CMlFrame);
@@ -441,18 +502,6 @@ Void CreateRulesReminderLayer() {
 				} else {
 					RulesReminderMainFrame.Hide();
 				}
-				
-				/*
-				if(IsSpectatorMode) {
-					if(RulesReminderMainFrame.Visible) {
-						RulesReminderMainFrame.Hide();
-						Net_RulesReminder_StopIntro = False;
-					}
-					continue;
-				} else {
-					RulesReminderMainFrame.Show();
-				}
-				*/
 	
 				foreach(Event in PendingEvents) {
 					switch(Event.Type){
@@ -481,8 +530,6 @@ Void CreateRulesReminderLayer() {
 		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
 			<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
 			<label posn="{{{(WindowWidth/2)-42}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" />
-		<!-- <label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2)-2}}}"  text="{{{
-				_("Press $<$o$f00F1$> to close this window.")}}}" textsize="2"/>-->
 	</frame>
 	""";
 	
@@ -522,7 +569,10 @@ Void CreateGaugeTimerLayer()
 					else Gauge_Timer.Ratio -= SpeedDown;
 				} else {
 					if(Net_TimerMax > 0) {
-						Gauge_Timer.Ratio = (1. * Net_Timer) / Net_TimerMax;
+						declare Real Ratio = (1. * Net_Timer) / Net_TimerMax;
+						if(Ratio < 0.) Ratio = 0.;
+						if(Ratio > 1.) Ratio = 1.;
+						Gauge_Timer.Ratio = Ratio;
 					}
 				}
 			}
@@ -530,21 +580,28 @@ Void CreateGaugeTimerLayer()
 	--></script>
 	""";
 	
-	
 	declare Ident RulesReminderLayerId	= Layers::Create("GaugeTimer", MLText);
 	declare Boolean Attached			= Layers::Attach("GaugeTimer", NullId);
 }
 
-Void StartLobbyMode(Integer _RoundDuration, Integer _RoundsPerMap, Boolean _UseAllies, Boolean _LaserMode) 
-{
-	G_LibKOL_RoundDuration = _RoundDuration;
-	UseAllies = _UseAllies;
-	G_LibKOL_LaserMode = _LaserMode;// HACK
 
-	// save former variables
-	declare FormerUseClans = UseClans;
-	declare FormerAlliesLabelsVisibility = UIManager.UIAll.AlliesLabelsVisibility;
-	declare FormerOpposingTeamLabelsVisibility = UIManager.UIAll.OpposingTeamLabelsVisibility;
+
+Void StartLobbyMode(
+	Integer _RoundDuration, 
+	Integer _RoundsPerMap,
+	Integer _MatchMakingDuration,
+	Boolean _UseAllies, 
+	Boolean _LaserMode) 
+{
+	G_LibKOL_RoundDuration 		= _RoundDuration;
+	G_LibKol_RoundsPerMap		= _RoundsPerMap;
+	G_LibKOL_MatchMakingTime 	= _MatchMakingDuration;	
+	UseAllies 					= _UseAllies;
+	G_LibKOL_LaserMode 			= _LaserMode;
+	
+	G_LibKol_RoundsPlayed 		= 0;
+	G_LibKOL_WinnerId 			= NullId;
+	G_LibLobbyMelee_BestScore 	= 0;
 
 	UseClans = False;
 	UIManager.UIAll.AlliesLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
@@ -557,43 +614,29 @@ Void StartLobbyMode(Integer _RoundDuration, Integer _RoundsPerMap, Boolean _UseA
 	CreateRulesReminderLayer();
 	CreateGaugeTimerLayer();
 	
-	declare Integer RoundsPlayed = 0;
 	while(True) {
 		MatchEndRequested = False;
 		Mode::LoadMap();
-		StartRound();
+		StartMap();
 		declare Boolean DoLoop = True;
-		while(DoLoop && !MatchEndRequested) {
+		while(DoLoop && !ServerShutdownRequested && !MatchEndRequested) {
 			DoLoop = PlayLoop();
 			yield;
 		}
 		
-		RoundsPlayed += 1;
-		EndRound();
-		
-		if(MatchEndRequested || RoundsPlayed >= _RoundsPerMap) {
-			RoundsPlayed = 0;
-			Mode::UnloadMap();
-		} else {
-			RunMatchMaking();
-		}
-		
-		// reset best scores
-		G_LibKOL_WinnerId = NullId;
-		G_LibLobbyMelee_BestScore = 0;
+		EndMap();
+		// end of the map
+		G_LibKol_RoundsPlayed = 0;
+		Mode::UnloadMap();
 	}
-	
-	UseAllies = False;
-	
-	// restore former variables
-	UseClans = FormerUseClans;
-	UIManager.UIAll.AlliesLabelsVisibility = FormerAlliesLabelsVisibility;
-	UIManager.UIAll.OpposingTeamLabelsVisibility = FormerOpposingTeamLabelsVisibility;
-	// UIManager.UIAll.OverlayHideCountdown = False;
+}
+
+Void StartLobbyMode(Integer _RoundDuration, Integer _RoundsPerMap, Integer _MatchMakingDuration, Boolean _UseAllies) {
+	StartLobbyMode(_RoundDuration, _RoundsPerMap, _MatchMakingDuration, _UseAllies, False);
 }
 
 Void StartLobbyMode(Integer _RoundDuration, Integer _RoundsPerMap, Boolean _UseAllies) {
-	StartLobbyMode(_RoundDuration, _RoundsPerMap, _UseAllies, False);
+	StartLobbyMode(_RoundDuration, _RoundsPerMap, 10000, _UseAllies);
 }
 
 Void StartLobbyMode() {

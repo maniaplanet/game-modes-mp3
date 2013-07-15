@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2013-07-11"
+#Const	ModeSportVersion	"2013-07-12"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -327,6 +327,8 @@ SpawnScreen::AttachRules();
 LayerAttached = Layers::Attach("ScoresTable", NullId);
 LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+
+---RulesReminder---
 
 // ---------------------------------- //
 // Initialize roles for first round
@@ -1644,6 +1646,7 @@ Void InitUi() {
 	SM::SetupDefaultVisibility();
 	UIManager.UIAll.TeamLabelsVisibility = CUIConfig::ELabelsVisibility::Always;
 	UIManager.UIAll.TeamLabelsShowGauges = CUIConfig::EVisibility::ForcedHidden;
+	UIManager.UIAll.TeamLabelsShowNames = CUIConfig::EVisibility::ForcedHidden;
 	UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::Never;
 	UIManager.UIAll.ScoreTableOnlyManialink = True;
 	UpdateHeader();
@@ -1848,7 +1851,7 @@ Text CreateLayerWaitConnection() {
 	declare Real	XMargin			= 1.;
 	declare Text	MLText = 
 """
-<frame posn="155 -79">
+<frame posn="155 -79" id="Frame_Waiting">
 	<label halign="right" valign="bottom" textsize="3" textemboss="1" id="Label_Waiting" />
 	<frame>
 	""";
@@ -1861,11 +1864,16 @@ Text CreateLayerWaitConnection() {
 	MLText ^= """
 	</frame>
 </frame>
+<frame posn="155 -86" hidden="1" id="Frame_Ready">
+	<label halign="right" valign="bottom" textsize="3" textemboss="1" text="{{{_("The match will begin shortly ...")}}}" />
+</frame>
 <script><!--
 #Include "TextLib" as TL
 
 main() {
 	declare Label_Waiting <=> (Page.GetFirstChild("Label_Waiting") as CMlLabel);
+	declare Frame_Waiting <=> (Page.GetFirstChild("Frame_Waiting") as CMlFrame);
+	declare Frame_Ready <=> (Page.GetFirstChild("Frame_Ready") as CMlFrame);
 	
 	declare CMlQuad[] PlayersQuad;
 	declare Boolean GetAQuad = True;
@@ -1910,6 +1918,14 @@ main() {
 				}
 			}
 		}
+		
+		if (!Frame_Waiting.Visible && PrevPlayersNbTotal < {{{TotalReqPlayers}}}) {
+			Frame_Waiting.Show();
+			Frame_Ready.Hide();
+		} else if (!Frame_Ready.Visible &&  PrevPlayersNbTotal >= {{{TotalReqPlayers}}}) {
+			Frame_Waiting.Hide();
+			Frame_Ready.Show();
+		}
 	}
 }
 --></script>
@@ -1924,9 +1940,10 @@ Void WaitConnection() {
 	WarmUp2::Begin();
 	WarmUp2::Detach();
 	
+	declare TimeOut = 5000;
 	declare PrevClansNbPlayers = [1 => 0, 2 => 0];
 	StartTime = Now;
-	EndTime = -1;
+	UIManager.UIAll.CountdownEndTime = -1;
 	
 	declare netwrite Integer Net_ModeSport_PlayersNbTotal for Teams[0];
 	declare LayerWaitConnectionId = Layers::Create("WaitConnection", CreateLayerWaitConnection());
@@ -1958,28 +1975,25 @@ Void WaitConnection() {
 			UpdateLayerScoresTable(C_SequenceWarmUp);
 		}
 		
-		if (EndTime == -1 && ClansNbPlayers[1] >= 1 && ClansNbPlayers[2] >= 1) EndTime = Now + C_WaitConnectionTimeLimit;
+		if (UIManager.UIAll.CountdownEndTime == -1 && ClansNbPlayers[1] >= 1 && ClansNbPlayers[2] >= 1) {
+			UIManager.UIAll.CountdownEndTime = Now + C_WaitConnectionTimeLimit + TimeOut;
+		}
 		
 		if (ClansNbPlayers[1] >= C_RequiredPlayersNb && ClansNbPlayers[2] >= C_RequiredPlayersNb) break;
-		if (EndTime != -1 && Now >= EndTime) break;
+		if (UIManager.UIAll.CountdownEndTime != -1 && Now >= UIManager.UIAll.CountdownEndTime - TimeOut) break;
 		Elite_Sleep(1000);
 	}
 	
-	declare LayerDetached = Layers::Detach("WaitConnection", NullId);
-	declare LayerDestroyed = Layers::Destroy("WaitConnection");
-	
-	StartTime = -1;
-	EndTime = -1;
+	UIManager.UIAll.CountdownEndTime = Now + TimeOut;
 	WarmUp2::End();
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+	//UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 	
 	// ---------------------------------- //
 	// Let the matchmaking server sort the players
 	declare PlayersSort = [1 => Real[Ident], 2 => Real[Ident]];
 	declare MatchmakingOrderReceived = False;
-	declare TimeOut = Now + 5000;
 	XmlRpc.SendCallback("MatchmakingGetOrder", "");
-	while (!MatchmakingOrderReceived && Now < TimeOut) {
+	while (Now < UIManager.UIAll.CountdownEndTime) {
 		MB_Yield();
 		ManageCommand();
 		foreach (Event in XmlRpc.PendingEvents) {
@@ -2036,13 +2050,15 @@ Void WaitConnection() {
 	WarmUp2::Clean();
 	WarmUp2::Fill();
 	
+	declare LayerDetached = Layers::Detach("WaitConnection", NullId);
+	declare LayerDestroyed = Layers::Destroy("WaitConnection");
 	UpdateLayerScoresTable(C_SequenceWarmUp);
 	Elite_Sleep(500);
 	UIManager.UIAll.StatusMessage = "";
 	UIManager.UIAll.BigMessage = "";
 	
 	StartTime = -1;
-	EndTime = -1;
+	UIManager.UIAll.CountdownEndTime = -1;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 }
 

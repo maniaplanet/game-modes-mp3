@@ -30,6 +30,7 @@ declare CHttpRequest[Integer]	G_LibClubLink_Request;				///< ClubLink request of
 declare Ident					G_LibClubLink_LayerTeamsId;			///< Id of the team layer
 declare Text[]					G_LibClubLink_TeamDefaultName;		///< Default name for each team
 declare Vec3[]					G_LibClubLink_TeamDefaultColor;		///< Default color for each team
+declare Vec3[]					G_LibClubLink_TeamDesiredColor;		///< Color for each team as specified in the clublink
 
 // ---------------------------------- //
 // Functions
@@ -169,6 +170,19 @@ Void Private_SwitchForceClan() {
 	}
 }
 
+
+
+// ---------------------------------- //
+/** Set the two teams color from desired colors, and avoid hue overlap.
+ *
+ */
+Void Private_ApplyDesiredTeamColors() {
+	// Write both team desired colors, and make sure they're different.
+	Teams[0].ColorPrimary	= G_LibClubLink_TeamDesiredColor[0];
+	Teams[1].ColorPrimary	= G_LibClubLink_TeamDesiredColor[1];
+	TweakTeamColorsToAvoidHueOverlap();
+}
+
 // ---------------------------------- //
 /** Reset the team info to their default value
  *
@@ -191,8 +205,10 @@ Void Private_ResetClan(Integer _ClanNb) {
 	Team.EmblemUrl	= "";
 	Team.PresentationManialinkUrl = "";
 	Team.ClubLinkUrl = "";
-	Team.ColorPrimary	= G_LibClubLink_TeamDefaultColor[_ClanNb - 1];
+
 	Team.ColorSecondary	= G_LibClubLink_TeamDefaultColor[_ClanNb - 1];
+	G_LibClubLink_TeamDesiredColor[_ClanNb - 1] = G_LibClubLink_TeamDefaultColor[_ClanNb - 1];
+	Private_ApplyDesiredTeamColors();
 	
 	declare netwrite Text[] LibClubLink_TeamSponsors for Team;
 	declare Text[] LibClubLink_TeamPlayerLogins for Team;
@@ -231,8 +247,9 @@ Void Private_SetClan(Integer _ClanNb, CXmlDocument _Xml, Text _ClubLinkUrl) {
 	Team.ClubLinkUrl= _ClubLinkUrl;
 	
 	declare TextColor = Private_ReadXmlText(Root, "color", "primary");
-	if (TextColor != "")	Team.ColorPrimary = TL::ToColor(TextColor);
-	else					Team.ColorPrimary = G_LibClubLink_TeamDefaultColor[_ClanNb - 1];
+	if (TextColor != "")	G_LibClubLink_TeamDesiredColor[_ClanNb - 1] = TL::ToColor(TextColor);
+	else					G_LibClubLink_TeamDesiredColor[_ClanNb - 1] = G_LibClubLink_TeamDefaultColor[_ClanNb - 1];
+	Private_ApplyDesiredTeamColors();
 	
 	declare netwrite Text[] LibClubLink_TeamSponsors for Team;
 	LibClubLink_TeamSponsors.clear();
@@ -376,6 +393,7 @@ Void Unload() {
 Void Load(Boolean _UsePlayerClubLinks/*, Boolean _ForceClansFromClubLinks*/) {
 	G_LibClubLink_TeamDefaultName = C_LibClubLink_TeamDefaultName;
 	G_LibClubLink_TeamDefaultColor = C_LibClubLink_TeamDefaultColor;
+	G_LibClubLink_TeamDesiredColor = C_LibClubLink_TeamDefaultColor;
 	
 	Unload();
 	
@@ -424,7 +442,10 @@ Void SetTeamDefaultColor(Integer _Team, Vec3 _Color) {
 	if (!Teams.existskey(_Team)) return;
 	
 	G_LibClubLink_TeamDefaultColor[_Team] = _Color;
-	if (G_LibClubLink_LoadedPlayerId[_Team + 1] == NullId) Teams[_Team].ColorPrimary = _Color;
+	if (G_LibClubLink_LoadedPlayerId[_Team + 1] == NullId) {
+		G_LibClubLink_TeamDesiredColor[_Team] = _Color;
+		Private_ApplyDesiredTeamColors();
+	}
 }
 
 // ---------------------------------- //

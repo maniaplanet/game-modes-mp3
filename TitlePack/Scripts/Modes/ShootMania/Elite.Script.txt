@@ -22,7 +22,10 @@
 #Setting S_UseEliteB2			False	as _("Elite Beta 2 gameplay")							///< Use the beta 2 gameplay settings
 #Setting S_UseLobby				False	as "<hidden>" // _("Launch server in lobby mode")
 #Setting S_LobbyTimePerRound 	60  	as "<hidden>" // _("Time limit per round in lobby mode (sec., 0: no limit)")
-#Setting S_LobbyRoundPerMap  	30  	as "<hidden>" // _("Nb of rounds per map in lobby mode
+#Setting S_LobbyRoundPerMap  	30  	as "<hidden>" // _("Nb of rounds per map in lobby mode")
+#Setting S_LobbyMatchmakerTime	10000  	as "<hidden>" // _("in milliseconds, time allocated to the matchmaking")
+#Setting S_LobbyInstagib  		False  	as "<hidden>" // _("Laser mode in lobby")
+#Setting S_DisplayRulesReminder True	as "<hidden>" // _("Display a window with the rules when the match begins")
 
 #Const C_AtkRocketAmmoMax	4	///< Atk Rocket ammo max
 #Const C_AtkRocketAmmoGain	1.	///< Atk Rocket ammo gain
@@ -107,7 +110,7 @@ ModeStatusMessage = _("TYPE: Team versus Team (1 vs 3)\nOBJECTIVE: Capture the p
 ***
 // ---------------------------------- //
 // Lobby mode
-if (S_UseLobby) Lobby::StartLobbyMode(S_LobbyTimePerRound, S_LobbyRoundPerMap, True);
+if (S_UseLobby) Lobby::StartLobbyMode(S_LobbyTimePerRound, S_LobbyRoundPerMap, S_LobbyMatchmakerTime, True, S_LobbyInstagib);
 // ---------------------------------- //
 // Practice mode
 if (S_Practice) ElitePractice::Run();
@@ -116,6 +119,7 @@ if (S_Practice) ElitePractice::Run();
 // Init
 declare LayerInfoId	= Layers::Create("Info", CreateLayerInfo());
 declare LayerPlayersId = Layers::Create("Players", CreateLayerPlayers());
+
 Draft::StartServer();
 Settings::Load();
 EliteEndSequence::Load();
@@ -188,10 +192,14 @@ if (S_UseDraft) {
 }
 ***
 
+***RulesReminder***
+***
+	if(S_Matchmaking) CreateRulesReminderLayer();
+***
+
 ***StartMap***
 ***
 UseLaserVsBullets = True;
-
 EliteEndSequence::InitPlayersList();
 ***
 
@@ -2104,4 +2112,96 @@ Text EliteStringifySimulateArmorEmpty(Text _Name, CSmModeEvent _Event) {
 	]);	
 	
 	return JSON;
+}
+
+
+Void CreateRulesReminderLayer() {
+	if(! S_DisplayRulesReminder) return;
+
+	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
+	declare Text WelcomeBgImage		= ImgBaseDir^"WelcomeBg.dds";
+
+	declare Text TitleText 			= _("Welcome to Elite");
+	declare Text RulesReminder = TextLib::Compose("$<$ca4%1$>\n\n$<$ca41. $>%2\n$<$ca42. $>%3\n$<$ca43. $>%4", 
+		_("Team Mode, 1 attacker vs 3 defenders"), 
+		_("When you are the attacker, eliminate the defenders or capture the pole at the end of the round."), 
+		_("When you are a defender, eliminate the attacker or prevent the pole from being captured."), 
+		_("The attacker has a laser and 3 armors, defenders have rockets and 1 armor each.")
+		);
+	
+	declare Text DoNotShowAgain		= _("Do Not Show Again");
+	declare Text Close				= _("Close");
+	
+	declare Integer WindowWidth		= 200;
+	declare Integer WindowHeight	= 50;
+	declare Real 	WindowX			= 0.;
+	declare Real 	WindowY			= 0.;
+	
+	declare Text MLText = """
+	<script><!--
+		while(InputPlayer == Null) yield;
+		
+		// for the "do not show again" feature		
+		declare persistent Boolean NadeoElite_PersistentShowRulesReminder for This = True;
+		// NadeoElite_PersistentShowRulesReminder = True; // Uncomment for testing purpose
+		
+		if(! NadeoElite_PersistentShowRulesReminder) {
+			return;
+		}
+		
+		declare Button_DoNotShowAgain 	<=> (Page.GetFirstChild("Button_DoNotShowAgain") as CMlLabel);
+		declare Button_Close 			<=> (Page.GetFirstChild("Button_Close") as CMlLabel);
+		declare RulesReminderMainFrame 	<=> (Page.GetFirstChild("RulesReminderMainFrame") as CMlFrame);
+		
+		while(True) {
+			yield;
+			
+			if(IsSpectatorMode) {
+				RulesReminderMainFrame.Hide();
+				continue;
+			} else {
+				RulesReminderMainFrame.Show();
+			}
+			
+			foreach(Event in PendingEvents) {
+				switch(Event.Type){
+					case CMlEvent::Type::MouseClick: {
+						if(Event.ControlId == "Button_DoNotShowAgain") {
+							NadeoElite_PersistentShowRulesReminder = False;
+							RulesReminderMainFrame.Hide();
+							return; // End of this behavior
+						}
+						if(Event.ControlId == "Button_Close") {
+							RulesReminderMainFrame.Hide();
+							return; // End of this behavior
+						}
+					}
+					case CMlEvent::Type::KeyPress: {
+						if(Event.CharPressed == "2424832" ) { // F1
+							RulesReminderMainFrame.Hide();
+							return; // End of this behavior
+						}
+					}
+				}
+			}
+		}
+		
+	--></script>
+	<frame id="RulesReminderMainFrame" hidden="true" posn="{{{WindowX}}} {{{WindowY}}} 100" >
+		<quad  posn="0 -3" 	halign="center"	valign="center" sizen="{{{WindowWidth + 20}}} {{{WindowHeight + 35}}}" image="{{{WelcomeBgImage}}}" />
+		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
+		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
+		<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
+		<label posn="{{{(WindowWidth/2)-42}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" />
+		<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2) + 10}}}"  text="{{{
+				_("Press $<$o$f00F1$> to close this window.")}}}" />
+		<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2) + 6}}}"  text="{{{
+				_("Press 'alt' to free the cursor.")}}}" textsize="2"/>
+	</frame>
+	""";
+	
+	declare Ident RulesReminderLayerId	= Layers::Create("RulesReminder", MLText);
+	declare CUILayer LayerRuleReminder  = Layers::GetFromName("RulesReminder");
+	LayerRuleReminder.Type = CUILayer::EUILayerType::CutScene;
+	declare Boolean Attached			= Layers::Attach("RulesReminder", NullId);
 }
