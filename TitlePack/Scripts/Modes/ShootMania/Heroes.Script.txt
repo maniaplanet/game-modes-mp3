@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-07-11"
+#Const Version		"2013-07-24"
 #Const ScriptName	"Heroes.Script.txt"
 
 #Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
@@ -40,14 +40,22 @@ MB_LogVersion(ScriptName, Version);
 /* -------------------------------------- */
 // Create rules
 declare ModeName = "Heroes";
-declare ModeRules = TextLib::Compose(
-	_("Two teams - 5 vs 5\n\n- The attacker must capture a pole after %1 seconds and before %2 seconds.\n- The defenders must prevent the attacker from capturing a pole.\n- The team in defense play with Rockets.\n- The team in attack play with 4 Lasers and 1 Nucleus.\n- The player with the Nucleus is the attacker and is the only one who can capture a pole.\n- If the attacker is eliminated, his team loose the turn.\n- The game is divided in rounds of two turns each.\n- During a round each team play one turn in attack and one turn in defense.\n- The team who wins the turn scores 1 point.\n- The first team to score at least %3 points with %4 ahead of his opponent wins the map."),
-	TextLib::ToText(S_TimeLimit - S_TimePole),
-	TextLib::ToText(S_TimeLimit),
-	TextLib::ToText(S_TurnWin),
-	TextLib::ToText(S_TurnGap)
+declare ModeObjectives = TextLib::Compose(_("$<%11. $>The attacker must capture a pole after %2 seconds and before %3 seconds.\n$<%12. $>The defenders must prevent the attacker from capturing a pole.\n$<%13. $>The game is divided in rounds of two turns each.\n$<%14. $>During a round each team play one turn in attack and one turn in defense.\n$<%15. $>The team who wins the turn scores 1 point.\n$<%16. $>The first team to score at least %4 points with %5 ahead of his opponent wins the map."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit), TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap));
+declare ModeConditions = TextLib::Compose(_("$<%11. $>The team in defense play with Rockets.\n$<%12. $>The team in attack play with 4 Lasers and 1 Nucleus.\n$<%13. $>The player with the Nucleus is the attacker and is the only one who can capture a pole.\n$<%14. $>If the attacker is eliminated, his team loose the turn."), "$"^SpawnScreen::GetModeColor());
+
+SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
+SpawnScreen::AddSubsection(
+	_("Objectives"), 
+	ModeObjectives, 
+	25.
 );
-SpawnScreen::CreateRules(ModeName, ModeRules);
+SpawnScreen::AddSubsection(
+	_("Conditions"), 
+	ModeConditions, 
+	85.
+);
+SpawnScreen::CreatePrettyRules(ModeName);
+
 ModeStatusMessage = _("TYPE: Team versus Team (5 vs 5)\nOBJECTIVE: Capture the pole when you're the attacker. Defend the pole when you're a defender.");
 ***
 

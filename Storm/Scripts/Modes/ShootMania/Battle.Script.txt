@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2013-07-10"
+#Const	Version				"2013-07-22"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -95,6 +95,8 @@
 #Const Description _("TYPE: Team versus Team\nOBJECTIVE:\nCapture all the poles of the opposing team before the end of the time limit.\nIn Waves mode you can only capture when your team is in attack.\nThe team with the more poles at the end of the round scores 1 point. If this team reaches the points limit she wins the map.")
 
 #Const C_DisplayRulesReminder	True
+#Const C_Battle_BlueBots		0
+#Const C_Battle_RedBots			0
 
 declare Text 					G_ScoreTeam1;
 declare Text 					G_ScoreTeam2;
@@ -278,7 +280,7 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 ***StartMap***
 ***
 	G_CurrentRoundIndex = 0;
-	//Users_SetNbFakeUsers(0, 0); // add bots for debug purpose
+	Users_SetNbFakeUsers(C_Battle_BlueBots, C_Battle_RedBots); // add bots for debug purpose
 	
 	foreach(Player in Players) {
 		// reset map tops
@@ -296,6 +298,8 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 	}
 	
 	SpawnScreen::CreateMapInfo();
+	SpawnScreen::SetModeName("Battle");
+	SpawnScreen::CreateScores();
 	Top::ResetAll();	
 ***
 
@@ -623,8 +627,6 @@ foreach (Event in PendingEvents) {
 	}
 }
 
-SM::UnspawnPlayersChangingClan();
-// Clublink::UpdatePlayersFromTeams();		// --> will also UnspawnPlayersChangingClan().
 if(S_BattleWaves) {
 	if (FirstWaveClanAttack != 0) {
 		DurationBeforePivot -= Period;
@@ -844,9 +846,6 @@ if (Now >= EndTime) DoUpdateScore = True;
 if (Now > LatestUITick + UITickPeriod) 
 {
 	LatestUITick = Now;
-		
-	// Tentative de ne pas tout le temps rafraichir les teams
-	// Clublink::UpdatePlayersFromTeams();		// --> will also UnspawnPlayersChangingClan().
 	
 	Top::Loop();
 	// Clublink::DefineTeamAuto();
@@ -1469,19 +1468,25 @@ UIManager.UILayerDestroy(LayerRoundInfo);
 // Set the rules in the SpawnScreen
 ***Rules***
 ***
-	declare Text ModeName;
+	declare Text ModeName = "Battle";
 	declare Text ModeRules;
+
+	SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
+	SpawnScreen::AddSubsection(
+		_("Objectives"), 
+		TextLib::Compose(_("$<%11. $>Capture the poles during Attack phases.\n$<%12. $>If the time limit is reached, only 100%% captured poles count. The 1st team to win %2 rounds wins the match."), "$"^SpawnScreen::GetModeColor() , ""^S_RoundsToWin), 
+		25.);	
+	
 	if(S_BattleWaves) {
-		ModeName = "Battle Waves";
-		ModeRules = TextLib::Compose(_("TYPE\n   Team versus Team\n\nOBJECTIVE\n   TEAMS must CAPTURE all their GOALS when they are in ATTACK.\n   If TIME LIMIT is reached, the winner is the team with the most GOALS CAPTURED.\n   1st TEAM to win %2 ROUNDS wins the MATCH\n\nCONDITIONS\n   1st TEAM to touch a GOAL or the ENGAGE goes first in ATTACK.\n   If a TEAM does not touch any GOAL during %1 secondes the other TEAM can ATTACK."), TextLib::ToText(S_WaveDuration), TextLib::ToText(S_RoundsToWin));
-		//ModeStatusMessage = TextLib::Compose(_("TYPE: Team versus Team\nOBJECTIVE: Capture all the poles of the opposing teams.\n%1"), _("Waves mode: On"));
-		UpdateModeStatusMessage();
-	} else {
-		ModeName = "Battle";
-		ModeRules = TextLib::Compose(_("Two teams\n\n- Be the first to capture all the poles of the opposing team in the alloted time (%1 seconds) to score 1 point.\n- The first team to reach the point limit wins."), TextLib::ToText(S_TimeLimit));
-		//ModeStatusMessage = TextLib::Compose(_("TYPE: Team versus Team\nOBJECTIVE: Capture all the poles of the opposing teams.\n%1"), _("Waves mode: Off"));
-		UpdateModeStatusMessage();
+		SpawnScreen::AddSubsection(
+			_("Conditions"), 
+			TextLib::Compose(_("$<%11. $>Touch the engagement block to be the first team to Attack.\n$<%12. $>If a team does not touch any pole during %2 secondes the other team Attacks."), "$"^SpawnScreen::GetModeColor(), ""^S_WaveDuration), 
+			60.);
 	}
+	
+	UpdateModeStatusMessage();
+	SpawnScreen::CreatePrettyRules(ModeName);
+	
 ***
 
 Void UpdateModeStatusMessage() {

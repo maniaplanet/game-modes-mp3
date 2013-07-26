@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"JoustArena"
-#Const	Version				"2013-06-18"
+#Const	Version				"2013-07-24"
 #Const	ScriptName			"Joust.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -111,15 +111,30 @@ MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 // ---------------------------------- //
 // Create the rules
 declare ModeName = "Joust";
-declare ModeRules = TextLib::Compose(
-	_("Duel - 1 vs 1\n\n- You must touch your opponent with your weapons to score points.\n- Ammunitions are limited. You must alternatively capture poles on each side of the map to reload.\n- The first player to score at least %1 points with %2 ahead of his opponent wins the round.\n- Take at least %3 rounds with %4 ahead of your opponents to win the match."),
-	TextLib::ToText(S_RoundPointsToWin),
-	TextLib::ToText(S_RoundPointsGap),
-	TextLib::ToText(S_MatchPointsToWin),
-	TextLib::ToText(S_MatchPointsGap)
+declare ModeObjectives = TextLib::Compose(_("$<%11. $>You must touch your opponent with your weapons to score points.\n$<%12. $>The first player to score at least %2 points with %3 ahead of his opponent wins the round.\n$<%13. $>Take at least %4 rounds with %5 ahead of your opponents to win the match."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_RoundPointsToWin), TextLib::ToText(S_RoundPointsGap), TextLib::ToText(S_MatchPointsToWin), TextLib::ToText(S_MatchPointsGap));
+declare ModeConditions = TextLib::Compose(_("$<%11. $>Ammunitions are limited. You must alternatively capture poles on each side of the map to reload."), "$"^SpawnScreen::GetModeColor());
+
+SpawnScreen::AddSubsection(_("Type"), _("Duel"), 0.);
+SpawnScreen::AddSubsection(
+	_("Objectives"), 
+	ModeObjectives, 
+	25.
 );
-SpawnScreen::CreateRules(ModeName, ModeRules);
+SpawnScreen::AddSubsection(
+	_("Conditions"), 
+	ModeConditions, 
+	65.
+);
+SpawnScreen::CreatePrettyRules(ModeName);
+
 ModeStatusMessage =  _("TYPE: Duel (1 vs 1)\nOBJECTIVE: Eliminate your opponent with limited ammunitions. You can only reload by touching the poles.");
+
+// ---------------------------------- //
+// Initialize spawn screen
+UIManager.UIAll.ScreenIn3dHideScoreSummary = True;
+SpawnScreen::CreateMapInfo();
+SpawnScreen::SetModeName(ModeName);
+SpawnScreen::CreateScores("Score.Points");
 
 // ---------------------------------- //
 // Initialize WaitingQueue library
@@ -985,6 +1000,8 @@ MatchmakingWait();
 ***EndServer***
 ***
 SpawnScreen::DestroyRules();
+SpawnScreen::DestroyMapInfo();
+SpawnScreen::DestroyScores();
 LayerDestroyed = Layers::Destroy("Spectator");
 ScoresTable::Unload();
 ***

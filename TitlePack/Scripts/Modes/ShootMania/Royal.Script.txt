@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2013-06-18"
+#Const Version				"2013-07-19"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -182,10 +182,17 @@ MB_UseSectionRound	= True;
 // ---------------------------------- //
 // Create Rules
 declare ModeName = "Royal";
-declare ModeRules = TextLib::Compose(_("Free for all\n- Survive as long as possible to score a maximum of points.\n- Bonus points are awarded for the pole capture and for each player hit.\n- If the pole is captured then the playing area will start to shrink. If a player leaves this area he is eliminated.\n- The first player to reach %1 points wins."), TextLib::ToText(S_MapPointsLimit));
+declare ModeRules = TextLib::Compose(_("$<%11. $>Survive as long as possible to score a maximum of points.\n$<%12. $>Bonus points are awarded for the pole capture and for each player hit.\n$<%13. $>If the pole is captured then the playing area will start to shrink. If a player leaves this area he or she is eliminated.\n$<%14. $>The first player to reach %2 points wins."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_MapPointsLimit));
 UpdateModeStatusMessage();
 +++ModeRulesText+++
-SpawnScreen::CreateRules(ModeName, ModeRules);
+//SpawnScreen::CreateRules(ModeName, ModeRules);
+SpawnScreen::AddSubsection(_("Type"), _("Free for all"), 0.);
+SpawnScreen::AddSubsection(_("Objectives"), 
+	ModeRules, 
+	20.);
+
+SpawnScreen::CreatePrettyRules(ModeName);
+
 SpawnScreen::CreateMapInfo();
 SpawnScreen::CreateScores();
 
@@ -262,6 +269,7 @@ SpawnScreen::AttachMapInfo();
 SpawnScreen::AttachScores();
 
 Slider::CreateSlider();
+Slider::SetSliderAnimation(<-210., 40.>, <-160., 40.>);
 Slider::AddSlide(C_SlideId_Hit, "Top", _("Top Hit"), C_TopId_Hit);
 Slider::AddSlide(C_SlideId_Survival, "Top", _("Top Survival"), C_TopId_Survival);
 Slider::AddSlide(C_SlideId_Pole, "Top", _("Top Pole"), C_TopId_Pole);
@@ -1583,10 +1591,10 @@ Text UpdateLayerSpawnQueue(Integer[Ident] _PlayersSpawnQueue) {
 	foreach (I => Name in SpawnQueue) {
 		declare LabelText = Name;
 		if (I == Max && SpawnQueue.count > Max) {
-			LabelText = "$w+"^TextLib::ToText(SpawnQueue.count - (Max - 1));
+			LabelText = "+"^TextLib::ToText(SpawnQueue.count - (Max - 1));
 		}
 		PlayersList ^= """
-<label posn="0 {{{(I - 1) * -5}}} 0" sizen="28 5" text="$s{{{LabelText}}}" id="Label_Player_{{{I}}}" />
+<label posn="0 {{{(I - 1) * -5}}} 0" sizen="28 5" halign="center" textsize="2" textemboss="1" text="{{{LabelText}}}" id="Label_Player_{{{I}}}" />
 """;
 		Height = I;
 		if (I >= Max) break;
@@ -1595,10 +1603,10 @@ Text UpdateLayerSpawnQueue(Integer[Ident] _PlayersSpawnQueue) {
 	Height = (Height * 5) + 10;
 	
 	ML = """
-<frame posn="157 -88 1">
-	<quad posn="0 0 0" sizen="30 {{{Height}}}" bgcolor="0007" halign="right" valign="bottom"/>
-	<label posn="-15 {{{Height-1}}} 1" sizen="30 5" halign="center" text="{{{TextLib::Compose("$s%1", _("Queue"))}}}"/>
-	<frame posn="-29 {{{Height-8}}} 2">
+<frame posn="143 -88 1">
+	<quad posn="0 0 0" sizen="30 {{{Height}}}" halign="center" valign="bottom" image="file://Media/Manialinks/ShootMania/Common/RoleChoiceBg.dds" colorize="009" />
+	<label posn="0 {{{Height-2}}} 1" sizen="30 5" halign="center" textsize="3" textemboss="1" text="{{{_("Queue")}}}"/>
+	<frame posn="0 {{{Height-8}}} 2">
 		{{{PlayersList}}}
 	</frame>
 </frame>
@@ -1810,7 +1818,7 @@ Void CreateRulesReminderLayer() {
 	declare Text DoNotShowAgain		= _("Do Not Show Again");
 	declare Text Close				= _("Close");
 	
-	declare Integer WindowWidth		= 270;
+	declare Integer WindowWidth		= 210;
 	declare Integer WindowHeight	= 25;
 	declare Real 	WindowX			= 0.;
 	declare Real 	WindowY			= 30.;	
@@ -1884,10 +1892,10 @@ Void CreateRulesReminderLayer() {
 	--></script>
 	<frame id="RulesReminderMainFrame" hidden="true" posn="{{{WindowX}}} {{{WindowY}}} 5" >
 		<!--<quad  posn="0 0" 	halign="center"	valign="center" sizen="{{{WindowWidth}}} {{{WindowHeight}}}" image="{{{C_WelcomeBgImage}}}" />-->
-		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="292 44" image="{{{C_WelcomeBgImage}}}" />
+		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="230 44" image="{{{C_WelcomeBgImage}}}" />
 		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
 		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-8}}}" 	halign="left" valign="center" text="{{{ModeName}}}" textsize="3" textprefix="$0f0"/>
-		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
+		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	sizen="{{{WindowWidth-5}}} 30" halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
 		<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
 		<label posn="{{{(WindowWidth/2)-42}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" />
 		<!--<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2)}}}"  text="{{{

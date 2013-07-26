@@ -2,7 +2,7 @@
  *	Toss library
  */
 
-#Const Version		"2013-06-24"
+#Const Version		"2013-07-16"
 #Const ScriptName	"Toss.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -297,6 +297,10 @@ Text GetVoteUI(Integer _ClanNb) {
 				Left1.Show(); Left2.Hide();
 				Right1.Hide(); Right2.Show();
 			}
+			
+			// Continue to update the results
+			ResultAttack.SetText("$s"^Net_VoteForAttack);
+			ResultDefend.SetText("$s"^Net_VoteForDefend);
 		}
 	}
 --></script>

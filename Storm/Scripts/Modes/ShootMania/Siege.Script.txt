@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeArena"
-#Const Version				"2013-07-05"
+#Const Version				"2013-07-24"
 #Const ScriptName			"Siege.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -133,11 +133,14 @@ MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 // ---------------------------------- //
 // Create rules
 declare ModeName = "Siege";
-declare ModeRules = TextLib::Compose(
-	_("Two teams - n vs n\n\n- The goal of this mode is to capture a maximum of poles.\n- A game is divided in rounds of two turns each.\n- During a round each team plays one turn on attack and one turn on defense.\n- The attackers must capture the poles in order on the map. The defenders must stop them.\n- If a team captures all the poles during its turn, this team instantly wins the map.\n- After %1 rounds, the team that captured the most poles wins the map.\n- If an attacker is eliminated he doesn't respawn for the rest of the turn.\n- If a defender is eliminated he's respawned as soon as a pole is captured.\n- For each new round, the attackers restart from the beginning of the map, but with one additional armor."),
-	TextLib::ToText(S_NbRoundMax)
-);
-SpawnScreen::CreateRules(ModeName, ModeRules);
+declare ModeObjectives = TextLib::Compose(_("$<%11. $>The goal of this mode is to capture a maximum of poles.\n$<%12. $>A game is divided in rounds of two turns each.\n$<%13. $>During a round each team plays one turn on attack and one turn on defense.\n$<%14. $>The attackers must capture the poles in order on the map. The defenders must stop them.\n$<%15. $>If a team captures all the poles during its turn, this team instantly wins the map.\n$<%16. $>After %2 rounds, the team that captured the most poles wins the map."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_NbRoundMax));
+declare ModeConditions = TextLib::Compose(_("$<%11. $>If an attacker is eliminated he doesn't respawn for the rest of the turn.\n$<%12. $>If a defender is eliminated he's respawned as soon as a pole is captured.\n$<%13. $>For each new round, the attackers restart from the beginning of the map, but with one additional armor."), "$"^SpawnScreen::GetModeColor());
+
+SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
+SpawnScreen::AddSubsection(_("Objectives"), ModeObjectives, 25.);
+SpawnScreen::AddSubsection(_("Conditions"), ModeConditions, 85.);
+SpawnScreen::CreatePrettyRules(ModeName);
+
 ModeStatusMessage = _("TYPE: Team versus Team\nOBJECTIVE: Capture the poles when you're an attacker. Eliminate the attackers when you're a defender.");
 
 // ---------------------------------- //

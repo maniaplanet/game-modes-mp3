@@ -1,4 +1,4 @@
-#Const	Version				"2013-07-12"
+#Const	Version				"2013-07-22"
 #Const	ScriptName			"LobbyMelee.Script.txt"
 #Const	C_NbBots			0
 
@@ -27,6 +27,7 @@ declare Boolean G_LibKOL_LaserMode;
 declare Integer G_LibKOL_MatchMakingTime;
 declare Integer G_LibKol_RoundsPlayed;
 declare Integer G_LibKol_RoundsPerMap;
+declare Boolean G_LibKOL_Verbose;
 
 // Timers a States
 declare Integer G_LibKol_StartTime;
@@ -49,6 +50,26 @@ Text GetScriptVersion() {
  */
 Text GetScriptName() {
 	return ScriptName;
+}
+
+Void SetVerbosity(Boolean _Verbose) {
+	G_LibKOL_Verbose = _Verbose;
+}
+
+Void LogCallBack(CSmPlayer _Player, Text _Message) {
+	if(! G_LibKOL_Verbose) return;
+	
+	declare Text PlayerLogin;
+	if(_Player != Null) {
+		PlayerLogin = "["^_Player.Login^"] ";
+	} else {
+		PlayerLogin = "";
+	}
+	
+	declare Text LogMessage = "LobbyMelee|"^Now^"> "^PlayerLogin^_Message;
+	
+	XmlRpc.SendCallback("Log", LogMessage);
+	//log(LogMessage);
 }
 
 Void ResetPlayer(CSmPlayer _Player) {
@@ -83,14 +104,15 @@ Void SpawnPlayers() {
 			
 			declare UI <=> UIManager.GetUI(Player);
 			if(UI != Null) {
-				declare netread Boolean Net_RulesReminder_StopIntro for UI;
-				if(! Net_RulesReminder_StopIntro) continue;
+				declare netread Boolean Net_RulesReminder_StopIntro for UI;				
+				SpawnThePlayer = Net_RulesReminder_StopIntro;
 			}
 			
 			if(SpawnThePlayer) {
 				if(G_LibKOL_LaserMode) {
 					SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
 				}
+				LogCallBack(Player, "Spawning");
 				SM::SpawnPlayer(Player, 0, BlockSpawns[MathLib::Rand(0, BlockSpawns.count - 1)], Now);
 				ResetPlayer(Player);
 				LibLobbyMelee_Spawned = True;
@@ -205,16 +227,25 @@ Void SetTimerAutoDown(Integer _Duration) {
 }
 
 
+
 Void LoopUpdateUI() {
 	foreach(Spectator in Spectators) {
 		declare UI <=> UIManager.GetUI(Spectator);
 		if(UI != Null) {
 			declare netwrite Boolean Net_LibKol_ShowRules for UI;
 			Net_LibKol_ShowRules = False;
+
+			if(UI.UISequence != CUIConfig::EUISequence::RollingBackgroundIntro) {
+				UI.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
+				LogCallBack(Spectator, "Switch UISequence to "^UI.UISequence);
+			}
 			
+			/*
 			if(UI.UISequence != CUIConfig::EUISequence::Intro) {
 				UI.UISequence = CUIConfig::EUISequence::Intro;
+				LogCallBack(Spectator, "Switch UISequence to "^UI.UISequence);
 			}
+			*/
 		}
 	}
 	
@@ -228,14 +259,27 @@ Void LoopUpdateUI() {
 			if(Net_RulesReminder_StopIntro) {
 				if (UI.UISequence != CUIConfig::EUISequence::Playing) {
 					UI.UISequence = CUIConfig::EUISequence::Playing;
+					LogCallBack(Player, "Switch UISequence to "^UI.UISequence);
 				}
 			} else {
+				if (UI.UISequence != CUIConfig::EUISequence::RollingBackgroundIntro) {
+					UI.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
+					if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
+						LogCallBack(Player, "Unspawning (previous SpawnStatus was "^Player.SpawnStatus^")");
+						UnspawnPlayer(Player);
+					}
+					LogCallBack(Player, "Switch UISequence to "^UI.UISequence);
+				}
+				/*
 				if (UI.UISequence != CUIConfig::EUISequence::Intro) {
 					UI.UISequence = CUIConfig::EUISequence::Intro;
 					if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
-						UnspawnPlayer(Player);
+						LogCallBack(Player, "Unspawning (previous SpawnStatus was "^Player.SpawnStatus^")");
+						UnspawnPlayer(Player);						
 					}
+					LogCallBack(Player, "Switch UISequence to "^UI.UISequence);
 				}
+				*/
 			}
 		}
 	}
@@ -259,6 +303,14 @@ Void XmlRpcLoop() {
 					declare Integer RoundDuration = TextLib::ToInteger(Event.Param2);
 					SetRoundDuration(RoundDuration);
 				}
+				case "LibXmlRpc_Lobby_Verbosity": {
+					declare Text Verbosity = Event.Param2;
+					if(Verbosity == "Silent") {
+						SetVerbosity(False);
+					} else {
+						SetVerbosity(True);
+					}
+				}
 			}
 		}
 	}
@@ -266,16 +318,16 @@ Void XmlRpcLoop() {
 
 Void ScoreEndRound()
 {
-	SpawnScreen::DestroyRules();
 	Message::CleanAllMessages();
 	ReinitPlayers();
 	
 	Score::MatchEnd(False);
 	
+	declare Integer BestScore = G_LibLobbyMelee_BestScore;
 	if(G_LibKOL_WinnerId == NullId || ! Players.existskey(G_LibKOL_WinnerId)) {
 		// recompute the winner
 		G_LibKOL_WinnerId = NullId;
-		declare Integer BestScore  = 0;
+		BestScore  = 0;
 		foreach(Player in Players) {
 			if (Player.Score != Null) {
 				if (Player.Score.Points > BestScore) {
@@ -305,11 +357,15 @@ Void ScoreEndRound()
 		CUIConfig::EUISound::EndRound, 0
 	);
 	
+	LogCallBack(Null, "Closing the round. Winner id: "^G_LibKOL_WinnerId^" with "^BestScore^" points");
+	
 	G_LibKOL_WinnerId 			= NullId;
 	G_LibLobbyMelee_BestScore 	= 0;
 	
 	ClearScores();
 	foreach (Score in Scores) {
+		if(Score == Null) continue; // à tout hasard...
+		
 		Score.Points = 0;
 		Score.RoundPoints = 0;
 	}
@@ -324,6 +380,12 @@ Void StartRound() {
 	} else {
 		G_LibKol_EndTime = -1;
 	}
+	
+	LogCallBack(Null, "Starting round"^
+		". Players: "^Players.count^
+		", Spectators: "^Spectators.count^
+		", UILayers: "^UIManager.UILayers.count
+		);
 }
 
 /**
@@ -337,11 +399,7 @@ Boolean CheckRoundTimers() {
 	switch(G_LibKol_RoundPhase) {
 		case C_PHASE_Playing : {
 			if ((G_LibKOL_RoundDuration > 0) && (Now > (G_LibKol_StartTime + (G_LibKOL_RoundDuration * 1000)))) {
-				G_LibKol_RoundsPlayed += 1;
-				if( G_LibKol_RoundsPlayed >= G_LibKol_RoundsPerMap) {
-					return False;
-				}
-				
+				LogCallBack(Null, "G_LibKol_RoundPhase was C_PHASE_Playing, switching to C_PHASE_MatchMaking");
 				// end of this round
 				ScoreEndRound();
 				
@@ -364,12 +422,19 @@ Boolean CheckRoundTimers() {
 		}
 		case C_PHASE_MatchMaking : {
 			if (Now > (G_LibKol_StartTime + G_LibKOL_MatchMakingTime + (G_LibKOL_RoundDuration * 1000))) {
+				LogCallBack(Null, "G_LibKol_RoundPhase was C_PHASE_MatchMaking, switching to C_PHASE_Playing");
 				XmlRpc.SendCallback("StopMatchMaker", "");
 				StartRound();
 				G_LibKol_RoundPhase = C_PHASE_Playing;
 				
 				if(C_NoShootDuringMatchmaking) {
 					EndTime = -1;
+				}
+				
+				G_LibKol_RoundsPlayed += 1;
+				if( G_LibKol_RoundsPlayed >= G_LibKol_RoundsPerMap) {
+					LogCallBack(Null, "G_LibKol_RoundsPlayed >= G_LibKol_RoundsPerMap, end of the map.");
+					return False;
 				}
 			}
 		}
@@ -385,10 +450,11 @@ Boolean PlayLoop()
 	foreach (Event in PendingEvents) 
 	{
 		if (Event.Type == CSmModeEvent::EType::OnHit) {
-			if(Event.Shooter != Event.Victim) {
+			if((Event.Shooter != Null) && (Event.Victim != Null) && (Event.Shooter != Event.Victim)) {
 				declare Integer PointsEarned = NotifyHit(Event.Shooter);
 				Event.ShooterPoints = PointsEarned;
 				
+				LogCallBack(Event.Shooter, " - EVENT OnHit (victim is "^Event.Victim.Login^")");
 				PassOn(Event);
 			} else {
 				Discard(Event);
@@ -396,16 +462,22 @@ Boolean PlayLoop()
 		}
 		else if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
 			if (Event.Victim != Null) {
+				LogCallBack(Event.Victim, " - EVENT OnArmorEmpty");
 				ResetPlayer(Event.Victim);
 			}
 			PassOn(Event);
 		} else if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
 			if(Event.Player != Null) {
+				LogCallBack(Event.Player, " - EVENT OnPlayerRequestRespawn");
 				ResetPlayer(Event.Player);
 			}
 			PassOn(Event);
 		}
 		else {
+			// petit filtre anti-spam
+			if ((Event.Type != CSmModeEvent::EType::OnShoot) && ((Event.Type != CSmModeEvent::EType::OnNearMiss))) {
+				LogCallBack(Event.Player, " - EVENT "^Event.Type);
+			}
 			PassOn(Event);
 		}
 	}
@@ -419,41 +491,6 @@ Boolean PlayLoop()
 	return CheckRoundTimers();
 }
 
-
-
-Void StartMap() {
-	StartTime = Now;
-	EndTime = -1;
-	
-	Message::CleanBigMessages();
-	Score::MatchBegin(False);
-	UIManager.UIAll.ScoreTableOnlyManialink = True;
-	
-	/* -------------------------------------- */
-	// Create the rules
-	declare ModeName = _("Lobby");
-	declare ModeRules = TextLib::Compose("%1\n\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, you can play 'King Of The Lobby'."), _("In this mode, perform as much hits as possible without being eliminated."));
-	
-	SpawnScreen::CreateRules(ModeName, ModeRules, False);
-	SpawnScreen::AttachRules();
-	
-	Users_SetNbFakeUsers(C_NbBots, 0);	
-	ClearScores();
-	foreach (Score in Scores) {
-		Score.Points = 0;
-		Score.RoundPoints = 0;
-	}
-	StartRound();
-}
-
-Void EndMap()
-{
-	SM::UnspawnAllPlayers();
-	ScoreEndRound();
-	sleep(5000);
-	Message::CleanAllMessages();
-}
-
 Void CreateRulesReminderLayer() {
 
 	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
@@ -461,15 +498,19 @@ Void CreateRulesReminderLayer() {
 
 	declare Text TitleText 			= _("Waiting for your match to start");
 	declare Text ModeName	 		= _("Lobby");
+	/*
 	declare Text RulesReminder = TextLib::Compose("%1\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, you can play 'King Of The Lobby'."), _("In this mode, perform as much hits as possible without being eliminated."));
+	*/
+			
+	declare Text RulesReminder = TextLib::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as much hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated."));
 	
 	declare Text DoNotShowAgain		= _("Do Not Show Again");
 	declare Text Close				= _("Close");
 	
 	declare Integer WindowWidth		= 192;
-	declare Integer WindowHeight	= 30;
+	declare Integer WindowHeight	= 38;
 	declare Real 	WindowX			= 0.;
-	declare Real 	WindowY			= 0.;
+	declare Real 	WindowY			= 5.;
 	
 	declare Text MLText = """
 	<script><!--
@@ -479,7 +520,7 @@ Void CreateRulesReminderLayer() {
 			
 			// for the "do not show again" feature
 			declare persistent Boolean NadeoKoL_PersistentShowRulesReminder for This = True;
-			// NadeoKoL_PersistentShowRulesReminder = True;
+			//NadeoKoL_PersistentShowRulesReminder = True;
 			
 			declare netwrite Boolean Net_RulesReminder_StopIntro for UI;
 			declare netread Boolean Net_LibKol_ShowRules for UI;
@@ -502,20 +543,16 @@ Void CreateRulesReminderLayer() {
 				} else {
 					RulesReminderMainFrame.Hide();
 				}
-	
+
 				foreach(Event in PendingEvents) {
 					switch(Event.Type){
 						case CMlEvent::Type::MouseClick: {
 							if(Event.ControlId == "Button_DoNotShowAgain") {
 								NadeoKoL_PersistentShowRulesReminder = False;
 								Net_RulesReminder_StopIntro = True;
-								//RulesReminderMainFrame.Hide();
-								//return; 
 							}
 							if(Event.ControlId == "Button_Close") {
 								Net_RulesReminder_StopIntro = True;
-								//RulesReminderMainFrame.Hide();
-								//return; 
 							}
 						}
 					}
@@ -525,7 +562,7 @@ Void CreateRulesReminderLayer() {
 	--></script>
 	<frame id="RulesReminderMainFrame" posn="{{{WindowX}}} {{{WindowY}}} 0" hidden="true" >
 		<format  textemboss="1" />
-		<quad  posn="0 -2" 	halign="center"	valign="center" sizen="210 51" image="{{{WelcomeBgImage}}}" />
+		<quad  posn="0 -2" 	sizen="210 65" halign="center"	valign="center"  image="{{{WelcomeBgImage}}}" />
 		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
 		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
 			<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
@@ -533,8 +570,12 @@ Void CreateRulesReminderLayer() {
 	</frame>
 	""";
 	
+	declare Boolean Destroyed			= Layers::Destroy("RulesReminder");
 	declare Ident RulesReminderLayerId	= Layers::Create("RulesReminder", MLText);
 	declare CUILayer LayerRules			= Layers::GetFromName("RulesReminder");
+	if(LayerRules == Null) {
+		 log(Now^"> [LobbyMelee.Script.txt] Rules layer not created, cannot spawn the players");
+	}
 	LayerRules.Type = CUILayer::EUILayerType::CutScene;
 	declare Boolean Attached			= Layers::Attach("RulesReminder", NullId);
 }
@@ -580,9 +621,68 @@ Void CreateGaugeTimerLayer()
 	--></script>
 	""";
 	
-	declare Ident RulesReminderLayerId	= Layers::Create("GaugeTimer", MLText);
-	declare Boolean Attached			= Layers::Attach("GaugeTimer", NullId);
+	declare Boolean Destroyed		= Layers::Destroy("GaugeTimer");
+	declare Ident 	GaugeLayerId	= Layers::Create("GaugeTimer", MLText);
+	declare CUILayer LayerGauge		= Layers::GetFromName("GaugeTimer");
+	if(LayerGauge != Null) {
+		LayerGauge.Type = CUILayer::EUILayerType::CutScene;
+	}
+	declare Boolean Attached		= Layers::Attach("GaugeTimer", NullId);
 }
+
+Void StartMap() {
+	StartTime = Now;
+	EndTime = -1;
+	
+	Message::CleanBigMessages();
+	Score::MatchBegin(False);
+	UIManager.UIAll.ScoreTableOnlyManialink = True;
+	
+	/* -------------------------------------- */
+	// Create the rules
+	//declare ModeName = "King of the Lobby";
+	declare ModeName = _("Lobby");
+	
+	/*
+	declare ModeRules = TextLib::Compose("%1\n\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as much hits as possible: the points you earn for each one will increase. But beware: your combo falls back to 1 when you are eliminated."));
+	SpawnScreen::CreateRules(ModeName, ModeRules, False);
+	SpawnScreen::AttachRules();
+	*/
+	
+	SpawnScreen::ResetRulesSection();
+	SpawnScreen::AddSubsection(
+		_("Objectives"),
+		TextLib::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as much hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated.")),
+		0.);
+		
+	SpawnScreen::AddSubsection(
+		_("Type"),
+		_("Free for all"),
+		60.);
+	SpawnScreen::CreatePrettyRules(ModeName, False);
+	
+	Users_SetNbFakeUsers(C_NbBots, 0);
+	ClearScores();
+	foreach (Score in Scores) {
+		Score.Points = 0;
+		Score.RoundPoints = 0;
+	}
+	
+	CreateRulesReminderLayer();
+	CreateGaugeTimerLayer();
+	
+	StartRound();
+}
+
+Void EndMap()
+{
+	SM::UnspawnAllPlayers();
+	// ScoreEndRound();
+	sleep(5000);
+	Message::CleanAllMessages();
+}
+
+
 
 
 
@@ -593,11 +693,21 @@ Void StartLobbyMode(
 	Boolean _UseAllies, 
 	Boolean _LaserMode) 
 {
+	G_LibKOL_Verbose = False;
+	LogCallBack(Null, "Start Lobby Mode");
+	
 	G_LibKOL_RoundDuration 		= _RoundDuration;
 	G_LibKol_RoundsPerMap		= _RoundsPerMap;
 	G_LibKOL_MatchMakingTime 	= _MatchMakingDuration;	
 	UseAllies 					= _UseAllies;
 	G_LibKOL_LaserMode 			= _LaserMode;
+	
+	LogCallBack(Null, "Lobby Mode Params: "^
+		"G_LibKOL_RoundDuration = "^G_LibKOL_RoundDuration^
+		", G_LibKol_RoundsPerMap = "^G_LibKol_RoundsPerMap^
+		", G_LibKOL_MatchMakingTime = "^G_LibKOL_MatchMakingTime^
+		", UseAllies = "^UseAllies^
+		", G_LibKOL_LaserMode = "^G_LibKOL_LaserMode);
 	
 	G_LibKol_RoundsPlayed 		= 0;
 	G_LibKOL_WinnerId 			= NullId;
@@ -611,24 +721,41 @@ Void StartLobbyMode(
 	
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	
-	CreateRulesReminderLayer();
-	CreateGaugeTimerLayer();
-	
 	while(True) {
 		MatchEndRequested = False;
+		LogCallBack(Null, "Loading Map...");
 		Mode::LoadMap();
+		LogCallBack(Null, "...Map Loaded.");
 		StartMap();
+		
 		declare Boolean DoLoop = True;
 		while(DoLoop && !ServerShutdownRequested && !MatchEndRequested) {
 			DoLoop = PlayLoop();
 			yield;
 		}
 		
+		if(!DoLoop) {
+			LogCallBack(Null, "End of the map (DoLoop == False)");
+		} else if(ServerShutdownRequested) {
+			LogCallBack(Null, "End of the map (ServerShutdownRequested == True)");
+		} else {
+			LogCallBack(Null, "End of the map (MatchEndRequested == True)");
+		}
+		
 		EndMap();
 		// end of the map
 		G_LibKol_RoundsPlayed = 0;
+		
+		// do not change the map right now for
+		declare Integer AddWaitingTime = 10000;
+		LogCallBack(Null, "Additionnal waiting time: "^(AddWaitingTime/1000)^" sec.");
+		sleep(AddWaitingTime);
+		LogCallBack(Null, "Unloading Map...");
 		Mode::UnloadMap();
+		LogCallBack(Null, "...Map Unloaded.");
 	}
+	
+	LogCallBack(Null, "WTF on est sorti du while(True)  O_o");
 }
 
 Void StartLobbyMode(Integer _RoundDuration, Integer _RoundsPerMap, Integer _MatchMakingDuration, Boolean _UseAllies) {

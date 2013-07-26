@@ -1,7 +1,7 @@
 /**
  * Interface library
  */
-#Const Version		"2013-05-28"
+#Const Version		"2013-07-19"
 #Const ScriptName	"Interface.Script.txt"
 
 // ---------------------------------- //
@@ -43,6 +43,8 @@
 #Const C_LibUI_SlideType_Text		2
 #Const C_LibUI_SlideType_Img		3
 #Const C_LibUI_SlideBufferDuration	1000
+#Const C_LibUI_SlideHidePos			<-70., 115.>
+#Const C_LibUI_SlideShowPos			<-70., 86.>
 
 // ---------------------------------- //
 // Globales
@@ -98,21 +100,36 @@ Void SetLayerTeamsForSpectators(CUILayer _LayerTeams) {
 // ---------------------------------- //
 /** Create the PlayersLists manialink
  *
+ *	@param	_Style				Can either be "Small", "Medium" or "Big"
+ *	@param	_Scale				Scale the lists
+ *	@param	_Lines				Number or lines in the lists
+ *	@param	_Columns			Number of columns in the lists
+ *	@param	_DisplayHeaders		Display the headers with the name of the team
+ *
  *	@return		The manialink string
  */
-Text Private_CreateLayerPlayersLists(Text _Style, Real _Scale, Integer _Lines, Integer _Columns) {
+Text Private_CreateLayerPlayersLists(Text _Style, Real _Scale, Integer _Lines, Integer _Columns, Boolean _DisplayHeaders) {
+	declare HeadersHidden = 0;
+	if (!_DisplayHeaders) {
+		HeadersHidden = 1;
+	}
+	
 return """
 <frame id="Frame_PlayersLists">
-	<frame posn="-160 68">	
-		<quad posn="0.25 0" sizen="39.45 3.5" halign="left" valign="center" bgcolor="fff8" />
-		<quad posn="0.5 2.9 1" sizen="10.8 10.5" halign="left" valign="center" style="Emblems" substyle="#1" /> 
-		<label posn="12.5 0.4 1" sizen="39.5 3.5" halign="left" valign="center" textsize="2.3" textemboss="1" text="Blue" id="Label_Team1Name" />
+	<frame posn="-160 68">
+		<frame hidden="{{{HeadersHidden}}}">
+			<quad posn="0.25 0" sizen="39.45 3.5" halign="left" valign="center" bgcolor="fff8" />
+			<quad posn="0.5 2.9 1" sizen="10.8 10.5" halign="left" valign="center" style="Emblems" substyle="#1" /> 
+			<label posn="12.5 0.4 1" sizen="39.5 3.5" halign="left" valign="center" textsize="2.3" textemboss="1" text="Blue" id="Label_Team1Name" />
+		</frame>
 		<playerlist posn="0 -2" scale="{{{_Scale}}}" halign="left" substyle="{{{_Style}}}" lines="{{{_Lines}}}" columns="{{{_Columns}}}" team="1" status="Playing"/>
 	</frame>
 	<frame posn="160 68">
-		<quad posn="-0.25 0" sizen="39.45 3.5" halign="right" valign="center" bgcolor="fff8" />
-		<quad posn="-0.5 2.9 1" sizen="10.8 10.5" halign="right" valign="center" style="Emblems" substyle="#2" /> 
-		<label posn="-12.5 0.4 1" sizen="39.5 3.5" halign="right" valign="center" textsize="2.3" textemboss="1" text="Red" id="Label_Team2Name" />
+		<frame hidden="{{{HeadersHidden}}}">
+			<quad posn="-0.25 0" sizen="39.45 3.5" halign="right" valign="center" bgcolor="fff8" />
+			<quad posn="-0.5 2.9 1" sizen="10.8 10.5" halign="right" valign="center" style="Emblems" substyle="#2" /> 
+			<label posn="-12.5 0.4 1" sizen="39.5 3.5" halign="right" valign="center" textsize="2.3" textemboss="1" text="Red" id="Label_Team2Name" />
+		</frame>
 		<playerlist posn="0 -2" scale="{{{_Scale}}}" halign="right" substyle="{{{_Style}}}" lines="{{{_Lines}}}" columns="{{{_Columns}}}" team="2" status="Playing"/>
 	</frame>
 </frame>
@@ -195,20 +212,33 @@ Void DestroyPlayersLists() {
 }
 
 // ---------------------------------- //
-/// Create the PlayersLists UI
-Void CreatePlayersLists(Text _Style, Real _Scale, Integer _Lines, Integer _Columns) {
+/** Create the PlayersLists UI
+ *
+ *	@param	_Style				Can either be "Small", "Medium" or "Big"
+ *	@param	_Scale				Scale the lists
+ *	@param	_Lines				Number or lines in the lists
+ *	@param	_Columns			Number of columns in the lists
+ *	@param	_DisplayHeaders		Display the headers with the name of the team
+ */
+Void CreatePlayersLists(Text _Style, Real _Scale, Integer _Lines, Integer _Columns, Boolean _DisplayHeaders) {
 	// Check if a PlayersLists layer was already created and destroy it if it's the case
 	DestroyPlayersLists();
 	
 	// Create and assign the layer
 	declare LayerPlayersLists <=> UIManager.UILayerCreate();
-	LayerPlayersLists.ManialinkPage = Private_CreateLayerPlayersLists(_Style, _Scale, _Lines, _Columns);
+	LayerPlayersLists.ManialinkPage = Private_CreateLayerPlayersLists(_Style, _Scale, _Lines, _Columns, _DisplayHeaders);
 	G_LibUI_LayerPlayersListsId = LayerPlayersLists.Id;
 	UIManager.UIAll.UILayers.add(LayerPlayersLists);
 	
-	// Ste the default visibility
+	// Set the default visibility
 	declare netwrite Integer Net_LibUI_PlayersListVisibility for Teams[0];
 	Net_LibUI_PlayersListVisibility = C_LibUI_VisibilityAll;
+}
+
+// ---------------------------------- //
+/// Overload of CreatePlayersLists()
+Void CreatePlayersLists(Text _Style, Real _Scale, Integer _Lines, Integer _Columns) {
+	CreatePlayersLists(_Style, _Scale, _Lines, _Columns, True);
 }
 
 // ---------------------------------- //
@@ -472,23 +502,35 @@ Void DetachRank() {
  *	@return		The slides models
  */
 Text Private_CreateSlideModel() {
+	declare CardSizeY = 6.;
+	declare RankSizeX = 5.;
+	declare NameSizeX = 30.;
+	declare RecordSizeX = 9.;
+	declare NamePosX = RankSizeX;
+	declare RecordPosX = NamePosX + NameSizeX + RecordSizeX;
+	
 	return """
 <framemodel id="Slide_TopEntry">
-	<label posn="0 0" sizen="5 6" textemboss="1" id="Label_Rank" />
-	<label posn="6 0" sizen="28 6" textemboss="1"  id="Label_Name" />
-	<label posn="35 0" sizen="9 6" textemboss="1" id="Label_Value" />
+	<format style="TextCardSmallScores2" />
+	<quad posn="0 0" sizen="{{{RankSizeX}}} {{{CardSizeY}}}" valign="center" bgcolor="000a" />
+	<label posn="{{{RankSizeX/2.}}} 0.3" sizen="{{{RankSizeX}}} {{{CardSizeY}}}" halign="center" valign="center" textprefix="$s" text="XX" id="Label_Rank"/>
+	<quad posn="{{{NamePosX}}} 0" sizen="{{{NameSizeX+RecordSizeX}}} {{{CardSizeY}}}" valign="center" bgcolor="2220" />
+	<label posn="{{{NamePosX+1.}}} 0.3" sizen="{{{NameSizeX-1.}}} {{{CardSizeY}}}" valign="center" id="Label_Name" />
+	<label posn="{{{RecordPosX-1.}}} 0.3" sizen="{{{RecordSizeX-1.}}} {{{CardSizeY}}}" halign="right" valign="center" id="Label_Value" />
 </framemodel>
 <framemodel id="Slide_Top">
 	<frame id="Frame_Global">
-		<quad posn="0 17.5" sizen="100 50" halign="center" image="{{{C_LibUI_ImgSrc}}}topsBg.dds" />
-		<label posn="0 0" sizen="90 5" halign="center" textemboss="1" id="Label_Title" />
-		<frame id="Frame_Top">
-			<frameinstance posn="-45 -6" modelid="Slide_TopEntry" id="Frame_TopEntry_1" />
-			<frameinstance posn="-45 -12" modelid="Slide_TopEntry" id="Frame_TopEntry_2" />
-			<frameinstance posn="-45 -18" modelid="Slide_TopEntry" id="Frame_TopEntry_3" />
-			<frameinstance posn="1 -6" modelid="Slide_TopEntry" id="Frame_TopEntry_4" />
-			<frameinstance posn="1 -12" modelid="Slide_TopEntry" id="Frame_TopEntry_5" />
-			<frameinstance posn="1 -18" modelid="Slide_TopEntry" id="Frame_TopEntry_6" />
+		<quad posn="0 38 -1" sizen="48 110" image="{{{C_LibUI_ImgSrc}}}topsBg.dds" />
+		<label posn="25 2" sizen="50 5" halign="center" textemboss="1" id="Label_Title" />
+		<frame posn="2 -1" id="Frame_Top">
+			<frameinstance posn="0 -6" modelid="Slide_TopEntry" id="Frame_TopEntry_1" />
+			<frameinstance posn="0-12" modelid="Slide_TopEntry" id="Frame_TopEntry_2" />
+			<frameinstance posn="0 -18" modelid="Slide_TopEntry" id="Frame_TopEntry_3" />
+			<frameinstance posn="0 -24" modelid="Slide_TopEntry" id="Frame_TopEntry_4" />
+			<frameinstance posn="0 -30" modelid="Slide_TopEntry" id="Frame_TopEntry_5" />
+			<frameinstance posn="0 -36" modelid="Slide_TopEntry" id="Frame_TopEntry_6" />
+			<frameinstance posn="0 -42" modelid="Slide_TopEntry" id="Frame_TopEntry_7" />
+			<frameinstance posn="0 -48" modelid="Slide_TopEntry" id="Frame_TopEntry_8" />
 		</frame>
 	</frame>
 </framemodel>
@@ -524,8 +566,6 @@ Text Private_CreateSliderScript() {
 #Const C_SlideType_Text	{{{C_LibUI_SlideType_Text}}}
 #Const C_SlideType_Img	{{{C_LibUI_SlideType_Img}}}
 #Const C_AnimDuration	1000
-#Const C_AnimHidePos	115.
-#Const C_AnimShowPos	86.
 
 declare CMlFrame[Integer] G_Slides;
 
@@ -538,7 +578,7 @@ Void UpdateSlideTop(Integer _SlideId, Text _Title, Text _TopId) {
 	declare Text[Integer][Text]	LibUI_TopName		for UI;
 	if (!LibUI_TopValue.existskey(_TopId) || !LibUI_TopName.existskey(_TopId)) return;
 	
-	declare Frame_Top		<=> (G_Slides[_SlideId].GetFirstChild("Frame_Top") as CMlFrame);
+	declare Frame_Top <=> (G_Slides[_SlideId].GetFirstChild("Frame_Top") as CMlFrame);
 	declare Entry = 1;
 	foreach (Frame_TopEntry in Frame_Top.Controls) {		
 		declare Label_Rank	<=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Label_Rank") as CMlLabel);
@@ -599,6 +639,8 @@ main() {
 	declare netread Integer[Integer] Net_LibUI_SlideType for Teams[0];
 	declare netread Text[Integer] Net_LibUI_SlideTitle for Teams[0];
 	declare netread Text[Integer] Net_LibUI_SlideContent for Teams[0];
+	declare netread Vec2 Net_LibUI_SlideHidePos for Teams[0];
+	declare netread Vec2 Net_LibUI_SlideShowPos for Teams[0];
 	
 	// Values shared from the Top2 library
 	declare Integer				LibUI_TopUpdate		for UI;
@@ -618,8 +660,8 @@ main() {
 	declare CurrentSlide = 0;
 	declare AnimStartTime = 0;
 	declare AnimEndTime = 0;
-	declare AnimStartPos = 0.;
-	declare AnimEndPos = 0.;
+	declare AnimStartPos = <0., 0.>;
+	declare AnimEndPos = <0., 0.>;
 	declare SliderIsVisible = False;
 	
 	declare Frame_Slider <=> (Page.GetFirstChild("Frame_Slider") as CMlFrame);
@@ -653,15 +695,15 @@ main() {
 				if (IsVisible && !SliderIsVisible) {
 					AnimStartTime	= Now;
 					AnimEndTime		= AnimStartTime + C_AnimDuration;
-					AnimStartPos	= C_AnimHidePos;
-					AnimEndPos		= C_AnimShowPos;
+					AnimStartPos	= Net_LibUI_SlideHidePos;
+					AnimEndPos		= Net_LibUI_SlideShowPos;
 					SliderIsVisible	= True;
 					Frame_Slider.Show();
 				} else if (!IsVisible && SliderIsVisible) {
 					AnimStartTime	= Now;
 					AnimEndTime		= AnimStartTime + C_AnimDuration;
-					AnimStartPos	= C_AnimShowPos;
-					AnimEndPos		= C_AnimHidePos;
+					AnimStartPos	= Net_LibUI_SlideShowPos;
+					AnimEndPos		= Net_LibUI_SlideHidePos;
 					SliderIsVisible	= False;
 				}
 			}
@@ -700,12 +742,14 @@ main() {
 		}
 		
 		if (AnimEndTime > 0 && AnimEndTime > Now) {
-			Frame_Slider.PosnY = EaseInOutBack(Now - AnimStartTime, AnimStartPos, AnimEndPos, C_AnimDuration, 1.1);
+			Frame_Slider.PosnX = EaseInOutBack(Now - AnimStartTime, AnimStartPos.X, AnimEndPos.X, C_AnimDuration, 1.1);
+			Frame_Slider.PosnY = EaseInOutBack(Now - AnimStartTime, AnimStartPos.Y, AnimEndPos.Y, C_AnimDuration, 1.1);
 		} else if (AnimEndTime > 0) {
-			Frame_Slider.PosnY = AnimEndPos;
+			Frame_Slider.PosnX = AnimEndPos.X;
+			Frame_Slider.PosnY = AnimEndPos.Y;
 			AnimStartTime = 0;
 			AnimEndTime = 0;
-			if (Frame_Slider.PosnY == C_AnimHidePos) Frame_Slider.Hide();
+			if (!SliderIsVisible) Frame_Slider.Hide();
 		}
 		
 		if (Slides.count > 1) {
@@ -798,6 +842,11 @@ Void CreateSlider() {
 	declare LayerSlider <=> UIManager.UILayerCreate();
 	G_LibUI_LayerSliderId = LayerSlider.Id;
 	UIManager.UIAll.UILayers.add(LayerSlider);
+	
+	declare netwrite Net_LibUI_SlideHidePos for Teams[0] = C_LibUI_SlideHidePos;
+	declare netwrite Net_LibUI_SlideShowPos for Teams[0] = C_LibUI_SlideShowPos;
+	Net_LibUI_SlideHidePos = C_LibUI_SlideHidePos;
+	Net_LibUI_SlideShowPos = C_LibUI_SlideShowPos;
 }
 
 // ---------------------------------- //
@@ -921,4 +970,17 @@ Void SetSliderPause(CSmPlayer _Player, Integer _Duration) {
 	
 	declare netwrite Integer Net_LibUI_SlidePauseDuration for UI;
 	Net_LibUI_SlidePauseDuration = _Duration;
+}
+
+// ---------------------------------- //
+/** Set the hide and show position of the animation
+ *
+ *	@param	_HidePos	The new hide position
+ *	@param	_ShowPos	The new show position
+ */
+Void SetSliderAnimation(Vec2 _HidePos, Vec2 _ShowPos) {
+	declare netwrite Net_LibUI_SlideHidePos for Teams[0] = C_LibUI_SlideHidePos;
+	declare netwrite Net_LibUI_SlideShowPos for Teams[0] = C_LibUI_SlideShowPos;
+	Net_LibUI_SlideHidePos = _HidePos;
+	Net_LibUI_SlideShowPos = _ShowPos;
 }

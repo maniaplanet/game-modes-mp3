@@ -4,7 +4,7 @@
  *	on the server from Club xml files
  */
 
-#Const Version		"2013-03-26"
+#Const Version		"2013-07-19"
 #Const ScriptName	"Clublink.Script.txt"
 
 #Include "TextLib" as TL
@@ -61,11 +61,14 @@ main() {
 		(Frame_Spectators.GetFirstChild("Quad_SponsorTeam2") as CMlQuad)
 	];
 	
+	declare netread Boolean Net_LibClubLink_DisplaySponsors for Teams[0];
+	
 	while (True) {
 		sleep(1000);
 		
 		// Display sponsors for spectators at the start/end of the map and the end of the round
 		declare DisplaySponsors =	IsSpectatorMode 
+									&& Net_LibClubLink_DisplaySponsors
 								 	&& (
 										UI.UISequence == CUIConfig::EUISequence::Podium 
 										|| UI.UISequence == CUIConfig::EUISequence::EndRound 
@@ -75,9 +78,9 @@ main() {
 		
 		if (DisplaySponsors) {
 			for (I, 0, 1) {
-				declare netread Text[] LibClubLink_TeamSponsors for Teams[I];
+				declare netread Text[] Net_LibClubLink_TeamSponsors for Teams[I];
 				declare Text Sponsor = "";
-				if (LibClubLink_TeamSponsors.count > 0) Sponsor = LibClubLink_TeamSponsors[(Now / C_SponsorCyclingDuration) % LibClubLink_TeamSponsors.count];
+				if (Net_LibClubLink_TeamSponsors.count > 0) Sponsor = Net_LibClubLink_TeamSponsors[(Now / C_SponsorCyclingDuration) % Net_LibClubLink_TeamSponsors.count];
 				Quad_Sponsor[I].ImageUrl	= Sponsor;
 				Quad_Sponsor[I].Visible		= (Sponsor != "");
 			}
@@ -210,11 +213,11 @@ Void Private_ResetClan(Integer _ClanNb) {
 	G_LibClubLink_TeamDesiredColor[_ClanNb - 1] = G_LibClubLink_TeamDefaultColor[_ClanNb - 1];
 	Private_ApplyDesiredTeamColors();
 	
-	declare netwrite Text[] LibClubLink_TeamSponsors for Team;
+	declare netwrite Text[] Net_LibClubLink_TeamSponsors for Team;
 	declare Text[] LibClubLink_TeamPlayerLogins for Team;
 	declare Text[] LibClubLink_TeamPlayerNicknames for Team;
 	declare Text[] LibClubLink_TeamPlayerAvatars for Team;
-	LibClubLink_TeamSponsors.clear();
+	Net_LibClubLink_TeamSponsors.clear();
 	LibClubLink_TeamPlayerLogins.clear();
 	LibClubLink_TeamPlayerNicknames.clear();
 	LibClubLink_TeamPlayerAvatars.clear();
@@ -251,14 +254,14 @@ Void Private_SetClan(Integer _ClanNb, CXmlDocument _Xml, Text _ClubLinkUrl) {
 	else					G_LibClubLink_TeamDesiredColor[_ClanNb - 1] = G_LibClubLink_TeamDefaultColor[_ClanNb - 1];
 	Private_ApplyDesiredTeamColors();
 	
-	declare netwrite Text[] LibClubLink_TeamSponsors for Team;
-	LibClubLink_TeamSponsors.clear();
+	declare netwrite Text[] Net_LibClubLink_TeamSponsors for Team;
+	Net_LibClubLink_TeamSponsors.clear();
 	declare Sponsors = Root.GetFirstChild("sponsors");
 	if (Sponsors != Null) {
 		foreach (Sponsor in Sponsors.Children) {
 			if (Sponsor.Name != "sponsor") continue;
 			declare Url = Private_ReadXmlText(Sponsor, "image_2x1");
-			if (Http.IsValidUrl(Url)) LibClubLink_TeamSponsors.add(Url);
+			if (Http.IsValidUrl(Url)) Net_LibClubLink_TeamSponsors.add(Url);
 		}
 	}
 	
@@ -406,7 +409,7 @@ Void Load(Boolean _UsePlayerClubLinks/*, Boolean _ForceClansFromClubLinks*/) {
 	G_LibClubLink_Request			= [1 => Null, 2 => Null];
 	
 	declare LayerTeams <=> UIManager.UILayerCreate();
-	declare G_LibClubLink_LayerTeamsId = LayerTeams.Id;
+	G_LibClubLink_LayerTeamsId = LayerTeams.Id;
 	LayerTeams.ManialinkPage = Private_CreateLayerTeams();
 	UIManager.UIAll.UILayers.add(LayerTeams);
 	
@@ -415,6 +418,39 @@ Void Load(Boolean _UsePlayerClubLinks/*, Boolean _ForceClansFromClubLinks*/) {
 	G_LibClubLink_SettingForceClans	= False;	///< Not fully implemented
 	G_LibClubLink_ForceClans		= False;
 	G_LibClubLink_Loaded			= True;
+	
+	declare netwrite Net_LibClubLink_DisplaySponsors for Teams[0] = True;
+	Net_LibClubLink_DisplaySponsors = True;
+}
+
+// ---------------------------------- //
+/// Attach the ClubLink layer
+Void Attach() {
+	if (!G_LibClubLink_Loaded) return;
+	if (!UIManager.UILayers.existskey(G_LibClubLink_LayerTeamsId)) return;
+	if (UIManager.UIAll.UILayers.existskey(G_LibClubLink_LayerTeamsId)) return;
+	
+	UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibClubLink_LayerTeamsId]);
+}
+
+// ---------------------------------- //
+/// Detach the ClubLink layer
+Void Detach() {
+	if (!G_LibClubLink_Loaded) return;
+	if (!UIManager.UILayers.existskey(G_LibClubLink_LayerTeamsId)) return;
+	if (!UIManager.UIAll.UILayers.existskey(G_LibClubLink_LayerTeamsId)) return;
+	
+	declare Removed = UIManager.UIAll.UILayers.removekey(G_LibClubLink_LayerTeamsId);
+}
+
+// ---------------------------------- //
+/** Toggle the sponsors display
+ *
+ *	@param	_Displayed		Hide or show the club sponsors
+ */
+Void SetSponsorsDisplay(Boolean _Displayed) {
+	declare netwrite Net_LibClubLink_DisplaySponsors for Teams[0] = True;
+	Net_LibClubLink_DisplaySponsors = _Displayed;
 }
 
 // ---------------------------------- //
@@ -446,6 +482,21 @@ Void SetTeamDefaultColor(Integer _Team, Vec3 _Color) {
 		G_LibClubLink_TeamDesiredColor[_Team] = _Color;
 		Private_ApplyDesiredTeamColors();
 	}
+}
+
+// ---------------------------------- //
+/** Get the sponsors list of a clan
+ *
+ *	@param	_Team	The team to check
+ *
+ *	@return			The sponsors with their logos
+ */
+Text[] GetTeamSponsors(Integer _Team) {
+	declare Empty = Text[];
+	if (!Teams.existskey(_Team)) return Empty;
+	
+	declare netwrite Net_LibClubLink_TeamSponsors for Teams[_Team] = Text[];
+	return Net_LibClubLink_TeamSponsors;
 }
 
 // ---------------------------------- //

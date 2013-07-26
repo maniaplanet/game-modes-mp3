@@ -6,7 +6,7 @@
  *	You'll have to update both at the same time
  */
 
-#Const Version		"2013-07-03"
+#Const Version		"2013-07-15"
 #Const ScriptName	"Top2.Script.txt"
 
 #Include "TextLib" as TL
@@ -16,6 +16,7 @@
 /* ------------------------------------- */
 #Const C_LibTop_TopWidth				40.
 #Const C_LibTop_PlayerCardHeight		6.
+#Const C_LibTop_TabName					"TopTab"
 #Const C_LibTop_CommonBackgroundImage	""
 #Const C_LibTop_CommonBackgroundPos		<0., 0.>
 #Const C_LibTop_CommonBackgroundSize	<0., 0.>
@@ -47,6 +48,7 @@ declare Vec2		G_LibTop_CommonBackgroundSize;	///< Size of this background
 declare Text[Text]	G_LibTop_Colors;				///< Colors of the manialink elements
 
 declare Text		G_LibTop_Title;					///< A Title for the tops layer
+declare Text		G_LibTop_TabName;				///< Name of the tab containing the tops (used by the tab library)
 
 /* ------------------------------------- */
 // Functions
@@ -253,7 +255,7 @@ main() {
 		
 		if (!PageIsVisible) continue;
 		
-		UpdateFrameTab(UI, Page, "TopTab", MainFrame);
+		UpdateFrameTab(UI, Page, "{{{G_LibTop_TabName}}}", MainFrame);
 		if (!MainFrame.Visible) continue;
 		
 		if (LastUpdate != Net_LibTop_TopUpdate) {
@@ -387,6 +389,7 @@ Void Load() {
 	G_LibTop_CommonBackgroundPos	= C_LibTop_CommonBackgroundPos;
 	G_LibTop_CommonBackgroundSize	= C_LibTop_CommonBackgroundSize;
 	G_LibTop_Colors					= C_LibTop_Colors;
+	G_LibTop_TabName				= C_LibTop_TabName;
 }
 
 /* ------------------------------------- */
@@ -537,6 +540,15 @@ Void SetTitle(Text _Title) {
 /// Set a default title to the common tops display
 Void SetDefaultTitle() {
 	G_LibTop_Title = _("Tops");
+}
+
+/* ------------------------------------- */
+/** Set the name of the tab containing the tops (used by the tab library)
+ *
+ *	@param	_TabName	The new name of the tab
+ */
+Void SetTabName(Text _TabName) {
+	G_LibTop_TabName = _TabName;
 }
 
 /* ------------------------------------- */

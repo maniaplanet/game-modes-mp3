@@ -2,7 +2,7 @@
  * ScoresTable library
  */
 
-#Const Version		"2013-07-11"
+#Const Version		"2013-07-24"
 #Const ScriptName	"ScoresTable.Script.txt"
 
 #Include "TextLib" as TL
@@ -64,6 +64,7 @@
 #Const C_LibST_FooterStatsTextSize 	2
 #Const C_LibST_DisplayPlayerInfo 	True
 #Const C_LibST_DisplayManiaStars 	True
+#Const C_LibST_TabName				"ScoresTab"
 #Const C_ImgBaseDir					"file://Media/Manialinks/Shootmania/Common/"
 
 // ---------------------------------- //
@@ -125,6 +126,7 @@ declare Boolean G_LibST_DisplayTeamScore;
 declare Integer	G_LibST_FooterStatsTextSize;
 declare Boolean G_LibST_DisplayPlayerInfo;
 declare Boolean G_LibST_DisplayManiaStars;
+declare Text	G_LibST_TabName;
 
 // ---------------------------------- //
 // Functions
@@ -302,6 +304,7 @@ Void Load() {
 	G_LibST_FooterStatsTextSize = C_LibST_FooterStatsTextSize;
 	G_LibST_DisplayPlayerInfo = C_LibST_DisplayPlayerInfo;
 	G_LibST_DisplayManiaStars = C_LibST_DisplayManiaStars;
+	G_LibST_TabName = C_LibST_TabName;
 	
 	// Disable the default scores table
 	UIManager.UIAll.ScoreTableOnlyManialink = True;
@@ -870,6 +873,16 @@ Void SetDisplayManiaStars(Boolean _DisplayManiaStars) {
 }
 
 // ---------------------------------- //
+/**
+ * Set the name of the tab (used by the tab library)
+ *
+ *	@param	_LibST_ScoresTab	The new name of the tab
+ */
+Void SetTabName(Text _TabName) {
+	G_LibST_TabName = _TabName;
+}
+
+// ---------------------------------- //
 /** Get the height of the scores table
  *
  *	@return		The height of the table once it is built
@@ -935,7 +948,7 @@ Void Build(Boolean _ForceUseClans, Boolean _UseClans) {
 	declare BGML	= "";
 	
 	// With 2 images
-	if(G_LibST_TableBackgroundImageLeft!="") {
+	if(G_LibST_TableBackgroundImageLeft != "") {
 		declare Pos			= G_LibST_TableBackgroundPos.X^" "^G_LibST_TableBackgroundPos.Y^" "^(C_LibST_Z);
 		declare PosLeft		= (G_LibST_TableBackgroundPos.X-G_LibST_TableBgLeftRightXOffset)^" "^(G_LibST_TableBackgroundPos.Y-G_LibST_TableBgLeftRightYOffset)^" "^(C_LibST_Z + 16);
 		declare PosRight	= (G_LibST_TableBackgroundPos.X+G_LibST_TableBgLeftRightXOffset)^" "^(G_LibST_TableBackgroundPos.Y-G_LibST_TableBgLeftRightYOffset)^" "^(C_LibST_Z + 16);
@@ -947,9 +960,9 @@ Void Build(Boolean _ForceUseClans, Boolean _UseClans) {
 		<quad posn="{{{Pos}}}" sizen="{{{Size}}}" halign="center" image="{{{
 			G_LibST_TableBackgroundImage}}}" />
 		<quad posn="{{{PosLeft}}}" sizen="{{{SizeLeftRight}}}" halign="center" image="{{{
-			G_LibST_TableBackgroundImageLeft}}}" colorize="{{{G_LibST_TableBackgroundLeftColor}}}" />
+			G_LibST_TableBackgroundImageLeft}}}" colorize="{{{G_LibST_TableBackgroundLeftColor}}}" id="Quad_ColorTeam1" />
 		<quad posn="{{{PosRight}}}" sizen="{{{SizeLeftRight}}}" halign="center" image="{{{
-			G_LibST_TableBackgroundImageRight}}}" colorize="{{{G_LibST_TableBackgroundRightColor}}}"/>
+			G_LibST_TableBackgroundImageRight}}}" colorize="{{{G_LibST_TableBackgroundRightColor}}}" id="Quad_ColorTeam2" />
 		""";
 	}
 	else {
@@ -1009,15 +1022,17 @@ Void Build(Boolean _ForceUseClans, Boolean _UseClans) {
 	declare PagerUp 	= PagerImagePath^"pagerUpOff.dds";
 	declare PagerDown 	= PagerImagePath^"pagerDownOff.dds";
 	declare PagerEnd	= PagerImagePath^"pagerEmpty.dds";
-	declare PagerPosX	= 2.5;
+	declare PagerPosX	= 3.;
 	declare PagerPosY	= 8.5;
+	declare PagerScale	= 1.5;
 	if (LibST_UseClans) {
 		PagerPosX	= 2.5;
 		PagerPosY	= 1.3;
+		PagerScale	= 1.;
 	}
 	
 	declare PagerML = """
-<frame posn="{{{(G_LibST_TableSizeX/2.)-PagerPosX}}} {{{-G_LibST_HeaderSizeY+PagerPosY}}} 3" id="Frame_Pager" hidden="1">
+<frame posn="{{{(G_LibST_TableSizeX/2.)-PagerPosX}}} {{{-G_LibST_HeaderSizeY+PagerPosY}}} 3" scale="{{{PagerScale}}}" id="Frame_Pager" hidden="1">
 	<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="4 4" halign="center"  valign="center" image="{{{PagerDown}}}" scriptevents="1" id="Button_PageNext" />
 	<quad posn="0 0 {{{C_LibST_Z+1}}}" sizen="4 4" halign="center"  valign="center" image="{{{PagerEnd}}}" hidden="1" id="Button_PageNextOff" />
 	<quad posn="-4 0 {{{C_LibST_Z+1}}}" sizen="4 4" halign="center" valign="center" image="{{{PagerUp}}}" scriptevents="1" id="Button_PagePrev" />
@@ -1234,7 +1249,7 @@ Void Build(Boolean _ForceUseClans, Boolean _UseClans) {
 		<label posn="{{{((I-1)*PShiftX)-0.5}}} {{{(-(J-1)*PShiftY)-(PSizeY/2.)-PLegendSizeY}}}" hidden="1" id="Label_PlayerPos_{{{J}}}" />
 		<frameinstance modelid="Frame_Player" id="Frame_Player_{{{J}}}" />
 		<frame posn="0 {{{PTopPosY}}}" id="Frame_Buttons">
-			<quad posn="{{{SpectatorPosX-(_X("Spectator")/2.)}}} 0 {{{C_LibST_Z+11}}}" sizen="{{{SpectatorSize.X}}} {{{SpectatorSize.Y}}}" halign="center" valign="center" style="UIConstructionSimple_Buttons" substyle="Camera" scriptevents="1" id="Button_Spec_{{{Key}}}" />
+			<quad posn="{{{SpectatorPosX-(_X("Spectator")/2.)}}} 0 {{{C_LibST_Z+11}}}" sizen="{{{SpectatorSize.X}}} {{{SpectatorSize.Y}}}" halign="center" valign="center" style="UIConstructionSimple_Buttons" substyle="Camera" scriptevents="1" hidden="1" id="Button_Spec_{{{Key}}}" />
 			<quad posn="{{{ProfilePosX-(_X("Profile")/2.)}}} 0 {{{C_LibST_Z+11}}}" sizen="{{{ProfileSize.X}}} {{{ProfileSize.Y}}}" halign="center" valign="center" style="UIConstructionSimple_Buttons" substyle="Author" scriptevents="1" id="Button_Prof_{{{Key}}}" />
 		</frame>
 	</frame>
@@ -1277,6 +1292,18 @@ Void Build(Boolean _ForceUseClans, Boolean _UseClans) {
 """;
 	
 	// ---------------------------------- //
+	// Create the spec confirmation window
+	declare FrameSpec = """
+<quad posn="0 0 {{{ZText+15}}}" sizen="{{{PSizeX}}} {{{PSizeY+0.5}}}" bgcolor="111e" scriptevents="1" />
+<frame posn="0 {{{(-PSizeY/2.)-0.25}}} {{{ZText+16}}}">
+	<label posn="3. 0" sizen="{{{PSizeX-25.}}} 5" valign="center2" textsize="2" textemboss="1" text="{{{_("Switch to spectator mode?")}}}" /> 
+	<format style="TextButtonNav" />
+	<label posn="{{{PSizeX-17.3}}} 0" sizen="10 5" halign="center" valign="center" focusareacolor1="333f" focusareacolor2="eeef" textcolor="fff" text="{{{_("Yes")}}}" scriptevents="1" id="Button_SpecYes" />
+	<label posn="{{{PSizeX-7.}}} 0" sizen="10 5" halign="center" valign="center" focusareacolor1="333f" focusareacolor2="eeef" textcolor="fff" text="{{{_("No")}}}" scriptevents="1" id="Button_SpecNo" />
+</frame>
+""";
+	
+	// ---------------------------------- //
 	// Scores table
 	declare TablePos = G_LibST_TablePosX^" "^G_LibST_TablePosY^" "^C_LibST_Z;
 	declare PlayersPos = (-G_LibST_TableSizeX/2.)^" "^(-G_LibST_HeaderSizeY);
@@ -1290,6 +1317,9 @@ Void Build(Boolean _ForceUseClans, Boolean _UseClans) {
 	</frame>
 	<frame posn="{{{PlayersPos}}}" id="Frame_Players">
 		{{{PlayersML}}}
+		<frame id="Frame_Spec" hidden="1">
+			{{{FrameSpec}}}
+		</frame>
 	</frame>
 	<frame posn="{{{FooterPos}}}" id="Frame_Footer" hidden="1">
 		{{{FooterML}}}
@@ -1327,9 +1357,9 @@ declare Integer G_PageStart;
 declare Integer G_PageEnd;
 declare Integer G_PageRange;
 
+declare Text G_LastSpecButtonId;
+declare Text G_LastSpecLogin;
 declare Integer[Integer] G_ClansNbPlayers;
-
-declare Text[Integer] G_Test;
 
 declare CMlFrame	Frame_Pager;
 declare CMlQuad		Button_PageNext;
@@ -1346,6 +1376,7 @@ declare CMlLabel	Label_PIPosition;
 declare CMlLabel	Label_PIStats;
 declare CMlLabel	Label_PICustom1;
 declare CMlLabel	Label_PICustom2;
+declare CMlFrame	Frame_Spec;
 
 Boolean Filter(CGamePlayerInfo _User) {
 	declare netread Text[]	Net_LibST_FilterLogins for Teams[0];
@@ -1619,7 +1650,7 @@ Void UpdatePlayersList() {
 		}
 		
 		if (Button_Spec != Null) {
-			if (Score.User.Login != LocalUser.Login) {
+			if (Score.User.Login != LocalUser.Login && LibST_PrevStatus == C_Spawned) {
 				Button_Spec.Show();
 				declare Text Login for Button_Spec;
 				Login = Score.User.Login;
@@ -1662,6 +1693,11 @@ Void UpdatePlayersList() {
 			Frame_Legends.Show();
 			Frame_Tags.Hide();
 		}*/
+		
+		if (Frame_Spec.Visible && Score.User.Login == G_LastSpecLogin) {
+			Frame_Spec.PosnX = Label_PlayerPos.PosnX;
+			Frame_Spec.PosnY = Label_PlayerPos.PosnY + ({{{PSizeY}}} / 2.) + 0.25;
+		}
 		
 		if ({{{LibST_UseClans}}}) {
 			if (LibST_PrevClan == 1) RowClan1 += 1;
@@ -1714,6 +1750,8 @@ Void UpdateHeader() {
 		declare Label_NameTeam2		<=> (Frame_VS.GetFirstChild("Label_NameTeam2")	as CMlLabel);
 		declare Label_ScoreTeam1	<=> (Frame_VS.GetFirstChild("Label_ScoreTeam1")	as CMlLabel);
 		declare Label_ScoreTeam2	<=> (Frame_VS.GetFirstChild("Label_ScoreTeam2")	as CMlLabel);
+		declare Quad_ColorTeam1		<=> (Page.GetFirstChild("Quad_ColorTeam1")		as CMlQuad);
+		declare Quad_ColorTeam2		<=> (Page.GetFirstChild("Quad_ColorTeam2")		as CMlQuad);
 		
 		if (Teams[0].ColorizedName == "$<$00fBlue$>") Label_NameTeam1.SetText("$<$fffBlue$>");
 		else Label_NameTeam1.SetText(Teams[0].ColorizedName);
@@ -1727,6 +1765,9 @@ Void UpdateHeader() {
 			Label_ScoreTeam1.SetText("");
 			Label_ScoreTeam2.SetText("");
 		}
+		
+		Quad_ColorTeam1.Colorize = Teams[0].ColorPrimary;
+		Quad_ColorTeam2.Colorize = Teams[1].ColorPrimary;
 	} else {
 		declare Label_Header <=> (Page.GetFirstChild("Label_Header") as CMlLabel);
 		if (Label_Header == Null) return;
@@ -1813,6 +1854,8 @@ Void UpdatePager(Integer _Step) {
 	} else if (G_PageCurrent == G_PageMax) { 
 		Button_PageNext.Hide(); Button_PageNextOff.Show();
 	}
+	
+	if (_Step != 0 && Frame_Spec.Visible) Frame_Spec.Hide();
 }
 
 Void FindPlayer() {
@@ -1839,10 +1882,37 @@ Void FindPlayer() {
 	}
 }
 
+Void UpdateSpectate(Text _Login, Text _ControlId) {
+	G_LastSpecLogin = _Login;
+	
+	if (IsSpectatorMode) {
+		if (Frame_Spec.Visible) Frame_Spec.Hide();
+		SetSpectateTarget(_Login);
+	} else {
+		G_LastSpecButtonId = _ControlId;
+		
+		if (!Frame_Spec.Visible) Frame_Spec.Show();
+		
+		declare Key = TL::ToInteger(TL::SubString(_ControlId, 12, 10));
+		declare Col = ((Key - 1) / C_LinesByColNb) + 1;
+		declare Row = Key % C_LinesByColNb;
+		if (Row == 0) Row = C_LinesByColNb;
+		
+		declare Frame_Col <=> (Frame_Players.GetFirstChild("Frame_Col_"^Col) as CMlFrame);
+		if (Frame_Col != Null) {
+			declare Label_PlayerPos <=> (Frame_Col.GetFirstChild("Label_PlayerPos_"^Row) as CMlLabel);
+			if (Label_PlayerPos != Null) {
+				Frame_Spec.PosnX = Label_PlayerPos.PosnX + 0.5;
+				Frame_Spec.PosnY = Label_PlayerPos.PosnY + ({{{PSizeY}}} / 2.) + 0.25;
+			}
+		}
+	}
+}
+
 /**
  * Called By the client UI.
  * Update a Manialink page, showing the frame of [Page] with Id [FrameTabId]
- * iff the tab [TabKey] is selected.
+ * if the tab [TabKey] is selected.
  * @param UI		 	UI of the player (variable "UI" in client manialink).
  * @param Page 			Manialink page containing the tab page (assumably variable "Page" in client manialink).
  * @param TabKey 		The key associated to this tab, as defined in CreateTabPaneLayer.
@@ -1883,6 +1953,7 @@ main() {
 	
 	declare PrevClanScores		= [1 => 0, 2 => 0];
 	declare PrevTeamsName		= [0 => "", 1 => ""];
+	declare PrevTeamsColor		= [0 => Vec3, 1 => Vec3];
 	declare PrevServerName		= "";
 	declare PrevFilterUpdate	= 0;
 	
@@ -1894,6 +1965,8 @@ main() {
 	G_PageStart		= 0;
 	G_PageEnd		= 0;
 	
+	G_LastSpecButtonId = "";
+	G_LastSpecLogin = "";
 	G_ClansNbPlayers = [0 => 0, 1 => 0, 2 => 0];
 	
 	if ({{{LibST_UseClans}}}) G_PageRange = C_LinesByColNb;
@@ -1914,9 +1987,10 @@ main() {
 	Label_PIStats		<=> (Frame_Footer.GetFirstChild("Label_PIStats")		as CMlLabel);
 	Label_PICustom1		<=> (Frame_Footer.GetFirstChild("Label_PICustom1")		as CMlLabel);
 	Label_PICustom2		<=> (Frame_Footer.GetFirstChild("Label_PICustom2")		as CMlLabel);
+	Frame_Spec			<=> (Page.GetFirstChild("Frame_Spec")					as CMlFrame);
+	
 	
 	declare CMlFrame MainFrame <=> (Page.GetFirstChild("Frame_ScoresTable") as CMlFrame);
-	
 	UpdatePager(0);
 	declare Boolean PageNeverShown = True;
 	
@@ -1965,7 +2039,7 @@ main() {
 			PageNeverShown = False;
 			MainFrame.Show();
 		}
-		UpdateFrameTab(UI, Page, "ScoresTab", MainFrame);
+		UpdateFrameTab(UI, Page, "{{{G_LibST_TabName}}}", MainFrame);
 		if (!MainFrame.Visible) continue;		
 		
 		if (PrevRefresh + C_RefreshInterval < Now) {
@@ -2071,12 +2145,16 @@ main() {
 				(
 					Teams[0].ColorizedName != PrevTeamsName[0]
 					|| Teams[1].ColorizedName != PrevTeamsName[1]
+					|| Teams[0].ColorPrimary != PrevTeamsColor[0]
+					|| Teams[1].ColorPrimary != PrevTeamsColor[1]
 					|| ClanScores[1] != PrevClanScores[1]
 					|| ClanScores[2] != PrevClanScores[2]
 				)
 			) {
 				PrevTeamsName[0] = Teams[0].ColorizedName;
 				PrevTeamsName[1] = Teams[1].ColorizedName;
+				PrevTeamsColor[0] = Teams[0].ColorPrimary;
+				PrevTeamsColor[1] = Teams[1].ColorPrimary;
 				PrevClanScores[1] = ClanScores[1];
 				PrevClanScores[2] = ClanScores[2];
 				NeedUpdateHeader = True;
@@ -2130,19 +2208,25 @@ main() {
 					UpdatePlayersList();
 				} else if (Event.ControlId == "Button_PagePlayer") {
 					FindPlayer();
+				} else if (Event.ControlId == "Button_SpecYes") {
+					if (Frame_Spec.Visible) Frame_Spec.Hide();
+					IsSpectatorMode = True;
+					SetSpectateTarget(G_LastSpecLogin);
+					G_LastSpecButtonId = "";
+					G_LastSpecLogin = "";
+				} else if (Event.ControlId == "Button_SpecNo") {
+					if (Frame_Spec.Visible) Frame_Spec.Hide();
+					G_LastSpecButtonId = "";
+					G_LastSpecLogin = "";
 				} else {
 					declare ShortControlId = TL::SubString(Event.ControlId, 0, 12);
 					if (ShortControlId == "Button_Spec_") {
-						declare Key = G_PageStart - 1 + TL::ToInteger(TL::SubString(Event.ControlId, 12, 10));
-						
 						declare CMlQuad Button_Spec <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
 						if (Button_Spec != Null) {
 							declare Text Login for Button_Spec;
-							Spectate(Login);
+							UpdateSpectate(Login, Event.ControlId);
 						}
 					} else if (ShortControlId == "Button_Prof_") {
-						declare Key = G_PageStart - 1 + TL::ToInteger(TL::SubString(Event.ControlId, 12, 10));
-						
 						declare CMlQuad Button_Prof <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
 						if (Button_Prof != Null) {
 							declare Text Login for Button_Prof;

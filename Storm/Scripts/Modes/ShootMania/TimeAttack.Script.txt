@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"TimeAttackArena"
-#Const Version				"2013-06-19"
+#Const Version				"2013-07-24"
 #Const ScriptName			"TimeAttack.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -66,10 +66,7 @@ UseClans			= False;
 
 // ---------------------------------- //
 // Create the rules
-declare ModeName = "Time Attack";
-declare ModeRulesBase = _("Individual mode\n\n- You must finish the race as fast as possible.\n- To validate a race you must touch the finish after going through all the checkpoints.\n- You can start over and improve your time as often as you want during %1 minutes.\n- The player with the best time after %1 minutes wins the map.\n\n- Press the respawn button to restart from the beginning.");
-declare ModeRules = TextLib::Compose(ModeRulesBase, TextLib::ToText(S_TimeLimit / 60));
-SpawnScreen::CreateRules(ModeName, ModeRules);
+CreateRules();
 ModeStatusMessage = _("TYPE: Individual\nOBJECTIVE: Finish the race as fast as possible after going through all the checkpoints.");
 
 SpawnScreen::CreateMapInfo();
@@ -142,14 +139,13 @@ foreach (BlockPole in BlockPoles) {
 
 if (G_TimeLimit != S_TimeLimit) {
 	G_TimeLimit = S_TimeLimit;
-	ModeRules = TextLib::Compose(ModeRulesBase, TextLib::ToText(G_TimeLimit / 60));
 	foreach (Player in Players) {
 		ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Time limit: %1"), TextLib::TimeToText(S_TimeLimit*1000, False)));
 	}
 	foreach (Spectator in Spectators) {
 		ScoresTable::SetFooterStats(Spectator, TextLib::Compose(_("Time limit: %1"), TextLib::TimeToText(S_TimeLimit*1000, False)));
 	}
-	SpawnScreen::CreateRules(ModeName, ModeRules);
+	CreateRules();
 }
 
 InitPlayers();
@@ -396,6 +392,7 @@ UIManager.UIAll.BigMessage = "";
 ScoresTable::Unload();
 Chrono::Unload();
 SpawnScreen::DestroyRules();
+SpawnScreen::DestroyMapInfo();
 LayerDetached = Layers::Detach("TopTimes", NullId);
 LayerDetached = Layers::Detach("Info", NullId);
 UIManager.UILayerDestroyAll();
@@ -406,7 +403,28 @@ UIManager.UILayerDestroyAll();
 // Functions
 // ---------------------------------- //
 
-/* ------------------------------------- */
+// ---------------------------------- //
+/// Create the rules in the spawn screnn
+Void CreateRules() {
+	declare ModeName = "Time Attack";
+	declare ModeObjectives = TextLib::Compose(_("$<%11. $>You must finish the race as fast as possible.\n$<%12. $>To validate a race you must touch the finish after going through all the checkpoints.\n$<%13. $>You can start over and improve your time as often as you want during %2 minutes.\n$<%14. $>The player with the best time after %2 minutes wins the map."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_TimeLimit / 60));
+	declare ModeConditions = TextLib::Compose(_("$<%11. $>Press the respawn button to restart from the beginning."), "$"^SpawnScreen::GetModeColor());
+	
+	SpawnScreen::AddSubsection(_("Type"), _("Solo"), 0.);
+	SpawnScreen::AddSubsection(
+		_("Objectives"), 
+		ModeObjectives, 
+		25.
+	);
+	SpawnScreen::AddSubsection(
+		_("Conditions"), 
+		ModeConditions, 
+		70.
+	);
+	SpawnScreen::CreatePrettyRules(ModeName);
+}
+
+// ---------------------------------- //
 /** Update the ranking of the players
  *
  *	@return			The rank of the player
@@ -439,7 +457,7 @@ Void UpdateRanking() {
 	}
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Create the info manialink
  *
  *	@return		The manialink Text
@@ -515,7 +533,7 @@ return
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Create the timediff manialink
  *
  *	@return	The manialink Text
@@ -573,7 +591,7 @@ Text CreateLayerTimeDiff() {
 """;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Update the timediff manialink
  *
  *	@param _Player		The player to update

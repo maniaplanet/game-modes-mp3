@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2013-07-03"
+#Const ModeBaseVersion		"2013-07-15"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -185,6 +185,8 @@ main() {
 	MB_NeutralEmblemUrl = "";
 	MB_XmlRpcCheck();
 	MB_NeutralEmblemUpdate();
+	
+	//UIManager.UIAll.UISequence_CanSkipIntroMT = True;
 	
 	if (MB_UseLogging) MB_Log("StartServer");
 

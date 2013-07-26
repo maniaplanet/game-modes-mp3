@@ -1,10 +1,15 @@
 /**
  *	WarmUp lib
  */
-#Const	Version		"2013-07-11"
+#Const	Version		"2013-07-18"
 #Const	ScriptName	"WarmUp2.Script.txt"
 
 #Include "TextLib" as TL
+
+// ---------------------------------- //
+// Constant
+// ---------------------------------- //
+#Const C_LibWarmUp2_LayerPosition <0., -50.>
 
 // ---------------------------------- //
 // Globales
@@ -29,78 +34,84 @@ declare Boolean G_LibWarmUp2_Updated;
  *	@return		The warm up manialink
  */
 Text Private_CreateLayerWarmUp() {
-	declare SlotWidth = 45.;
-	declare SlotHeight = 6.;
-	declare SlotMargin = 5.;
+	declare ImgPath = "file://Media/Manialinks/Common/WarmUp/";
+	declare ImgPath2 = "file://Media/Manialinks/ShootMania/Common/Pager/";
+	declare SlotWidth = 50.;
+	declare SlotHeight = 9.;
+	declare SlotMargin = 0.;
 	declare LabelWidth = SlotWidth - SlotHeight;
 	declare IconWidth = SlotHeight;
 	declare LabelPosX = IconWidth / 2.;
 	declare IconPosX = -LabelWidth / 2.;
+	declare Clan1Color = TL::ColorToText(Teams[0].ColorPrimary);
+	declare Clan2Color = TL::ColorToText(Teams[1].ColorPrimary);
 	
 	return """
-<frame posn="0 -50" id="Frame_WarmUp">
+<frame posn="{{{C_LibWarmUp2_LayerPosition.X}}} {{{C_LibWarmUp2_LayerPosition.Y}}}" id="Frame_WarmUp">
 	<format textemboss="1" />
 	<frame posn="0 0" id="Frame_Pager">
-		<quad posn="-126.5 0" sizen="8 8" halign="center" valign="center" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1" id="Button_PagerPrev" />
-		<quad posn="126.5 0" sizen="8 8" halign="center" valign="center" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1" id="Button_PagerNext" />
-		<quad posn="-126.5 0" sizen="8 8" halign="center" valign="center" style="Icons64x64_1" substyle="ClipPause" hidden="1" id="Button_PagerPrevOff" />
-		<quad posn="126.5 0" sizen="8 8" halign="center" valign="center" style="Icons64x64_1" substyle="ClipPause" hidden="1" id="Button_PagerNextOff" />
+		<quad posn="-126.5 0" sizen="8 6" halign="center" valign="center" image="{{{ImgPath2}}}pagerLeftOff.dds" imagefocus="{{{ImgPath2}}}pagerLeftOn.dds" scriptevents="1" id="Button_PagerPrev" />
+		<quad posn="126.5 0" sizen="8 6" halign="center" valign="center" image="{{{ImgPath2}}}pagerRightOff.dds" imagefocus="{{{ImgPath2}}}pagerRightOn.dds" scriptevents="1" id="Button_PagerNext" />
+		<quad posn="-126.5 0" sizen="8 6" halign="center" valign="center" image="{{{ImgPath2}}}pagerEmpty.dds" hidden="1" id="Button_PagerPrevOff" />
+		<quad posn="126.5 0" sizen="8 6" halign="center" valign="center" image="{{{ImgPath2}}}pagerEmpty.dds" hidden="1" id="Button_PagerNextOff" />
 	</frame>
 	<frame posn="0 0">
-		<label posn="0 8 4" halign="center" textemboss="1" textsize="2" text="{{{_("Players order")}}}" />
-		<quad posn="0 -4 -1" sizen="284 39" halign="center" valign="center" image="file://Media/Manialinks/ShootMania/Common/WelcomeBg.dds" id="Quad_OrderBg" />
-		<quad posn="0 -9.5 -1" sizen="106.5 9" halign="center" valign="center" style="Bgs1InRace" substyle="BgList" />
+		<quad posn="0 -3 2" sizen="284 20" halign="center" valign="center" image="{{{ImgPath}}}Structure.dds" id="Quad_OrderBg" />
+		<quad posn="0 7.1 3" sizen="50 10" halign="center" valign="center" image="{{{ImgPath}}}TitleBg.dds" />
+		<label posn="0 7.4 4" sizen="35 10" halign="center" valign="center" textemboss="1" textsize="1" style="TextTitle3" text="{{{_("Players order")}}}" />
 		<frame id="Frame_Order">
 			<format textsize="2" />
 			<frame posn="-100 0" class="Frame_Slot" id="1" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff2" scriptevents="1" class="Quad_Slot" id="1" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="050a" hidden="1" id="Quad_SlotReady" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="500a" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("First (Press 1)")}}}" id="Label_EmptySlot" />
+				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="1" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
+				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("First (Press 1)")}}}" id="Label_EmptySlot" />
 			</frame>
 			<frame posn="-50 0" class="Frame_Slot" id="2" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff2" scriptevents="1" class="Quad_Slot" id="2" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="050a" hidden="1" id="Quad_SlotReady" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="500a" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Second (Press 2)")}}}" id="Label_EmptySlot" />
+				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="2" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
+				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Second (Press 2)")}}}" id="Label_EmptySlot" />
 			</frame>
 			<frame posn="0 0" class="Frame_Slot" id="3" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff2" scriptevents="1" class="Quad_Slot" id="3" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="050a" hidden="1" id="Quad_SlotReady" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="500a" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Third (Press 3)")}}}" id="Label_EmptySlot" />
+				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="3" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
+				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Third (Press 3)")}}}" id="Label_EmptySlot" />
 			</frame>
 			<frame posn="50 0" class="Frame_Slot" id="4" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff2" scriptevents="1" class="Quad_Slot" id="4" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="050a" hidden="1" id="Quad_SlotReady" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="500a" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Fourth (Press 4)")}}}" id="Label_EmptySlot" />
+				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="4" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
+				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Fourth (Press 4)")}}}" id="Label_EmptySlot" />
 			</frame>
 			<frame posn="100 0" class="Frame_Slot" id="5" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff2" scriptevents="1" class="Quad_Slot" id="5" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="050a" hidden="1" id="Quad_SlotReady" />
-				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" bgcolor="500a" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Fifth (Press 5)")}}}" id="Label_EmptySlot" />
+				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="5" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
+				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
+				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Fifth (Press 5)")}}}" id="Label_EmptySlot" />
 			</frame>
 		</frame>
 	</frame>
-	<frame posn="0 -6" scale="0.85" hidden="1" id="Frame_ClanSelection">
-		<label posn="-25 0 4" halign="right" style="CardButtonMedium" text="(F3) Join {{{Teams[0].ColorizedName}}}" ScriptEvents="1" id="Button_JoinClan1" />
-		<label posn="25 0 4" halign="left" style="CardButtonMedium" text="(F4) Join {{{Teams[1].ColorizedName}}}" ScriptEvents="1" id="Button_JoinClan2" />
+	<frame posn="0 -9 3" scale="0.85" hidden="1" id="Frame_ClanSelection">
+		<label posn="-47 0.2" textsize="1" halign="center" valign="center2" style="TextTitle3" textcolor="fff" text="Join {{{Teams[0].Name}}} (F3)" id="Label_JoinClan1" />
+		<label posn="47 0.2" textsize="1" halign="center" valign="center2" style="TextTitle3" textcolor="fff" text="Join {{{Teams[1].Name}}} (F4)" id="Label_JoinClan2" />
+		<quad posn="-47 0" sizen="40 10" halign="center" valign="center" image="{{{ImgPath}}}ButtonOff.dds" imagefocus="{{{ImgPath}}}ButtonOn.dds" colorize="{{{Clan1Color}}}" ScriptEvents="1" id="Button_JoinClan1" />
+		<quad posn="47 0" sizen="40 10" halign="center" valign="center" image="{{{ImgPath}}}ButtonOff.dds" imagefocus="{{{ImgPath}}}ButtonOn.dds" colorize="{{{Clan2Color}}}" ScriptEvents="1" id="Button_JoinClan2" />
 	</frame>
-	<frame posn="0 -6" scale="0.85" id="Frame_Ready">
-		<label posn="0 0 4" halign="center" style="CardButtonMedium" text="  (F6) Ready" ScriptEvents="1" id="Button_Ready" />
-		<quad posn="-16 -1.4 5" sizen="5 5" style="Icons64x64_1" substyle="LvlRed" id="Quad_Ready" />
+	<frame posn="-0.15 -10.5 3" scale="0.85" id="Frame_Ready">	
+		<label sizen="50 10" halign="center" valign="center2" style="TextTitle3" text="Ready (F6)" />
+		<quad sizen="60 15" halign="center" valign="center" image="{{{ImgPath}}}ButtonOff.dds" imagefocus="{{{ImgPath}}}ButtonOn.dds" ScriptEvents="1" id="Button_Ready" />
 	</frame>
 </frame>
 <script><!--
@@ -131,14 +142,14 @@ CSmPlayer FindPlayerFromLogin(Text _Login) {
 
 Void UpdateSlotsPosition(Integer _ItemsNb) {
 	declare ItemWidth = {{{SlotWidth}}};
-	declare ItemMargin = 5.;
+	declare ItemMargin = {{{SlotMargin}}};
 	declare Width = (_ItemsNb * ItemWidth) + ((_ItemsNb - 1) * ItemMargin);
 	declare X = -((Width - ItemWidth)/ 2.);
 	
-	Button_PagerPrev.PosnX = X-(ItemWidth/2.)-4.;
-	Button_PagerNext.PosnX = -X+(ItemWidth/2.)+4.;
-	Button_PagerPrevOff.PosnX = X-(ItemWidth/2.)-4.;
-	Button_PagerNextOff.PosnX = -X+(ItemWidth/2.)+4.;
+	Button_PagerPrev.PosnX = X-(ItemWidth/2.)-8.;
+	Button_PagerNext.PosnX = -X+(ItemWidth/2.)+8.;
+	Button_PagerPrevOff.PosnX = X-(ItemWidth/2.)-8.;
+	Button_PagerNextOff.PosnX = -X+(ItemWidth/2.)+8.;
 	
 	foreach (Key => Frame_Slot in Frames_Slot) {
 		Frame_Slot.PosnX = X;
@@ -148,12 +159,9 @@ Void UpdateSlotsPosition(Integer _ItemsNb) {
 		else Frame_Slot.Hide();
 	}
 	
-	declare PagerWidth = 0.;
-	if (G_PageMax > 1) PagerWidth = 10.;
-	
 	declare Quad_OrderBg <=> (Page.GetFirstChild("Quad_OrderBg") as CMlQuad);
-	Quad_OrderBg.Size.X = (((ItemWidth + ItemMargin) * _ItemsNb) + ItemMargin) + PagerWidth - 2. + 22.;
-	if (Quad_OrderBg.Size.X < 120.) Quad_OrderBg.Size.X = 120.;
+	Quad_OrderBg.Size.X = Width + (2. * _ItemsNb);
+	//if (Quad_OrderBg.Size.X < 120.) Quad_OrderBg.Size.X = 120.;
 }
 
 Void UpdateIcons() {
@@ -326,15 +334,17 @@ main() {
 	Button_PagerPrevOff	<=> (Page.GetFirstChild("Button_PagerPrevOff")	as CMlQuad);
 	Button_PagerNextOff	<=> (Page.GetFirstChild("Button_PagerNextOff")	as CMlQuad);
 	declare Frame_ClanSelection	<=> (Page.GetFirstChild("Frame_ClanSelection")	as CMlFrame);
-	declare Quad_Ready			<=> (Page.GetFirstChild("Quad_Ready")			as CMlQuad);
-	declare Button_JoinClan1	<=> (Page.GetFirstChild("Button_JoinClan1")		as CMlLabel);
-	declare Button_JoinClan2	<=> (Page.GetFirstChild("Button_JoinClan2")		as CMlLabel);
+	declare Label_JoinClan1	<=> (Page.GetFirstChild("Label_JoinClan1")	as CMlLabel);
+	declare Label_JoinClan2	<=> (Page.GetFirstChild("Label_JoinClan2")	as CMlLabel);
+	declare Button_JoinClan1	<=> (Page.GetFirstChild("Button_JoinClan1")	as CMlQuad);
+	declare Button_JoinClan2	<=> (Page.GetFirstChild("Button_JoinClan2")	as CMlQuad);
 	
 	declare netread Integer Net_LibWarmUp2_SynchroServer		for Teams[0];
 	declare netread Boolean	Net_LibWarmUp2_DisplayClanSelection	for Teams[0];
 	declare netread Integer	Net_LibWarmUp2_GroupsUpdate			for Teams[0];
 	declare netread Text	Net_LibWarmUp2_CurrentGroup			for UI;
 	declare netread Integer	Net_LibWarmUp2_IconUpdate			for Teams[0];
+	declare netread Vec2	Net_LibWarmUp2_LayerPosition		for Teams[0];
 	
 	declare netwrite Integer Net_LibWarmUp2_SynchroClient for UI;
 	declare netwrite Integer Net_LibWarmUp2_SlotUpdate for UI;
@@ -359,8 +369,11 @@ main() {
 	declare PrevGroup = "";
 	declare PrevClan1Name = "";
 	declare PrevClan2Name = "";
+	declare PrevClan1Color = <0., 0., 0.>;
+	declare PrevClan2Color = <0., 0., 0.>;
 	declare PrevIsSpectatorMode = False;
 	declare PrevIconUpdate = 0;
+	declare PrevLayerPosition = {{{C_LibWarmUp2_LayerPosition}}};
 	
 	while (True) {
 		yield;
@@ -383,7 +396,6 @@ main() {
 				
 				Net_LibWarmUp2_IsReadyClient = False;
 				IsReady = False;
-				Quad_Ready.Substyle = "LvlRed";
 			}
 			
 			if (PrevDisplayClanSelection != Net_LibWarmUp2_DisplayClanSelection) {
@@ -409,13 +421,29 @@ main() {
 				UpdateIcons();
 			}
 			
-			if (PrevClan1Name != Teams[0].ColorizedName) {
-				PrevClan1Name = Teams[0].ColorizedName;
-				Button_JoinClan1.SetText("(F3) Join "^PrevClan1Name);
+			if (PrevClan1Name != Teams[0].Name) {
+				PrevClan1Name = Teams[0].Name;
+				Label_JoinClan1.SetText("(F3) Join "^PrevClan1Name);
 			}
-			if (PrevClan2Name != Teams[1].ColorizedName) {
-				PrevClan2Name = Teams[1].ColorizedName;
-				Button_JoinClan2.SetText("(F4) Join "^PrevClan2Name);
+			if (PrevClan2Name != Teams[1].Name) {
+				PrevClan2Name = Teams[1].Name;
+				Label_JoinClan2.SetText("(F4) Join "^PrevClan2Name);
+			}
+			
+			if (PrevClan1Color != Teams[0].ColorPrimary) {
+				PrevClan1Color = Teams[0].ColorPrimary;
+				Button_JoinClan1.Colorize = PrevClan1Color;
+			}
+			if (PrevClan2Color != Teams[1].ColorPrimary) {
+				PrevClan2Color = Teams[1].ColorPrimary;
+				Button_JoinClan2.Colorize = PrevClan2Color;
+			}
+			
+			if (PrevLayerPosition != Net_LibWarmUp2_LayerPosition) {
+				PrevLayerPosition = Net_LibWarmUp2_LayerPosition;
+				
+				Frame_WarmUp.PosnX = PrevLayerPosition.X;
+				Frame_WarmUp.PosnY = PrevLayerPosition.Y;
 			}
 			
 			foreach (Player in Players) {
@@ -456,11 +484,6 @@ main() {
 						case "Button_Ready": {
 							IsReady = !IsReady;
 							Net_LibWarmUp2_IsReadyClient = IsReady;
-							if (IsReady) {
-								Quad_Ready.Substyle = "LvlGreen";
-							} else {
-								Quad_Ready.Substyle = "LvlRed";
-							}
 						}
 						default: {
 							if (Event.Control.HasClass("Quad_Slot")) {
@@ -478,11 +501,6 @@ main() {
 					} else if (Event.KeyName == "F6") {
 						IsReady = !IsReady;
 						Net_LibWarmUp2_IsReadyClient = IsReady;
-						if (IsReady) {
-							Quad_Ready.Substyle = "LvlGreen";
-						} else {
-							Quad_Ready.Substyle = "LvlRed";
-						}
 					} else if (Event.KeyName == "1" || Event.KeyName == "Numpad1") {
 						Net_LibWarmUp2_SlotUpdate = Now;
 						Net_LibWarmUp2_Slot = 1;
@@ -510,6 +528,9 @@ main() {
 					} else if (Event.KeyName == "9" || Event.KeyName == "Numpad9") {
 						Net_LibWarmUp2_SlotUpdate = Now;
 						Net_LibWarmUp2_Slot = 9;
+					} else if (Event.KeyName == "0" || Event.KeyName == "Numpad0") {
+						Net_LibWarmUp2_SlotUpdate = Now;
+						Net_LibWarmUp2_Slot = -1;
 					}
 				}
 			}
@@ -598,6 +619,9 @@ Void Load() {
 	declare LayerWarmUp <=> UIManager.UILayerCreate();
 	LayerWarmUp.ManialinkPage = Private_CreateLayerWarmUp();
 	G_LibWarmUp2_LayerWarmUpId = LayerWarmUp.Id;
+	
+	declare netwrite Net_LibWarmUp2_LayerPosition for Teams[0] = C_LibWarmUp2_LayerPosition;
+	Net_LibWarmUp2_LayerPosition = C_LibWarmUp2_LayerPosition;
 }
 
 // ---------------------------------- //
@@ -615,6 +639,16 @@ Void RebuildUI() {
 Void DisplayClanSelection(Boolean _Display) {
 	declare netwrite Net_LibWarmUp2_DisplayClanSelection for Teams[0] = False;
 	Net_LibWarmUp2_DisplayClanSelection = _Display;
+}
+
+// ---------------------------------- //
+/** Set the position of the warm up layer
+ *
+ *	@param	_Pos	The new position
+ */
+Void SetLayerPosition(Vec2 _Pos) {
+	declare netwrite Net_LibWarmUp2_LayerPosition for Teams[0] = C_LibWarmUp2_LayerPosition;
+	Net_LibWarmUp2_LayerPosition = _Pos;
 }
 
 // ---------------------------------- //
@@ -1139,7 +1173,11 @@ Void Loop() {
 			LibWarmUp2_PrevSlotUpdate = Net_LibWarmUp2_SlotUpdate;
 			
 			declare netread Integer Net_LibWarmUp2_Slot for UI;
-			SetPlayerSlot(Player, Net_LibWarmUp2_Slot);
+			if (Net_LibWarmUp2_Slot > 0) {
+				SetPlayerSlot(Player, Net_LibWarmUp2_Slot);
+			} else if (Net_LibWarmUp2_Slot < 0) {
+				UnsetPlayerSlot(Player);
+			}
 		}
 		
 		declare netwrite Net_LibWarmUp2_IsReadyServer for Player = False;
@@ -1150,7 +1188,7 @@ Void Loop() {
 		} else if (!Player.IsFakePlayer && Net_LibWarmUp2_IsReadyServer != Net_LibWarmUp2_IsReadyClient) {
 			Net_LibWarmUp2_IsReadyServer = Net_LibWarmUp2_IsReadyClient;
 			G_LibWarmUp2_Updated = True;
-		} 
+		}
 	}
 	
 	Clean();
@@ -1177,6 +1215,8 @@ Void ManageEvents() {
 			} else {
 				PassOn(Event);
 			}
+		} else if (Event.Type == CSmModeEvent::EType::OnPlayerTouchesObject) {
+			Discard(Event);
 		} else {
 			PassOn(Event);
 		}

@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-07-10"
+#Const Version		"2013-07-25"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -81,6 +81,7 @@ MB_LogVersion(EliteEndSequence::GetScriptName(), EliteEndSequence::GetScriptVers
 // ---------------------------------- //
 // Create rules
 declare ModeName = "Elite";
+/*
 declare ModeRules = TextLib::Compose(
 	_("Two teams - 1 vs 3\n\n- The defenders must eliminate the attacker or prevent him from capturing the pole.\n- The attacker has to eliminate all defenders or capture the pole between %1 seconds and %2 seconds.\n- The game is divided in rounds of two turns each.\n- During a round each team play one turn in attack and one turn in defense.\n- The team in defense play with 3 players using rockets.\n- The team in attack play with 1 player using laser.\n- The team who wins the turn scores 1 point.\n- The first team to score at least %3 points with %4 ahead of his opponent wins the map."),
 	TextLib::ToText(S_TimeLimit - S_TimePole),
@@ -89,19 +90,17 @@ declare ModeRules = TextLib::Compose(
 	TextLib::ToText(S_TurnGap)
 );
 SpawnScreen::CreateRules(ModeName, ModeRules);
-/*
-SpawnScreen::AddSubsection(_("Type"), _("Two teams - 1 vs 3"), 0.);
-SpawnScreen::AddSubsection(_("Objectives"), 20.);
-SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The game is divided in rounds of two turns each."));
-SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|During a round each team plays one turn in attack and one turn in defense."));
-SpawnScreen::AddSubsectionLine(_("Objectives"), TextLib::Compose(_("|EliteRules|The attacker has to eliminate all defenders\nor capture the pole between %1 seconds and %2 seconds."), TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit)));
-SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The defenders must eliminate the attacker\nor prevent him from capturing the pole."));
-SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The team in defense plays with 3 players using rockets."));
-SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The team in attack plays with 1 player using the laser."));
-SpawnScreen::AddSubsectionLine(_("Objectives"), _("|EliteRules|The team which wins the turn scores 1 point."));
-SpawnScreen::AddSubsectionLine(_("Objectives"), TextLib::Compose(_("|EliteRules|The winning team is the first one to score at least %1 points\nwith %2 ahead of its opponents."), TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap)));
-SpawnScreen::CreatePrettyRules(ModeName);
 */
+
+SpawnScreen::AddSubsection(_("Type"), _("Two teams - 1 vs 3"), 0.);
+SpawnScreen::AddSubsection(
+	_("Objectives"), 
+	TextLib::Compose(_("$<%11. $>The game is divided in rounds of two turns each. During a round each team plays one turn in attack and one turn in defense.\n$<%12. $>The attacker has to eliminate all defenders or capture the pole between %2 seconds and %3 seconds. The defenders must eliminate the attacker or prevent him from capturing the pole.\n$<%13. $>The team in attack plays with 1 player using the laser. The team in defense plays with 3 players using rockets."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit)), 20.);
+SpawnScreen::AddSubsection(
+	_("Score"), 
+	TextLib::Compose(_("$<%11. $>The team which wins the turn scores 1 point.\n$<%12. $>The winning team is the first one to score at least %2 points with %3 ahead of its opponents."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap)), 85.);
+	
+SpawnScreen::CreatePrettyRules(ModeName);
 
 ModeStatusMessage = _("TYPE: Team versus Team (1 vs 3)\nOBJECTIVE: Capture the pole when you are the attacker. Defend the pole when you are a defender.");
 ***
@@ -162,6 +161,8 @@ if (S_UseDraft) {
 	InitUi();
 	SpawnScreen::AttachRules();
 	LayerAttached = Layers::Attach("ScoresTable", NullId);
+	Clublink::Attach();
+	Clublink::SetSponsorsDisplay(False);
 	
 	MB_CurrentSection = "WarmUp";
 	WarmUp2();
@@ -864,8 +865,8 @@ declare Team2Color = """{{{Teams[1].ColorPrimary.X}}} {{{Teams[1].ColorPrimary.Y
 return """
 <!-- **************** Scores table **************** -->
 <quad posn="0 {{{PosY-39}}} -2" sizen="237 104" halign="center" valign="center" image="file://Media/Manialinks/ShootMania/Elite/interface_elite_bg.dds" />
-<quad posn="-73.5 {{{PosY-27}}} 6" sizen="28 56" halign="center" valign="center" image="file://Media/Manialinks/ShootMania/Elite/interface_elite_left.dds" colorize="{{{Team1Color}}}" />
-<quad posn=" 73.5 {{{PosY-27}}} 6" sizen="28 56" halign="center" valign="center" image="file://Media/Manialinks/ShootMania/Elite/interface_elite_right.dds" colorize="{{{Team2Color}}}" />
+<quad posn="-73.5 {{{PosY-27}}} 6" sizen="28 56" halign="center" valign="center" image="file://Media/Manialinks/ShootMania/Elite/interface_elite_left.dds" colorize="{{{Team1Color}}}" id="Quad_Clan1Color" />
+<quad posn=" 73.5 {{{PosY-27}}} 6" sizen="28 56" halign="center" valign="center" image="file://Media/Manialinks/ShootMania/Elite/interface_elite_right.dds" colorize="{{{Team2Color}}}" id="Quad_Clan2Color" />
 <quad posn="0 {{{PosY-39.3}}} -5" sizen="166 0" halign="center" valign="center" bgcolor="000f" />
 <frame posn="0 {{{PosY}}}" id ="Frame_ScoresTable">
 	<format textemboss="1" />
@@ -1249,6 +1250,8 @@ main() {
 	Label_GameInfo			<=> (Page.GetFirstChild("Label_GameInfo")		as CMlLabel);
 	Label_GoalAverage		<=> (Page.GetFirstChild("Label_GoalAverage")	as CMlLabel);
 	declare Label_SpecCount	<=> (Page.GetFirstChild("Label_SpecCount")		as CMlLabel);
+	declare Quad_Clan1Color	<=> (Page.GetFirstChild("Quad_Clan1Color")		as CMlQuad);
+	declare Quad_Clan2Color	<=> (Page.GetFirstChild("Quad_Clan2Color")		as CMlQuad);
 	
 	declare netread Integer				Net_LayerST_Update			for UI;
 	declare netread Integer				Net_LayerST_AttackerKey		for UI;
@@ -1280,6 +1283,10 @@ main() {
 	declare PrevUISequence = CUIConfig::EUISequence::None;
 	declare PrevServerName = "";
 	declare PrevSpecCount = 0;
+	declare PrevClan1Name = "";
+	declare PrevClan2Name = "";
+	declare PrevClan1Color = <0., 0., 1.>;
+	declare PrevClan2Color = <1., 0., 0.>;
 
 	while (True) {
 		yield;
@@ -1292,15 +1299,29 @@ main() {
 			Label_ServerName.SetText(TextLib::Compose("%1: $<%2$>", _("Server"), CurrentServerName));
 		}
 		
+		if (PrevClan1Name != Teams[0].ColorizedName) {
+			PrevClan1Name = Teams[0].ColorizedName;
+			if (Teams[0].ColorizedName == "$<$00fBlue$>") Label_NameTeam1.SetText("$<$fffBlue$>");
+			else Label_NameTeam1.SetText(Teams[0].ColorizedName);
+		}
+		if (PrevClan2Name != Teams[1].ColorizedName) {
+			PrevClan2Name = Teams[1].ColorizedName;
+			if (Teams[1].ColorizedName == "$<$f00Red$>") Label_NameTeam2.SetText("$<$fffRed$>");
+			else Label_NameTeam2.SetText(Teams[1].ColorizedName);
+		}
+		if (PrevClan1Color != Teams[0].ColorPrimary) {
+			PrevClan1Color = Teams[0].ColorPrimary;
+			Quad_Clan1Color.Colorize = Teams[0].ColorPrimary;
+		}
+		if (PrevClan2Color != Teams[1].ColorPrimary) {
+			PrevClan2Color = Teams[1].ColorPrimary;
+			Quad_Clan2Color.Colorize = Teams[1].ColorPrimary;
+		}
+		
 		if (LastUpdate != Net_LayerST_Update) {
 			LastUpdate = Net_LayerST_Update;
 			
 			UpdatePlayersStatus(True);
-			
-			if (Teams[0].ColorizedName == "$<$00fBlue$>") Label_NameTeam1.SetText("$<$fffBlue$>");
-			else Label_NameTeam1.SetText(Teams[0].ColorizedName);
-			if (Teams[1].ColorizedName == "$<$f00Red$>") Label_NameTeam2.SetText("$<$fffRed$>");
-			else Label_NameTeam2.SetText(Teams[1].ColorizedName);
 			
 			Logins = Net_LayerST_Logins;
 			for (I, 1, {{{C_RequiredPlayersNb*2}}}) {
@@ -1558,6 +1579,57 @@ foreach (Score in Scores) {
 }
 ***
 
+***FindMaster***
+***
+declare MasterLogin = "";
+declare BestAtk = 0;
+declare BestGoalAverage = 0.;
+declare BestHit = 0;
+declare BestLP = 0.;
+foreach (Score in Scores) {
+	declare NbHit for Score = 0;
+	declare LaserHit for Score = 0;
+	declare NbBeHit for Score = 0;
+	declare GoalAverage = ((NbHit + LaserHit) / 3.) - (NbBeHit / 6.);
+	declare Hit = NbHit + LaserHit;
+	
+	if (MasterLogin == "" || Score.Points > BestAtk) {
+		MasterLogin = Score.User.Login;
+		BestAtk = Score.Points;
+		BestGoalAverage = GoalAverage;
+		BestHit = Hit;
+		BestLP = Score.User.LadderPoints;
+	} else if (Score.Points == BestAtk) {
+		if (GoalAverage > BestGoalAverage) {
+			MasterLogin = Score.User.Login;
+			BestAtk = Score.Points;
+			BestGoalAverage = GoalAverage;
+			BestHit = Hit;
+			BestLP = Score.User.LadderPoints;
+		} else if (GoalAverage == BestGoalAverage) {
+			if (Hit > BestHit) {
+				MasterLogin = Score.User.Login;
+				BestAtk = Score.Points;
+				BestGoalAverage = GoalAverage;
+				BestHit = Hit;
+				BestLP = Score.User.LadderPoints;
+			} else if (Hit == BestHit) {
+				if (Score.User.LadderPoints > BestLP) {
+					MasterLogin = Score.User.Login;
+					BestAtk = Score.Points;
+					BestGoalAverage = GoalAverage;
+					BestHit = Hit;
+					BestLP = Score.User.LadderPoints;
+				}
+			}
+		}
+	}
+}
+if (MB_UseScriptCallbacks) {
+	XmlRpc.SendCallbackArray("Master", [MasterLogin]);
+}
+***
+
 // ---------------------------------- //
 // Functions
 // ---------------------------------- //
@@ -1584,10 +1656,43 @@ Text CreateLayerInfo() {
 		<label posn="0 6" halign="center" textsize="5" textemboss="1" text="100%" id="Label_Capture" />
 		<gauge posn="0 0" sizen="140 8" halign="center" style="EnergyBar" drawbg="1" drawblockbg="1" id="Gauge_Capture" />
 	</frame>
+	<frame posn="90 -88" id="Frame_Sponsors" hidden="1">
+		<quad sizen="40 20" valign="bottom" id="Quad_Sponsor" />
+	</frame>
 </frame>
 <!--<quad posn="0 -94 -15" sizen="320 40" halign="center" valign="bottom" image="{{{ImgPathElite}}}BackgroundBottom.dds" />-->
 <script><!--
 #Include "MathLib" as ML
+
+#Const C_SponsorTime 5000
+
+declare CMlFrame Frame_Sponsors;
+
+Void UpdateSponsorsVisibility() {
+	declare netread Text Net_Elite_AtkLogin for Teams[0];
+	
+	if (
+		IsSpectatorMode
+		&& GUIPlayer != Null 
+		&& Net_Elite_AtkLogin != "" 
+		&& GUIPlayer.Login == Net_Elite_AtkLogin
+	) {
+		Frame_Sponsors.Show();
+	} else {
+		Frame_Sponsors.Hide();
+	}
+}
+
+Void UpdateSponsorImage(Integer _Key) {
+	declare Quad_Sponsor <=> (Page.GetFirstChild("Quad_Sponsor") as CMlQuad);
+	declare netread Text[] Net_Elite_AtkSponsors for Teams[0];
+	
+	if (!Net_Elite_AtkSponsors.existskey(_Key)) return;
+	
+	declare Url = Net_Elite_AtkSponsors[_Key];
+	if (Http.IsValidUrl(Url)) Quad_Sponsor.ChangeImageUrl(Url);
+}
+
 main() {
 	declare Frame_Playing		<=> (Page.GetFirstChild("Frame_Playing")		as CMlFrame);
 	declare Label_Checkpoints	<=> (Page.GetFirstChild("Label_Checkpoints")	as CMlLabel);
@@ -1595,10 +1700,19 @@ main() {
 	declare Label_Capture 		<=> (Page.GetFirstChild("Label_Capture") 		as CMlLabel);
 	declare Gauge_Capture 		<=> (Page.GetFirstChild("Gauge_Capture") 		as CMlGauge);
 	
+	Frame_Sponsors <=> (Page.GetFirstChild("Frame_Sponsors") as CMlFrame);
+	
 	declare netread Integer Net_Elite_CheckpointsCaptured for Teams[0];
+	declare netread Text Net_Elite_AtkLogin for Teams[0];
+	declare netread Text[] Net_Elite_AtkSponsors for Teams[0];
 	
 	declare PrevUISequence = CUIConfig::EUISequence::Playing;
 	declare PrevCheckpointsCaptured = 0;
+	declare PrevGUIPlayerId = NullId;
+	declare PrevIsSpectatorMode = False;
+	
+	declare SponsorKey = 0;
+	declare NextSponsorTime = 0;
 	
 	while (True) {
 		yield;
@@ -1618,6 +1732,32 @@ main() {
 		if (PrevCheckpointsCaptured != Net_Elite_CheckpointsCaptured) {
 			PrevCheckpointsCaptured = Net_Elite_CheckpointsCaptured;
 			Label_Checkpoints.SetText(Net_Elite_CheckpointsCaptured^"/{{{G_CheckpointsNb}}}");
+		}
+		
+		if (GUIPlayer != Null && PrevGUIPlayerId != GUIPlayer.Id) {
+			PrevGUIPlayerId = GUIPlayer.Id;
+			NextSponsorTime = Now + C_SponsorTime;
+			UpdateSponsorsVisibility();
+			UpdateSponsorImage(SponsorKey);
+		} else if (GUIPlayer == Null && Frame_Sponsors.Visible) {
+			PrevGUIPlayerId = NullId;
+			Frame_Sponsors.Hide();
+		}
+		
+		if (PrevIsSpectatorMode != IsSpectatorMode) {
+			PrevIsSpectatorMode = IsSpectatorMode;
+			NextSponsorTime = Now + C_SponsorTime;
+			UpdateSponsorsVisibility();
+			UpdateSponsorImage(SponsorKey);
+		}
+		
+		if (Frame_Sponsors.Visible && Now >= NextSponsorTime) {
+			NextSponsorTime = Now + C_SponsorTime;
+			if (Net_Elite_AtkSponsors.count > 0 && Net_Elite_AtkSponsors.existskey(0)) {
+				SponsorKey += 1;
+				if (!Net_Elite_AtkSponsors.existskey(SponsorKey)) SponsorKey = 0;
+				UpdateSponsorImage(SponsorKey);
+			}
 		}
 		
 		declare CSmPlayer TargetPlayer;
@@ -2021,7 +2161,7 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 	
 	switch (_Event.Type) {
 		case CSmModeEvent::EType::OnShoot: {
-			JSON = PlayerStringify("Shooter", _Event.Shooter);
+			JSON = PlayerStringify("Shooter", _Event.Shooter, True);
 		}
 		case CSmModeEvent::EType::OnHit: {
 			declare HitDist = 0.;
@@ -2034,14 +2174,14 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 			}
 			JSON = Json::Merge([
 				Json::Stringify("HitDist", HitDist),
-				PlayerStringify("Shooter", _Event.Shooter),
-				PlayerStringify("Victim", _Event.Victim)
+				PlayerStringify("Shooter", _Event.Shooter, True),
+				PlayerStringify("Victim", _Event.Victim, True)
 			]);
 		}
 		case CSmModeEvent::EType::OnArmorEmpty: {
 			JSON = Json::Merge([
-				PlayerStringify("Shooter", _Event.Shooter),
-				PlayerStringify("Victim", _Event.Victim)
+				PlayerStringify("Shooter", _Event.Shooter, True),
+				PlayerStringify("Victim", _Event.Victim, True)
 			]);
 		}
 		case CSmModeEvent::EType::OnCapture: {
@@ -2083,8 +2223,8 @@ Text EliteStringifySimulateArmorEmpty(Text _Name, CSmModeEvent _Event) {
 	declare JSON = "";
 	
 	JSON = Json::Merge([
-		PlayerStringify("Shooter", _Event.Shooter),
-		PlayerStringify("Victim", _Event.Victim)
+		PlayerStringify("Shooter", _Event.Shooter, True),
+		PlayerStringify("Victim", _Event.Victim, True)
 	]);
 	
 	declare EventJSON = "";
@@ -2119,23 +2259,29 @@ Void CreateRulesReminderLayer() {
 	if(! S_DisplayRulesReminder) return;
 
 	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
-	declare Text WelcomeBgImage		= ImgBaseDir^"WelcomeBg.dds";
-
-	declare Text TitleText 			= _("Welcome to Elite");
-	declare Text RulesReminder = TextLib::Compose("$<$ca4%1$>\n\n$<$ca41. $>%2\n$<$ca42. $>%3\n$<$ca43. $>%4", 
-		_("Team Mode, 1 attacker vs 3 defenders"), 
-		_("When you are the attacker, eliminate the defenders or capture the pole at the end of the round."), 
-		_("When you are a defender, eliminate the attacker or prevent the pole from being captured."), 
-		_("The attacker has a laser and 3 armors, defenders have rockets and 1 armor each.")
-		);
+	//declare Text WelcomeBgImage		= ImgBaseDir^"WelcomeBg.dds";
+	declare Text WelcomeBgImage		= ImgBaseDir^"topsBg.dds";
+	declare Text ArmorImage			= ImgBaseDir^"ShieldWhite.dds";
+	declare Text WpLaserImage		= ImgBaseDir^"WpLaser.dds";
+	declare Text WpRocketImage		= ImgBaseDir^"WpRocket.dds";
+	declare Text HighlightColor		= "f90";
+	declare Text CAlign				= """ valign="center" halign="center" """;
 	
+	declare Text TitleText 			= TextLib::Compose(_("Welcome to %1!"), "Elite");
 	declare Text DoNotShowAgain		= _("Do Not Show Again");
 	declare Text Close				= _("Close");
 	
-	declare Integer WindowWidth		= 200;
-	declare Integer WindowHeight	= 50;
+	declare Integer WindowWidth		= 160;
+	declare Integer WindowHeight	= 75;
 	declare Real 	WindowX			= 0.;
 	declare Real 	WindowY			= 0.;
+	
+	declare Real	YOffset			= 3.5;
+	declare Real	ArmorSize		= 4.;
+	declare Real	WeaponSize		= 9.;
+	declare Real	SpecSize		= 5.;
+	
+	declare Text	DarkBg 			= "0006";
 	
 	declare Text MLText = """
 	<script><!--
@@ -2188,15 +2334,69 @@ Void CreateRulesReminderLayer() {
 		
 	--></script>
 	<frame id="RulesReminderMainFrame" hidden="true" posn="{{{WindowX}}} {{{WindowY}}} 100" >
-		<quad  posn="0 -3" 	halign="center"	valign="center" sizen="{{{WindowWidth + 20}}} {{{WindowHeight + 35}}}" image="{{{WelcomeBgImage}}}" />
-		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
-		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
-		<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
-		<label posn="{{{(WindowWidth/2)-42}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" />
+		<quad  posn="0 9 -2" 	{{{CAlign}}} sizen="{{{WindowWidth + 20}}} {{{WindowHeight + 75}}}" image="{{{WelcomeBgImage}}}" />
+		<label posn="0 {{{(WindowHeight/2)-5}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="7"/>
+		<frame id="Rules" posn="0 {{{(WindowHeight/2)-14}}}" {{{CAlign}}} scale="1." >
+			<quad sizen="{{{WindowWidth+6}}} {{{3*YOffset}}}" bgcolor="{{{DarkBg}}}" {{{CAlign}}} posn="0 {{{-6*YOffset -3}}} -1"/>
+			<label posn="0 {{{-2*YOffset}}}" id="Rules_versus" text="VS" {{{CAlign}}} textsize="4"/>
+			
+			<frame id="Rules_LeftFrame" posn="{{{-(WindowWidth/2)+10}}} {{{-3*YOffset-3}}}" >
+				<frame id="Frame_LeftTeam" posn="0 -2">
+					<label posn="24 15.5" text="{{{TextLib::Compose("%1 1", _("Team"))}}}" textprefix="$t" textsize="1"/>
+					<frame posn="{{{WindowWidth/4 - 10}}} {{{3*YOffset}}}">
+						<label text="{{{TextLib::Compose("1 %1", _("Attacker"))}}}"  {{{CAlign}}}  textcolor="f90"/>
+						<quad  posn="-17 1" image="{{{WpLaserImage}}}"  sizen="{{{WeaponSize}}} {{{WeaponSize}}}" colorize="f90" {{{CAlign}}}/>
+					</frame>
+					<frame posn="{{{WindowWidth/4 - 10}}} {{{YOffset+2.5}}}" >
+						<label text="{{{TextLib::Compose("2 %1", _("Spectators"))}}}"  {{{CAlign}}}  textsize="1"/>
+						<!--<quad  posn="-12 0" style="Icons64x64_1" substyle="Camera" sizen="{{{SpecSize}}} {{{SpecSize}}}" {{{CAlign}}}/>-->
+					</frame>
+				</frame>
+				<frame id="Frame_LeftRules" posn="0 -3">
+					<label posn="{{{WindowWidth/4 - 10}}} {{{-2*YOffset}}}" id="Rules_Left_Objectives" sizen="68 5"
+					text="{{{_("Eliminate the defenders or capture the pole at the end of the round.")}}}" textsize="1" autonewline="1" {{{CAlign}}} scale="1.1"/>
+					<frame posn="{{{WindowWidth/4 - 23}}} {{{-5.*YOffset}}}" >
+						<label posn="0 0" text="{{{_("Armor")}}}" textsize="1" {{{CAlign}}} textprefix="$t"/>
+						<frame posn="12 0">
+							<quad  posn="0  0" image="{{{ArmorImage}}}" sizen="{{{ArmorSize}}} {{{ArmorSize}}}" {{{CAlign}}}/>
+							<quad  posn="5  0" image="{{{ArmorImage}}}" sizen="{{{ArmorSize}}} {{{ArmorSize}}}" {{{CAlign}}} />
+							<quad  posn="10 0" image="{{{ArmorImage}}}" sizen="{{{ArmorSize}}} {{{ArmorSize}}}" {{{CAlign}}} />
+						</frame>
+					</frame>
+				</frame>
+			</frame>
+			
+			<quad sizen="0.3 {{{7*YOffset}}} -1" bgcolor="ffff" {{{CAlign}}} posn="0  {{{-7*YOffset}}}"/>
+			
+			<frame id="Rules_RightFrame" posn="{{{5}}} {{{-3*YOffset-3}}}" >
+				<frame id="Frame_LeftTeam" posn="0 -2">
+					<label posn="35 15.5" text="{{{TextLib::Compose("%1 2", _("Team"))}}}" textprefix="$t" textsize="1"/>
+					<frame posn="{{{WindowWidth/4+3}}} {{{3*YOffset}}}">
+						<label text="{{{TextLib::Compose("3 %1", _("Defenders"))}}}"  {{{CAlign}}}  textcolor="f90"/>
+						<quad  posn="-20 1" image="{{{WpRocketImage}}}"  sizen="{{{WeaponSize}}} {{{WeaponSize}}}" colorize="f90" {{{CAlign}}}/>
+					</frame>
+					<label posn="43 6.5" text="{{{_("Playing this round altogether")}}}"  {{{CAlign}}}  textsize="1"/>
+				</frame>
+				
+				<frame id="Frame_LeftRules" posn="0 -3">
+					<label posn="{{{WindowWidth/4}}} {{{-2*YOffset}}}" id="Rules_Left_Objectives" sizen="68 5" 
+					text="{{{_("Eliminate the attacker or prevent the pole from being captured.")}}}" textsize="1" autonewline="1" {{{CAlign}}} scale="1.1"/>
+					<frame posn="{{{WindowWidth/4 -8}}} {{{-5.*YOffset}}}" >
+						<label posn="0 0" text="{{{_("Armor")}}}" textsize="1" {{{CAlign}}} textprefix="$t"/>
+						<quad  posn="12 0" image="{{{ArmorImage}}}" sizen="{{{ArmorSize}}} {{{ArmorSize}}}" {{{CAlign}}}/>
+					</frame>
+				</frame>
+			</frame>
+		</frame>
+		
+		<frame id="buttons" posn="0 {{{-(WindowHeight/2)+2}}}" {{{CAlign}}}>
+			<label posn=" 19 0" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" {{{CAlign}}}/>
+			<label posn="-19 0" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" {{{CAlign}}}/>
+		</frame>
 		<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2) + 10}}}"  text="{{{
-				_("Press $<$o$f00F1$> to close this window.")}}}" />
+				TextLib::Compose(_("Press '$<%1F1$>' to close this window."), "$"^HighlightColor)}}}" />
 		<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2) + 6}}}"  text="{{{
-				_("Press 'alt' to free the cursor.")}}}" textsize="2"/>
+				TextLib::Compose(_("Hold '$<%1alt$>' to free the cursor."), "$"^HighlightColor)}}}" textsize="2"/>
 	</frame>
 	""";
 	

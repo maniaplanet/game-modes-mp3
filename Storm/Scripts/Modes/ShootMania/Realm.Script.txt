@@ -14,7 +14,7 @@
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
 #Const	CompatibleMapTypes	"RealmArena"
-#Const	Version				"2013-06-26"
+#Const	Version				"2013-07-24"
 #Const	ScriptName			"Realm.Script.txt"
 
 // ---------------------------------- //
@@ -44,7 +44,8 @@
 #Const C_RedBots				0		///< Number of red bots for debugging
 #Const C_ImgBaseDir				"file://Media/Manialinks/Shootmania/Common/"
 
-#Const C_ModeRules _("TYPE\n   Team versus Team\n\nOBJECTIVE\n   Teams must control the majority of poles.\n   The countdown of the team with the majority of poles will decrease.\n   Teams whose countdown reaches 0 go to finalist mode.\n   A team in finalist mode can win the turn by having a majority of fully controled poles. \n   The first team who scores %1 points and has a lead of %2 points wins the map.\n\nCONDITIONS\n   To control a pole you must fill its gauge with your color by staying near it.\n   You can steal a pole of the opposing team the same way.\n   It's always the team with the most players near a pole that will capture it.")
+#Const C_ModeObjectives _("$<%11. $>Teams must control the majority of poles.\n$<%12. $>The countdown of the team with the majority of poles will decrease.\n$<%13. $>Teams whose countdown reaches 0 go to finalist mode.\n$<%14. $>A team in finalist mode can win the turn by having a majority of fully controled poles. \n$<%15. $>The first team who scores %2 points and has a lead of %3 points wins the map.")
+#Const C_ModeConditions _("$<%11. $>To control a pole you must fill its gauge with your color by staying near it.\n$<%12. $>You can steal a pole of the opposing team the same way.\n$<%13. $>It's always the team with the most players near a pole that will capture it.")
 
 #Const Description  _("TYPE: Team versus Team\nOBJECTIVE: Your team must control the absolute majority of poles on the map for a fixed amount of time.\nStay near a pole to capture and control it. Your poles can be stolen by the opposing team.\nThe first team to reach the points limit wins the map.")
 
@@ -86,10 +87,7 @@ Color::Load();
 
 // ---------------------------------- //
 // Create the rules
-declare ModeName = "Realm";
-declare ModeRules = TL::Compose(C_ModeRules, TL::ToText(S_MapPointsLimit), TL::ToText(S_MapPointsGap));
-SpawnScreen::CreateRules(ModeName, ModeRules);
-//SpawnScreen::CreateMapInfo();
+CreateRules();
 ModeStatusMessage =  _("TYPE: Team versus Team\nOBJECTIVE: Your team must control the absolute majority of poles on the map for a fixed amount of time.");
 
 // ---------------------------------- //
@@ -158,8 +156,7 @@ PointsLimitShift	= 0;
 
 // ---------------------------------- //
 // Update the rules
-ModeRules = TL::Compose(C_ModeRules, TL::ToText(S_MapPointsLimit), TL::ToText(S_MapPointsGap));
-SpawnScreen::CreateRules(ModeName, ModeRules);
+CreateRules();
 
 // ---------------------------------- //
 // Update the players clublinks
@@ -722,7 +719,6 @@ UIManager.UIAll.BigMessage				= "";
 // ---------------------------------- //
 // Clean the UI
 SpawnScreen::DestroyRules();
-//SpawnScreen::DestroyMapInfo();
 LayerDestroyed = Layers::Destroy("SpawnSelection");
 LayerDestroyed = Layers::Destroy("Markers");
 LayerDestroyed = Layers::Destroy("Info");
@@ -929,6 +925,25 @@ Void UpdateSpawnStatus(CSmPlayer _Player) {
 	declare NextSpawnTime for _Player.Score = Now;
 	declare netwrite Integer Net_NextSpawnTime for UI;
 	Net_NextSpawnTime = NextSpawnTime;
+}
+
+// ---------------------------------- //
+/// Create the rules in the spawn screen
+Void CreateRules() {
+	declare ModeName = "Realm";
+	
+	SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
+	SpawnScreen::AddSubsection(
+		_("Objectives"), 
+		TL::Compose(C_ModeObjectives, "$"^SpawnScreen::GetModeColor(), TL::ToText(S_MapPointsLimit), TL::ToText(S_MapPointsGap)), 
+		25.
+	);
+	SpawnScreen::AddSubsection(
+		_("Conditions"), 
+		TL::Compose(C_ModeConditions, "$"^SpawnScreen::GetModeColor()), 
+		80.
+	);
+	SpawnScreen::CreatePrettyRules(ModeName);
 }
 
 // ---------------------------------- //

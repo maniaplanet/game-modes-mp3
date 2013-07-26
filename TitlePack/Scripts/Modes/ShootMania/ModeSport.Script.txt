@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2013-07-12"
+#Const	ModeSportVersion	"2013-07-25"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -324,9 +324,12 @@ Clublink::SyncUpdate();
 UIManager.ResetAll();
 InitUi();
 SpawnScreen::AttachRules();
+Clublink::Attach();
+Clublink::SetSponsorsDisplay(False);
 LayerAttached = Layers::Attach("ScoresTable", NullId);
 LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+UIManager.UIAll.UISequence_CanSkipIntroMT = True;
 
 ---RulesReminder---
 
@@ -541,6 +544,10 @@ while (True) {
 	if (PlayerId != NullId && Players.existskey(PlayerId)) {
 		NextAtkName = Players[PlayerId].Name;
 		G_AtkPlayerId = PlayerId;
+		declare netwrite Net_Elite_AtkLogin for Teams[0] = "";
+		declare netwrite Net_Elite_AtkSponsors for Teams[0] = Text[];
+		Net_Elite_AtkLogin = Players[PlayerId].Login;
+		Net_Elite_AtkSponsors = Clublink::GetTeamSponsors(G_AtkClan-1);
 		break;
 	}
 	
@@ -1162,6 +1169,10 @@ UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 // Give Ladder Points
 ---LadderPoints---
 
+// ---------------------------------- //
+// Find the Master
+---FindMaster---
+
 declare Text Message = "";
 // ---------------------------------- //
 // Display the winning message if there is one
@@ -1638,6 +1649,15 @@ Void UpdateHeader() {
 		UIManager.UIAll.ScoreSummary_Points2 = 0;
 		UIManager.UIAll.ScoreSummary_MatchPoints2 = 0;
 	}
+	
+	declare netwrite Clan1MapPoints for XmlRpc = 0;
+	declare netwrite Clan1MatchPoints for XmlRpc = 0;
+	declare netwrite Clan2MapPoints for XmlRpc = 0;
+	declare netwrite Clan2MatchPoints for XmlRpc = 0;
+	Clan1MapPoints = Clan1Score;
+	Clan1MatchPoints = HeaderClanScores[1];
+	Clan2MapPoints = Clan2Score;
+	Clan2MatchPoints = HeaderClanScores[2];
 }
 
 // ---------------------------------- //
@@ -1949,7 +1969,8 @@ Void WaitConnection() {
 	declare LayerWaitConnectionId = Layers::Create("WaitConnection", CreateLayerWaitConnection());
 	Layers::GetFromId(LayerWaitConnectionId).Type = CUILayer::EUILayerType::CutScene;
 	declare LayerAttached = Layers::Attach("WaitConnection", NullId);
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+	UIManager.UIAll.UISequence_CanSkipIntroMT = False;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
 	
 	Net_ModeSport_PlayersNbTotal = 0;
 	
@@ -1964,7 +1985,11 @@ Void WaitConnection() {
 		
 		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
 			Net_ModeSport_PlayersNbTotal = PlayersNbTotal;
-			PlaySound(CUIConfig::EUISound::Notice, 1);
+			if (ClansNbPlayers[1] >= C_RequiredPlayersNb && ClansNbPlayers[2] >= C_RequiredPlayersNb) {
+				PlaySound(CUIConfig::EUISound::Custom4, 1);
+			} else {
+				PlaySound(CUIConfig::EUISound::Custom4, 0);
+			}
 		}
 		
 		if (PrevClansNbPlayers[1] != ClansNbPlayers[1] || PrevClansNbPlayers[2] != ClansNbPlayers[2]) {
@@ -1986,7 +2011,6 @@ Void WaitConnection() {
 	
 	UIManager.UIAll.CountdownEndTime = Now + TimeOut;
 	WarmUp2::End();
-	//UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 	
 	// ---------------------------------- //
 	// Let the matchmaking server sort the players
@@ -2060,6 +2084,7 @@ Void WaitConnection() {
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	UIManager.UIAll.UISequence_CanSkipIntroMT = True;
 }
 
 // ---------------------------------- //
@@ -2099,10 +2124,38 @@ Void WarmUp2() {
 	StartTime = Now + 1000;
 	EndTime = -1;
 	declare TmpEndTime = EndTime;
+	declare WarmUpDuration = S_WarmUpDuration;
+	declare PrevWarmUpDuration = WarmUpDuration;
 	
 	while (!WarmUp2::Stop() && (EndTime <= 0 || Now < EndTime) && !ServerShutdownRequested && !MatchEndRequested) {
 		MB_Yield();
 		ManageCommand();
+		
+		// Check XmlRpc events
+		declare StopWarmUp = False;
+		foreach (Event in XmlRpc.PendingEvents) {
+			if (Event.Param1 == "WarmUp_Extend") {
+				declare ExtendTime = TextLib::ToInteger(Event.Param2);
+				if (EndTime >= 0) {
+					EndTime += ExtendTime;
+					TmpEndTime += ExtendTime;
+				}
+				WarmUpDuration += ExtendTime;
+			} else if (Event.Param1 == "WarmUp_Stop") {
+				StopWarmUp = True;
+			}
+		}
+		if (StopWarmUp) break;
+		
+		if (PrevWarmUpDuration != S_WarmUpDuration) {
+			PrevWarmUpDuration = S_WarmUpDuration;			
+			WarmUpDuration = S_WarmUpDuration;
+			if (EndTime >= 0) {
+				EndTime = Now + (WarmUpDuration * 1000);
+				TmpEndTime = Now + (WarmUpDuration * 1000);
+			}
+		}
+		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
 		
@@ -2133,7 +2186,7 @@ Void WarmUp2() {
 		declare ReadyPlayersClan1 = WarmUp2::GetReadyPlayersNb("Clan1");
 		declare ReadyPlayersClan2 = WarmUp2::GetReadyPlayersNb("Clan2");
 		
-		if (S_WarmUpDuration <= 0) {
+		if (WarmUpDuration <= 0) {
 			if (S_Mode == 0) {
 				if (PlayersNbClan1 >= C_RequiredPlayersNb && PlayersNbClan2 >= C_RequiredPlayersNb) EndTime = Now;
 			} else {
@@ -2145,7 +2198,7 @@ Void WarmUp2() {
 			if (S_Mode == 0) {
 				if (PlayersNbClan1 >= C_RequiredPlayersNb && PlayersNbClan2 >= C_RequiredPlayersNb) {
 					if (EndTime < 0 || EndTime != TmpEndTime) {
-						if (TmpEndTime < 0) TmpEndTime = Now + (S_WarmUpDuration * 1000);
+						if (TmpEndTime < 0) TmpEndTime = Now + (WarmUpDuration * 1000);
 						EndTime = TmpEndTime;
 					}
 				} else {
@@ -2159,7 +2212,7 @@ Void WarmUp2() {
 					if (EndTime < 0 || EndTime > Now + 5000) EndTime = Now + 5000;
 				} else {
 					if (EndTime < 0 || EndTime != TmpEndTime) {
-						if (TmpEndTime < 0) TmpEndTime = Now + (S_WarmUpDuration * 1000);
+						if (TmpEndTime < 0) TmpEndTime = Now + (WarmUpDuration * 1000);
 						EndTime = TmpEndTime;
 					}
 				}
@@ -2209,10 +2262,11 @@ Text TurnStringify() {
 // ---------------------------------- //
 /** Custom stringify for CSmPlayer
  *
- *	@param	_Name		The name of the stringified object
- *	@param	_Player		The player to stringify
+ *	@param	_Name			The name of the stringified object
+ *	@param	_Player			The player to stringify
+ *	@param	_SendPosition	Add the player position
  */
-Text PlayerStringify(Text _Name, CSmPlayer _Player) {
+Text PlayerStringify(Text _Name, CSmPlayer _Player, Boolean _SendPosition) {
 	declare JSON = "";
 	declare Merge = Text[];
 	
@@ -2228,11 +2282,19 @@ Text PlayerStringify(Text _Name, CSmPlayer _Player) {
 				Json::Stringify("GoalAverage", NbHit + LaserHit - NbBeHit)
 			]);
 		}
+		
+		if (_SendPosition) JSON = Json::Merge([JSON, Json::Stringify("Position", _Player.Position)]);
 	}
 	
 	JSON = Json::StringifyMinimal(_Name, _Player, JSON);
 	
 	return JSON;
+}
+
+// ---------------------------------- //
+/// Overload of PlayerStringify()
+Text PlayerStringify(Text _Name, CSmPlayer _Player) {
+	return PlayerStringify(_Name, _Player, False);
 }
 
 // ---------------------------------- //

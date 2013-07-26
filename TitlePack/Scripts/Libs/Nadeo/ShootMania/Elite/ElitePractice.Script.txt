@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2013-07-12"
+#Const Version    "2013-07-25"
 #Const ScriptName "ElitePractice.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -355,8 +355,12 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 	declare LayerAttached = Layers::Attach("WaitConnection", NullId);
 	Layers::Detach("Info", NullId);
 	
-	if (_CanSpawn) UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
-	else UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+	if (_CanSpawn) {
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	} else {
+		UIManager.UIAll.UISequence_CanSkipIntroMT = False;
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
+	}
 	
 	Net_ModeSport_PlayersNbTotal = 0;
 	
@@ -367,7 +371,17 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 		
 		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
 			Net_ModeSport_PlayersNbTotal = PlayersNbTotal;
-			UIManager.UIAll.SendNotice("", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::Notice, 1);
+			if (PlayersNbTotal >= IdealPlayersNb) {
+				UIManager.UIAll.SendNotice(
+					"", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, 
+					CUIConfig::EUISound::Custom4, 1
+				);
+			} else {
+				UIManager.UIAll.SendNotice(
+					"", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, 
+					CUIConfig::EUISound::Custom4, 0
+				);
+			}
 		}
 			
 		if (UIManager.UIAll.CountdownEndTime == -1 && PlayersNbTotal >= C_LibEP_MinimumPlayersNb) {
@@ -415,7 +429,7 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 		else Private_Sleep(1);
 	}
 	
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
 	SM::UnspawnAllPlayers();
 	UIManager.UIAll.CountdownEndTime = Now + TimeOut;
 	while (Now < UIManager.UIAll.CountdownEndTime) {
@@ -423,6 +437,7 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 	}
 	
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	UIManager.UIAll.UISequence_CanSkipIntroMT = True;
 	declare LayerDetached = Layers::Detach("WaitConnection", NullId);
 	declare LayerDestroyed = Layers::Destroy("WaitConnection");
 	Layers::Attach("Info", NullId);
@@ -644,6 +659,57 @@ Void Private_UpdateLongestLaser(CSmPlayer _Player, Real _Distance, Text _Name) {
 }
 
 // ---------------------------------- //
+/// Find the Master of the map
+Void Private_FindMaster() {
+	declare MasterLogin = "";
+	declare BestAtk = 0;
+	declare BestGoalAverage = 0.;
+	declare BestHit = 0;
+	declare BestLP = 0.;
+	foreach (Score in Scores) {
+		declare LibEP_HasHit for Score = 0;
+		declare LibEP_IsHit for Score = 0;
+		declare GoalAverage = (LibEP_HasHit / 3.) - (LibEP_IsHit / 6.);
+		
+		if (MasterLogin == "" || Score.Points > BestAtk) {
+			MasterLogin = Score.User.Login;
+			BestAtk = Score.Points;
+			BestGoalAverage = GoalAverage;
+			BestHit = LibEP_HasHit;
+			BestLP = Score.User.LadderPoints;
+		} else if (Score.Points == BestAtk) {
+			if (GoalAverage > BestGoalAverage) {
+				MasterLogin = Score.User.Login;
+				BestAtk = Score.Points;
+				BestGoalAverage = GoalAverage;
+				BestHit = LibEP_HasHit;
+				BestLP = Score.User.LadderPoints;
+			} else if (GoalAverage == BestGoalAverage) {
+				if (LibEP_HasHit > BestHit) {
+					MasterLogin = Score.User.Login;
+					BestAtk = Score.Points;
+					BestGoalAverage = GoalAverage;
+					BestHit = LibEP_HasHit;
+					BestLP = Score.User.LadderPoints;
+				} else if (LibEP_HasHit == BestHit) {
+					if (Score.User.LadderPoints > BestLP) {
+						MasterLogin = Score.User.Login;
+						BestAtk = Score.Points;
+						BestGoalAverage = GoalAverage;
+						BestHit = LibEP_HasHit;
+						BestLP = Score.User.LadderPoints;
+					}
+				}
+			}
+		}
+	}
+	
+	if (MB_LibEP_UseScriptCallbacks) {
+		XmlRpc.SendCallbackArray("Master", [MasterLogin]);
+	}
+}
+
+// ---------------------------------- //
 /** Get the markers manialink
  *
  *	@return 	The manialink containing the markers
@@ -831,23 +897,26 @@ Void CreateRulesReminderLayer() {
 	// if(! S_DisplayRulesReminder) return;
 
 	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
-	declare Text WelcomeBgImage		= ImgBaseDir^"WelcomeBg.dds";
-
-	declare Text TitleText 			= _("Welcome to Elite Practice");
-	declare Text RulesReminder = TL::Compose("$<$ca4%1$>\n\n$<$ca41. $>%2\n$<$ca42. $>%3\n$<$ca43. $>%4", 
-		_("Free For All, 1 attacker vs 3 defenders"), 
-		_("When you are the attacker, eliminate the defenders or capture the pole at the end of the round."), 
-		_("When you are a defender, eliminate the attacker or prevent the pole from being captured."), 
-		_("The attacker has a laser and 3 armors, defenders have rockets and 1 armor each.")
-		);
+	//declare Text WelcomeBgImage		= ImgBaseDir^"WelcomeBg.dds";
+	declare Text WelcomeBgImage		= ImgBaseDir^"topsBg.dds";
+	declare Text ArmorImage			= ImgBaseDir^"ShieldWhite.dds";
+	declare Text WpLaserImage		= ImgBaseDir^"WpLaser.dds";
+	declare Text WpRocketImage		= ImgBaseDir^"WpRocket.dds";
+	declare Text HighlightColor		= "f90";
+	declare Text CAlign				= """ valign="center" halign="center" """;
 	
+	declare Text TitleText 			= TL::Compose(_("Welcome to %1!"), "Elite Practice");
 	declare Text DoNotShowAgain		= _("Do Not Show Again");
 	declare Text Close				= _("Close");
 	
-	declare Integer WindowWidth		= 200;
-	declare Integer WindowHeight	= 50;
+	declare Integer WindowWidth		= 160;
+	declare Integer WindowHeight	= 75;
 	declare Real 	WindowX			= 0.;
 	declare Real 	WindowY			= 0.;
+	
+	declare Real	YOffset			= 3.5;
+	declare Real	ArmorSize		= 4.;
+	declare Real	WeaponSize		= 8.;
 	
 	declare Text MLText = """
 	<script><!--
@@ -900,15 +969,53 @@ Void CreateRulesReminderLayer() {
 		
 	--></script>
 	<frame id="RulesReminderMainFrame" hidden="true" posn="{{{WindowX}}} {{{WindowY}}} 100" >
-		<quad  posn="0 -3" 	halign="center"	valign="center" sizen="{{{WindowWidth + 20}}} {{{WindowHeight + 35}}}" image="{{{WelcomeBgImage}}}" />
-		<label posn="0 {{{(WindowHeight/2)-3}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="5" />
-		<label posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-12}}}" 	halign="left" valign="center" text="{{{RulesReminder}}}" textsize="2"/>
-		<label posn="{{{(WindowWidth/2)-2}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" />
-		<label posn="{{{(WindowWidth/2)-42}}} {{{-(WindowHeight/2)+2}}}" 	halign="right" valign="center" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" />
+		<quad  posn="0 9 -2" 	{{{CAlign}}} sizen="{{{WindowWidth + 20}}} {{{WindowHeight + 75}}}" image="{{{WelcomeBgImage}}}" />
+		<label posn="0 {{{(WindowHeight/2)-5}}}" 	halign="center" valign="center" text="{{{TitleText}}}"  textsize="7"/>
+		<frame id="Rules" posn="0 {{{(WindowHeight/2)-14}}}" {{{CAlign}}} scale="1." >
+			<quad sizen="{{{WindowWidth+6}}} {{{3*YOffset}}}" bgcolor="0006" {{{CAlign}}} posn="0 {{{-6*YOffset}}} -1"/>
+			<label posn="0 {{{-2*YOffset}}}" id="Rules_versus" text="VS" {{{CAlign}}} textsize="4"/>
+			
+			<frame id="Rules_LeftFrame" posn="{{{-(WindowWidth/2)+10}}} {{{-3*YOffset-3}}}" >
+				<frame posn="{{{WindowWidth/4 - 10}}} {{{2*YOffset}}}">
+					<label text="{{{TL::Compose("1 %1", _("Attacker"))}}}"  {{{CAlign}}}  textcolor="f90"/>
+					<quad  posn="-17 0" image="{{{WpLaserImage}}}"  sizen="{{{WeaponSize}}} {{{WeaponSize}}}" colorize="f90" {{{CAlign}}}/>
+				</frame>
+				<label posn="{{{WindowWidth/4 - 10}}} {{{-2*YOffset}}}" id="Rules_Left_Objectives" sizen="68 5"
+				text="{{{_("Eliminate the defenders or capture the pole at the end of the round.")}}}" textsize="1" autonewline="1" {{{CAlign}}} scale="1.1"/>
+				<frame posn="{{{WindowWidth/4 - 23}}} {{{-5.*YOffset}}}" >
+					<label posn="0 0" text="{{{_("Armor")}}}" textsize="1" {{{CAlign}}} textprefix="$t"/>
+					<frame posn="12 0">
+						<quad  posn="0  0" image="{{{ArmorImage}}}" sizen="{{{ArmorSize}}} {{{ArmorSize}}}" {{{CAlign}}}/>
+						<quad  posn="5  0" image="{{{ArmorImage}}}" sizen="{{{ArmorSize}}} {{{ArmorSize}}}" {{{CAlign}}} />
+						<quad  posn="10 0" image="{{{ArmorImage}}}" sizen="{{{ArmorSize}}} {{{ArmorSize}}}" {{{CAlign}}} />
+					</frame>
+				</frame>
+			</frame>
+			
+			<quad sizen="0.3 {{{7*YOffset}}}" bgcolor="ffff" {{{CAlign}}} posn="0  {{{-7*YOffset}}}"/>
+			
+			<frame id="Rules_RightFrame" posn="{{{5}}} {{{-3*YOffset-3}}}" >
+				<frame posn="{{{WindowWidth/4}}} {{{2*YOffset}}}">
+					<label text="{{{TL::Compose("3 %1", _("Defenders"))}}}"  {{{CAlign}}}  textcolor="f90"/>
+					<quad  posn="-20 0" image="{{{WpRocketImage}}}"  sizen="{{{WeaponSize}}} {{{WeaponSize}}}" colorize="f90" {{{CAlign}}}/>
+				</frame>
+				<label posn="{{{WindowWidth/4}}} {{{-2*YOffset}}}" id="Rules_Left_Objectives" sizen="68 5" 
+				text="{{{_("Eliminate the attacker or prevent the pole from being captured.")}}}" textsize="1" autonewline="1" {{{CAlign}}} scale="1.1"/>
+				<frame posn="{{{WindowWidth/4 -8}}} {{{-5.*YOffset}}}" >
+					<label posn="0 0" text="{{{_("Armor")}}}" textsize="1" {{{CAlign}}} textprefix="$t"/>
+					<quad  posn="12 0" image="{{{ArmorImage}}}" sizen="{{{ArmorSize}}} {{{ArmorSize}}}" {{{CAlign}}}/>
+				</frame>
+			</frame>
+		</frame>
+		
+		<frame id="buttons" posn="0 {{{-(WindowHeight/2)+2}}}" {{{CAlign}}}>
+			<label posn=" 19 0" text="{{{DoNotShowAgain}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_DoNotShowAgain" {{{CAlign}}}/>
+			<label posn="-19 0" text="{{{Close}}}" style="CardButtonSmall" ScriptEvents="true" id="Button_Close" {{{CAlign}}}/>
+		</frame>
 		<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2) + 10}}}"  text="{{{
-				_("Press $<$o$f00F1$> to close this window.")}}}" />
+				TL::Compose(_("Press '$<%1F1$>' to close this window."), "$"^HighlightColor)}}}" />
 		<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2) + 6}}}"  text="{{{
-				_("Press 'alt' to free the cursor.")}}}" textsize="2"/>
+				TL::Compose(_("Hold '$<%1alt$>' to free the cursor."), "$"^HighlightColor)}}}" textsize="2"/>
 	</frame>
 	""";
 	
@@ -947,6 +1054,8 @@ Void Run() {
 	
 	// Reset UI
 	UIManager.ResetAll();
+	UIManager.UIAll.UISequence_CanSkipIntroMT = True;
+	// UIManager.UIAll.AltMenuNoCustomScores = True;
 	
 	if (MB_LibEP_UseLogging) Private_Log("StartServer");
 	
@@ -985,7 +1094,20 @@ Void Run() {
 	// ---------------------------------- //
 	// Create rules
 	declare ModeName = "Elite Practice";
-	SpawnScreen::CreateRules(ModeName, Description);
+	
+	SpawnScreen::AddSubsection(_("Type"), _("Free For All - 1 vs 3"), 0.);
+	SpawnScreen::AddSubsection(
+	_("Objectives"), 
+	TL::Compose(_("$<%11. $>The game is divided in rounds. During a round, one player is the Attacker, the others are Defenders.\n$<%12. $>The Attacker has to eliminate all Defenders or capture the pole between %2 and %3 seconds. Defenders must prevent him or her from doing so.\n$<%13. $>The Attacker plays with the Laser. Defenders play with Rockets."), "$"^SpawnScreen::GetModeColor() , "45", "60"), 20.);
+	SpawnScreen::AddSubsection(
+	_("Score"), 
+	TL::Compose(_("$<%11. $>A successful attack grants 1 point to the Attacker.\n$<%12. $>Hitting a player grants 1 goal average point. Being hit removes 1 goal average point. The goal average points are used to break tie between players.\n$<%13. $>After a fixed number of rounds, the player with the best score wins the map."), "$"^SpawnScreen::GetModeColor()),
+	73.);
+	
+	SpawnScreen::SetModeName(ModeName);
+	SpawnScreen::CreatePrettyRules();
+	//SpawnScreen::CreateRules(ModeName, Description);
+	
 	ModeStatusMessage = _("TYPE: Free for all\nOBJECTIVE: Capture the pole when you are the attacker. Defend the pole when you are a defender.");
 	
 	// ---------------------------------- //
@@ -994,6 +1116,7 @@ Void Run() {
 	
 	SpawnScreen::CreateScores("Score.Points");
 	SpawnScreen::CreateMapInfo();
+	
 	// ---------------------------------- //
 	// <<< +++StartServer+++
 	// ---------------------------------- //
@@ -2062,6 +2185,8 @@ Void Run() {
 			}
 			Ladder_SetResultsVersion(2);
 			Score::MatchEnd(True);
+			
+			Private_FindMaster();
 
 			UIManager.UIAll.StatusMessage = "";
 			UIManager.UIAll.BigMessage    = "";

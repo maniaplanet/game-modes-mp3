@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2013-06-18"
+#Const	Version				"2013-07-24"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "TextLib" as TL
@@ -13,7 +13,7 @@
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
-#Include "Libs/Nadeo/ShootMania/WarmUp.Script.txt" as WarmUp
+#Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
 #Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 #Include "Libs/Nadeo/ShootMania/KingOfTheLobby.Script.txt" as Lobby
@@ -84,7 +84,7 @@
 #Const C_OffZoneDuration		60
 #Const C_MaxDamage				100
 #Const C_ImgBaseDir 			"file://Media/Manialinks/Shootmania/Common/"
-#Const C_WaitConnectionTimeLimit	45000
+#Const C_WaitConnectionTimeLimit	60000
 #Const C_SleepEndMap				15000
 
 #Const Description _("TYPE: 2 vs 2\nOBJECTIVE:\n- Eliminate the two opponents within a short range of time (Combo Time).\n- Your Combo Time starts when you eliminate one opponent: eliminate the second one before it ends to win the round.\n- Each time you eliminate an opponent, your Combo Time increases.\n- Use '1', '2', '3' and '4' on your keyboard to switch weapon. Collecting a weapon item grants your team with the ability to use it this round, or with 1 extra ammo max if you already own it.")
@@ -119,7 +119,7 @@ MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
-MB_LogVersion(WarmUp::GetScriptName(), WarmUp::GetScriptVersion());
+MB_LogVersion(WarmUp2::GetScriptName(), WarmUp2::GetScriptVersion());
 MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
 MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
@@ -129,7 +129,21 @@ MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
 ***Rules***
 ***
 declare ModeName = "Combo";
-SpawnScreen::CreateRules(ModeName, Description);
+declare ModeObjectives = TL::Compose(_("$<%11. $>Eliminate the two opponents within a short range of time (Combo Time).\n$<%12. $>Your Combo Time starts when you eliminate one opponent: eliminate the second one before it ends to win the round."), "$"^SpawnScreen::GetModeColor());
+declare ModeConditions = TL::Compose(_("$<%11. $>Each time you eliminate an opponent, your Combo Time increases.\n$<%12. $>Use '1', '2', '3' and '4' on your keyboard to switch weapon. Collecting a weapon item grants your team with the ability to use it this round, or with 1 extra ammo max if you already own it."), "$"^SpawnScreen::GetModeColor());
+
+SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
+SpawnScreen::AddSubsection(
+	_("Objectives"), 
+	ModeObjectives, 
+	25.
+);
+SpawnScreen::AddSubsection(
+	_("Conditions"), 
+	ModeConditions, 
+	65.
+);
+SpawnScreen::CreatePrettyRules(ModeName);
 ***
 
 ***InitServer***
@@ -159,6 +173,13 @@ C_Default_Weapon = CSmMode::EWeapon::Rocket;
 ---Rules---
 
 // ---------------------------------- //
+// Create the warm up
+WarmUp2::Load();
+WarmUp2::CreateGroup("Clan1", S_NbPlayersPerTeam);
+WarmUp2::CreateGroup("Clan2", S_NbPlayersPerTeam);
+WarmUp2::DisplayClanSelection(True);
+
+// ---------------------------------- //
 // Create the scores table
 ScoresTable::Load();
 
@@ -181,6 +202,8 @@ declare LayerInfoId = Layers::Create("Info");
 ***
 declare Integer MapWinnerClan;
 declare CSmBlockSpawn[Integer] Spawns;
+if (S_Matchmaking) MB_UseIntro = False;
+else MB_UseIntro = True;
 ***
 
 ***StartMap***
@@ -268,10 +291,10 @@ if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
 // Do warm up
 if (S_Matchmaking) WaitConnection();
 else WarmUp();
-declare ClansOrder = WarmUp::GetOrder();
+declare ClansOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 foreach (Clan => ClanOrder in ClansOrder) {
 	if (!G_ClansPlayers.existskey(Clan)) continue;
-	foreach (PlayerId => PlayerOrder in ClanOrder) {
+	foreach (Slot => PlayerId in ClanOrder) {
 		G_ClansPlayers[Clan].add(PlayerId);
 	}
 }
@@ -787,10 +810,9 @@ MatchmakingWait();
 
 ***EndServer***
 ***
+WarmUp2::Unload();
 ScoresTable::Unload();
 SpawnScreen::DestroyRules();
-SpawnScreen::DestroyScores();
-SpawnScreen::DestroyMapInfo();
 
 // ---------------------------------- //
 // Destroy layer
@@ -997,23 +1019,19 @@ Void UpdateAmmoMax(Integer[Text] _AmmoMax) {
 		switch (Weapon) {
 			case "Laser"	: {
 				Label_AmmoLaser.SetText(WeaponText);
-				// Next data update
-				//if (Http.IsValidUrl(WeaponIcon)) Quad_IconLaser.ChangeImageUrl(WeaponIcon);
+				if (Http.IsValidUrl(WeaponIcon)) Quad_IconLaser.ChangeImageUrl(WeaponIcon);
 			}
 			case "Nucleus"	: {
 				Label_AmmoNucleus.SetText(WeaponText);
-				// Next data update
-				//if (Http.IsValidUrl(WeaponIcon)) Quad_IconNucleus.ChangeImageUrl(WeaponIcon);
+				if (Http.IsValidUrl(WeaponIcon)) Quad_IconNucleus.ChangeImageUrl(WeaponIcon);
 			}
 			case "Arrow"	: {
 				Label_AmmoArrow.SetText(WeaponText);
-				// Next data update
-				//if (Http.IsValidUrl(WeaponIcon)) Quad_IconArrow.ChangeImageUrl(WeaponIcon);
+				if (Http.IsValidUrl(WeaponIcon)) Quad_IconArrow.ChangeImageUrl(WeaponIcon);
 			}
 			case "Rocket"	: {
 				Label_AmmoRocket.SetText(WeaponText);
-				// Next data update
-				//if (Http.IsValidUrl(WeaponIcon)) Quad_IconRocket.ChangeImageUrl(WeaponIcon);
+				if (Http.IsValidUrl(WeaponIcon)) Quad_IconRocket.ChangeImageUrl(WeaponIcon);
 			}
 		}
 	}
@@ -1395,127 +1413,179 @@ Void CycleWeapon(CSmPlayer _Player, Integer _Step) {
 }
 
 // ---------------------------------- //
-/** Can we start the turn or not?
+/** Create the wait connection manialink
  *
- * @param _MinimumCriteria	True: At least 1 player in each clan ready | False: all players with 1 atk and 1 def ready
- *
- * @return		True if we can start the turn, false otherwise
+ *	@return		The manialink
  */
-Boolean CanStopWarmUp(Boolean _MinimumCriteria) {
-	declare NbClan1 = 0;
-	declare NbClan1Ready = 0;
-	declare NbClan2 = 0;
-	declare NbClan2Ready = 0;
-	declare CanStart = False;
+Text CreateLayerWaitConnection() {
+	declare Integer TotalReqPlayers	= S_Script_NbPlayersPerTeam*2;
+	declare Text 	ImgPlayer		= "file://Media/Manialinks/Shootmania/Common/DefendersLeft.dds";
+	declare Real	ImgSize			= 8.;
+	declare Real	XMargin			= 1.;
+	declare Text	MLText = 
+"""
+<frame posn="155 -79" id="Frame_Waiting">
+	<label halign="right" valign="bottom" textsize="3" textemboss="1" id="Label_Waiting" />
+	<frame>
+	""";
 	
-	// Can't start round if ...
-	foreach (ClanNumber => ClanOrder in WarmUp::GetOrder()) {
-		// ... a slot is empty
-		if (S_AllowUnbalancedTeams) {
-			if (ClanOrder.count < 1) {
-				return False;
-			}
+	for(I, 0, TotalReqPlayers-1) {
+		MLText ^= """ 
+		<quad id="Quad_Player{{{I}}}" halign="center" valign="center" posn="{{{(-I*(ImgSize + XMargin)) - (ImgSize/2.)}}} {{{-ImgSize/2.}}}" image="{{{ImgPlayer}}}" sizen="{{{ImgSize}}} {{{ImgSize}}}"  colorize="777" scale="0.5" />""";
+	}
+	
+	MLText ^= """
+	</frame>
+</frame>
+<frame posn="155 -86" hidden="1" id="Frame_Ready">
+	<label halign="right" valign="bottom" textsize="3" textemboss="1" text="{{{_("The match will begin shortly ...")}}}" />
+</frame>
+<script><!--
+#Include "TextLib" as TL
+
+main() {
+	declare Label_Waiting <=> (Page.GetFirstChild("Label_Waiting") as CMlLabel);
+	declare Frame_Waiting <=> (Page.GetFirstChild("Frame_Waiting") as CMlFrame);
+	declare Frame_Ready <=> (Page.GetFirstChild("Frame_Ready") as CMlFrame);
+	
+	declare CMlQuad[] PlayersQuad;
+	declare Boolean GetAQuad = True;
+	declare Integer I = 0;
+	while(GetAQuad) {
+		declare Quad_Player <=> (Page.GetFirstChild("Quad_Player"^I) as CMlQuad);
+		if(Quad_Player != Null) {
+			PlayersQuad.add(Quad_Player);
+			I += 1;
 		} else {
-			if (ClanOrder.count != S_Script_NbPlayersPerTeam) {
-				return False;
-			}
+			GetAQuad = False;
 		}
-		foreach (PlayerId => PlayerOrder in ClanOrder) {
-			// ... the player in the slot doesn't exist
-			if (!Players.existskey(PlayerId)) {
-				return False;
-			}
-			// ... the player in the slot changed team
-			else if (Players[PlayerId].RequestedClan != ClanNumber) {
-				return False;
-			}
-			// In other cases, check if the player is ready
-			else {
-				declare IsPlayerReady = False;
-				declare Player <=> Players[PlayerId];
-				
-				// Bot default to ready state
-				if (Player.IsFakePlayer) {
-					IsPlayerReady = True;
+	}
+	
+	Label_Waiting.SetText(_("Waiting for players"));
+	
+	declare netread Integer Net_ModeSport_PlayersNbTotal for Teams[0];
+	declare PrevPlayersNbTotal = -1;
+	
+	while (True) {
+		yield;
+		if (InputPlayer == Null) continue;
+		if (!PageIsVisible) continue;
+		
+		if (PrevPlayersNbTotal != Net_ModeSport_PlayersNbTotal) {
+			PrevPlayersNbTotal = Net_ModeSport_PlayersNbTotal;
+			//Label_Waiting.SetText(TL::Compose("%1: %2/{{{TotalReqPlayers}}}", _("Waiting for players"), TL::ToText(Net_ModeSport_PlayersNbTotal)));
+			
+			for(IQuad, 0, PlayersQuad.count - 1) {
+				if(IQuad < Net_ModeSport_PlayersNbTotal) {
+					declare PlayerQuad = PlayersQuad[PlayersQuad.count - IQuad - 1];
+					if(PlayerQuad != Null) {
+						PlayerQuad.Colorize = <1., 1., 1.>;
+						PlayerQuad.Scale = 1.;
+					}
 				} else {
-					IsPlayerReady = WarmUp::IsReady(Player);
-				}
-				declare Clan = 0;
-				Clan = Player.RequestedClan;
-				if (Clan == 1) {
-					if (IsPlayerReady) NbClan1Ready += 1;
-					NbClan1 += 1;
-				} else if (Clan == 2) {
-					if (IsPlayerReady) NbClan2Ready += 1;
-					NbClan2 += 1;
+					declare PlayerQuad = PlayersQuad[PlayersQuad.count - IQuad - 1];
+					if(PlayerQuad != Null) {
+						PlayerQuad.Colorize = <0.5, 0.5, 0.5>;
+						PlayerQuad.Scale = 0.5;
+					}
 				}
 			}
 		}
-	}
-	
-	// If we don't want to use the warmup, return true when there's at least one player in each clan
-	if (S_WarmUpDuration <= 0) {
-		return True;
-	} else if (_MinimumCriteria) {
-		if ((NbClan1Ready >= 1) && (NbClan2Ready >= 1)) return True;
-		else return False;
-	} else {
-		if (S_AllowUnbalancedTeams) {
-			if((NbClan1Ready == NbClan1) && (NbClan2Ready == NbClan2)) return True;
-			else return False;
-		} else {
-			if((NbClan1Ready >= S_Script_NbPlayersPerTeam) && (NbClan2Ready >= S_Script_NbPlayersPerTeam)) return True;
-			else return False;
+		
+		if (!Frame_Waiting.Visible && PrevPlayersNbTotal < {{{TotalReqPlayers}}}) {
+			Frame_Waiting.Show();
+			Frame_Ready.Hide();
+		} else if (!Frame_Ready.Visible &&  PrevPlayersNbTotal >= {{{TotalReqPlayers}}}) {
+			Frame_Waiting.Hide();
+			Frame_Ready.Show();
 		}
 	}
-	
-	return False;
+}
+--></script>
+""";
+
+	return MLText;
 }
 
 // ---------------------------------- //
 /// Wait player connection
 Void WaitConnection() {
-	WarmUp::Before(S_WarmUpDuration, True, True, S_Script_NbPlayersPerTeam);
-	WarmUp::ResetOrder();
+	WarmUp2::Begin();
+	WarmUp2::Detach();
 	
+	declare TimeOut = 5000;
 	declare PrevClansNbPlayers = [1 => 0, 2 => 0];
 	StartTime = Now;
-	EndTime = -1;
+	UIManager.UIAll.CountdownEndTime = -1;
+	
+	declare netwrite Integer Net_ModeSport_PlayersNbTotal for Teams[0];
+	declare LayerWaitConnectionId = Layers::Create("WaitConnection", CreateLayerWaitConnection());
+	Layers::GetFromId(LayerWaitConnectionId).Type = CUILayer::EUILayerType::CutScene;
+	declare LayerAttached = Layers::Attach("WaitConnection", NullId);
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
+	
+	Net_ModeSport_PlayersNbTotal = 0;
 	
 	while (True) {
-		MB_Sleep(250);
 		foreach (Player in AllPlayers) {
-			SetPlayerClan(Player, Player.RequestedClan);
+			if (Player.CurrentClan != Player.RequestedClan) SetPlayerClan(Player, Player.RequestedClan);
 		}
 		
-		UIManager.UIAll.StatusMessage = _("Waiting for players");
-		UIManager.UIAll.BigMessage = TL::Compose(
-			"""%1 1: %2/{{{S_Script_NbPlayersPerTeam}}} | %1 2: %3/{{{S_Script_NbPlayersPerTeam}}}""", 
-			_("Team"), TL::ToText(ClansNbPlayers[1]), TL::ToText(ClansNbPlayers[2])
-		);
+		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
+			Net_ModeSport_PlayersNbTotal = PlayersNbTotal;
+			if (ClansNbPlayers[1] >= S_Script_NbPlayersPerTeam && ClansNbPlayers[2] >= S_Script_NbPlayersPerTeam) {
+				UIManager.UIAll.SendNotice(
+					"", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, 
+					CUIConfig::EUISound::Custom4, 1
+				);
+			} else {
+				UIManager.UIAll.SendNotice(
+					"", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, 
+					CUIConfig::EUISound::Custom4, 0
+				);
+			}
+		}
 		
 		if (PrevClansNbPlayers[1] != ClansNbPlayers[1] || PrevClansNbPlayers[2] != ClansNbPlayers[2]) {
 			PrevClansNbPlayers[1] = ClansNbPlayers[1];
 			PrevClansNbPlayers[2] = ClansNbPlayers[2];
-			declare Cleaned = WarmUp::CleanOrder();
-			declare Filled = WarmUp::FillOrder();
+			WarmUp2::Clean();
+			WarmUp2::Fill();
 		}
 		
-		if (EndTime == -1 && ClansNbPlayers[1] >= 1 && ClansNbPlayers[2] >= 1) EndTime = Now + C_WaitConnectionTimeLimit;
+		if (UIManager.UIAll.CountdownEndTime == -1 && ClansNbPlayers[1] >= 1 && ClansNbPlayers[2] >= 1) {
+			UIManager.UIAll.CountdownEndTime = Now + C_WaitConnectionTimeLimit + TimeOut;
+		}
 		
 		if (ClansNbPlayers[1] >= S_Script_NbPlayersPerTeam && ClansNbPlayers[2] >= S_Script_NbPlayersPerTeam) break;
-		if (EndTime != -1 && Now >= EndTime) break;
+		if (UIManager.UIAll.CountdownEndTime != -1 && Now >= UIManager.UIAll.CountdownEndTime) break;
+		MB_Sleep(1000);
 	}
 	
-	StartTime = -1;
-	EndTime = -1;
+	WarmUp2::End();
+	UIManager.UIAll.CountdownEndTime = Now + TimeOut;	
+	while (Now < UIManager.UIAll.CountdownEndTime) {
+		MB_Yield();
+	}
 	
-	WarmUp::After();
-	declare Cleaned = WarmUp::CleanOrder();
-	declare Filled = WarmUp::FillOrder();
-	MB_Sleep(1000);
+	foreach (Player in AllPlayers) {
+		SetPlayerClan(Player, Player.RequestedClan);
+		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
+		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+	}
+	
+	WarmUp2::Clean();
+	WarmUp2::Fill();
+	
+	declare LayerDetached = Layers::Detach("WaitConnection", NullId);
+	declare LayerDestroyed = Layers::Destroy("WaitConnection");
+	MB_Sleep(500);
 	UIManager.UIAll.StatusMessage = "";
 	UIManager.UIAll.BigMessage = "";
+	
+	StartTime = -1;
+	UIManager.UIAll.CountdownEndTime = -1;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 }
 
 // ---------------------------------- //
@@ -1527,9 +1597,9 @@ Void WarmUp() {
 	UIManager.UIAll.BigMessage = _("Warm-up");
 	UIManager.UIAll.StatusMessage = _("Press F6 once you're ready.");
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
-	declare RazorTime = -1;
-	StartTime = Now + 1000;
-	EndTime = -1;
+	
+	UsePvPCollisions = True;
+	UsePvPWeapons = True;
 	
 	// ---------------------------------- //
 	// Initialize objects
@@ -1542,61 +1612,129 @@ Void WarmUp() {
 	}
 	Combo_SpawnObjects();
 	
-	// Param: Duration, UseTeam, UseOrder, NumberOfPlayers
-	WarmUp::Before(S_WarmUpDuration, True, True, S_Script_NbPlayersPerTeam);
-	WarmUp::ResetOrder();
-	declare Cleaned = WarmUp::CleanOrder();
+	WarmUp2::Begin();
 	
+	// ---------------------------------- //
+	// Init players
 	foreach (Player in Players) {
 		SetPlayerClan(Player, Player.RequestedClan);
+		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
+		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 	}
+	WarmUp2::Clean();
+	WarmUp2::Fill();
 	
-	while ((EndTime == -1 || Now <= EndTime) && !ServerShutdownRequested && !MatchEndRequested) {
+	StartTime = Now + 1000;
+	EndTime = -1;
+	declare TmpEndTime = EndTime;
+	declare WarmUpDuration = S_WarmUpDuration;
+	declare PrevWarmUpDuration = WarmUpDuration;
+	
+	while (!WarmUp2::Stop() && (EndTime <= 0 || Now < EndTime) && !ServerShutdownRequested && !MatchEndRequested) {
 		MB_Yield();
+		
+		// Check XmlRpc events
+		declare StopWarmUp = False;
+		foreach (Event in XmlRpc.PendingEvents) {
+			if (Event.Param1 == "WarmUp_Extend") {
+				declare ExtendTime = TL::ToInteger(Event.Param2);
+				if (EndTime >= 0) {
+					EndTime += ExtendTime;
+					TmpEndTime += ExtendTime;
+				}
+				WarmUpDuration += ExtendTime;
+			} else if (Event.Param1 == "WarmUp_Stop") {
+				StopWarmUp = True;
+			}
+		}
+		if (StopWarmUp) break;
+		
+		if (PrevWarmUpDuration != S_WarmUpDuration) {
+			PrevWarmUpDuration = S_WarmUpDuration;			
+			WarmUpDuration = S_WarmUpDuration;
+			if (EndTime >= 0) {
+				EndTime = Now + (WarmUpDuration * 1000);
+				TmpEndTime = Now + (WarmUpDuration * 1000);
+			}
+		}
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
 		
-		WarmUp::Loop();
-		SM::UnspawnPlayersChangingClan();
-		
 		// Manage players
 		foreach (Player in Players) {
-			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+			if (Player.CurrentClan != Player.RequestedClan) {
+				UnspawnPlayer(Player);
 				SetPlayerClan(Player, Player.RequestedClan);
+				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
+				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+			}
+			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
 				SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, False);
 				declare BlockSpawn <=> SM::GetSpawn("Spawn", Player.CurrentClan);
 				if (BlockSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, 200, BlockSpawn, Now);
 			}
 		}
 		
-		{
-			// Warmup ending conditions
-			declare SomePlayersReady = CanStopWarmUp(True);
-			declare AllPlayersReady = CanStopWarmUp(False);
-			
-			if (AllPlayersReady || WarmUp::EndRequested()) {
-				if (EndTime == -1 && S_WarmUpDuration <= 0) EndTime = Now;
-				else if (EndTime == -1 || EndTime > Now + 5000) EndTime = Now + 5 * 1000;
-			} else if (SomePlayersReady) {
-				if (RazorTime == -1) RazorTime = Now + S_WarmUpDuration*1000;
-				EndTime = RazorTime;
+		WarmUp2::Loop();
+		WarmUp2::ManageEvents();
+		
+		// Warmup ending conditions
+		declare PlayersNbClan1 = WarmUp2::GetPlayersNb("Clan1");
+		declare PlayersNbClan2 = WarmUp2::GetPlayersNb("Clan2");
+		declare ReadyPlayersClan1 = WarmUp2::GetReadyPlayersNb("Clan1");
+		declare ReadyPlayersClan2 = WarmUp2::GetReadyPlayersNb("Clan2");
+		
+		if (WarmUpDuration <= 0) {
+			if (S_AllowUnbalancedTeams) {
+				if (PlayersNbClan1 >= 1 && PlayersNbClan2 >= 1) EndTime = Now;
 			} else {
-				RazorTime = -1;
+				if (PlayersNbClan1 >= S_Script_NbPlayersPerTeam && PlayersNbClan2 >= S_Script_NbPlayersPerTeam) EndTime = Now;
+			}
+		} else if (ReadyPlayersClan1 >= S_Script_NbPlayersPerTeam && ReadyPlayersClan2 >= S_Script_NbPlayersPerTeam) {
+			if (EndTime < 0 || EndTime > Now + 5000) EndTime = Now + 5000;
+		} else if (ReadyPlayersClan1 >= 1 && ReadyPlayersClan2 >= 1) {
+			if (S_AllowUnbalancedTeams) {
+				if (ReadyPlayersClan1 >= PlayersNbClan1 && ReadyPlayersClan2 >= PlayersNbClan2) {
+					if (EndTime < 0 || EndTime > Now + 5000) EndTime = Now + 5000;
+				} else {
+					if (EndTime < 0 || EndTime != TmpEndTime) {
+						if (TmpEndTime < 0) TmpEndTime = Now + (WarmUpDuration * 1000);
+						EndTime = TmpEndTime;
+					}
+				}
+			} else {
+				if (PlayersNbClan1 >= S_Script_NbPlayersPerTeam && PlayersNbClan2 >= S_Script_NbPlayersPerTeam) {
+					if (EndTime < 0 || EndTime != TmpEndTime) {
+						if (TmpEndTime < 0) TmpEndTime = Now + (WarmUpDuration * 1000);
+						EndTime = TmpEndTime;
+					}
+				} else {
+					if (EndTime >= 0) {
+						TmpEndTime = -1;
+						EndTime = -1;
+					}
+				}
+			}
+		} else {
+			if (EndTime >= 0) {
+				TmpEndTime = -1;
 				EndTime = -1;
 			}
 		}
 	}
 	
-	WarmUp::After();
+	WarmUp2::End();
+	WarmUp2::Clean();
+	WarmUp2::Fill();
 	
 	StartTime = -1;
 	EndTime = -1;
 	
-	declare PlayersOrder = WarmUp::GetOrder();
+	declare PlayersOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 	declare AllowedPlayers = Ident[];
 	for (I, 1, 2) {
-		foreach (PlayerId => PlayerOrder in PlayersOrder[I]) {
+		foreach (Slot => PlayerId in PlayersOrder[I]) {
 			AllowedPlayers.add(PlayerId);
 		}
 	}
