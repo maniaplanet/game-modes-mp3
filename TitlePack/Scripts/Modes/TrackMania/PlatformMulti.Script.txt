@@ -1,0 +1,294 @@
+// *********************** ** ** *   *
+// *    TM Platform  (multi)
+// ******************* ** ** *   *
+
+#RequireContext CTmMode
+
+#Const CompatibleMapTypes "Platform"
+#Const Version 			  "2012-07-25"
+
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/Mode.Script.txt"
+#Include "Libs/Nadeo/TrackMania/TM.Script.txt" as TM
+#Include "Libs/TrackMania/TMPlatform.Script.txt" as PlatformLib
+
+#Setting  Duration 	300000	as _("Time limit")
+#Setting  ShowTop10 True	as _("Show Top 10")
+
+
+// === Scores ===
+
+declare Ident[][Integer]	TopRuns; // array of ALL runs, ordered by respawns, and then by time (first to finish first)
+declare Boolean				Top10_Dirty;
+
+Void Top10_Init()
+{	
+	Top10_Dirty = False;
+	UIManager.UIAll.SmallScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	UIManager.UIAll.SmallScoreTable = """<scoretable type="points">
+										</scoretable>""";
+}
+
+Void Top10_Update()
+{
+	if (!Top10_Dirty) 
+		return;
+	Top10_Dirty = False;
+	TopRuns = TopRuns.sortkey();
+	
+	declare Table = """<scoretable type="points">""";
+	declare I = 0;
+	foreach(NbRespawns => Runs in TopRuns) {
+		foreach(ScoreId in Runs) {
+			if(!Scores.existskey(ScoreId)) continue;
+			declare User <=> Scores[ScoreId].User;
+			if(User == Null) continue;
+			Table ^= """<score login="{{{User.Login}}}" value="{{{NbRespawns}}}" inc="0"/>""";	
+			I += 1;
+			if(I >= 10) break;
+		}
+		if(I >= 10) break;
+	}
+	Table ^= """</scoretable>""";
+
+	UIManager.UIAll.SmallScoreTable = Table;
+	if (ShowTop10) {
+		UIManager.UIAll.SmallScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+	} else {
+		UIManager.UIAll.SmallScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	}
+}
+
+Void Top10_Clear()
+{
+	Top10_Dirty = False;
+	
+	UIManager.UIAll.SmallScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	UIManager.UIAll.SmallScoreTable = "";
+}
+
+
+// === Main ===
+main() 
+{
+	UIManager.ResetAll();
+
+	PlatformLib::SetupUi(This);
+	
+	CutOffTimeLimit = 0; 
+	TM::Players_UnspawnAll();
+
+	while( !ServerShutdownRequested ) {
+		LoadMap();
+		declare metadata Integer RaceCheckpoints 	for Map;
+
+		// intro & setup
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+		Scores_Clear();
+		Top10_Clear();
+		declare ScoresDirty = True;
+		declare PrevPlayerCountForDirty = 0;
+		
+		sleep(300);
+		TM::Players_SpawnAll(Now + 100000);		// put the car on the startline for nicer intro.
+
+		wait(UIManager.UIAll.UISequenceIsCompleted);
+		
+		// start the race
+		Synchro_DoBarrier();
+		Top10_Init();
+		TopRuns = Ident[][Integer];
+		
+		Ladder_OpenMatch_All();
+		foreach(Score in Scores) {
+			declare FurthestCheckpointReached for Score = 0;
+			declare FurthestCheckpointReached_Time for Score = 0;
+			declare FurthestCheckpointReached_NbRespawns for Score = 9999;
+			FurthestCheckpointReached = 0;
+			FurthestCheckpointReached_Time = 0;
+			FurthestCheckpointReached_NbRespawns = 9999;
+		}
+		
+
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+		declare MatchStartTime = Now + 2000;
+		CutOffTimeLimit = MatchStartTime + Duration;
+		TM::Players_SpawnAll(MatchStartTime);
+		
+		declare ExitLoopBarrier = 0;
+		while( !Synchro_BarrierReached(ExitLoopBarrier) ) {
+			TM::RunGame();
+			TM::EndRaceSequence_Update();
+
+			CutOffTimeLimit = MatchStartTime + Duration;		// support dynamic parameter changes
+			
+			if (MatchEndRequested || Now > CutOffTimeLimit) {
+				if (ExitLoopBarrier == 0) {	// if not yet processed
+					TM::Players_UnspawnAll();
+					ExitLoopBarrier = Synchro_AddBarrier();
+				}
+			} else {
+				TM::Players_SpawnWaiting(0);
+			}
+
+			foreach(Event, PendingEvents) {	
+				PassOn(Event);
+	
+				if (Event.Type == CTmModeEvent::EType::WayPoint) {
+					declare FurthestCheckpointReached for Event.Player.Score = 0;
+					declare FurthestCheckpointReached_Time for Event.Player.Score = 0;
+					declare FurthestCheckpointReached_NbRespawns for Event.Player.Score = 9999;
+					if (Event.CheckpointInRace+1 > FurthestCheckpointReached
+						|| (Event.CheckpointInRace+1 == FurthestCheckpointReached && Event.NbRespawns < FurthestCheckpointReached_NbRespawns)) {
+						FurthestCheckpointReached = Event.CheckpointInRace+1;
+						FurthestCheckpointReached_Time = Now;
+						FurthestCheckpointReached_NbRespawns = Event.NbRespawns;
+						ScoresDirty = True;
+					}
+				}
+				if (Event.Type == CTmModeEvent::EType::WayPoint && Event.IsEndRace) {
+					declare Player <=> Event.Player;
+					declare NbRespawns = Player.CurRace.NbRespawns;
+					declare Time = Player.CurRace.Time;
+					declare IsInvalidRace = (Event.RaceTime == 0);
+					assert(Time == Event.RaceTime || IsInvalidRace);
+					assert(NbRespawns == Event.NbRespawns || IsInvalidRace);
+					
+					if (IsInvalidRace) {
+						TM::EndRaceSequence_Add(Player, _("$f00Invalid time"));
+						continue;
+					}
+					
+					Player.Score.PrevRace = Player.CurRace;
+				
+					if(!TopRuns.existskey(NbRespawns)) TopRuns[NbRespawns] = Ident[];
+					if(Player.Score != Null) {
+						assert(Player.Score.Id != NullId);
+						TopRuns[NbRespawns].add(Player.Score.Id);
+						Top10_Dirty = True;	
+						ScoresDirty = True;
+					}
+					
+					if (PlatformLib::IsRaceBetter(Player.CurRace, Player.Score.BestRace)) {
+						Player.Score.BestRace = Player.CurRace;
+						TM::EndRaceSequence_Add(Player, _("New record!"));
+					} else {
+						TM::EndRaceSequence_Add(Player, "");
+					}
+				}
+			}
+			
+			// scores ui
+			if (PrevPlayerCountForDirty != Scores.count) {
+				PrevPlayerCountForDirty = Scores.count;
+				ScoresDirty = True;
+			}
+			
+			Top10_Update();
+			if (ScoresDirty) {
+				ScoresDirty = False;
+								
+				declare Integer[Ident] NbRunsPerScore;
+				declare MaxNbRuns = 0;
+				foreach(NbRespawns => Runs in TopRuns) {
+					foreach(ScoreId in Runs) {						
+						if (!NbRunsPerScore.existskey(ScoreId)) NbRunsPerScore[ScoreId] = 0;
+						NbRunsPerScore[ScoreId] += 1;
+						if (NbRunsPerScore[ScoreId] > MaxNbRuns) MaxNbRuns = NbRunsPerScore[ScoreId];	
+					}
+				}
+
+				declare Text[Ident] SortStringPerScore;	
+				declare Text[Ident] DisplayStringPerScore;				
+				foreach(NbRespawns => Runs in TopRuns) {
+					foreach(ScoreId in Runs) {			
+						if(!SortStringPerScore.existskey(ScoreId)) {
+							SortStringPerScore[ScoreId] = "";
+							DisplayStringPerScore[ScoreId] = "";
+						}
+						SortStringPerScore[ScoreId] ^= " " ^ TextLib::FormatInteger(NbRespawns, 3);
+						
+						declare Len = TextLib::Length(DisplayStringPerScore[ScoreId]);
+						if (Len < 10) {
+							if(Len != 0) DisplayStringPerScore[ScoreId] ^= "-";
+							DisplayStringPerScore[ScoreId] ^= NbRespawns;
+						}
+					}
+				}
+				
+
+				// We add fake very bad runs 
+				foreach(ScoreId => String in SortStringPerScore) {
+					for(I, NbRunsPerScore[ScoreId]+1, MaxNbRuns) {
+						SortStringPerScore[ScoreId] ^= " XXX";
+					}
+				}
+				
+				//  add the players that haven't reached the finish yet.
+				foreach(Score in Scores) {
+					declare FurthestCheckpointReached for Score = 0;
+					declare FurthestCheckpointReached_Time for Score = 0;
+					declare FurthestCheckpointReached_NbRespawns for Score = 9999;
+					
+					if (FurthestCheckpointReached == 0)
+						continue;
+					if (SortStringPerScore.existskey(Score.Id))
+						continue;
+						
+					SortStringPerScore[Score.Id] = " XXX c" ^ TextLib::FormatInteger(999-FurthestCheckpointReached, 3) ^ " " ^ TextLib::FormatInteger(FurthestCheckpointReached_NbRespawns, 3) ^ " " ^ TextLib::FormatInteger(FurthestCheckpointReached_Time-MatchStartTime,10);
+					DisplayStringPerScore[Score.Id] = "$E76(-"^ (RaceCheckpoints+1)-FurthestCheckpointReached ^")$z " ^ FurthestCheckpointReached_NbRespawns;
+				}
+
+				SortStringPerScore = SortStringPerScore.sort();
+				
+				foreach( Score in Scores ) {
+					declare FurthestCheckpointReached for Score = 0;
+					if (FurthestCheckpointReached != 0)
+						Score.LadderRankSortValue = SortStringPerScore.count+1;
+					else
+						Score.LadderRankSortValue = 0;	// not in ladder.
+				}
+				declare I = 1;
+				foreach( ScoreId => String in SortStringPerScore ) {
+					Scores[ScoreId].LadderRankSortValue = I;
+					I += 1;
+				}
+				
+				Scores_Sort(::ETmScoreSortOrder::LadderRankSortValue);
+				
+				declare Table = """<scoretable type="text">""";
+				foreach (Score in Scores) {
+					declare Val = "";
+					if (DisplayStringPerScore.existskey(Score.Id))
+						Val = DisplayStringPerScore[Score.Id];
+					
+					Table ^= """<score login="{{{Score.User.Login}}}" value="{{{Val}}}" inc="0"/>""";		
+				}
+				Table ^= """</scoretable>""";
+				UIManager.UIAll.ScoreTable = Table;
+			}
+		}
+		
+		declare Boolean IsMatchValid =  (Now >= CutOffTimeLimit);
+		if (IsMatchValid) {
+			TM::Ladder_ComputeRankAndCloseMatch(::ETmScoreSortOrder::LadderRankSortValue);
+		} else {
+			TM::Ladder_CancelMatch();		
+		}
+		MatchEndRequested = False;
+		
+		TM::Players_UnspawnAll();
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
+		wait(UIManager.UIAll.UISequenceIsCompleted);
+		
+		
+		UnloadMap();
+		
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::None;
+		Top10_Clear();
+		Scores_Clear();
+	}
+
+	PlatformLib::CleanupUi(This);
+}
