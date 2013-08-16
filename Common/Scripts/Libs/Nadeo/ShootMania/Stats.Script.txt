@@ -51,24 +51,6 @@ CSmMode::EWeapon Private_GetWeaponFromName(Text _WeaponName) {
 }
 
 // ---------------------------------- //
-/** Find the weapon name from ::EWeapon
- *
- *	@param	_WeaponName		The name of the weapon
- *
- *	@return		The name of the weapon if found, Rocket otherwise
- */
-CSmMode::EWeapon Private_GetWeaponFromName(Text _WeaponName) {
-	switch (_WeaponName) {
-		case "Rocket"	: return CSmMode::EWeapon::Rocket;
-		case "Laser"	: return CSmMode::EWeapon::Laser;
-		case "Nucleus"	: return CSmMode::EWeapon::Nucleus;
-		case "Arrow"	: return CSmMode::EWeapon::Arrow;
-	}
-	
-	return CSmMode::EWeapon::Rocket;
-}
-
-// ---------------------------------- //
 /** Find the sequence number from its name
  *
  *	@param	_SequenceName	The name of the sequence
@@ -199,14 +181,7 @@ Void StartMap() {
 // ---------------------------------- //
 /// Start submatch
 Void StartSubmatch() {
-	foreach (User in Users) {
-		declare WeaponsHasHit for User = Integer[Integer][Integer];
-		foreach (Weapon => SequenceHits in WeaponsHasHit) {
-			WeaponsHasHit[Weapon][C_SequenceSubmatch] = 0;
-			WeaponsHasHit[Weapon][C_SequenceRound] = 0;
-			WeaponsHasHit[Weapon][C_SequenceTurn] = 0;
-		}
-	}
+	Private_ResetStats(C_SequenceSubmatch);
 }
 
 // ---------------------------------- //
