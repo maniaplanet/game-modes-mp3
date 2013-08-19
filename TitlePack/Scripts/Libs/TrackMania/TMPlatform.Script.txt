@@ -1,0 +1,141 @@
+// *********************** ** ** *   *
+// *    TM Platform  (helper functions)
+// ******************* ** ** *   *
+
+#Const CustomUiManialinkPage """
+		<frame posn="0 -75">
+			<quad posn="-20 1 -1" sizen="40 10" style="Bgs1InRace" substyle="BgList"/>
+			<label id="LabelRespawns" posn="0 -3" style="TextRaceChrono" sizen="30 5" halign="center" valign="center" text="0"  />
+			<label id="LabelCheckpoint" posn="0 6" style="TextRaceMessage" sizen="30 2" halign="center" text=""  />
+			<label id="LabelPrevBest" posn="0 -9" style="TextRaceMessage" sizen="30 1" scale="0.5" halign="center" text="Best: ???"  />			
+		</frame>
+		<script><!--
+			#Include "TextLib" as TextLib
+			declare Integer[CMlLabel] UIAnims_BlinkLabels;
+			declare Integer[CMlLabel] UIAnims_SplashLabels;
+			Void BlinkLabel(CMlLabel _Label, Text _Text) {
+				_Label.Value = _Text;
+				UIAnims_BlinkLabels[_Label] = Now;
+			}
+			Void SplashLabel(CMlLabel _Label, Text _Text, Text _Modifier) {
+				_Label.Value = _Modifier ^ _Text;
+				declare PureValue for _Label = _Text; PureValue = _Text;
+				UIAnims_SplashLabels[_Label] = Now;			
+			}
+			Void SplashLabelSet(CMlLabel _Label, Text _Text) {
+				_Label.Value = _Text;
+				declare PureValue for _Label = _Text; PureValue = _Text;				
+				UIAnims_SplashLabels[_Label] = -1;			
+			}
+			Void UIAnims_Update()
+			{
+				foreach(Label => Time in UIAnims_BlinkLabels) {
+					if (Now > Time && Now < Time + 1000)
+						Label.Show();
+					else
+						Label.Hide();
+				}
+				foreach(Label => Time in UIAnims_SplashLabels) {
+					if (Now >= Time && Now < Time + 500) {
+						declare t = (Now-Time)/500.0;
+						Label.Scale = 1.0 + 0.5*((t-1.0)*(t-1.0));
+					} else {
+						declare PureValue for Label = /*default*/ Label.Value;
+						Label.Value = PureValue;
+						Label.Scale = 1.0;
+					}
+				}
+				
+			}
+			main () {
+				declare LabelRespawns <=> (Page.GetFirstChild("LabelRespawns") as CMlLabel);
+				declare LabelCheckpoint <=> (Page.GetFirstChild("LabelCheckpoint") as CMlLabel);
+				declare LabelBest <=> (Page.GetFirstChild("LabelPrevBest") as CMlLabel);
+				LabelCheckpoint.Hide();
+				LabelRespawns.Value = "0";
+
+				declare persistent BestScore_NbRespawns for Map = -1;
+				
+				while(True) {
+					UIAnims_Update();
+					yield;
+
+					declare NbRespawnsText = "???";
+					if (GUIPlayer != Null && GUIPlayer == InputPlayer && BestScore_NbRespawns != -1)
+						NbRespawnsText = TextLib::ToText(BestScore_NbRespawns);
+					LabelBest.Value = TextLib::Compose(_("Best: %1"), NbRespawnsText);		// pour l'instant on affiche juste le best du joueur local depuis son profile.
+																				// on pourrait utiliser un declare netread for player pour l'avoir sur chaque joueur, 
+																				// envoyé par le serveur. (TODO.)
+					
+					if (GUIPlayer == Null) 
+						continue;
+					
+					declare CurCheckpoint for GUIPlayer = 0;
+					declare NewCheckpoint = GUIPlayer.CurRace.Checkpoints.count;
+					declare EventCheckpoint = (NewCheckpoint != CurCheckpoint && NewCheckpoint > 0 && NewCheckpoint < 100);
+					if (EventCheckpoint)
+						BlinkLabel(LabelCheckpoint, _("Checkpoint"));
+					CurCheckpoint = NewCheckpoint;
+					
+					declare CurNbRespawns for GUIPlayer = 0;
+					declare NewNbRespawns = GUIPlayer.CurRace.NbRespawns;
+					
+					if (NewNbRespawns > CurNbRespawns)
+						SplashLabel(LabelRespawns, TextLib::ToText(NewNbRespawns), "$C00");
+					else if (EventCheckpoint)
+						SplashLabel(LabelRespawns, TextLib::ToText(NewNbRespawns), "$0C0");
+					else if (CurNbRespawns != NewNbRespawns)
+						SplashLabelSet(LabelRespawns, TextLib::ToText(NewNbRespawns));
+					CurNbRespawns = NewNbRespawns;					
+				}
+			}
+		--></script>
+"""
+
+Boolean IsRaceBetter(CTmResult _Race1, CTmResult _Race2)
+{
+	declare Comp = _Race1.Compare(_Race2, CTmResult::ETmRaceResultCriteria::NbRespawns);
+	return Comp > 0;
+}
+
+CMode::EMedal GetMedalForScore(CTmResult _Race)
+{
+	declare metadata Integer ObjectiveAuthor 	for Map = -1;
+	declare metadata Integer ObjectiveGold 		for Map = -1;
+	declare metadata Integer ObjectiveSilver 	for Map = -1;
+	declare metadata Integer ObjectiveBronze 	for Map = -1;
+
+	if (_Race.NbRespawns <= ObjectiveAuthor && ObjectiveAuthor != ObjectiveGold) 	return CMode::EMedal::Gold;		// CMode::EMedal::Author;  --> no, gold at most.
+	else if (_Race.NbRespawns <= ObjectiveGold) 		return CMode::EMedal::Gold;
+	else if (_Race.NbRespawns <= ObjectiveSilver) 		return CMode::EMedal::Silver;
+	else if (_Race.NbRespawns <= ObjectiveBronze) 		return CMode::EMedal::Bronze;
+	else												return CMode::EMedal::Finished;
+	return CMode::EMedal::None;
+}
+
+
+declare CUILayer UILayer;
+
+Void SetupUi(CTmMode _Rules)  // for CTmRules
+{
+	_Rules.IndependantLaps = False;
+	_Rules.UiRounds = False;
+	_Rules.UiStuntsMode = False;
+	_Rules.UiRaceChrono = CTmMode::ETmRaceChronoBehaviour::Hidden;
+	
+	UILayer = _Rules.UIManager.UILayerCreate();
+	UILayer.ManialinkPage = CustomUiManialinkPage;
+	
+	_Rules.UIManager.UIAll.UILayers.add(UILayer);
+}
+
+Void CleanupUi(CTmMode _Rules)  // for CTmRules
+{
+	_Rules.UIManager.UILayerDestroy(UILayer);	
+	UILayer = Null;
+}
+
+CUILayer GetUILayer()
+{
+	return UILayer;
+}

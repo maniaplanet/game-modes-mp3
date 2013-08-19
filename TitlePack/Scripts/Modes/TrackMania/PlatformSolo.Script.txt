@@ -1,0 +1,108 @@
+// *********************** ** ** *   *
+// *    TM Platform (solo)
+// ******************* ** ** *   *
+
+#RequireContext CTmMode
+
+#Const CompatibleMapTypes "Platform"
+#Const Version 			  "2012-07-18"
+
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/Mode.Script.txt"
+#Include "Libs/Nadeo/TrackMania/TM.Script.txt" as TM
+#Include "Libs/TrackMania/TMPlatform.Script.txt" as PlatformLib
+
+// === Main ===
+main() 
+{
+	UIManager.ResetAll();
+
+	PlatformLib::SetupUi(This);
+	
+	CutOffTimeLimit = 0; 
+	TM::Players_UnspawnAll();
+
+	while( !ServerShutdownRequested ) {
+		LoadMap();
+
+		// intro & setup
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+		Scores_Clear();
+		
+		sleep(200);
+		TM::Players_SpawnAll(Now + 100000);		// put the car on the startline for nicer intro.
+
+		wait(UIManager.UIAll.UISequenceIsCompleted);
+		
+		// start the race
+		Synchro_DoBarrier();
+		declare persistent BestScore_NbRespawns for Map = -1;
+		foreach(Player in Players) {
+			Player.Score.BestRace.NbRespawns = BestScore_NbRespawns;
+		}
+
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+		CutOffTimeLimit = 0; 			// never ends.
+		TM::Players_SpawnAll(0);		// start asap.
+
+		declare ExitLoopBarrier = 0;
+		while( !Synchro_BarrierReached(ExitLoopBarrier) ) {
+			yield; // TM::RunGame();
+			TM::EndRaceSequence_Update();
+			
+			if (MatchEndRequested) {
+				if (ExitLoopBarrier == 0) {	// if not yet processed
+					TM::Players_UnspawnAll();
+					ExitLoopBarrier = Synchro_AddBarrier();
+				}
+			} else {
+				// show medal gain
+				foreach(Player, Players) {
+					declare Boolean HasNewRecord for Player;
+					if (!HasNewRecord) 
+						continue;
+					if (Player.RaceStartTime != 0)
+						continue;	// wait until the race is finished and he has been unspawned.
+					Solo_SetNewRecord(Player.Score, PlatformLib::GetMedalForScore(Player.Score.BestRace));
+					HasNewRecord = False;
+				}
+				
+				TM::Players_SpawnWaiting(0);
+			}
+
+			foreach(Event, PendingEvents) {	
+				PassOn(Event);
+	
+				if (Event.Type == CTmModeEvent::EType::WayPoint && Event.IsEndRace) {
+					declare Player <=> Event.Player;
+					assert(Player.CurRace.Time == Event.RaceTime);
+					assert(Player.CurRace.NbRespawns == Event.NbRespawns);
+					Player.Score.PrevRace = Player.CurRace;
+					if (PlatformLib::IsRaceBetter(Player.CurRace, Player.Score.BestRace)) {
+						Player.Score.BestRace = Player.CurRace;
+						BestScore_NbRespawns = Player.CurRace.NbRespawns;		// Save to profile!
+
+						TM::EndRaceSequence_Add(Player, _("New record!"));
+					} else {
+						TM::EndRaceSequence_Add(Player, "");
+					}
+
+					declare Boolean HasNewRecord for Player;
+					HasNewRecord = True;
+				}
+			}
+		}
+		
+		MatchEndRequested = False;
+		
+		TM::Players_UnspawnAll();
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::Outro;
+		wait(UIManager.UIAll.UISequenceIsCompleted);
+		
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::None;
+		Scores_Clear();
+		UnloadMap();
+	}
+	
+	PlatformLib::CleanupUi(This);
+}
