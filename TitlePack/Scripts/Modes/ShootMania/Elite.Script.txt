@@ -4,13 +4,12 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-07-25"
+#Const Version		"2013-09-09"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
 #Include "Libs/Nadeo/ShootMania/Draft.Script.txt" as Draft
 #Include "Libs/Nadeo/ShootMania/LobbyMelee.Script.txt" as Lobby
-#Include "Libs/Nadeo/ShootMania/WeaponSelection.Script.txt" as WeaponSelection
 #Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable	///< Fix: The lobby can't work without including this lib in Elite
 #Include "Libs/Nadeo/ShootMania/Elite/ElitePractice.Script.txt" as ElitePractice
 #Include "Libs/Nadeo/ShootMania/Elite/EliteEndSequence.Script.txt" as EliteEndSequence
@@ -43,6 +42,8 @@
 
 #Const C_RequiredPlayersNb	3	///< Required number of players in each team
 
+#Const C_UseToken True	///< Use token in demo mode
+
 // ---------------------------------- //
 // Online settings
 #Const C_SettingsUrl			"http://files.maniaplanet.com/scriptsettings/Elite.ScriptSettings.xml"
@@ -72,7 +73,6 @@ MB_LogVersion(Draft::GetScriptName(), Draft::GetScriptVersion());
 MB_LogVersion(Settings::GetScriptName(), Settings::GetScriptVersion());
 MB_LogVersion(ElitePractice::GetScriptName(), ElitePractice::GetScriptVersion());
 MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
-MB_LogVersion(WeaponSelection::GetScriptName(), WeaponSelection::GetScriptVersion());
 MB_LogVersion(EliteEndSequence::GetScriptName(), EliteEndSequence::GetScriptVersion());
 ***
 
@@ -81,24 +81,13 @@ MB_LogVersion(EliteEndSequence::GetScriptName(), EliteEndSequence::GetScriptVers
 // ---------------------------------- //
 // Create rules
 declare ModeName = "Elite";
-/*
-declare ModeRules = TextLib::Compose(
-	_("Two teams - 1 vs 3\n\n- The defenders must eliminate the attacker or prevent him from capturing the pole.\n- The attacker has to eliminate all defenders or capture the pole between %1 seconds and %2 seconds.\n- The game is divided in rounds of two turns each.\n- During a round each team play one turn in attack and one turn in defense.\n- The team in defense play with 3 players using rockets.\n- The team in attack play with 1 player using laser.\n- The team who wins the turn scores 1 point.\n- The first team to score at least %3 points with %4 ahead of his opponent wins the map."),
-	TextLib::ToText(S_TimeLimit - S_TimePole),
-	TextLib::ToText(S_TimeLimit),
-	TextLib::ToText(S_TurnWin),
-	TextLib::ToText(S_TurnGap)
-);
-SpawnScreen::CreateRules(ModeName, ModeRules);
-*/
-
 SpawnScreen::AddSubsection(_("Type"), _("Two teams - 1 vs 3"), 0.);
 SpawnScreen::AddSubsection(
 	_("Objectives"), 
-	TextLib::Compose(_("$<%11. $>The game is divided in rounds of two turns each. During a round each team plays one turn in attack and one turn in defense.\n$<%12. $>The attacker has to eliminate all defenders or capture the pole between %2 seconds and %3 seconds. The defenders must eliminate the attacker or prevent him from capturing the pole.\n$<%13. $>The team in attack plays with 1 player using the laser. The team in defense plays with 3 players using rockets."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit)), 20.);
+	TextLib::Compose(_("$<%11. $>The game is divided in rounds of two turns each. During a round each team plays one turn in attack and one turn in defense.\n$<%12. $>The attacker has to eliminate all defenders or capture the pole between %2 seconds and %3 seconds. The defenders must eliminate the attacker or prevent them from capturing the pole.\n$<%13. $>The team in attack plays with 1 player using the laser. The team in defense plays with 3 players using rockets."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit)), 20.);
 SpawnScreen::AddSubsection(
 	_("Score"), 
-	TextLib::Compose(_("$<%11. $>The team which wins the turn scores 1 point.\n$<%12. $>The winning team is the first one to score at least %2 points with %3 ahead of its opponents."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap)), 85.);
+	TextLib::Compose(_("$<%11. $>The team that wins the turn scores 1 point.\n$<%12. $>The winning team is the first one to score at least %2 points with %3 ahead of its opponents."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap)), 85.);
 	
 SpawnScreen::CreatePrettyRules(ModeName);
 
@@ -118,6 +107,8 @@ if (S_Practice) ElitePractice::Run();
 // Init
 declare LayerInfoId	= Layers::Create("Info", CreateLayerInfo());
 declare LayerPlayersId = Layers::Create("Players", CreateLayerPlayers());
+// @UIReplay > 
+//declare LayerReplayId = Layers::Create("Replay", CreateLayerReplay());
 
 Draft::StartServer();
 Settings::Load();
@@ -136,9 +127,11 @@ G_UseEliteB2 = S_UseEliteB2;
 if (G_UseEliteB2) {
 	GameplayVersion		= 1;
 	UseAmmoBonusOnHit	= False;
+	UseLaserSkewering	= False;
 } else {
 	GameplayVersion		= 0;
 	UseAmmoBonusOnHit	= True;
+	UseLaserSkewering	= True;
 }
 ***
 
@@ -221,6 +214,14 @@ LayerUpdated = Layers::Update("Info", CreateLayerInfo());
 LayerUpdated = Layers::Update("Players", CreateLayerPlayers());
 UpdateLayerInfo();
 UpdateLayerPlayers();
+
+// @UIReplay > 
+/*LayerUpdated = Layers::Update("Replay", CreateLayerReplay());
+//LayerAttached = Layers::Attach("Replay", NullId); ///< @Debug
+if (UIManager.UILayers.existskey(LayerReplayId) && !UIManager.UIReplayLayers.existskey(LayerReplayId)) {
+	UIManager.UIReplayLayers.add(UIManager.UILayers[LayerReplayId]);
+}
+ReplayInfos_RegisterInterface();*/
 ***
 
 ***EndTurnBegin***
@@ -242,6 +243,14 @@ if (Players.existskey(G_AtkPlayerId)) {
 
 declare PlayersList = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 EliteEndSequence::SavePlayersList(PlayersList);
+
+// @UIReplay > 
+/*LayerUpdated = Layers::Update("Replay", CreateLayerReplay());
+//LayerAttached = Layers::Attach("Replay", NullId); ///< @Debug
+if (UIManager.UILayers.existskey(LayerReplayId) && !UIManager.UIReplayLayers.existskey(LayerReplayId)) {
+	UIManager.UIReplayLayers.add(UIManager.UILayers[LayerReplayId]);
+}
+ReplayInfos_RegisterInterface();*/
 ***
 
 ***SelectNextMap***
@@ -275,23 +284,25 @@ EliteEndSequence::Unload();
 
 ***StartUsingToken***
 ***
-DemoToken_StartUsingToken();
+if (C_UseToken) DemoToken_StartUsingToken();
 ***
 
 ***GetAndUseToken***
 ***
-declare TokenOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
-foreach (Clan => Order in TokenOrder) {
-	foreach (PlayerId => Slot in Order) {
-		if (!Players.existskey(PlayerId)) continue;
-		DemoToken_GetAndUseToken(Players[PlayerId].User);
+if (C_UseToken) {
+	declare TokenOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
+	foreach (Clan => Order in TokenOrder) {
+		foreach (Slot => PlayerId in Order) {
+			if (!Players.existskey(PlayerId)) continue;
+			DemoToken_GetAndUseToken(Players[PlayerId].User);
+		}
 	}
 }
 ***
 
 ***StopUsingToken***
 ***
-DemoToken_StopUsingToken();
+if (C_UseToken) DemoToken_StopUsingToken();
 ***
 
 ***SpawnDef***
@@ -405,9 +416,10 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 		if (Event.Shooter.Id == G_AtkPlayerId) {
 			if (LastActionClanNb != G_AtkClan) SoundVariant += 1;
 			LastActionClanNb = G_AtkClan;
+			DefElimintedNb += 1;
 			
 			// Elim last defenders
-			if (ClansNbPlayersAlive[G_DefClan] <= 1) {
+			if (ClansNbPlayersAlive[G_DefClan] <= 1 || DefElimintedNb >= ClansNbPlayersAlive[G_DefClan]) {
 				PlaySound(CUIConfig::EUISound::VictoryPoint, 0);
 			} 
 			// Elim standard defenders
@@ -1487,6 +1499,10 @@ for (I, 1, 2) {
 					}
 				}
 			}
+			// Matchmaking temp allies
+			if (!Ally1 && G_TempAllies.exists(Player.Login)) {
+				Ally1 = True;
+			}
 		}
 		J += 1;
 	}
@@ -1809,6 +1825,61 @@ Void UpdateLayerInfo() {
 	declare netwrite Net_Elite_CheckpointsCaptured for Teams[0] = 0;
 	Net_Elite_CheckpointsCaptured = G_CheckpointsCapturedNb;
 }
+
+// ---------------------------------- //
+/** Create the replay layer
+ *
+ *	@return 	The manialink used by the replay layer
+ */
+// @UIReplay > 
+/*Text CreateLayerReplay() {
+	declare PlayersLists = [1 => "", 2 => ""];
+	declare ClansOrders = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
+	
+	for (I, 1, 2) {
+		declare First = True;
+		foreach (Slot => Id in ClansOrders[I]) {
+			if (Players.existskey(Id)) {
+				declare Player <=> Players[Id];
+				
+				declare Align = "left";
+				if (I == 2) Align = "right";
+				PlayersLists[I] ^= """
+<playerlist posn="0 {{{-2+(-4.5*(Slot-1))}}}" scale="0.67" halign="{{{Align}}}" substyle="Medium" logins="{{{Player.Login}}}" lines="1" columns="1" team="{{{I}}}" status="Playing"/>				
+""";
+			}
+		}
+	}
+	
+	return """
+<frame posn="0 92" id="Frame_Scores">
+	<quad sizen="20 10" halign="right" style="UiSMSpectatorScoreBig" substyle="HandleLeft" />
+	<label posn="-5 -2.5" scale="0.4" halign="right" style="TextRaceMessageBig" text="{{{UIManager.UIAll.ScoreSummary_Points1}}}" />
+	<quad sizen="20 10" halign="left" style="UiSMSpectatorScoreBig" substyle="HandleRight" />
+	<label posn="5 -2.5" scale="0.4" halign="left" style="TextRaceMessageBig" text="{{{UIManager.UIAll.ScoreSummary_Points2}}}" />
+</frame>
+<frame id="Frame_PlayersLists">
+	<frame posn="-160 74" id="Frame_PlayersList_1">
+		<frame id="Frame_TeamName_1">
+			<quad posn="0.25 0" sizen="39.45 3.5" halign="left" valign="center" bgcolor="fff8" />
+			<quad posn="0.5 1.5 1" sizen="7 7" halign="left" valign="center" style="Emblems" substyle="#1" /> 
+			<label posn="8 0.4 1" sizen="28 3.5" halign="left" valign="center" textsize="2" textemboss="1" text="{{{Teams[0].ColorizedName}}}" />
+			<label posn="37 0.4 1" sizen="2.5 3.5" halign="left" valign="center" textsize="2" textemboss="1" text="{{{UIManager.UIAll.ScoreSummary_MatchPoints1}}}" />
+		</frame>
+		{{{PlayersLists[1]}}}
+	</frame>
+	<frame posn="160 74" id="Frame_PlayersList_2">
+		<frame id="Frame_TeamName_2">
+			<quad posn="-0.25 0" sizen="39.45 3.5" halign="right" valign="center" bgcolor="fff8" />
+			<quad posn="-0.5 1.5 1" sizen="7 7" halign="right" valign="center" style="Emblems" substyle="#2" /> 
+			<label posn="-8 0.4 1" sizen="28 3.5" halign="right" valign="center" textsize="2" textemboss="1" text="{{{Teams[1].ColorizedName}}}" />
+			<label posn="-37 0.4 1" sizen="2.5 3.5" halign="right" valign="center" textsize="2" textemboss="1" text="{{{UIManager.UIAll.ScoreSummary_MatchPoints2}}}" />
+		</frame>
+		{{{PlayersLists[2]}}}
+	</frame>
+</frame>
+""";
+}*/
 
 // ---------------------------------- //
 /** Create the player layer
@@ -2166,8 +2237,7 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 		case CSmModeEvent::EType::OnHit: {
 			declare HitDist = 0.;
 			if (
-				_Event.WeaponNum == C_WeaponLaser
-				&& _Event.Victim != Null
+				_Event.Victim != Null
 				&& _Event.Shooter != Null
 			) {
 				HitDist = MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position);
@@ -2198,7 +2268,16 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 			JSON = PlayerStringify("Player", _Event.Player);
 		}
 		case CSmModeEvent::EType::OnNearMiss: {
+			declare HitDist = 0.;
+			if (
+				_Event.WeaponNum == C_WeaponLaser
+				&& _Event.Victim != Null
+				&& _Event.Shooter != Null
+			) {
+				HitDist = MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position);
+			}
 			JSON = Json::Merge([
+				Json::Stringify("HitDist", HitDist),
 				PlayerStringify("Shooter", _Event.Shooter),
 				PlayerStringify("Victim", _Event.Victim)
 			]);
