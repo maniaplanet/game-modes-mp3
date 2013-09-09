@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2013-07-25"
+#Const	ModeSportVersion	"2013-09-09"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -41,6 +41,7 @@
 #Setting S_UsePlayerClublinks		False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1		""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
 #Setting S_ForceClublinkTeam2		""		as "<hidden>"	///< Force the Clublink of team 2 (format: http://www.example.com/MyTeam.Club.xml)
+#Setting S_RestartMatchOnTeamChange	False	as "<hidden>"	///< Restart the match after the warm up if the teams have changed
 // Elite Practice settings
 #Setting S_Practice				False	as _("Play in practice mode")
 #Setting S_PracticeRoundLimit	3		as _("Number of attack turns by player in practice mode")
@@ -48,10 +49,10 @@
 
 #Const C_WURocketAmmoMax			4	///< Rocket ammo max
 #Const C_WURocketAmmoGain			1.	///< Rocket ammo regen speed
-#Const C_WULaserAmmoMax				1	///< Rocket ammo max
-#Const C_WULaserAmmoGain			1.	///< Rocket ammo regen speed
-#Const C_WUNucleusAmmoMax			1	///< Rocket ammo max
-#Const C_WUNucleusAmmoGain			1.3	///< Rocket ammo regen speed
+#Const C_WULaserAmmoMax				1	///< Laser ammo max
+#Const C_WULaserAmmoGain			1.	///< Laser ammo regen speed
+#Const C_WUNucleusAmmoMax			1	///< Nucleus ammo max
+#Const C_WUNucleusAmmoGain			1.3	///< Nucleus ammo regen speed
 #Const C_DefStaminaMaxMultiplier	0.7 ///< Stamina amount multiplier for the defense
 #Const C_AtkStaminaMaxMultiplier	1.	///< Stamina amount multiplier for the attack
 
@@ -121,6 +122,8 @@ declare Real	G_LongestRailDistance;			///< Distance of the longest Laser hit
 declare Integer	G_LastSpecUpdate;				///< Last time the spectators were updated
 declare Boolean G_TieBreak;						///< Match is in tie break
 declare Boolean G_UseEliteB2;					///< Use the Beta 2 gameplay
+declare Text[]	G_TempAllies;					///< Logins list of matchmaking temporary allies
+declare Ident[]	G_PrevMapUsersIds;				///< The list of users from the previous map 
 
 declare Integer G_Override_FirstAtkClan;
 declare Integer G_Override_TossWinner;
@@ -162,6 +165,11 @@ declare LayerAttached = False;
 declare LayerDetached = False;
 declare LayerUpdated = False;
 declare LayerDestroyed = False;
+
+declare netwrite Integer Clan1MapPoints for XmlRpc;
+declare netwrite Integer Clan1MatchPoints for XmlRpc;
+declare netwrite Integer Clan2MapPoints for XmlRpc;
+declare netwrite Integer Clan2MatchPoints for XmlRpc;
 ***
 
 // ---------------------------------- //
@@ -231,6 +239,7 @@ UseClans = True;
 MB_UseSectionRound = True;
 MB_UseSectionTurn = True;
 
+G_PrevMapUsersIds = Ident[];
 G_Override_FirstAtkClan = -1;
 G_Override_TossWinner = -1;
 G_Override_NeedWarmUp = False;
@@ -351,6 +360,7 @@ G_AtkPlayerId = NullId;
 G_LongestRailName = "-";
 G_LongestRailDistance = 0.;
 G_TieBreak = False;
+G_TempAllies = Text[];
 declare NeedWarmUp = True;
 declare MapWinnerName = "";
 ---SelectNextMap---
@@ -435,6 +445,44 @@ if ((NeedWarmUp || G_Override_NeedWarmUp) && !S_Matchmaking) {
 		declare Message = TextLib::Compose("$fff%1", _("Change mode and start a new match."));
 		UIManager.UIAll.SendChat(Message);
 		break;
+	} 
+	// ---------------------------------- //
+	// Restart the match if the teams have changed
+	else if (S_RestartMatchOnTeamChange) {
+		declare NeedRestart = False;
+		declare Order = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
+		declare CurMapUsersIds = Ident[];
+		for (I, 1, 2) {
+			foreach (PlayerId in Order[I]) {
+				if (Players.existskey(PlayerId)) CurMapUsersIds.add(Players[PlayerId].User.Id);
+			}
+		}
+		
+		if ((G_MapScores[1] > 0 || G_MapScores[2] > 0) && Clan1Score <= 0 && Clan2Score <= 0) {
+			if (G_PrevMapUsersIds.count <= 0) G_PrevMapUsersIds = CurMapUsersIds;
+			
+			if (CurMapUsersIds.count != G_PrevMapUsersIds.count) {
+				NeedRestart = True;
+			} else {
+				foreach (UserId in G_PrevMapUsersIds) {
+					if (!CurMapUsersIds.exists(UserId)) {
+						NeedRestart = True;
+					}
+				}
+			}
+		}
+		G_PrevMapUsersIds = CurMapUsersIds;
+		
+		if (NeedRestart) {
+			MatchEndRequested = True;
+			MB_StopMatch = True;
+			MB_Log("Teams changed > Restart the match");
+			declare Message = TextLib::Compose("$fff%1", _("The teams have changed, the match will be restarted."));
+			UIManager.UIAll.SendChat(Message);			
+			break;
+		} else {
+			continue;
+		}
 	} else {
 		continue;
 	}
@@ -583,7 +631,7 @@ UIManager.UIAll.StatusMessage = TextLib::Compose(
 	TeamDefName
 );
 UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> is attacking!"), NextAtkName);
-while (Now <= PreTurnEndTime && !MatchEndRequested) {
+while (Now <= PreTurnEndTime && !ServerShutdownRequested && !MatchEndRequested) {
 	MB_Yield();
 	ManageCommand();
 	UpdateSpectators();
@@ -658,6 +706,17 @@ if (!TokenUsed) {
 }
 
 // ---------------------------------- //
+// Save the list of users playing on this map
+declare Order = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
+declare CurMapUsersIds = Ident[];
+for (I, 1, 2) {
+	foreach (PlayerId in Order[I]) {
+		if (Players.existskey(PlayerId)) CurMapUsersIds.add(Players[PlayerId].User.Id);
+	}
+}
+G_PrevMapUsersIds = CurMapUsersIds;
+
+// ---------------------------------- //
 // Save a back up to restore the game to this turn in case of a force warm up
 Save_MatchDefElim		= G_MatchDefElim;
 Save_MapDefElim			= G_MapDefElim;
@@ -694,6 +753,7 @@ foreach (Score in Scores) {
 // ---------------------------------- //
 ***PlayLoop***
 ***
+declare DefElimintedNb = 0;
 Message::Loop();
 SM::UnspawnPlayersChangingClan();
 ManageCommand();
@@ -1937,6 +1997,12 @@ main() {
 					}
 				}
 			}
+			
+			if (Net_ModeSport_PlayersNbTotal > 0 && Net_ModeSport_PlayersNbTotal >= {{{TotalReqPlayers}}}) {
+				PlayUiSound(::EUISound::Custom4, 1, 0.75);
+			} else {
+				PlayUiSound(::EUISound::Custom4, 0, 0.75);
+			}
 		}
 		
 		if (!Frame_Waiting.Visible && PrevPlayersNbTotal < {{{TotalReqPlayers}}}) {
@@ -1985,11 +2051,6 @@ Void WaitConnection() {
 		
 		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
 			Net_ModeSport_PlayersNbTotal = PlayersNbTotal;
-			if (ClansNbPlayers[1] >= C_RequiredPlayersNb && ClansNbPlayers[2] >= C_RequiredPlayersNb) {
-				PlaySound(CUIConfig::EUISound::Custom4, 1);
-			} else {
-				PlaySound(CUIConfig::EUISound::Custom4, 0);
-			}
 		}
 		
 		if (PrevClansNbPlayers[1] != ClansNbPlayers[1] || PrevClansNbPlayers[2] != ClansNbPlayers[2]) {
@@ -2009,49 +2070,14 @@ Void WaitConnection() {
 		Elite_Sleep(1000);
 	}
 	
-	UIManager.UIAll.CountdownEndTime = Now + TimeOut;
-	WarmUp2::End();
 	
 	// ---------------------------------- //
-	// Let the matchmaking server sort the players
+	// Sort players by ladder points
 	declare PlayersSort = [1 => Real[Ident], 2 => Real[Ident]];
-	declare MatchmakingOrderReceived = False;
-	XmlRpc.SendCallback("MatchmakingGetOrder", "");
-	while (Now < UIManager.UIAll.CountdownEndTime) {
-		MB_Yield();
-		ManageCommand();
-		foreach (Event in XmlRpc.PendingEvents) {
-			if (Event.Param1 == "MatchmakingSetOrder") {
-				declare MatchmakingOrders = TextLib::Split("|", Event.Param2);
-				for (I, 0, 1) {
-					if (!MatchmakingOrders.existskey(I)) continue;
-					
-					declare MatchmakingOrder = TextLib::Split(",", MatchmakingOrders[I]);
-					declare J = 1.;
-					foreach (Login in MatchmakingOrder) {
-						foreach (Player in Players) {
-							if (Player.Login == Login) {
-								SetPlayerClan(Player, I+1);
-								PlayersSort[I+1][Player.Id] = J;
-								J += 1.;
-								break;
-							}
-						}
-					}
-				}
-				MatchmakingOrderReceived = True;
-			}
-		}
-	}
-	
-	if (!MatchmakingOrderReceived) {
-		// ---------------------------------- //
-		// Sort players by ladder points
-		foreach (Player in Players) {
-			SetPlayerClan(Player, Player.RequestedClan);
-			if (!PlayersSort.existskey(Player.CurrentClan)) continue;
-			PlayersSort[Player.CurrentClan][Player.Id] = -Player.User.LadderPoints;
-		}
+	foreach (Player in Players) {
+		SetPlayerClan(Player, Player.RequestedClan);
+		if (!PlayersSort.existskey(Player.CurrentClan)) continue;
+		PlayersSort[Player.CurrentClan][Player.Id] = -Player.User.LadderPoints;
 	}
 	
 	PlayersSort[1] = PlayersSort[1].sort();
@@ -2064,13 +2090,130 @@ Void WaitConnection() {
 		else Clan = "Clan2";
 		
 		foreach (PlayerId => Sorting in PlayersSort[I]) {
-			J += 1;
 			if (!Players.existskey(PlayerId)) continue;
+			J += 1;
 			WarmUp2::SetPlayerGroup(Players[PlayerId], Clan);
 			WarmUp2::SetPlayerSlot(Players[PlayerId], J, True);
 		}
 	}
 	
+	WarmUp2::Clean();
+	WarmUp2::Fill();
+	UpdateLayerScoresTable(C_SequenceWarmUp);
+	
+	// ---------------------------------- //
+	// Check if the players are all allies
+	declare AllPlayersAreAllies = [1 => False, 2 => False];
+	declare ClansOrders = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
+	for (I, 1, 2) {
+		declare J = 1;
+		declare AlliesNb = 0;
+		declare TestedNb = 0;
+		foreach (Slot => Id in ClansOrders[I]) {
+			if (Players.existskey(Id)) {
+				TestedNb += 1;
+				declare Player <=> Players[Id];
+				for (K, J+1, C_RequiredPlayersNb) {
+					if (ClansOrders.existskey(I) && Players.existskey(ClansOrders[I][K])) {
+						declare Player2 <=> Players[ClansOrders[I][K]];
+						if (Users_AreAllies(Player.User, Player2.User)) AlliesNb += 1;
+					}
+				}
+			}
+			J += 1;
+		}
+		declare MinimumAllies = (((TestedNb - 1) * TestedNb) / 2);
+		if (AlliesNb >= MinimumAllies) AllPlayersAreAllies[I] = True;
+	}
+	
+	declare MatchmakingSetOrderParam2 = "";
+	XmlRpc.SendCallback("MatchmakingGetOrder", "");
+	
+	// ---------------------------------- //
+	// Let the players select their orders if they are all allies
+	if (AllPlayersAreAllies[1] || AllPlayersAreAllies[2]) {
+		UIManager.UIAll.CountdownEndTime = Now + TimeOut + 5000;
+		
+		if (!AllPlayersAreAllies[1]) WarmUp2::Disable("Clan1");
+		if (!AllPlayersAreAllies[2]) WarmUp2::Disable("Clan2");
+		
+		WarmUp2::DisplayClanSelection(False);
+		WarmUp2::Attach();
+		
+		while (Now < UIManager.UIAll.CountdownEndTime && !ServerShutdownRequested && !MatchEndRequested) {
+			MB_Yield();
+			ManageCommand();
+			WarmUp2::Loop();
+			
+			if (WarmUp2::Updated()) UpdateLayerScoresTable(C_SequenceWarmUp);
+			
+			foreach (Event in XmlRpc.PendingEvents) {
+				if (Event.Param1 == "MatchmakingSetOrder") MatchmakingSetOrderParam2 = Event.Param2;
+				else if (Event.Param1 == "MatchmakingSetTempAllies") G_TempAllies = TextLib::Split(",", Event.Param2);
+			}
+		}
+		
+		WarmUp2::Detach();
+		WarmUp2::Enable("Clan1");
+		WarmUp2::Enable("Clan2");
+	} else {
+		UIManager.UIAll.CountdownEndTime = Now + TimeOut;
+		
+		while (Now < UIManager.UIAll.CountdownEndTime && !ServerShutdownRequested && !MatchEndRequested) {
+			MB_Yield();
+			ManageCommand();
+			
+			foreach (Event in XmlRpc.PendingEvents) {
+				if (Event.Param1 == "MatchmakingSetOrder") MatchmakingSetOrderParam2 = Event.Param2;
+				else if (Event.Param1 == "MatchmakingSetTempAllies") G_TempAllies = TextLib::Split(",", Event.Param2);
+			}
+		}
+	}
+	
+	// ---------------------------------- //
+	// Let the matchmaking server sort the players
+	if (MatchmakingSetOrderParam2 != "") {
+		UIManager.UIAll.CountdownEndTime = Now + TimeOut;
+		PlayersSort[1].clear();
+		PlayersSort[2].clear();
+		
+		declare MatchmakingOrders = TextLib::Split("|", MatchmakingSetOrderParam2);
+		for (I, 0, 1) {
+			if (!MatchmakingOrders.existskey(I)) continue;
+			
+			declare MatchmakingOrder = TextLib::Split(",", MatchmakingOrders[I]);
+			declare J = 1.;
+			foreach (Login in MatchmakingOrder) {
+				foreach (Player in Players) {
+					if (Player.Login == Login) {
+						SetPlayerClan(Player, I+1);
+						PlayersSort[I+1][Player.Id] = J;
+						J += 1.;
+						break;
+					}
+				}
+			}
+		}
+		
+		PlayersSort[1] = PlayersSort[1].sort();
+		PlayersSort[2] = PlayersSort[2].sort();
+		
+		for (I, 1, 2) {
+			declare J = 0;
+			declare Clan = "";
+			if (I == 1) Clan = "Clan1";
+			else Clan = "Clan2";
+			
+			foreach (PlayerId => Sorting in PlayersSort[I]) {
+				J += 1;
+				if (!Players.existskey(PlayerId)) continue;
+				WarmUp2::SetPlayerGroup(Players[PlayerId], Clan);
+				WarmUp2::SetPlayerSlot(Players[PlayerId], J, True);
+			}
+		}
+	}
+	
+	WarmUp2::End();
 	WarmUp2::Clean();
 	WarmUp2::Fill();
 	
@@ -2085,6 +2228,15 @@ Void WaitConnection() {
 	UIManager.UIAll.CountdownEndTime = -1;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 	UIManager.UIAll.UISequence_CanSkipIntroMT = True;
+	
+	// ---------------------------------- //
+	// Update the players clublinks
+	if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
+	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
+	Clublink::SyncUpdate();
+	UpdateHeader();
+	
+	declare LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
 }
 
 // ---------------------------------- //
