@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-09-09"
+#Const Version		"2013-09-10"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -2276,7 +2276,10 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 			) {
 				HitDist = MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position);
 			}
+			declare MissDist = _Event.MissDist;
+			if (MissDist < 0.0001) MissDist = 0.0001;
 			JSON = Json::Merge([
+				Json::Stringify("MissDist", MissDist),
 				Json::Stringify("HitDist", HitDist),
 				PlayerStringify("Shooter", _Event.Shooter),
 				PlayerStringify("Victim", _Event.Victim)
