@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-09-10"
+#Const Version		"2013-09-17"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -457,6 +457,11 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 				if (Distance > LaserLongest) LaserLongest = Distance;
 				LaserHit += 1;
 			}
+			
+			declare netwrite Text Net_Elite_HitDetailUpdate for Event.Shooter;
+			declare netwrite Integer[] Net_Elite_HitDetail for Event.Shooter;
+			Net_Elite_HitDetailUpdate = Event.Shooter.Login^"_"^Now;
+			Net_Elite_HitDetail.add(Event.WeaponNum);
 		} 
 		// ---------------------------------- //
 		// Shooter is in def clan, victim in atk clan
@@ -1584,7 +1589,8 @@ foreach (Score in Scores) {
 	}
 	// Other
 	else {
-		Score.Points = 1;
+		Score.Points = 0;
+		Score.LadderMatchScoreValue = 0.;
 	}
 }
 Ladder_SetResultsVersion(1);
@@ -2240,7 +2246,7 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 				_Event.Victim != Null
 				&& _Event.Shooter != Null
 			) {
-				HitDist = MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position);
+				HitDist = MathLib::NearestInteger(MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position) * 1000.) / 1000.;
 			}
 			JSON = Json::Merge([
 				Json::Stringify("HitDist", HitDist),
@@ -2274,7 +2280,7 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 				&& _Event.Victim != Null
 				&& _Event.Shooter != Null
 			) {
-				HitDist = MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position);
+				HitDist = MathLib::NearestInteger(MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position) * 1000.) / 1000.;
 			}
 			declare MissDist = _Event.MissDist;
 			if (MissDist < 0.0001) MissDist = 0.0001;

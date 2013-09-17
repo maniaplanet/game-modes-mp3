@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2013-09-09"
+#Const	ModeSportVersion	"2013-09-17"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -963,7 +963,7 @@ if (MB_UseScriptCallbacks) {
 		Json::Stringify("Clan2RoundScore", Clan2Score),
 		Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
 		Json::Stringify("Clan2MapScore", HeaderClanScores[2]),
-		PlayersStringify("ScoresTable", 0)
+		PlayersStringify("ScoresTable", 0, True)
 	])));
 }
 
@@ -2452,10 +2452,11 @@ Text PlayerStringify(Text _Name, CSmPlayer _Player) {
 // ---------------------------------- //
 /** Stringify the players of a clan inside an array
  *
- *	@param	_Name		The name of the stringified object
- *	@param	_Clan		The clan to stringify
+ *	@param	_Name			The name of the stringified object
+ *	@param	_Clan			The clan to stringify
+ *	@param	_AddTurnHits	Add the turn hits details 
  */
-Text PlayersStringify(Text _Name, Integer _Clan) {
+Text PlayersStringify(Text _Name, Integer _Clan, Boolean _AddTurnHits) {
 	declare ScoresString = "";
 	declare TmpOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 	
@@ -2479,14 +2480,27 @@ Text PlayersStringify(Text _Name, Integer _Clan) {
 				declare NbHit for Player.Score = 0;
 				declare LaserHit for Player.Score = 0;
 				declare NbBeHit for Player.Score = 0;
-			
-				ScoresString ^= """{"""^Json::Merge([
+				
+				declare Callback = Json::Merge([
 					Json::Stringify("Login", Player.Login),
 					Json::Stringify("CurrentClan", Player.CurrentClan),
 					Json::Stringify("AtkPoints", Player.Score.Points), 
 					Json::Stringify("DefPoints", NbHit),
 					Json::Stringify("GoalAverage", NbHit + LaserHit - NbBeHit)
-				])^"""}""";
+				]);
+				
+				if (_AddTurnHits) {
+					declare netwrite Integer[] Net_Elite_HitDetail for Player;
+					declare HitsDetails = "[";
+					foreach (Key => Hit in Net_Elite_HitDetail) {
+						if (Key > 0) HitsDetails ^= ",";
+						HitsDetails ^= Hit;
+					}
+					HitsDetails ^= "]";
+					Callback = Json::Merge([Callback, """"TurnHits": {{{HitsDetails}}}"""]);
+				}
+				
+				ScoresString ^= """{"""^Callback^"""}""";
 				J += 1;
 			}
 		}
@@ -2497,4 +2511,10 @@ Text PlayersStringify(Text _Name, Integer _Clan) {
 [
 	{{{ScoresString}}}
 ]""";
+}
+
+// ---------------------------------- //
+/// Overload of PlayersStringify()
+Text PlayersStringify(Text _Name, Integer _Clan) {
+	return PlayersStringify(_Name, _Clan, False);
 }
