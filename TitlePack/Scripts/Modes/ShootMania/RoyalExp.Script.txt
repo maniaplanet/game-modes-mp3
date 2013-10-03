@@ -2,7 +2,7 @@
 
 #Extends "Modes/ShootMania/Royal.Script.txt"
 
-#Const DeluxeVersion 		"2012-06-14"
+#Const DeluxeVersion 		"2013-10-03"
 #Const DeluxeScriptName		"RoyalExp.Script.txt"
 
 #Include "Libs/Nadeo/ShootMania/RoyalExp/RoyalExpCharacter.Script.txt" as Character
@@ -167,7 +167,7 @@ foreach(Player in Players)
 	
 ***
 
-***Yied***
+***Yield***
 ***
 	+++UpdatePlayersStatusFromUI+++
 ***
