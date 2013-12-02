@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2013-06-27"
+#Const	Version		"2013-11-21"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -277,6 +277,22 @@ Void EndMatch(Integer _Number) {
 }
 
 // ---------------------------------- //
+/// Callback sent at the beginning of the warmup
+Void BeginWarmUp() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginWarmUp", [""]);
+}
+
+// ---------------------------------- //
+/// Callback sent at the end of the warmup
+Void EndWarmUp() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndWarmUp", [""]);
+}
+
+// ---------------------------------- //
 /** Callback sent when a player shoot
  *	Data:
  *	[Shooter login, Weapon number]
@@ -362,12 +378,12 @@ Void OnCapture(CSmModeEvent _Event) {
 	if (!G_UseLibXmlRpc) return;
 	
 	declare PlayersList = "";
-	if (_Event.BlockPole != Null) {
+	if (_Event.Landmark != Null && _Event.Landmark.Sector != Null) {
 		declare Total = 0;
-		foreach (PlayerId in _Event.BlockPole.Sector.PlayersIds) {
+		foreach (PlayerId in _Event.Landmark.Sector.PlayersIds) {
 			Total += 1;
 			PlayersList ^= Players[PlayerId].Login;
-			if (Total < _Event.BlockPole.Sector.PlayersIds.count) PlayersList ^= ";";
+			if (Total < _Event.Landmark.Sector.PlayersIds.count) PlayersList ^= ";";
 		}
 	}
 	declare Data = [PlayersList];
@@ -596,4 +612,33 @@ Void Joust_RoundResult(CSmPlayer _Player1, Integer _Score1, CSmPlayer _Player2, 
 	if (_Player2 != Null) Player2Login = _Player2.Login;
 	declare Data = [Player1Login^":"^_Score1, Player2Login^":"^_Score2];
 	Private_SendCallbackArray("Joust_RoundResult", Data);
+}
+
+// ---------------------------------- //
+/// Siege
+
+// ---------------------------------- //
+/** Callback sent when a checkpoint is captured
+ *	It's a copy of the OnCapture() function
+ *	Data:
+ *	[List of players on checkpoint at the capture]
+ *
+ *	List of players: login1;login2;login3;login4
+ *
+ *	@param _MapLandmark		The checkpoint that was activated
+ */
+Void Siege_OnCapture(CSmMapLandmark _MapLandmark) {
+	if (!G_UseLibXmlRpc) return;
+	
+	declare PlayersList = "";
+	if (_MapLandmark != Null && _MapLandmark.Sector != Null) {
+		declare Total = 0;
+		foreach (PlayerId in _MapLandmark.Sector.PlayersIds) {
+			Total += 1;
+			PlayersList ^= Players[PlayerId].Login;
+			if (Total < _MapLandmark.Sector.PlayersIds.count) PlayersList ^= ";";
+		}
+	}
+	declare Data = [PlayersList];
+	Private_SendCallbackArray("LibXmlRpc_OnCapture", Data);
 }

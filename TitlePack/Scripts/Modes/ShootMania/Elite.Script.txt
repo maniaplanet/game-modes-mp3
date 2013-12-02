@@ -4,28 +4,29 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-07-25"
+#Const Version		"2013-11-12"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
 #Include "Libs/Nadeo/ShootMania/Draft.Script.txt" as Draft
 #Include "Libs/Nadeo/ShootMania/LobbyMelee.Script.txt" as Lobby
-#Include "Libs/Nadeo/ShootMania/WeaponSelection.Script.txt" as WeaponSelection
 #Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable	///< Fix: The lobby can't work without including this lib in Elite
+#Include "Libs/Nadeo/ShootMania/Elite/EliteStats.Script.txt" as EliteStats
 #Include "Libs/Nadeo/ShootMania/Elite/ElitePractice.Script.txt" as ElitePractice
 #Include "Libs/Nadeo/ShootMania/Elite/EliteEndSequence.Script.txt" as EliteEndSequence
 
-#Setting S_TurnWin				6		as _("Number of points to win a map")					///< Score to reach to win a map
+#Setting S_TurnWin				9		as _("Number of points to win a map")					///< Score to reach to win a map
 #Setting S_UseDraft				False	as _("Use draft mode before match")						///< Use draft mode at match beginning
 #Setting S_DraftBanNb			4		as _("Number of map to ban during draft (-1: ban all)")	///< Number of map to ban during draft
 #Setting S_DraftPickNb			3		as _("Number of map to pick during draft")				///< Number of map to pick during draft
-#Setting S_UseEliteB2			False	as _("Elite Beta 2 gameplay")							///< Use the beta 2 gameplay settings
 #Setting S_UseLobby				False	as "<hidden>" // _("Launch server in lobby mode")
 #Setting S_LobbyTimePerRound 	60  	as "<hidden>" // _("Time limit per round in lobby mode (sec., 0: no limit)")
 #Setting S_LobbyRoundPerMap  	30  	as "<hidden>" // _("Nb of rounds per map in lobby mode")
 #Setting S_LobbyMatchmakerTime	10000  	as "<hidden>" // _("in milliseconds, time allocated to the matchmaking")
 #Setting S_LobbyInstagib  		False  	as "<hidden>" // _("Laser mode in lobby")
 #Setting S_DisplayRulesReminder True	as "<hidden>" // _("Display a window with the rules when the match begins")
+
+#Const S_UseEliteB2				False	//as _("Elite Beta 2 gameplay")							///< Use the beta 2 gameplay settings
 
 #Const C_AtkRocketAmmoMax	4	///< Atk Rocket ammo max
 #Const C_AtkRocketAmmoGain	1.	///< Atk Rocket ammo gain
@@ -41,7 +42,11 @@
 #Const C_DefNucleusAmmoMax	1	///< Def Nucleus ammo max
 #Const C_DefNucleusAmmoGain	0.75///< Def Nucleus ammo gain
 
+#Const C_MaxDamage 100	///< Maximum damage amount infliged by weapons
+
 #Const C_RequiredPlayersNb	3	///< Required number of players in each team
+
+#Const C_UseToken True	///< Use token in demo mode
 
 // ---------------------------------- //
 // Online settings
@@ -70,9 +75,9 @@ declare Integer G_CheckpointsCapturedNb;	///< Number of captured checkpoints
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(Draft::GetScriptName(), Draft::GetScriptVersion());
 MB_LogVersion(Settings::GetScriptName(), Settings::GetScriptVersion());
-MB_LogVersion(ElitePractice::GetScriptName(), ElitePractice::GetScriptVersion());
 MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
-MB_LogVersion(WeaponSelection::GetScriptName(), WeaponSelection::GetScriptVersion());
+MB_LogVersion(EliteStats::GetScriptName(), EliteStats::GetScriptVersion());
+MB_LogVersion(ElitePractice::GetScriptName(), ElitePractice::GetScriptVersion());
 MB_LogVersion(EliteEndSequence::GetScriptName(), EliteEndSequence::GetScriptVersion());
 ***
 
@@ -81,24 +86,13 @@ MB_LogVersion(EliteEndSequence::GetScriptName(), EliteEndSequence::GetScriptVers
 // ---------------------------------- //
 // Create rules
 declare ModeName = "Elite";
-/*
-declare ModeRules = TextLib::Compose(
-	_("Two teams - 1 vs 3\n\n- The defenders must eliminate the attacker or prevent him from capturing the pole.\n- The attacker has to eliminate all defenders or capture the pole between %1 seconds and %2 seconds.\n- The game is divided in rounds of two turns each.\n- During a round each team play one turn in attack and one turn in defense.\n- The team in defense play with 3 players using rockets.\n- The team in attack play with 1 player using laser.\n- The team who wins the turn scores 1 point.\n- The first team to score at least %3 points with %4 ahead of his opponent wins the map."),
-	TextLib::ToText(S_TimeLimit - S_TimePole),
-	TextLib::ToText(S_TimeLimit),
-	TextLib::ToText(S_TurnWin),
-	TextLib::ToText(S_TurnGap)
-);
-SpawnScreen::CreateRules(ModeName, ModeRules);
-*/
-
 SpawnScreen::AddSubsection(_("Type"), _("Two teams - 1 vs 3"), 0.);
 SpawnScreen::AddSubsection(
 	_("Objectives"), 
-	TextLib::Compose(_("$<%11. $>The game is divided in rounds of two turns each. During a round each team plays one turn in attack and one turn in defense.\n$<%12. $>The attacker has to eliminate all defenders or capture the pole between %2 seconds and %3 seconds. The defenders must eliminate the attacker or prevent him from capturing the pole.\n$<%13. $>The team in attack plays with 1 player using the laser. The team in defense plays with 3 players using rockets."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit)), 20.);
+	TextLib::Compose(_("$<%11. $>The game is divided in rounds of two turns each. During a round each team plays one turn in attack and one turn in defense.\n$<%12. $>The attacker has to eliminate all defenders or capture the pole between %2 seconds and %3 seconds. The defenders must eliminate the attacker or prevent them from capturing the pole.\n$<%13. $>The team in attack plays with 1 player using the laser. The team in defense plays with 3 players using rockets."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit)), 20.);
 SpawnScreen::AddSubsection(
 	_("Score"), 
-	TextLib::Compose(_("$<%11. $>The team which wins the turn scores 1 point.\n$<%12. $>The winning team is the first one to score at least %2 points with %3 ahead of its opponents."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap)), 85.);
+	TextLib::Compose(_("$<%11. $>The team that wins the turn scores 1 point.\n$<%12. $>The winning team is the first one to score at least %2 points with %3 ahead of its opponents."), "$"^SpawnScreen::GetModeColor() , TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap)), 85.);
 	
 SpawnScreen::CreatePrettyRules(ModeName);
 
@@ -118,27 +112,24 @@ if (S_Practice) ElitePractice::Run();
 // Init
 declare LayerInfoId	= Layers::Create("Info", CreateLayerInfo());
 declare LayerPlayersId = Layers::Create("Players", CreateLayerPlayers());
+// @UIReplay > 
+declare LayerReplayId = Layers::Create("Replay", CreateLayerReplay());
 
 Draft::StartServer();
 Settings::Load();
 EliteEndSequence::Load();
-
-// ---------------------------------- //
-// Load settings
-if (!S_UseEliteB2) {
-	declare Loaded = Settings::LoadFromUrl(C_SettingsUrl);
-	if (Loaded) MB_Log("Successfully loaded online settings");
-	else MB_Log("Failed to load online settings, use local values instead");
-}
+EliteStats::Load();
 
 G_UseEliteB2 = S_UseEliteB2;
 
 if (G_UseEliteB2) {
 	GameplayVersion		= 1;
 	UseAmmoBonusOnHit	= False;
+	UseLaserSkewering	= False;
 } else {
 	GameplayVersion		= 0;
 	UseAmmoBonusOnHit	= True;
+	UseLaserSkewering	= True;
 }
 ***
 
@@ -202,6 +193,10 @@ if (S_UseDraft) {
 ***
 UseLaserVsBullets = True;
 EliteEndSequence::InitPlayersList();
+EliteStats::StartMap();
+// @Debug
+/*EliteStats::VictoryConditionVisibility(True);
+EliteStats::Attach();*/
 ***
 
 ***StartTurn***
@@ -221,6 +216,14 @@ LayerUpdated = Layers::Update("Info", CreateLayerInfo());
 LayerUpdated = Layers::Update("Players", CreateLayerPlayers());
 UpdateLayerInfo();
 UpdateLayerPlayers();
+
+// @UIReplay > 
+LayerUpdated = Layers::Update("Replay", CreateLayerReplay());
+//LayerAttached = Layers::Attach("Replay", NullId); ///< @Debug
+if (UIManager.UILayers.existskey(LayerReplayId) && !UIManager.UIReplayLayers.existskey(LayerReplayId)) {
+	UIManager.UIReplayLayers.add(UIManager.UILayers[LayerReplayId]);
+}
+ReplayInfos_RegisterInterface();
 ***
 
 ***EndTurnBegin***
@@ -242,6 +245,14 @@ if (Players.existskey(G_AtkPlayerId)) {
 
 declare PlayersList = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 EliteEndSequence::SavePlayersList(PlayersList);
+
+// @UIReplay > 
+LayerUpdated = Layers::Update("Replay", CreateLayerReplay());
+//LayerAttached = Layers::Attach("Replay", NullId); ///< @Debug
+if (UIManager.UILayers.existskey(LayerReplayId) && !UIManager.UIReplayLayers.existskey(LayerReplayId)) {
+	UIManager.UIReplayLayers.add(UIManager.UILayers[LayerReplayId]);
+}
+ReplayInfos_RegisterInterface();
 ***
 
 ***SelectNextMap***
@@ -264,6 +275,11 @@ EliteEndSequence::Attach();
 EliteEndSequence::Detach();
 ***
 
+***EndMap***
+***
+EliteStats::EndMap();
+***
+
 ***EndServer***
 ***
 LayerDestroyed = Layers::Destroy("Info");
@@ -271,27 +287,30 @@ LayerDestroyed = Layers::Destroy("Players");
 Draft::EndServer();
 Settings::Unload();
 EliteEndSequence::Unload();
+EliteStats::Unload();
 ***
 
 ***StartUsingToken***
 ***
-DemoToken_StartUsingToken();
+if (C_UseToken) DemoToken_StartUsingToken();
 ***
 
 ***GetAndUseToken***
 ***
-declare TokenOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
-foreach (Clan => Order in TokenOrder) {
-	foreach (PlayerId => Slot in Order) {
-		if (!Players.existskey(PlayerId)) continue;
-		DemoToken_GetAndUseToken(Players[PlayerId].User);
+if (C_UseToken) {
+	declare TokenOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
+	foreach (Clan => Order in TokenOrder) {
+		foreach (Slot => PlayerId in Order) {
+			if (!Players.existskey(PlayerId)) continue;
+			DemoToken_GetAndUseToken(Players[PlayerId].User);
+		}
 	}
 }
 ***
 
 ***StopUsingToken***
 ***
-DemoToken_StopUsingToken();
+if (C_UseToken) DemoToken_StopUsingToken();
 ***
 
 ***SpawnDef***
@@ -350,9 +369,8 @@ if (Now >= PoleTime) {
 	// When the goal can be captured
 	if (!GoalCanBeCaptured) {
 		GoalCanBeCaptured = True;
-		UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
-		UIManager.UIAll.BigMessageSoundVariant = 0;
-		UIManager.UIAll.BigMessage = _("The goal can now be captured.");
+		Message::SetDefaultStatusMessage(_("The goal can now be captured."));
+		PlaySound(CUIConfig::EUISound::PhaseChange, 0); 
 		UIManager.UIAll.CountdownEndTime = -1;
 	}
 	
@@ -393,21 +411,108 @@ if (Now >= PoleTime) {
 }	
 ***
 
+***ValidateEvents***
+***
+if (!Win_TimeLimit && !Win_AtkEliminated && !Win_LastDefEliminated && !Win_Capture) {
+	declare RemainingDef = ClansNbPlayersAlive[G_DefClan];
+	foreach (Event in PendingEvents) {
+		if (Event.Type == CSmModeEvent::EType::OnHit) {
+			if (Event.Shooter != Null && Event.Victim != Null && Event.Shooter.CurrentClan != Event.Victim.CurrentClan) {
+				declare EventDamage = Event.Damage;
+				if (EventDamage > C_MaxDamage) EventDamage = C_MaxDamage;
+				
+				// Last hit on the atk
+				if (Event.Victim.Id == G_AtkPlayerId && Event.Victim.Armor - EventDamage <= 0) {
+					Win_AtkEliminated = True;
+				} 
+				// Last hit on def
+				else if (Event.Victim.CurrentClan == G_DefClan) {
+					if (Event.Victim.Armor - EventDamage <= 0) RemainingDef -= 1;
+				}
+			}
+		} else if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
+			if (Event.Victim != Null) {
+				// Self elim (offzone, ...) on the atk
+				if (Event.Victim.Id == G_AtkPlayerId) {
+					Win_AtkEliminated = True;
+				} 
+				// Self elim on the def
+				else if (Event.Victim.CurrentClan == G_DefClan) {
+					RemainingDef -= 1;
+				}
+			}
+		} else if (Event.Type == CSmModeEvent::EType::OnCapture) {
+			// Capture the pole
+			if (Event.BlockPole.Tag == "Goal A" || Event.BlockPole.Tag == "Goal B" || Event.BlockPole.Tag == "Goal C") {
+				Win_Capture = True;
+			}
+		} else if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
+			// Respawn of the atk
+			if (Event.Player.Id == G_AtkPlayerId) {
+				Win_AtkEliminated = True;
+			}
+			// Respawn of the last def
+			else if (Event.Player.CurrentClan == G_DefClan) {
+				RemainingDef -= 1;
+			}
+		} 
+	}
+	
+	// Last hit on last def
+	if (RemainingDef <= 0) Win_LastDefEliminated = True;
+					
+	// Time limit
+	if (Now >= EndTime) Win_TimeLimit = True;
+	
+	// Atk deco
+	if (
+		!Players.existskey(G_AtkPlayerId) 
+		|| (Players.existskey(G_AtkPlayerId) && Players[G_AtkPlayerId].SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned)
+	) {
+		Win_AtkEliminated = True;
+	}
+	
+	// Last def deco
+	if (ClansNbPlayersAlive[G_DefClan] <= 0) {
+		Win_LastDefEliminated = True;
+	}
+	
+	if (Win_TimeLimit) {
+		Win_AtkEliminated = False;
+		Win_LastDefEliminated = False;
+		Win_Capture = False;
+	} else if (Win_LastDefEliminated) {
+		Win_TimeLimit = False;
+		Win_AtkEliminated = False;
+		Win_Capture = False;
+	} else if (Win_AtkEliminated) {
+		Win_TimeLimit = False;
+		Win_LastDefEliminated = False;
+		Win_Capture = False;
+	} else if (Win_Capture) {
+		Win_TimeLimit = False;
+		Win_AtkEliminated = False;
+		Win_LastDefEliminated = False;
+	}
+}
+***
+
 ***EventOnHit***
 ***
 if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 	Discard(Event);
 } else {
-	Event.Damage = 100;
+	if (Event.Damage > C_MaxDamage) Event.Damage = C_MaxDamage;
 	if (Players.existskey(G_AtkPlayerId)) {
 		// ---------------------------------- //
 		// Shooter is in atk clan, victim in def clan
 		if (Event.Shooter.Id == G_AtkPlayerId) {
 			if (LastActionClanNb != G_AtkClan) SoundVariant += 1;
 			LastActionClanNb = G_AtkClan;
+			DefElimintedNb += 1;
 			
 			// Elim last defenders
-			if (ClansNbPlayersAlive[G_DefClan] <= 1) {
+			if (ClansNbPlayersAlive[G_DefClan] <= 1 || DefElimintedNb >= ClansNbPlayersAlive[G_DefClan]) {
 				PlaySound(CUIConfig::EUISound::VictoryPoint, 0);
 			} 
 			// Elim standard defenders
@@ -434,7 +539,6 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 						), 3000, 2
 					);
 				}
-				LastStatusTime = Now;
 			}
 			
 			DisplayHitDistance(Event.Shooter, Event.Victim, False);
@@ -445,6 +549,11 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 				if (Distance > LaserLongest) LaserLongest = Distance;
 				LaserHit += 1;
 			}
+			
+			declare netwrite Text Net_Elite_HitDetailUpdate for Event.Shooter;
+			declare netwrite Integer[] Net_Elite_HitDetail for Event.Shooter;
+			Net_Elite_HitDetailUpdate = Event.Shooter.Login^"_"^Now;
+			Net_Elite_HitDetail.add(Event.WeaponNum);
 		} 
 		// ---------------------------------- //
 		// Shooter is in def clan, victim in atk clan
@@ -479,7 +588,6 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 						), 3000, 2
 					);
 				}
-				LastStatusTime = Now;
 			}
 			
 			if (Event.Shooter.Score != Null) {
@@ -507,13 +615,15 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 	
 	// Stats
 	declare JSON = Json::Enfold(EliteStringify("Event", Event));
-	if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnHit", JSON);
+	if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("OnHit", JSON);
+	XmlRpc::OnHit(Event);
 	
 	// Don't forget to send stats for the atk elimination because we won't trigger the OnArmorEmpty event
 	if (AtkIsEliminated) {
 		declare JSON2 = Json::Enfold(EliteStringifySimulateArmorEmpty("Event", Event));
-		if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnArmorEmpty", JSON2);
+		if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("OnArmorEmpty", JSON2);
 		G_AtkElimPlayerId = Event.Shooter.Id;
+		XmlRpc::OnArmorEmpty(Event);
 	}
 	
 	PassOn(Event);
@@ -546,8 +656,9 @@ UpdateLayerScoresTable(C_SequencePlaying);
 
 // Stats
 declare JSON = Json::Enfold(EliteStringify("Event", Event));
-if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnArmorEmpty", JSON);
+if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("OnArmorEmpty", JSON);
 
+XmlRpc::OnArmorEmpty(Event);
 PassOn(Event);
 ***
 
@@ -567,48 +678,44 @@ if (Event.Player != Null && Event.Player.Score != Null) {
 	UpdateLayerScoresTable(C_SequencePlaying);
 }
 
+if (Event.Player != Null && Event.Player.CurrentClan == G_DefClan) {
+	G_MatchDefElim[Event.Player.CurrentClan] += 1;
+	G_MapDefElim[Event.Player.CurrentClan] += 1;
+	if (G_TieBreak && G_TieBreakDefElim.existskey(3 - G_DefClan)) G_TieBreakDefElim[3 - G_DefClan] += 1;
+}
+
 // Stats
 declare JSON = Json::Enfold(EliteStringify("Event", Event));
-if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnPlayerRequestRespawn", JSON);
+if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("OnPlayerRequestRespawn", JSON);
 
+XmlRpc::OnPlayerRequestRespawn(Event);
 PassOn(Event);
 ***
 
 ***EventOnCapture***
 ***
-if (AtkIsEliminated) {
-	Discard(Event);
-} else {
-	if (Event.BlockPole.Tag == "Checkpoint") {
-		G_CheckpointsCapturedNb += 1;
-		// If the pole can already be captured, update its max value here
-		if (Now >= PoleTime) {
-			foreach (Goal in Goals) {
-				Goal.Gauge.Max = ((Checkpoints.count - G_CheckpointsCapturedNb) * 1000) + 1;
-			}
+if (Event.BlockPole.Tag == "Checkpoint") {
+	G_CheckpointsCapturedNb += 1;
+	// If the pole can already be captured, update its max value here
+	if (Now >= PoleTime) {
+		foreach (Goal in Goals) {
+			Goal.Gauge.Max = ((Checkpoints.count - G_CheckpointsCapturedNb) * 1000) + 1;
 		}
-		
-		UIManager.UIAll.SendNotice(
-			_("Checkpoint captured."), CUIConfig::ENoticeLevel::MatchInfo, 
-			Null, CUIConfig::EAvatarVariant::Default, 
-			CUIConfig::EUISound::Capture, 0
-		);
-	} else if (Event.BlockPole.Tag == "Goal A" || Event.BlockPole.Tag == "Goal B" || Event.BlockPole.Tag == "Goal C") {
-		UIManager.UIAll.SendNotice(
-			"", CUIConfig::ENoticeLevel::MatchInfo, 
-			Null, CUIConfig::EAvatarVariant::Default, 
-			CUIConfig::EUISound::Capture, 0
-		);
 	}
 	
-	UpdateLayerInfo();
-	
-	// Stats
-	declare JSON = Json::Enfold(EliteStringify("Event", Event));
-	if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnCapture", JSON);
-
-	PassOn(Event);
+	Message::SendStatusMessage(_("Checkpoint captured."), 2000, 2, CUIConfig::EUISound::Capture, 0);
+} else if (Event.BlockPole.Tag == "Goal A" || Event.BlockPole.Tag == "Goal B" || Event.BlockPole.Tag == "Goal C") {
+	PlaySound(CUIConfig::EUISound::Capture, 0);
 }
+
+UpdateLayerInfo();
+
+// Stats
+declare JSON = Json::Enfold(EliteStringify("Event", Event));
+if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("OnCapture", JSON);
+
+XmlRpc::OnCapture(Event);
+PassOn(Event);
 ***
 
 ***EventOnShoot***
@@ -626,8 +733,9 @@ if (
 
 // Stats
 declare JSON = Json::Enfold(EliteStringify("Event", Event));
-if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnShoot", JSON);
+if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("OnShoot", JSON);
 
+XmlRpc::OnShoot(Event);
 PassOn(Event);
 ***
 
@@ -666,8 +774,9 @@ if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) {
 		
 		// Stats
 		declare JSON = Json::Enfold(EliteStringify("Event", Event));
-		if (MB_UseScriptCallbacks) XmlRpc.SendCallback("OnNearMiss", JSON);
+		if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("OnNearMiss", JSON);
 		
+		XmlRpc::OnNearMiss(Event);
 		PassOn(Event);
 	} else {
 		Discard(Event);
@@ -891,8 +1000,8 @@ return """
 		<quad posn="{{{163*SW}}} -8.2" sizen="4 4" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Home.dds" />
 		<!-- **************** Game info **************** -->
 		<quad posn="{{{0.7*SW}}} -13.7" sizen="5 5" halign="left" valign="center" style="UIConstructionSimple_Buttons" substyle="Tools" />
-		<label posn="{{{6*SW}}} -13.5" sizen="{{{75*SW}}} 6" textsize="2" textcolor="{{{C_UI_Colors["Text"]}}}" valign="center" textemboss="1" text="{{{TextLib::Compose(_("Points limit: %1 | Tie-break: %2"), "6", "8")}}}" id="Label_GameInfo" />
-		<label posn="{{{158*CW}}} -13.5" sizen="{{{75*SW}}} 5" textsize="2" textcolor="{{{C_UI_Colors["Text"]}}}" halign="right" valign="center" textemboss="1" text="{{{TextLib::Compose(_("Turns won: %1 - %2 | Eliminations: %3 - %4"), "0", "0","0", "0")}}}" id="Label_GoalAverage" />
+		<label posn="{{{6*SW}}} -13.5" sizen="{{{75*SW}}} 6" textsize="2" textcolor="{{{C_UI_Colors["Text"]}}}" valign="center" textemboss="1" id="Label_GameInfo" />
+		<label posn="{{{158*CW}}} -13.5" sizen="{{{75*SW}}} 5" textsize="2" textcolor="{{{C_UI_Colors["Text"]}}}" halign="right" valign="center" textemboss="1" id="Label_GoalAverage" />
 		<quad posn="{{{163*SW}}} -13.7" sizen="4 4" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Score.dds" />
 	</frame>
 </frame>
@@ -914,6 +1023,25 @@ declare CMlLabel	Label_LongestLaser;
 declare CMlLabel	Label_ServerName;
 declare CMlLabel	Label_GameInfo;
 declare CMlLabel	Label_GoalAverage;
+
+Text GetEchelonPath(CUser::EEchelon _Echelon, Integer _Side) {
+	declare EchelonSide = "";
+	if (_Side < 0) EchelonSide = "_rev";
+					
+	switch (_Echelon) {
+		case CUser::EEchelon::Bronze1	: return "file://Media/Manialinks/Common/Echelons/small_echelon1"^EchelonSide^".dds";
+		case CUser::EEchelon::Bronze2	: return "file://Media/Manialinks/Common/Echelons/small_echelon2"^EchelonSide^".dds";
+		case CUser::EEchelon::Bronze3	: return "file://Media/Manialinks/Common/Echelons/small_echelon3"^EchelonSide^".dds";
+		case CUser::EEchelon::Silver1	: return "file://Media/Manialinks/Common/Echelons/small_echelon4"^EchelonSide^".dds";
+		case CUser::EEchelon::Silver2	: return "file://Media/Manialinks/Common/Echelons/small_echelon5"^EchelonSide^".dds";
+		case CUser::EEchelon::Silver3	: return "file://Media/Manialinks/Common/Echelons/small_echelon6"^EchelonSide^".dds";
+		case CUser::EEchelon::Gold1		: return "file://Media/Manialinks/Common/Echelons/small_echelon7"^EchelonSide^".dds";
+		case CUser::EEchelon::Gold2		: return "file://Media/Manialinks/Common/Echelons/small_echelon8"^EchelonSide^".dds";
+		case CUser::EEchelon::Gold3		: return "file://Media/Manialinks/Common/Echelons/small_echelon9"^EchelonSide^".dds";
+	}
+	
+	return "";
+}
 
 Void UpdatePlayersList(
 	Integer				_AttackerKey, 
@@ -956,14 +1084,14 @@ Void UpdatePlayersList(
 			declare Label_LadderPointsTotal	<=> (Frame_Player.GetFirstChild("Label_LadderPointsTotal")	as CMlLabel);
 			
 			declare Side = 1;
-			if (Label_Name.PosnX < 0) Side = -1;
+			if (Label_Name.RelativePosition.X < 0) Side = -1;
 			
 			Frame_Player.Show();
 			// Ready state
 			if (_Mode == {{{C_SequenceWarmUp}}}) {
-				Quad_Avatar.PosnX = {{{4 + (3*CW)}}} * Side;
-				Label_Name.PosnX = {{{12*CW}}} * Side;
-				Frame_Stars.PosnX = {{{64*CW}}} * Side;
+				Quad_Avatar.RelativePosition.X = {{{4 + (3*CW)}}} * Side;
+				Label_Name.RelativePosition.X = {{{12*CW}}} * Side;
+				Frame_Stars.RelativePosition.X = {{{64*CW}}} * Side;
 				if (_Ready.existskey(I)) {
 					if (_Ready[I]) {
 						Quad_Ready.Show();
@@ -977,9 +1105,9 @@ Void UpdatePlayersList(
 					Quad_NotReady.Show();
 				}
 			} else {
-				Quad_Avatar.PosnX = {{{5 + (0*CW)}}} * Side;
-				Label_Name.PosnX = {{{10*CW}}} * Side;
-				Frame_Stars.PosnX = {{{63*CW}}} * Side;
+				Quad_Avatar.RelativePosition.X = {{{5 + (0*CW)}}} * Side;
+				Label_Name.RelativePosition.X = {{{10*CW}}} * Side;
+				Frame_Stars.RelativePosition.X = {{{63*CW}}} * Side;
 				Quad_Ready.Hide();
 				Quad_NotReady.Hide();
 			}
@@ -998,13 +1126,11 @@ Void UpdatePlayersList(
 			if (_PlayersIds.existskey(I) && Players.existskey(_PlayersIds[I])) {
 				declare Player <=> Players[_PlayersIds[I]];
 				
-				// Echelons
-				declare Echelon = ML::FloorInteger(Player.User.LadderPoints / 10000.);
-				if (Echelon >= 1 && Echelon <= 9) {
+				// Echelons				
+				declare EchelonPath = GetEchelonPath(Player.User.Echelon, Side);
+				if (EchelonPath != "") {
 					Quad_Echelon.Show();
-					declare EchelonSide = "";
-					if (Side < 0) EchelonSide = "_rev";
-					Quad_Echelon.ChangeImageUrl("file://Media/Manialinks/Common/Echelons/small_echelon"^Echelon^EchelonSide^".dds");
+					Quad_Echelon.ImageUrl = EchelonPath;
 				} else {
 					Quad_Echelon.Hide();
 				}
@@ -1051,29 +1177,29 @@ Void UpdatePlayersList(
 					
 					switch(Fame) {
 						case 1: {
-							Quad_Star_1.PosnX = -StarSize/2.*Side; Quad_Star_1.PosnY = 0.;
+							Quad_Star_1.RelativePosition.X = -StarSize/2.*Side; Quad_Star_1.RelativePosition.Y = 0.;
 						}
 						case 2: {
-							Quad_Star_1.PosnX = 0.*Side;			Quad_Star_1.PosnY = 0.;
-							Quad_Star_2.PosnX = -StarSize*Side;		Quad_Star_2.PosnY = 0.;
+							Quad_Star_1.RelativePosition.X = 0.*Side;			Quad_Star_1.RelativePosition.Y = 0.;
+							Quad_Star_2.RelativePosition.X = -StarSize*Side;	Quad_Star_2.RelativePosition.Y = 0.;
 						}
 						case 3: {
-							Quad_Star_1.PosnX = 0.*Side;			Quad_Star_1.PosnY = -StarSize/2.;
-							Quad_Star_2.PosnX = -StarSize*Side;		Quad_Star_2.PosnY = -StarSize/2.;
-							Quad_Star_3.PosnX = -StarSize/2.*Side;	Quad_Star_3.PosnY = StarSize/2.;
+							Quad_Star_1.RelativePosition.X = 0.*Side;			Quad_Star_1.RelativePosition.Y = -StarSize/2.;
+							Quad_Star_2.RelativePosition.X = -StarSize*Side;	Quad_Star_2.RelativePosition.Y = -StarSize/2.;
+							Quad_Star_3.RelativePosition.X = -StarSize/2.*Side;	Quad_Star_3.RelativePosition.Y = StarSize/2.;
 						}
 						case 4: {
-							Quad_Star_1.PosnX = 0.*Side;			Quad_Star_1.PosnY = -StarSize/2.;
-							Quad_Star_2.PosnX = -StarSize*Side;		Quad_Star_2.PosnY = -StarSize/2.;
-							Quad_Star_3.PosnX = 0.*Side;			Quad_Star_3.PosnY = StarSize/2.;
-							Quad_Star_4.PosnX = -StarSize*Side;		Quad_Star_4.PosnY = StarSize/2.;
+							Quad_Star_1.RelativePosition.X = 0.*Side;			Quad_Star_1.RelativePosition.Y = -StarSize/2.;
+							Quad_Star_2.RelativePosition.X = -StarSize*Side;	Quad_Star_2.RelativePosition.Y = -StarSize/2.;
+							Quad_Star_3.RelativePosition.X = 0.*Side;			Quad_Star_3.RelativePosition.Y = StarSize/2.;
+							Quad_Star_4.RelativePosition.X = -StarSize*Side;	Quad_Star_4.RelativePosition.Y = StarSize/2.;
 						}
 						case 5: {
-							Quad_Star_1.PosnX = 0.*Side;			Quad_Star_1.PosnY = -StarSize/2.;
-							Quad_Star_2.PosnX = -StarSize*Side;		Quad_Star_2.PosnY = -StarSize/2.;
-							Quad_Star_3.PosnX = 0.*Side;			Quad_Star_3.PosnY = StarSize/2.;
-							Quad_Star_4.PosnX = -StarSize*Side;		Quad_Star_4.PosnY = StarSize/2.;
-							Quad_Star_5.PosnX = -StarSize*0.5*Side;	Quad_Star_5.PosnY = 0.;
+							Quad_Star_1.RelativePosition.X = 0.*Side;			Quad_Star_1.RelativePosition.Y = -StarSize/2.;
+							Quad_Star_2.RelativePosition.X = -StarSize*Side;	Quad_Star_2.RelativePosition.Y = -StarSize/2.;
+							Quad_Star_3.RelativePosition.X = 0.*Side;			Quad_Star_3.RelativePosition.Y = StarSize/2.;
+							Quad_Star_4.RelativePosition.X = -StarSize*Side;	Quad_Star_4.RelativePosition.Y = StarSize/2.;
+							Quad_Star_5.RelativePosition.X = -StarSize*0.5*Side;Quad_Star_5.RelativePosition.Y = 0.;
 						}
 					}
 				} else {
@@ -1115,7 +1241,7 @@ Void UpdatePlayersList(
 			}
 			
 			// Ladder points
-			if (_Mode == {{{C_SequencePodium}}} && _LadderPoints.existskey(I) && _LadderPoints[I] >= 0) {
+			if (_Mode == {{{C_SequencePodium}}} && _LadderPoints.existskey(I) && _LadderPoints[I] != -1.) {
 				Frame_LadderPoints.Show();
 				
 				declare LadderPointsExplode = TextLib::Split(".", TextLib::ToText(_LadderPoints[I]));
@@ -1123,7 +1249,8 @@ Void UpdatePlayersList(
 				if (LadderPointsExplode.existskey(0)) LadderPoints = LadderPointsExplode[0];
 				if (LadderPointsExplode.existskey(1)) LadderPoints ^= "."^TextLib::SubString(LadderPointsExplode[1], 0, 2);
 				
-				Label_LadderPoints.SetText("+"^LadderPoints);
+				if (_LadderPoints[I] >= 0) Label_LadderPoints.SetText("+"^LadderPoints);
+				else Label_LadderPoints.SetText(LadderPoints);
 				
 				if (_LadderPointsTotal.existskey(I)) {
 					declare LadderPointsTotalExplode = TextLib::Split(".", TextLib::ToText(_LadderPointsTotal[I]));
@@ -1182,24 +1309,9 @@ Void UpdateStats(
 	Label_LongestLaser.SetText(TextLib::Compose(_("Longest Laser: %1 by %2"), Longest, LongestName));
 }
 
-Void UpdateGameInfo(
-	Integer _PointsLimit,
-	Integer _PointsToWin,
-	Integer[Integer] _Turns,
-	Integer[Integer] _Eliminations
-) {
-	Label_GameInfo.SetText(TextLib::Compose(_("Points limit: %1 | Tie-break: %2"), TextLib::ToText(_PointsLimit), TextLib::ToText(_PointsToWin)));
-	
-	declare TurnsClan1 = 0;
-	declare TurnsClan2 = 0;
-	if (_Turns.existskey(1)) TurnsClan1 = _Turns[1];
-	if (_Turns.existskey(2)) TurnsClan2 = _Turns[2];
-	
-	if (_Eliminations.existskey(1) && _Eliminations.existskey(2)) {
-		Label_GoalAverage.SetText(TextLib::Compose(_("Turns won: %1 - %2 | Eliminations: %3 - %4"), TextLib::ToText(TurnsClan1), TextLib::ToText(TurnsClan2), TextLib::ToText(_Eliminations[1]), TextLib::ToText(_Eliminations[2])));
-	} else {
-		Label_GoalAverage.SetText(TextLib::Compose(_("Turns won: %1 - %2"), TextLib::ToText(TurnsClan1), TextLib::ToText(TurnsClan2)));
-	}
+Void UpdateGameInfo(Integer _PointsLimit, Integer _PointsToWin) {
+	Label_GameInfo.SetText(TextLib::Compose(_("Points limit: %1"), TextLib::ToText(_PointsLimit)));
+	Label_GoalAverage.SetText(TextLib::Compose("%1 %2", _("Max points :"), TextLib::ToText(_PointsToWin)));
 }
 
 Void UpdatePlayersStatus(Boolean _Forced) {
@@ -1389,9 +1501,7 @@ main() {
 			
 			UpdateGameInfo(
 				Net_LayerST_PointsLimit,
-				Net_LayerST_PointsToWin,
-				Net_LayerST_Turns,
-				Net_LayerST_Eliminations
+				Net_LayerST_PointsToWin
 			);
 		}
 		
@@ -1487,6 +1597,10 @@ for (I, 1, 2) {
 					}
 				}
 			}
+			// Matchmaking temp allies
+			if (!Ally1 && G_TempAllies.exists(Player.Login)) {
+				Ally1 = True;
+			}
 		}
 		J += 1;
 	}
@@ -1568,7 +1682,8 @@ foreach (Score in Scores) {
 	}
 	// Other
 	else {
-		Score.Points = 1;
+		Score.Points = 0;
+		Score.LadderMatchScoreValue = 0.;
 	}
 }
 Ladder_SetResultsVersion(1);
@@ -1625,9 +1740,23 @@ foreach (Score in Scores) {
 		}
 	}
 }
-if (MB_UseScriptCallbacks) {
+//if (MB_UseScriptCallbacks) {
 	XmlRpc.SendCallbackArray("Master", [MasterLogin]);
-}
+//}
+***
+
+***RegisterStats***
+***
+declare AtkVictory = False;
+declare DefNb = 0;
+declare AtkArmorNb = 0;
+
+if (WinType == C_WinCapture || WinType == C_WinDefenseEliminated) AtkVictory = True;
+if (ClansNbPlayersAlive.existskey(G_DefClan)) DefNb = ClansNbPlayersAlive[G_DefClan];
+if (WinType == C_WinAttackEliminated) AtkArmorNb = 0;
+else if (Players.existskey(G_AtkPlayerId)) AtkArmorNb = Players[G_AtkPlayerId].Armor / 100;
+
+if (Players.existskey(G_AtkPlayerId)) EliteStats::RegisterRound(Players[G_AtkPlayerId], AtkVictory, AtkArmorNb, DefNb);
 ***
 
 // ---------------------------------- //
@@ -1658,6 +1787,9 @@ Text CreateLayerInfo() {
 	</frame>
 	<frame posn="90 -88" id="Frame_Sponsors" hidden="1">
 		<quad sizen="40 20" valign="bottom" id="Quad_Sponsor" />
+	</frame>
+	<frame posn="156 -80" id="Frame_AtkArmor">
+		
 	</frame>
 </frame>
 <!--<quad posn="0 -94 -15" sizen="320 40" halign="center" valign="bottom" image="{{{ImgPathElite}}}BackgroundBottom.dds" />-->
@@ -1699,6 +1831,7 @@ main() {
 	declare Frame_Capture 		<=> (Page.GetFirstChild("Frame_Capture") 		as CMlFrame);
 	declare Label_Capture 		<=> (Page.GetFirstChild("Label_Capture") 		as CMlLabel);
 	declare Gauge_Capture 		<=> (Page.GetFirstChild("Gauge_Capture") 		as CMlGauge);
+	declare Frame_AtkArmor		<=> (Page.GetFirstChild("Frame_AtkArmor")		as CMlFrame);
 	
 	Frame_Sponsors <=> (Page.GetFirstChild("Frame_Sponsors") as CMlFrame);
 	
@@ -1760,6 +1893,26 @@ main() {
 			}
 		}
 		
+		declare persistent Elite_AtkArmorVisible = True;
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CMlEvent::Type::KeyPress) {
+				if (Event.KeyName == "F8" && !IsSpectatorMode) {
+					if (Frame_AtkArmor.Visible) Elite_AtkArmorVisible = False;
+					else Elite_AtkArmorVisible = True;
+				}
+			}
+		}
+		
+		if (IsSpectatorMode) {
+			if (!Frame_AtkArmor.Visible) Frame_AtkArmor.Visible = True;
+		} else {
+			if (Frame_AtkArmor.Visible && !Elite_AtkArmorVisible) {
+				Frame_AtkArmor.Visible = False;
+			} else if (!Frame_AtkArmor.Visible && Elite_AtkArmorVisible) {
+				Frame_AtkArmor.Visible = True;
+			}
+		}
+		
 		declare CSmPlayer TargetPlayer;
 		if (GUIPlayer != Null) TargetPlayer <=> GUIPlayer;
 		else TargetPlayer <=> InputPlayer;
@@ -1808,6 +1961,61 @@ main() {
 Void UpdateLayerInfo() {
 	declare netwrite Net_Elite_CheckpointsCaptured for Teams[0] = 0;
 	Net_Elite_CheckpointsCaptured = G_CheckpointsCapturedNb;
+}
+
+// ---------------------------------- //
+/** Create the replay layer
+ *
+ *	@return 	The manialink used by the replay layer
+ */
+// @UIReplay > 
+Text CreateLayerReplay() {
+	declare PlayersLists = [1 => "", 2 => ""];
+	declare ClansOrders = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
+	
+	for (I, 1, 2) {
+		declare First = True;
+		foreach (Slot => Id in ClansOrders[I]) {
+			if (Players.existskey(Id)) {
+				declare Player <=> Players[Id];
+				
+				declare Align = "left";
+				if (I == 2) Align = "right";
+				PlayersLists[I] ^= """
+<playerlist posn="0 {{{-2+(-4.5*(Slot-1))}}}" scale="0.67" halign="{{{Align}}}" substyle="Medium" logins="{{{Player.Login}}}" lines="1" columns="1" team="{{{I}}}" status="Playing"/>				
+""";
+			}
+		}
+	}
+	
+	return """
+<frame posn="0 92" id="Frame_Scores">
+	<quad sizen="20 10" halign="right" style="UiSMSpectatorScoreBig" substyle="HandleLeft" />
+	<label posn="-5 -2.5" scale="0.4" halign="right" style="TextRaceMessageBig" text="{{{UIManager.UIAll.ScoreSummary_Points1}}}" />
+	<quad sizen="20 10" halign="left" style="UiSMSpectatorScoreBig" substyle="HandleRight" />
+	<label posn="5 -2.5" scale="0.4" halign="left" style="TextRaceMessageBig" text="{{{UIManager.UIAll.ScoreSummary_Points2}}}" />
+</frame>
+<frame id="Frame_PlayersLists">
+	<frame posn="-160 74" id="Frame_PlayersList_1">
+		<frame id="Frame_TeamName_1">
+			<quad posn="0.25 0" sizen="39.45 3.5" halign="left" valign="center" bgcolor="fff8" />
+			<quad posn="0.5 1.5 1" sizen="7 7" halign="left" valign="center" style="Emblems" substyle="#1" /> 
+			<label posn="8 0.4 1" sizen="28 3.5" halign="left" valign="center" textsize="2" textemboss="1" text="{{{Teams[0].ColorizedName}}}" />
+			<label posn="37 0.4 1" sizen="2.5 3.5" halign="left" valign="center" textsize="2" textemboss="1" text="{{{UIManager.UIAll.ScoreSummary_MatchPoints1}}}" />
+		</frame>
+		{{{PlayersLists[1]}}}
+	</frame>
+	<frame posn="160 74" id="Frame_PlayersList_2">
+		<frame id="Frame_TeamName_2">
+			<quad posn="-0.25 0" sizen="39.45 3.5" halign="right" valign="center" bgcolor="fff8" />
+			<quad posn="-0.5 1.5 1" sizen="7 7" halign="right" valign="center" style="Emblems" substyle="#2" /> 
+			<label posn="-8 0.4 1" sizen="28 3.5" halign="right" valign="center" textsize="2" textemboss="1" text="{{{Teams[1].ColorizedName}}}" />
+			<label posn="-37 0.4 1" sizen="2.5 3.5" halign="right" valign="center" textsize="2" textemboss="1" text="{{{UIManager.UIAll.ScoreSummary_MatchPoints2}}}" />
+		</frame>
+		{{{PlayersLists[2]}}}
+	</frame>
+</frame>
+""";
 }
 
 // ---------------------------------- //
@@ -2009,15 +2217,15 @@ main() {
 				if (IsSpectatorMode) {
 					Frame_PlayersList[1].Scale = 1.2;
 					Frame_PlayersList[2].Scale = 1.2;
-					Frame_PlayersList[1].PosnY = 70.;
-					Frame_PlayersList[2].PosnY = 70.;
+					Frame_PlayersList[1].RelativePosition.Y = 70.;
+					Frame_PlayersList[2].RelativePosition.Y = 70.;
 					Frame_TeamName[1].Show();
 					Frame_TeamName[2].Show();
 				} else {
 					Frame_PlayersList[1].Scale = 1.;
 					Frame_PlayersList[2].Scale = 1.;
-					Frame_PlayersList[1].PosnY = 77.;
-					Frame_PlayersList[2].PosnY = 77.;
+					Frame_PlayersList[1].RelativePosition.Y = 77.;
+					Frame_PlayersList[2].RelativePosition.Y = 77.;
 					Frame_TeamName[1].Hide();
 					Frame_TeamName[2].Hide();
 				}
@@ -2067,19 +2275,7 @@ main() {
 				if (Event.KeyName == "F8" && !IsSpectatorMode) {
 					if (Frame_PlayersLists.Visible) Elite_PlayersListsVisible = False;
 					else Elite_PlayersListsVisible = True;
-				} /*else if (IsSpectatorMode) {
-					switch (Event.KeyName) {
-						case "Numpad1": {
-							SetSpectateTarget(DefenderLogin1);
-						}
-						case "Numpad2": {
-							SetSpectateTarget(DefenderLogin2);
-						}
-						case "Numpad3": {
-							SetSpectateTarget(DefenderLogin3);
-						}
-					}
-				}*/
+				}
 			}
 		}
 		
@@ -2166,11 +2362,10 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 		case CSmModeEvent::EType::OnHit: {
 			declare HitDist = 0.;
 			if (
-				_Event.WeaponNum == C_WeaponLaser
-				&& _Event.Victim != Null
+				_Event.Victim != Null
 				&& _Event.Shooter != Null
 			) {
-				HitDist = MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position);
+				HitDist = MathLib::NearestInteger(MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position) * 1000.) / 1000.;
 			}
 			JSON = Json::Merge([
 				Json::Stringify("HitDist", HitDist),
@@ -2198,7 +2393,19 @@ Text EliteStringify(Text _Name, CSmModeEvent _Event) {
 			JSON = PlayerStringify("Player", _Event.Player);
 		}
 		case CSmModeEvent::EType::OnNearMiss: {
+			declare HitDist = 0.;
+			if (
+				_Event.WeaponNum == C_WeaponLaser
+				&& _Event.Victim != Null
+				&& _Event.Shooter != Null
+			) {
+				HitDist = MathLib::NearestInteger(MathLib::Distance(_Event.Victim.Position, _Event.Shooter.Position) * 1000.) / 1000.;
+			}
+			declare MissDist = _Event.MissDist;
+			if (MissDist < 0.0001) MissDist = 0.0001;
 			JSON = Json::Merge([
+				Json::Stringify("MissDist", MissDist),
+				Json::Stringify("HitDist", HitDist),
 				PlayerStringify("Shooter", _Event.Shooter),
 				PlayerStringify("Victim", _Event.Victim)
 			]);

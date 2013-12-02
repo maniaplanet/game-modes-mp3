@@ -69,7 +69,7 @@ Void LogCallBack(CSmPlayer _Player, Text _Message) {
 	declare Text LogMessage = "LobbyMelee|"^Now^"> "^PlayerLogin^_Message;
 	
 	XmlRpc.SendCallback("Log", LogMessage);
-	//log(LogMessage);
+	// log(LogMessage);
 }
 
 Void ResetPlayer(CSmPlayer _Player) {
@@ -202,6 +202,7 @@ Void LoopTimerUI() {
 		
 		Net_TimerMax = G_LibKol_EndTime - G_LibKol_StartTime;
 		Net_Timer = Now - G_LibKol_StartTime;
+		
 		if(G_LibKol_RoundPhase == C_PHASE_Playing) {
 			Net_AutoDown = False;
 			Net_TimeDown = 0;
@@ -499,10 +500,10 @@ Void CreateRulesReminderLayer() {
 	declare Text TitleText 			= _("Waiting for your match to start");
 	declare Text ModeName	 		= _("Lobby");
 	/*
-	declare Text RulesReminder = TextLib::Compose("%1\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, you can play 'King Of The Lobby'."), _("In this mode, perform as much hits as possible without being eliminated."));
+	declare Text RulesReminder = TextLib::Compose("%1\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, you can play 'King Of The Lobby'."), _("In this mode, perform as many hits as possible without being eliminated."));
 	*/
 			
-	declare Text RulesReminder = TextLib::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as much hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated."));
+	declare Text RulesReminder = TextLib::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as many hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated."));
 	
 	declare Text DoNotShowAgain		= _("Do Not Show Again");
 	declare Text Close				= _("Close");
@@ -585,16 +586,21 @@ Void CreateGaugeTimerLayer()
 	declare Text MLText = """
 	<frame>
 		<gauge posn="0 73.3 2" sizen="90 7" id="Gauge_Timer" drawbg="false" valign="center" halign="center" />
+		<label posn="0 67. 2" sizen="90 7" id="Label_WaitTime" valign="center" halign="center" style="TextRaceChrono" textsize="6" textcolor="f90d"/>
 	</frame>
 	<script><!--
+		#Include "TextLib" as TextLib
 
 		main() {
 			declare CMlGauge Gauge_Timer <=> ( Page.GetFirstChild("Gauge_Timer") as CMlGauge);
+			declare CMlLabel Label_WaitTime <=> ( Page.GetFirstChild("Label_WaitTime") as CMlLabel);
 
 			declare netread Integer	Net_TimerMax	for UI;
 			declare netread Integer	Net_Timer		for UI;
 			declare netread Boolean	Net_AutoDown	for UI;
 			declare netread Integer	Net_TimeDown	for UI;
+			
+			declare Integer WaitingTime = 0;
 			
 			declare Integer Period;
 			declare Integer PrevNow = Now;
@@ -615,6 +621,15 @@ Void CreateGaugeTimerLayer()
 						if(Ratio > 1.) Ratio = 1.;
 						Gauge_Timer.Ratio = Ratio;
 					}
+				}
+				
+				if(IsSpectatorMode) {
+					Label_WaitTime.Hide();
+					WaitingTime = 0;
+				} else {
+					WaitingTime += Period;
+					Label_WaitTime.Show();					
+					Label_WaitTime.SetText(TextLib::TimeToText(WaitingTime));
 				}
 			}
 		}
@@ -644,7 +659,7 @@ Void StartMap() {
 	declare ModeName = _("Lobby");
 	
 	/*
-	declare ModeRules = TextLib::Compose("%1\n\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as much hits as possible: the points you earn for each one will increase. But beware: your combo falls back to 1 when you are eliminated."));
+	declare ModeRules = TextLib::Compose("%1\n\n%2\n%3", _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as many hits as possible: the points you earn for each one will increase. But beware: your combo falls back to 1 when you are eliminated."));
 	SpawnScreen::CreateRules(ModeName, ModeRules, False);
 	SpawnScreen::AttachRules();
 	*/
@@ -652,7 +667,7 @@ Void StartMap() {
 	SpawnScreen::ResetRulesSection();
 	SpawnScreen::AddSubsection(
 		_("Objectives"),
-		TextLib::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as much hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated.")),
+		TextLib::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as many hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated.")),
 		0.);
 		
 	SpawnScreen::AddSubsection(

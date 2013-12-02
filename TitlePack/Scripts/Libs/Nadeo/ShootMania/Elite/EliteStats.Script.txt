@@ -1,0 +1,356 @@
+/**
+ *	EliteStats Lib
+ */
+#Const	Version		"2013-11-27"
+#Const	ScriptName	"EliteStats.Script.txt"
+
+// ---------------------------------- //
+// Constants
+// ---------------------------------- //
+
+
+// ---------------------------------- //
+// Globales
+// ---------------------------------- //
+declare Ident	G_LibEliteStats_LayerSaveId;					///< Save layer id
+declare Ident	G_LibEliteStats_LayerVictoryConditionId; 		///< Victory condition layer id
+declare Integer[Integer][Integer] G_LibEliteStats_AtkVictory;	///< NbOfVictory[NbOfDef][NbOfAtkArmor]
+declare Integer[Integer][Integer] G_LibEliteStats_AtkDefeat;	///< NbOfDefeat[NbOfDef][NbOfAtkArmor]
+declare Integer G_LibEliteStats_RegisterRoundNb;				///< Number of rounds registred in the stats
+
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
+
+// ---------------------------------- //
+// Private
+// ---------------------------------- //
+// ---------------------------------- //
+/** Create the victory condition manialink
+ *
+ *	@return		The manialink text
+ */
+Text Private_CreateMLVictoryCondition() {
+	declare MaxX = 0;
+	declare MaxY = 0;
+	declare SizeX = 60.;
+	declare SizeY = 60.;
+	declare PointsVictory = Vec3[];
+	declare PointsDefeat = Vec3[];
+	declare MaxTotal = 0;
+	
+	foreach (NbOfAtkArmor => A in G_LibEliteStats_AtkVictory) {
+		if (NbOfAtkArmor > MaxX) MaxX = NbOfAtkArmor;
+		foreach (NbOfDef => Total in A) {
+			if (NbOfDef > MaxY) MaxY = NbOfDef;
+			PointsVictory.add(<NbOfAtkArmor*1., NbOfDef*1., Total*1.>);
+			if (Total > MaxTotal) MaxTotal = Total;
+		}
+	}
+	
+	foreach (NbOfAtkArmor => A in G_LibEliteStats_AtkDefeat) {
+		if (NbOfAtkArmor > MaxX) MaxX = NbOfAtkArmor;
+		foreach (NbOfDef => Total in A) {
+			if (NbOfDef > MaxY) MaxY = NbOfDef;
+			PointsDefeat.add(<NbOfAtkArmor*1., NbOfDef*1., Total*1.>);
+			if (Total > MaxTotal) MaxTotal = Total;
+		}
+	}
+	
+	declare UnitSizeX = SizeX;
+	declare UnitSizeY = SizeY;
+	if (MaxX > 0) UnitSizeX = SizeX / (MaxX * 1.);
+	if (MaxY > 0) UnitSizeY = SizeY / (MaxY * 1.);
+	
+	declare LegendX = "";
+	declare LegendY = "";
+	for (I, 1, MaxX) {
+		LegendX ^= """<label posn="{{{I*UnitSizeX}}} 0" sizen="4 4" halign="center" valign="top" text="{{{I}}}" />""";
+	}
+	for (I, 1, MaxY) {
+		LegendY ^= """<label posn="0 {{{I*UnitSizeY}}}" sizen="4 4" halign="right" valign="center" text="{{{I}}}" />""";
+	}
+	
+	declare Values = "";
+	foreach (Point in PointsVictory) {
+		declare Ratio = (Point.Z / (MaxTotal*1.));
+		declare PointSize = <Ratio * UnitSizeX, Ratio * UnitSizeY>;
+		if (PointSize.X > PointSize.Y) PointSize.X = PointSize.Y;
+		if (PointSize.Y > PointSize.X) PointSize.Y = PointSize.X;
+		Values ^= """<quad posn="{{{Point.X*UnitSizeX}}} {{{Point.Y*UnitSizeY}}}" sizen="{{{PointSize.X}}} {{{PointSize.Y}}}" halign="center" valign="center" bgcolor="0707" />""";
+	}
+	foreach (Point in PointsDefeat) {
+		declare Ratio = (Point.Z / (MaxTotal*1.));
+		declare PointSize = <Ratio * UnitSizeX, Ratio * UnitSizeY>;
+		if (PointSize.X > PointSize.Y) PointSize.X = PointSize.Y;
+		if (PointSize.Y > PointSize.X) PointSize.Y = PointSize.X;
+		Values ^= """<quad posn="{{{Point.X*UnitSizeX}}} {{{Point.Y*UnitSizeY}}}" sizen="{{{PointSize.X}}} {{{PointSize.Y}}}" halign="center" valign="center" bgcolor="7007" />""";
+	}
+	
+	return """
+<frame posn="-150 -60" id="Frame_VictoryCondition">
+	<format textsize="1" textemboss="1" />
+	<frame posn="0 0">
+		<quad sizen="{{{SizeX}}} 1" bgcolor="000" />
+		<quad sizen="1 {{{SizeY}}}" halign="right" valign="bottom" bgcolor="000" />
+		<quad sizen="1 1" halign="right" valign="top" bgcolor="000" />
+	</frame>
+	<frame posn="-1.5 -1.5 1">
+		<label sizen="4 4" halign="right" valign="top" text="0" />
+		<frame posn="1.5 0">{{{LegendX}}}</frame>
+		<frame posn="0 1.5">{{{LegendY}}}</frame>
+	</frame>
+	<frame posn="0 0 2">
+		<label posn="{{{SizeX+1}}} 0" valign="center2" text="Atk" />
+		<label posn="0 {{{SizeY + 1}}}" halign="center" valign="bottom" text="Def" />
+	</frame>
+	<frame posn="0 0 3">
+		{{{Values}}}
+	</frame>
+</frame>
+<script><!--
+main() {
+	declare Frame_VictoryCondition <=> (Page.GetFirstChild("Frame_VictoryCondition") as CMlFrame);
+	declare netread Boolean Net_LibEliteStats_VictoryConditionVisible for Teams[0];
+	declare PrevVictoryConditionVisible = False;
+	
+	while (True) {
+		sleep(250);
+		
+		if (PrevVictoryConditionVisible != Net_LibEliteStats_VictoryConditionVisible) {
+			PrevVictoryConditionVisible = Net_LibEliteStats_VictoryConditionVisible;
+			Frame_VictoryCondition.Visible = Net_LibEliteStats_VictoryConditionVisible;
+		}
+	}
+}
+--></script>""";
+}
+
+// ---------------------------------- //
+/** Create the save manialink
+ *
+ *	@return		The manialink text
+ */
+Text Private_CreateMLSave() {
+	return """
+<script><!--
+main() {
+	declare netread Integer Net_LibEliteStats_SaveTime for UI;
+	declare persistent Integer[Integer][Integer] LibEliteStats_AtkVictory;
+	declare persistent Integer[Integer][Integer] LibEliteStats_AtkDefeat;
+	
+	declare PrevSaveTime = Net_LibEliteStats_SaveTime;
+	
+	while (True) {
+		yield;
+		
+		if (InputPlayer == Null) continue;
+		
+		if (PrevSaveTime != Net_LibEliteStats_SaveTime && PrevSaveTime > 0) {
+			PrevSaveTime = Net_LibEliteStats_SaveTime;
+			
+			declare netread Integer[Integer][Integer] Net_LibEliteStats_AtkVictory for InputPlayer;
+			declare netread Integer[Integer][Integer] Net_LibEliteStats_AtkDefeat for InputPlayer;
+			
+			foreach (NbOfAtkArmor => A in Net_LibEliteStats_AtkVictory) {
+				foreach (NbOfDef => Total in A) {
+					if (!LibEliteStats_AtkVictory.existskey(NbOfAtkArmor)) LibEliteStats_AtkVictory[NbOfAtkArmor] = Integer[Integer];
+					if (!LibEliteStats_AtkVictory[NbOfAtkArmor].existskey(NbOfDef)) LibEliteStats_AtkVictory[NbOfAtkArmor][NbOfDef] = 0;
+					LibEliteStats_AtkVictory[NbOfAtkArmor][NbOfDef] += Total;
+				}
+			}
+			
+			foreach (NbOfAtkArmor => A in Net_LibEliteStats_AtkDefeat) {
+				foreach (NbOfDef => Total in A) {
+					if (!LibEliteStats_AtkDefeat.existskey(NbOfAtkArmor)) LibEliteStats_AtkDefeat[NbOfAtkArmor] = Integer[Integer];
+					if (!LibEliteStats_AtkDefeat[NbOfAtkArmor].existskey(NbOfDef)) LibEliteStats_AtkDefeat[NbOfAtkArmor][NbOfDef] = 0;
+					LibEliteStats_AtkDefeat[NbOfAtkArmor][NbOfDef] += Total;
+				}
+			}
+		}
+	}
+}
+--></script>""";
+}
+
+// ---------------------------------- //
+/// Debug function 
+Void Private_GenerateDummyStats() {
+	for (AtkArmorNb, 0, 3) {
+		for (DefNb, 0, 3) {
+			if (!G_LibEliteStats_AtkVictory.existskey(AtkArmorNb)) G_LibEliteStats_AtkVictory[AtkArmorNb] = Integer[Integer];
+			if (!G_LibEliteStats_AtkVictory[AtkArmorNb].existskey(DefNb)) G_LibEliteStats_AtkVictory[AtkArmorNb][DefNb] = 0;
+			G_LibEliteStats_AtkVictory[AtkArmorNb][DefNb] = AtkArmorNb * (AtkArmorNb - DefNb);
+			
+			if (!G_LibEliteStats_AtkDefeat.existskey(AtkArmorNb)) G_LibEliteStats_AtkDefeat[AtkArmorNb] = Integer[Integer];
+			if (!G_LibEliteStats_AtkDefeat[AtkArmorNb].existskey(DefNb)) G_LibEliteStats_AtkDefeat[AtkArmorNb][DefNb] = 0;
+			G_LibEliteStats_AtkDefeat[AtkArmorNb][DefNb] = DefNb * (DefNb - AtkArmorNb);
+		}
+	}
+}
+
+// ---------------------------------- //
+/// Debug function 
+Void Private_ClearLocalStats() {
+	foreach (User in Users) {
+		declare persistent LibEliteStats_AtkVictory for User = Integer[Integer][Integer];
+		declare persistent LibEliteStats_AtkDefeat for User = Integer[Integer][Integer];
+		LibEliteStats_AtkVictory.clear();
+		LibEliteStats_AtkDefeat.clear();
+	}
+}
+
+Integer[Integer][Integer] Private_UpdateStatsVictoryCondition(Integer[Integer][Integer] _PreviousStats, Integer _AtkArmorNb, Integer _DefNb) {
+	declare TmpStats = _PreviousStats;
+	
+	if (!TmpStats.existskey(_AtkArmorNb)) TmpStats[_AtkArmorNb] = Integer[Integer];
+	if (!TmpStats[_AtkArmorNb].existskey(_DefNb)) TmpStats[_AtkArmorNb][_DefNb] = 0;
+	TmpStats[_AtkArmorNb][_DefNb] += 1;
+		
+	return TmpStats;
+}
+
+// ---------------------------------- //
+// Public
+// ---------------------------------- //
+// ---------------------------------- //
+/**	Return the version number of the script
+ *
+ *	@return   The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+// ---------------------------------- //
+/**	Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+// ---------------------------------- //
+/// Unload the library
+Void Unload() {
+	// Destroy the victory condition layer
+	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerVictoryConditionId)) {
+		declare LayerVictoryCondition = UIManager.UILayers[G_LibEliteStats_LayerVictoryConditionId];
+		declare Removed = UIManager.UIAll.UILayers.remove(LayerVictoryCondition);
+		UIManager.UILayerDestroy(LayerVictoryCondition);
+	}
+	// Destroy the save layer
+	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerSaveId)) {
+		declare LayerSave = UIManager.UILayers[G_LibEliteStats_LayerSaveId];
+		declare Removed = UIManager.UIAll.UILayers.remove(LayerSave);
+		UIManager.UILayerDestroy(LayerSave);
+	}
+	
+	declare netwrite Net_LibEliteStats_VictoryConditionVisible for Teams[0] = True;
+	Net_LibEliteStats_VictoryConditionVisible = True;
+		
+	G_LibEliteStats_AtkVictory.clear();
+	G_LibEliteStats_AtkDefeat.clear();
+	G_LibEliteStats_RegisterRoundNb = 0;
+}
+
+// ---------------------------------- //
+/// Load the library
+Void Load() {
+	Unload();
+	
+	// Create the victory condition layer
+	declare LayerVictoryCondition			= UIManager.UILayerCreate();
+	G_LibEliteStats_LayerVictoryConditionId	= LayerVictoryCondition.Id;
+	LayerVictoryCondition.ManialinkPage		= Private_CreateMLVictoryCondition();
+	// Create the save layer
+	declare LayerSave			= UIManager.UILayerCreate();
+	G_LibEliteStats_LayerSaveId	= LayerSave.Id;
+	LayerSave.ManialinkPage		= Private_CreateMLSave();
+	UIManager.UIAll.UILayers.add(LayerSave);
+}
+
+// ---------------------------------- //
+/// Start map
+Void StartMap() {
+	G_LibEliteStats_AtkVictory.clear();
+	G_LibEliteStats_AtkDefeat.clear();
+	G_LibEliteStats_RegisterRoundNb = 0;
+}
+
+// ---------------------------------- //
+/// End map
+Void EndMap() {
+	
+}
+
+// ---------------------------------- //
+/** Register the round stats
+ *
+ *	@param	_AtkVictory		Is that round won by the attack or not
+ *	@param	_AtkArmorNb		The number of armors left to the attacker
+ *	@param	_DefNb			The number of defenders alive
+ */
+Void RegisterRound(CPlayer _Player, Boolean _AtkVictory, Integer _AtkArmorNb, Integer _DefNb) {
+	G_LibEliteStats_RegisterRoundNb += 1;
+	
+	if (_AtkVictory) {
+		G_LibEliteStats_AtkVictory = Private_UpdateStatsVictoryCondition(G_LibEliteStats_AtkVictory, _AtkArmorNb, _DefNb);
+	} else {
+		G_LibEliteStats_AtkDefeat = Private_UpdateStatsVictoryCondition(G_LibEliteStats_AtkDefeat, _AtkArmorNb, _DefNb);
+	}
+	
+	if (_Player != Null) {
+		declare UI <=> UIManager.GetUI(_Player);
+		if (UI != Null) {
+			declare netwrite Integer Net_LibEliteStats_SaveTime for UI;
+			declare netwrite Integer[Integer][Integer] Net_LibEliteStats_AtkVictory for _Player;
+			declare netwrite Integer[Integer][Integer] Net_LibEliteStats_AtkDefeat for _Player;
+			if (_AtkVictory) {
+				Net_LibEliteStats_AtkVictory = [_AtkArmorNb => [_DefNb => 1]];
+				Net_LibEliteStats_AtkDefeat.clear();
+			} else {
+				Net_LibEliteStats_AtkDefeat = [_AtkArmorNb => [_DefNb => 1]];
+				Net_LibEliteStats_AtkVictory.clear();
+			}
+			Net_LibEliteStats_SaveTime = Now;
+		}
+	}
+	
+	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerVictoryConditionId)) {
+		UIManager.UILayers[G_LibEliteStats_LayerVictoryConditionId].ManialinkPage = Private_CreateMLVictoryCondition();
+	}
+}
+
+// ---------------------------------- //
+/// Attach the layers
+Void Attach() {
+	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerVictoryConditionId)) {
+		UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibEliteStats_LayerVictoryConditionId]);
+	}
+	/*if (UIManager.UILayers.existskey(G_LibEliteStats_LayerSaveId)) {
+		UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibEliteStats_LayerSaveId]);
+	}*/
+}
+
+// ---------------------------------- //
+/// Detach the layers
+Void Detach() {
+	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerVictoryConditionId)) {
+		declare Removed = UIManager.UIAll.UILayers.removekey(G_LibEliteStats_LayerVictoryConditionId);
+	}
+	/*if (UIManager.UILayers.existskey(G_LibEliteStats_LayerSaveId)) {
+		declare Removed = UIManager.UIAll.UILayers.removekey(G_LibEliteStats_LayerSaveId);
+	}*/
+}
+
+// ---------------------------------- //
+/** Hide/Show the victory condition stats
+ *
+ *	@param	_Visible	True to show, false to hide
+ */
+Void VictoryConditionVisibility(Boolean _Visible) {
+	declare netwrite Net_LibEliteStats_VictoryConditionVisible for Teams[0] = False;
+	Net_LibEliteStats_VictoryConditionVisible = _Visible;
+}

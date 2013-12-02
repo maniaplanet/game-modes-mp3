@@ -3,15 +3,18 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2013-07-15"
+#Const ModeBaseVersion		"2013-10-24"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
+#Include "Libs/Nadeo/ScoresTable2.Script.txt" as ST2
 #Include "Libs/Nadeo/Clublink.Script.txt" as Clublink
 #Include "Libs/Nadeo/ShootMania/XmlRpc.Script.txt" as XmlRpc
 
 #Setting S_UseScriptCallbacks	False	as "<hidden>"	///< Turn on/off the script callbacks, usefull for server manager
 #Setting S_NeutralEmblemUrl		""		as "<hidden>"	///< Replace the default neutral emblem by another one
+#Setting S_ScoresTableStylePath	""		as "<hidden>"	///< Try to load a scores table style from an XML file
+
 
 #Const C_PlayersPresentationTime	4000	///< Duration of the player presentation sequence (default: 4000)
 
@@ -24,6 +27,7 @@ MB_LogVersion(ModeBaseScriptName, ModeBaseVersion);
 MB_LogVersion(Mode::GetScriptName(), Mode::GetScriptVersion());
 MB_LogVersion(XmlRpc::GetScriptName(), XmlRpc::GetScriptVersion());
 MB_LogVersion(Clublink::GetScriptName(), Clublink::GetScriptVersion());
+MB_LogVersion(ST2::GetScriptName(), ST2::GetScriptVersion());
 ***
 
 ***MapIntro***
@@ -31,11 +35,19 @@ MB_LogVersion(Clublink::GetScriptName(), Clublink::GetScriptVersion());
 if (MB_UseLogging) MB_Log("MapIntro");
 Clublink::Update();
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+MB_Log("MapIntroStart");
+MB_Log("UIManager.UIAll.UISequenceIsCompleted: "^UIManager.UIAll.UISequenceIsCompleted);
 while (!UIManager.UIAll.UISequenceIsCompleted) {
 	MB_Yield();
+	
+	break;///< @Debug Problème de fake user qui ne termine plus les UI sequence
 }
+
+MB_Log("MapIntroStop");
 ***
 
+/*
+The outro sequence doesn't exist anymore
 ***MapOutro***
 ***
 if (MB_UseLogging) MB_Log("MapOutro");
@@ -45,6 +57,7 @@ while (!UIManager.UIAll.UISequenceIsCompleted) {
 	MB_Yield();
 }
 ***
+*/
 
 // ---------------------------------- //
 // Globales
@@ -124,6 +137,7 @@ Void MB_Yield() {
 	MB_NeutralEmblemUpdate();
 	XmlRpc::Loop();
 	Clublink::Update();
+	ST2::XmlRpcLoop();
 	+++Yield+++
 }
 
@@ -147,8 +161,9 @@ Void MB_PlayersPresentationSequence(Integer _Duration) {
 	
 	declare End = Now + _Duration;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::PlayersPresentation;
-	while (Now < End) {
+	while (Now < End && !ServerShutdownRequested && !MatchEndRequested) {
 		MB_Yield();
+		+++PlayersPresentationLoop+++
 	}
 }
 
@@ -156,6 +171,59 @@ Void MB_PlayersPresentationSequence(Integer _Duration) {
 /// Overload of the MB_PlayersPresentationSequence() function
 Void MB_PlayersPresentationSequence() {
 	MB_PlayersPresentationSequence(C_PlayersPresentationTime);
+}
+
+// ---------------------------------- //
+/** Load a scores table style from an XML file
+ *
+ *	@param	_Path		Path to the XML file
+ */
+Void MB_SetScoresTableStyleFromXml(Text _Path) {
+	if (_Path == "") return;
+	
+	declare Loaded = ST2::RequestStyleFromXml(_Path);
+	if (Loaded) {
+		while (ST2::WaitStyleFromXml()) {
+			MB_Yield();
+		}
+		Loaded = ST2::SetStyleFromXml(True);
+	}
+}
+
+// ---------------------------------- //
+/// Stop the server at the end of the frame
+Void MB_StopServer() {
+	MB_StopServer = True;
+}
+
+// ---------------------------------- //
+/// Stop the match at the end of the frame
+Void MB_StopMatch() {
+	MB_StopMatch = True;
+}
+
+// ---------------------------------- //
+/// Stop the map at the end of the frame
+Void MB_StopMap() {
+	MB_StopMap = True;
+}
+
+// ---------------------------------- //
+/// Stop the submatch at the end of the frame
+Void MB_StopSubmatch() {
+	MB_StopSubmatch = True;
+}
+
+// ---------------------------------- //
+/// Stop the round at the end of the frame
+Void MB_StopRound() {
+	MB_StopRound = True;
+}
+
+// ---------------------------------- //
+/// Stop the turn at the end of the frame
+Void MB_StopTurn() {
+	MB_StopTurn = True;
 }
 
 // ---------------------------------- //
@@ -190,6 +258,7 @@ main() {
 	
 	if (MB_UseLogging) MB_Log("StartServer");
 
+	ST2::Load();
 	+++InitServer+++
 	+++StartServer+++
 	XmlRpc::Load();
@@ -482,4 +551,5 @@ main() {
 	Clublink::Unload();
 	XmlRpc::Unload();
 	+++EndServer+++
+	ST2::Unload();
 }

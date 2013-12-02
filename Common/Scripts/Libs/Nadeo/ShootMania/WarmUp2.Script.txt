@@ -1,7 +1,7 @@
 /**
  *	WarmUp lib
  */
-#Const	Version		"2013-07-18"
+#Const	Version		"2013-11-22"
 #Const	ScriptName	"WarmUp2.Script.txt"
 
 #Include "TextLib" as TL
@@ -19,6 +19,7 @@ declare Ident[Integer][Text] G_LibWarmUp2_GroupsIds;
 declare Text[Integer][Text] G_LibWarmUp2_GroupsLogins;
 declare Text[Integer][Text] G_LibWarmUp2_GroupsIcons;
 declare Boolean G_LibWarmUp2_Updated;
+declare Text[] G_LibWarmUp2_GroupsDisabled;
 
 // ---------------------------------- //
 // Functions
@@ -27,6 +28,20 @@ declare Boolean G_LibWarmUp2_Updated;
 // ---------------------------------- //
 // Private
 // ---------------------------------- //
+
+// ---------------------------------- //
+/** Update the Server Synchro Value
+ *
+ *	@return		The new server synchro value
+ */
+Integer Private_SynchroServer() {
+	declare persistent Server_SynchroValue for This = 0;
+	Server_SynchroValue += 1;
+	if(Server_SynchroValue > 100) Server_SynchroValue = 0;
+	
+	return Server_SynchroValue;
+}
+
 
 // ---------------------------------- //
 /** Create the warm up manialink
@@ -47,7 +62,7 @@ Text Private_CreateLayerWarmUp() {
 	declare Clan2Color = TL::ColorToText(Teams[1].ColorPrimary);
 	
 	return """
-<frame posn="{{{C_LibWarmUp2_LayerPosition.X}}} {{{C_LibWarmUp2_LayerPosition.Y}}}" id="Frame_WarmUp">
+<frame posn="{{{C_LibWarmUp2_LayerPosition.X}}} {{{C_LibWarmUp2_LayerPosition.Y}}} 25" id="Frame_WarmUp">
 	<format textemboss="1" />
 	<frame posn="0 0" id="Frame_Pager">
 		<quad posn="-126.5 0" sizen="8 6" halign="center" valign="center" image="{{{ImgPath2}}}pagerLeftOff.dds" imagefocus="{{{ImgPath2}}}pagerLeftOn.dds" scriptevents="1" id="Button_PagerPrev" />
@@ -62,50 +77,50 @@ Text Private_CreateLayerWarmUp() {
 		<frame id="Frame_Order">
 			<format textsize="2" />
 			<frame posn="-100 0" class="Frame_Slot" id="1" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="1" />
+				<label posn="0 0 -1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="1" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("First (Press 1)")}}}" id="Label_EmptySlot" />
+				<quad posn="{{{IconPosX}}} 0 1" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("First (Press 1)")}}}" id="Label_EmptySlot" />
 			</frame>
 			<frame posn="-50 0" class="Frame_Slot" id="2" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="2" />
+				<label posn="0 0 -1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="2" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Second (Press 2)")}}}" id="Label_EmptySlot" />
+				<quad posn="{{{IconPosX}}} 0 1" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Second (Press 2)")}}}" id="Label_EmptySlot" />
 			</frame>
 			<frame posn="0 0" class="Frame_Slot" id="3" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="3" />
+				<label posn="0 0 -1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="3" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Third (Press 3)")}}}" id="Label_EmptySlot" />
+				<quad posn="{{{IconPosX}}} 0 1" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Third (Press 3)")}}}" id="Label_EmptySlot" />
 			</frame>
 			<frame posn="50 0" class="Frame_Slot" id="4" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="4" />
+				<label posn="0 0 -1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="4" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Fourth (Press 4)")}}}" id="Label_EmptySlot" />
+				<quad posn="{{{IconPosX}}} 0 1" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Fourth (Press 4)")}}}" id="Label_EmptySlot" />
 			</frame>
 			<frame posn="100 0" class="Frame_Slot" id="5" >
-				<label sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="5" />
+				<label posn="0 0 -1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center2" focusareacolor1="fff0" focusareacolor2="fff5" scriptevents="1" class="Quad_Slot" id="5" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardGreen.png" hidden="1" id="Quad_SlotReady" />
 				<quad sizen="{{{SlotWidth}}} {{{SlotHeight}}}" halign="center" valign="center" image="{{{ImgPath}}}PlayerCardRed.png" id="Quad_SlotNotReady" />
-				<quad posn="{{{IconPosX}}} 0" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
-				<label posn="0 0.5" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Fifth (Press 5)")}}}" id="Label_EmptySlot" />
+				<quad posn="{{{IconPosX}}} 0 1" sizen="{{{IconWidth}}} {{{SlotHeight}}}" scale="0.7" halign="center" valign="center" hidden="1" id="Quad_Icon" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" id="Label_Slot" />
+				<label posn="0 0.5 1" sizen="{{{SlotWidth}}} {{{SlotHeight}}}" scale="0.9" halign="center" valign="center2" textcolor="fff3" textemboss="0" text="{{{_("Fifth (Press 5)")}}}" id="Label_EmptySlot" />
 			</frame>
 		</frame>
 	</frame>
 	<frame posn="0 -9 3" scale="0.85" hidden="1" id="Frame_ClanSelection">
-		<label posn="-47 0.2" textsize="1" halign="center" valign="center2" style="TextTitle3" textcolor="fff" text="Join {{{Teams[0].Name}}} (F3)" id="Label_JoinClan1" />
-		<label posn="47 0.2" textsize="1" halign="center" valign="center2" style="TextTitle3" textcolor="fff" text="Join {{{Teams[1].Name}}} (F4)" id="Label_JoinClan2" />
+		<label posn="-47 0.2" textsize="1" sizen="33 10" halign="center" valign="center2" style="TextTitle3" textcolor="fff" text="Join {{{Teams[0].Name}}} (F3)" id="Label_JoinClan1" />
+		<label posn="47 0.2" textsize="1" sizen="33 10" halign="center" valign="center2" style="TextTitle3" textcolor="fff" text="Join {{{Teams[1].Name}}} (F4)" id="Label_JoinClan2" />
 		<quad posn="-47 0" sizen="40 10" halign="center" valign="center" image="{{{ImgPath}}}ButtonOff.dds" imagefocus="{{{ImgPath}}}ButtonOn.dds" colorize="{{{Clan1Color}}}" ScriptEvents="1" id="Button_JoinClan1" />
 		<quad posn="47 0" sizen="40 10" halign="center" valign="center" image="{{{ImgPath}}}ButtonOff.dds" imagefocus="{{{ImgPath}}}ButtonOn.dds" colorize="{{{Clan2Color}}}" ScriptEvents="1" id="Button_JoinClan2" />
 	</frame>
@@ -124,6 +139,7 @@ declare Integer G_PageMax;
 declare Integer G_PageCurrent;
 declare Integer G_ItemPerPage;
 
+declare CMlFrame Frame_WarmUp;
 declare CMlFrame[Integer] Frames_Slot;
 declare CMlQuad Button_PagerPrev;
 declare CMlQuad Button_PagerNext;
@@ -320,8 +336,22 @@ Void UpdateView(Text _GroupName, Integer _PageNum) {
 	}
 }
 
+Void ToggleWarmUpDisplay() {
+	if (IsSpectatorMode) {
+		if (Frame_WarmUp.Visible) Frame_WarmUp.Hide();
+	} else {
+		declare netread Text	Net_LibWarmUp2_CurrentGroup		for UI;
+		declare netread Text[]	Net_LibWarmUp2_GroupsDisabled	for Teams[0];
+		
+		if (Net_LibWarmUp2_GroupsDisabled.exists(Net_LibWarmUp2_CurrentGroup)) {
+			if (Frame_WarmUp.Visible) Frame_WarmUp.Hide();
+		} else {
+			if (!Frame_WarmUp.Visible) Frame_WarmUp.Show();
+		}
+	}
+}
+
 main() {
-	declare Frame_WarmUp	<=> (Page.GetFirstChild("Frame_WarmUp")	as CMlFrame);
 	declare Frame_Order		<=> (Page.GetFirstChild("Frame_Order")	as CMlFrame);
 	foreach (Control in Frame_Order.Controls) {
 		declare Frame_Slot <=> (Control as CMlFrame);
@@ -329,6 +359,7 @@ main() {
 		declare Key = TL::ToInteger(Frame_Slot.ControlId);
 		Frames_Slot[Key] = Frame_Slot;
 	}
+	Frame_WarmUp		<=> (Page.GetFirstChild("Frame_WarmUp")			as CMlFrame);
 	Button_PagerPrev	<=> (Page.GetFirstChild("Button_PagerPrev")		as CMlQuad);
 	Button_PagerNext	<=> (Page.GetFirstChild("Button_PagerNext")		as CMlQuad);
 	Button_PagerPrevOff	<=> (Page.GetFirstChild("Button_PagerPrevOff")	as CMlQuad);
@@ -345,6 +376,8 @@ main() {
 	declare netread Text	Net_LibWarmUp2_CurrentGroup			for UI;
 	declare netread Integer	Net_LibWarmUp2_IconUpdate			for Teams[0];
 	declare netread Vec2	Net_LibWarmUp2_LayerPosition		for Teams[0];
+	declare netread Integer	Net_LibWarmUp2_GroupsDisabledUpdate	for Teams[0];
+	declare netread Text[]	Net_LibWarmUp2_GroupsDisabled		for Teams[0];
 	
 	declare netwrite Integer Net_LibWarmUp2_SynchroClient for UI;
 	declare netwrite Integer Net_LibWarmUp2_SlotUpdate for UI;
@@ -374,6 +407,7 @@ main() {
 	declare PrevIsSpectatorMode = False;
 	declare PrevIconUpdate = 0;
 	declare PrevLayerPosition = {{{C_LibWarmUp2_LayerPosition}}};
+	declare PrevGroupsDisabledUpdate = 0;
 	
 	while (True) {
 		yield;
@@ -387,8 +421,7 @@ main() {
 			if (PrevIsSpectatorMode != IsSpectatorMode) {
 				PrevIsSpectatorMode = IsSpectatorMode;
 				
-				if (IsSpectatorMode) Frame_WarmUp.Hide();
-				else Frame_WarmUp.Show();
+				ToggleWarmUpDisplay();
 			}
 			
 			if (Net_LibWarmUp2_SynchroClient != Net_LibWarmUp2_SynchroServer) {
@@ -414,6 +447,7 @@ main() {
 				
 				G_PageCurrent = 1;
 				UpdateView(Net_LibWarmUp2_CurrentGroup, G_PageCurrent);
+				ToggleWarmUpDisplay();
 			}
 			
 			if (PrevIconUpdate != Net_LibWarmUp2_IconUpdate) {
@@ -444,6 +478,12 @@ main() {
 				
 				Frame_WarmUp.PosnX = PrevLayerPosition.X;
 				Frame_WarmUp.PosnY = PrevLayerPosition.Y;
+			}
+			
+			if (PrevGroupsDisabledUpdate != Net_LibWarmUp2_GroupsDisabledUpdate) {
+				PrevGroupsDisabledUpdate = Net_LibWarmUp2_GroupsDisabledUpdate;
+				
+				ToggleWarmUpDisplay();
 			}
 			
 			foreach (Player in Players) {
@@ -585,10 +625,14 @@ Void Unload() {
 	declare netwrite Integer Net_LibWarmUp2_GroupsUpdate for Teams[0];
 	declare netwrite Integer Net_LibWarmUp2_SynchroServer for Teams[0];
 	declare netwrite Boolean Net_LibWarmUp2_DisplayClanSelection for Teams[0];
+	declare netwrite Integer Net_LibWarmUp2_GroupsDisabledUpdate for Teams[0];
+	declare netwrite Text[] Net_LibWarmUp2_GroupsDisabled for Teams[0];
 	Net_LibWarmUp2_Groups = Text[Integer][Text];
 	Net_LibWarmUp2_GroupsUpdate = 0;
-	Net_LibWarmUp2_SynchroServer = 0;
+	Net_LibWarmUp2_SynchroServer = Private_SynchroServer();
 	Net_LibWarmUp2_DisplayClanSelection = False;
+	Net_LibWarmUp2_GroupsDisabledUpdate = -1;
+	Net_LibWarmUp2_GroupsDisabled = Text[];
 	
 	foreach (Player in AllPlayers) {
 		declare netwrite Net_LibWarmUp2_IsReadyServer for Player = False;
@@ -608,6 +652,7 @@ Void Unload() {
 	G_LibWarmUp2_GroupsLogins.clear();
 	G_LibWarmUp2_GroupsIcons.clear();
 	G_LibWarmUp2_Updated = True;
+	G_LibWarmUp2_GroupsDisabled.clear();
 }
 
 // ---------------------------------- //
@@ -622,6 +667,38 @@ Void Load() {
 	
 	declare netwrite Net_LibWarmUp2_LayerPosition for Teams[0] = C_LibWarmUp2_LayerPosition;
 	Net_LibWarmUp2_LayerPosition = C_LibWarmUp2_LayerPosition;
+}
+
+// ---------------------------------- //
+/** Enable the order selection for a group
+ *
+ *	@param	_GroupName		The name of the group to enable
+ */
+Void Enable(Text _GroupName) {
+	if (!G_LibWarmUp2_GroupsDisabled.exists(_GroupName)) return;
+	
+	declare Removed = G_LibWarmUp2_GroupsDisabled.remove(_GroupName);
+	
+	declare netwrite Integer Net_LibWarmUp2_GroupsDisabledUpdate for Teams[0];
+	declare netwrite Text[] Net_LibWarmUp2_GroupsDisabled for Teams[0];
+	Net_LibWarmUp2_GroupsDisabledUpdate = Now;
+	Net_LibWarmUp2_GroupsDisabled = G_LibWarmUp2_GroupsDisabled;
+}
+
+// ---------------------------------- //
+/** Disable the order selection for a group
+ *
+ *	@param	_GroupName		The name of the group to disable
+ */
+Void Disable(Text _GroupName) {
+	if (G_LibWarmUp2_GroupsDisabled.exists(_GroupName)) return;
+	
+	G_LibWarmUp2_GroupsDisabled.add(_GroupName);
+	
+	declare netwrite Integer Net_LibWarmUp2_GroupsDisabledUpdate for Teams[0];
+	declare netwrite Text[] Net_LibWarmUp2_GroupsDisabled for Teams[0];
+	Net_LibWarmUp2_GroupsDisabledUpdate = Now;
+	Net_LibWarmUp2_GroupsDisabled = G_LibWarmUp2_GroupsDisabled;
 }
 
 // ---------------------------------- //
@@ -940,6 +1017,17 @@ Void UnsetSlot(Text _GroupName, Integer _Slot) {
 }
 
 // ---------------------------------- //
+/** Check if a group exists
+ *
+ *	@param	_GroupName		The name of the group
+ *
+ *	@return		True if the gorup exists, False otherwise
+ */
+Boolean GroupExists(Text _GroupName) {
+	return G_LibWarmUp2_GroupsIds.existskey(_GroupName);
+}
+
+// ---------------------------------- //
 /** Create a new warm up group
  *
  *	@param	_GroupName		The name of the group
@@ -958,6 +1046,29 @@ Void CreateGroup(Text _GroupName, Integer _SlotsNb) {
 		G_LibWarmUp2_GroupsLogins[_GroupName][I] = "";
 		G_LibWarmUp2_GroupsIcons[_GroupName][I] = "";
 	}
+	
+	G_LibWarmUp2_Updated = True;
+	Private_SendGroupsToUI();
+}
+
+// ---------------------------------- //
+/** Destroy a warm up group
+ *
+ *	@param	_GroupName		The name of the group to destroy
+ */
+Void DestroyGroup(Text _GroupName) {
+	if (!G_LibWarmUp2_GroupsIds.existskey(_GroupName)) return;
+	
+	// Remove the players from this group
+	foreach (Player in AllPlayers) {
+		if (GetPlayerGroup(Player) == _GroupName) {
+			UnsetPlayerGroup(Player);
+		}
+	}
+	
+	G_LibWarmUp2_GroupsIds.removekey(_GroupName);
+	G_LibWarmUp2_GroupsLogins.removekey(_GroupName);
+	G_LibWarmUp2_GroupsIcons.removekey(_GroupName);
 	
 	G_LibWarmUp2_Updated = True;
 	Private_SendGroupsToUI();
@@ -1148,7 +1259,7 @@ Void Begin() {
 	Attach();
 	
 	declare netwrite Integer Net_LibWarmUp2_SynchroServer for Teams[0];
-	Net_LibWarmUp2_SynchroServer += 1;
+	Net_LibWarmUp2_SynchroServer = Private_SynchroServer();
 	
 	G_LibWarmUp2_Updated = True;
 }
@@ -1164,6 +1275,9 @@ Void End() {
 Void Loop() {
 	// Check the players requests
 	foreach (Player in Players) {
+		declare Text LibWarmUp2_CurrentGroup for Player;
+		if (G_LibWarmUp2_GroupsDisabled.exists(LibWarmUp2_CurrentGroup)) continue;
+		
 		declare UI <=> UIManager.GetUI(Player);
 		if (UI == Null) continue;
 		
@@ -1229,7 +1343,7 @@ Void ManageEvents() {
  *	@return		True if the warm up must stop, false if it cans continue
  */
 Boolean Stop() {
-	declare Stop = False;
+	if (ServerShutdownRequested || MatchEndRequested) return True;
 	
-	return Stop;
+	return False;
 }

@@ -1,4 +1,354 @@
-<a id="2013-07-12"></a>2013-07-26
+<a id=""></a>
+---------------------------------
+
+[Commit on GitHub]()
+
+### Major features
+* new landmark API
+* new action API
+* nouveau tie break sur Elite
+* Press f8 in Elite to customize UI
+* Nouveau TitlePack Siege
+* Multiclans sur Royal
+* New ScoresTable lib with custo XML
+* MiniMap library
+* TrackMania scripts
+
+### Modes
+
+#### ShootMania/ModeBase
+* Function MB_PlayersPresentationSequence(): can now be interrupted by a vote next/restart map. There's also a new +++PlayersPresentationLoop+++ label inside the loop.
+* The outro sequence doesn't exist anymore.
+* The ScoresTable2 library is now included in ModeBase by default.
+* MB_SetScoresTableStyleFromXml(): allow to define a custom style for the scores table.
+
+#### ShootMania/Battle
+* Fix the UI rules bug. The rules are now reset at each new map.
+* Lib ScoresTable2 integration.
+* Use the new Landmark API.
+
+#### ShootMania/Combo
+* Lib ScoresTable2 integration.
+* Send an XmlRpc callback on warm up start and end.
+* Use the new Landmark API.
+* Use the new Action API.
+* Fixed the combo bug when starting a game with less players than the maximum amount.
+
+#### ShootMania/ModeSport (Base for Elite and Heroes)
+* In matchmaking mode, if all the players from a team are allied they can choose their attacking order before the beginning of the map.
+* Compatibility with the temporary allies of the matchmaking lobby.
+* Addition of the S_RestartMatchOnTeamChange setting (default value: False). The match will be restarted if the players from the previous map are not the same after map change.
+* Hit details of each player in the EndTurn XmlRpc callback.
+* Send an XmlRpc callback on warm up start and end.
+* Addition of the S_UseLegacyCallbacks setting to enable the JSON callbacks (default value: True).
+* Better winning condition check. There's now a double loop on the events array to discard OnHit and OnArmorEmpty events to prevent two winning conditions to be activated at the same time.
+* Removal of the tie break system. It's replaced by a hard points limit, instant win for the team reaching the limit first. Default is 15 points on normal map and 20 points on decisive map (last map of a BO).
+* Replacement of S_SleepMultiplier by the S_QuickMode setting (default value: False). When turned to True all waiting times will be divided by 2.
+* Addition of the S_DisplaySponsors setting (default value: True). Display or not the attacker sponsor at the bottom of the screen in spectator mode.
+* Addition of a #Command to force the reload of the clublinks.
+* Reload the clublinks at each player change during the warm up.
+
+#### ShootMania/Elite
+* Changes from ModeSport (see above).
+* Removal of the Beta2 setting.
+* Default number of points to win a map is now 9 instead of 6.
+* Addition of the HitDist on the OnHit XmlRpc callback of all weapons.
+* Addition of the HitDist on the OnNearMiss XmlRpc callback.
+* A player living a game before the end of the map won't win LP at the end.
+* Correctly displays the loss of LP on the scores table.
+* Correctly displays the echelons on the scores table.
+* Displays the points limits in the scores table.
+* Use the EliteStats library to save the end state of the turn (win/loss of atk, remaining atk armors, renaming def).
+* Better UI message management. The "The goal can now be captured." message is now a StatusMessage and not a BigMessage anymore.
+
+#### ShootMania/Heroes
+* Translations fix
+
+#### ShootMania/Joust
+* Default time limit setting is now 45 seconds instead of 60 seconds.
+* Lib ScoresTable2 integration.
+* Send an XmlRpc callback on warm up start and end.
+
+#### ShootMania/Melee
+* It's now possible to turn off the points or time limitations in the settings.
+* Lib ScoresTable2 integration.
+* Use the new Landmark API.
+
+#### ShootMania/Realm
+* Lib ScoresTable2 integration.
+
+#### ShootMania/Royal
+* Multi teams mode. If there's enough players on a map they will be divided in several teams. The rules are the same than in classic Royal with some specificities:
+  * There's as much team as spawns block.
+  * All players are spawned at the same time in their respective team spawn block.
+  * Players in the same team can't eliminate each other.
+  * Once only one team remains, the game becomes again a free for all and everyone can eliminate each other.
+* Lib ScoresTable2 integration.
+* Small UI improvements.
+
+#### ShootMania/RoyalExp
+* Fixed a bug that could prevent players to see the level up UI.
+
+#### ShootMania/Siege
+* Complete rewrite of the Siege mode. The intermediate Goals are replaced by Gates. For each defender spawn you can now have one or several Gates that stop the progression of the attackers until they destroy it.
+* The previous mode is still here but is now renamed SiegeV1. The new mode is called Siege.
+* SiegeV1 will be compatible with the SiegeArena et SiegeV1Arena MapType while the new Siege will be compatible only with the SiegeV2Arena.
+
+#### ShootMania/SiegeV1
+* Lib WeaponSelection2 integration.
+* New UI.
+* Lib ScoresTable2 integration.
+* Use the new Landmark API.
+* The mode is compatible with the new Gates blocks.
+* The script is now MatchMaking ready.
+
+#### ShootMania/TimeAttack
+* Lib ScoresTable2 integration.
+* Lib Layers2 integration.
+
+#### TrackMania/Cup
+* Script conversion of the Cup mode.
+
+#### TrackMania/Laps
+* Script conversion of the Laps mode.
+
+#### TrackMania/ModeBase
+* Basic mode structure for TrackMania.
+* Integration of the Clublink library.
+* Integration of the WarmUp library.
+* Automated end map sequence.
+
+#### TrackMania/RoundsBase
+* Basic mode structure for TrackMania rounds modes (Rounds, Cup, Team).
+* Setting S_UseTieBreak: allow a map to end on a tie or continue to play until a winner is found.
+
+#### TrackMania/Rounds
+* Script conversion of the Rounds mode.
+
+#### TrackMania/Team
+* Script conversion of the Team mode.
+* Setting S_PointsGap: minimal points gap between the two teams when one of them reach the points limit.
+
+#### TrackMania/TimeAttack
+* Script conversion of the TimeAttack mode.
+
+### Libraries
+
+#### Anchor
+* Compatibility with TrackMania.
+* Complete rewrite of the library with a lot of new functionalities. The old functions should still be working.
+
+#### Clublink
+* Compatibility with TrackMania.
+* Function Updated(): return True if the clublinks were updated since the last call to this function.
+* Functions Reset() and ResetAll(): allow to reset the clublink of one or all clans.
+
+#### Color
+* Function HexToRgb(): convert an hexadecimal Text color to an RGB Vec3 color.
+* Function HexToHsv(): convert an hexadecimal Text color to an HSV Vec3 color.
+
+#### Interface
+* Compatibility with TrackMania.
+* Improvements on the visual of the Slider module.
+
+#### Json
+* Function StringifyMinimal() for the events: do not send the MissDIst parameter anymore. 
+
+#### Layers
+* This library is now deprecated, use Layers2 instead.
+* Compatibility with TrackMania.
+* Function SetType(): allow to change the type of a layer.
+
+#### Layers2
+* Updated version of the previous Layers library.
+* Compatibility with TrackMania.
+* Functions Create() now return a CUILayer instead of a Ident.
+* Function GetName() to get the name of a layer from its Id or from the Layer object.
+* Functions Destroy() / Create() / Attach() / Detach() / Update() do not return a Boolean anymore (Void instead).
+* Functions Attach() / Detach() / DetachAll() / IsMissing() can take a CPlayer as argument instead of an Ident of player.
+* Functions AttachReplay() / DetachReplay() to add a layer in the replay layers array.
+* Functions SetVisibility() / Show() / Hide() to hide or show a layer.
+* Function Get() to get a layer from its name or id instead of GetFromName() and GetFrameId().
+
+#### Map
+* New library to deal with the new Landmark API.
+* Function GetMapTypeVersion() to get the version number of the MapType used to validate the map. Be careful as it's up to the MapType to save this version number. All Nadeo MapType do it, but that might not be the case of user created scripts at first.
+* Several functions to manipulate the MapLandmarks:
+  * Function GetLandmarkXXX() to get a landmark with the XXX component from its Tag and Order
+  * Function GetXXX() to get a XXX landmark component from its Tag and Order
+  * Function GetXXXCount() to get the number of XXX landmark component in the map
+
+#### MapType
+* Function SetVersion(): save the version number of the MapType in the map metadata.
+* Function GetVersion(): get the version number of the MapType used from the map metadata.
+
+#### Message
+* Compatibility with TrackMania.
+* Functions SetDefaultBigMessage() / SetDefaultStatusMessage() / SetDefaultAllMessages(): allow to set a default message to display when no timed message are shown.
+
+#### MiniMap
+* New library to create a radar/minimap.
+* Marker functionality to add specific points on the minimap.
+* Ping functionality to highlight a point on the minimap to all the players.
+* Customization of each point picture/size/color/visibility.
+* And much more ... Read the documentation in the library to see all the possibilities.
+
+#### Mode
+* Function PlaySound(): allow to play a sound to all players.
+
+#### ScoresTable2
+* Updated version of the previous ScoresTable library.
+* Compatibility with TrackMania.
+* [Server side customization]({{ site.url }}/dedicated-server/customize-scores-table.html) with an XML file.
+* You can now create or destroy any number of columns (even the default ones).
+* Several predefined and easy to use columns are included (points, best time, nickname, maniastars, avatar, ...).
+* There's also several predefined styles for the scores table. So you can in one line create a scores table with a number of default columns. eg: SetStyle("LibST_SMBaseTeams") and you'll have a scores table ready for teams mode. The styles can be combined with each other with several call to the SetStyle() function.
+* Each column can have its own style (textstyle, size, color, alignment, ...).
+* Each column can have a custom script associated with it if you want to create more advanced columns (eg: changing the color of the columns depending of its value, updating the columns values from the UI instead of the game mode script, ...).
+* The columns can be reordered easily (points first, avatar in the middle, nickname last, ...).
+* The footer only contains one customizable text now (with a optional custom script).
+* The name of the server the player is playing on is displayed in the footer.
+* The scores table can have any number of players columns or row given there's enough place to display them (you can create a scores table with three players columns in team mode if you want).
+* The background of the scores table is customizable and you can make it change depending on the environment the player is. It's useful in TrackMania if your mode is playable in Valley, Canyon and Stadium and that you want different visual without having to write a version of the mode for each environment.
+* You can add a foreground image that will be display over the scores table.
+* The background and foreground are colorizable.
+* And much more ... Read the documentation in the library to see all the possibilities.
+
+#### TabsServer
+* Compatibility with TrackMania.
+
+#### Tips
+* This library is still a work in progress. It's used to display tips to players.
+
+#### Top
+* This library is now deprecated, use Top2 instead.
+
+#### Top2
+* Compatibility with TrackMania.
+* Function UnsetRecord(): Allow to remove a player from a top.
+* Share the logins of the players in the top with the Interface library.
+* UI Improvements.
+
+#### Victory
+* Function ForceMatchWinner(): Force the winner of a match.
+
+#### ShootMania/ScoresTable
+* This library is now deprecated, use ScoresTable2 instead.
+* Check that the diodes exist on the side of the scores table before attempting to colorize them in the script.
+
+#### ShootMania/Debug
+* A toolbox for debugging ShootMania modes. It's still a work in progress.
+* Direct access to the "Styles"/"ML-Styles" manialink.
+* Add/Remove bots on the fly from the UI.
+* Turn on/off the collisions between players.
+* Turn on/off the weapons hit detection between players.
+* Turn on/off the ally system.
+* Change the EndTime value.
+
+#### ShootMania/MultiClans
+* A library to manage more than 2 clans.
+
+#### ShootMania/RightBoard
+* A small library to display informations on the right of the screen.
+
+#### ShootMania/SM
+* Functions SpawnPlayer(): two versions of each function for the compatibility with the new landmark API.
+
+#### ShootMania/SpawnScreen
+* Better scores sorting in the small scores table.
+
+#### ShootMania/WaitingQueue
+* Small UI fix on text size.
+
+#### ShootMania/WarmUp
+* This library is now deprecated, use WarmUp2 instead.
+
+#### ShootMania/WarmUp2
+* Functions Enable() / Disable(): allow to enable or disable the order selection for a group.
+* Function GroupExists(): check if a group exists.
+* Function DestroyGroup(): destroy a group.
+* Function Stop(): now return True if the a map vote or server stop is requested.
+* Better reset of the ready state of the players after a script restart.
+* Small UI fix.
+
+#### ShootMania/WeaponSelection
+* This library is now deprecated, use WeaponSelection2 instead.
+
+#### ShootMania/WeaponSelection2
+* Rewrite of the WeaponSelection library. It now works like the WarmUp2 library. You can create groups of players that will have to choose a weapon in defined list.
+
+#### ShootMania/XmlRpc
+* Functions BeginWarmUp() / EndWarmUp(): send a callback at the beginning and the end of the warm up.
+* Function Siege_OnCapture(): specific callback for the capture of a Gate/Goal in Siege.
+Function OnCapture(): now use the Landmark API.
+
+#### ShootMania/Elite/ElitePractice
+* Lib ScoresTable2 integration.
+
+#### ShootMania/Elite/EliteStats
+* The EliteStats library saves the end state of the turn in Elite (win/loss of atk, remaining atk armors, renaming def).
+
+#### TrackMania/TM2
+* Rewrite the previous TM library.
+* The ladder related functions are now in the Mode library.
+* You'll find several functions to manage the player spawning in this lib.
+
+#### TrackMania/UI
+* Several UI modules to use in TrackMania.
+* SmallScoresTable module: displays the small scores table on the right side of the screen at the end of the round.
+* TimeGap module: displays the time gap between the players on the bottom of the screen.
+
+#### TrackMania/WarmUp
+* WarmUp library for TrackMania. It's included by default in ModeBase.
+
+#### TrackMania/XmlRpc
+* TrackMania counterpart of the ShootMania XmlRpc library.
+* Send a script callbacks for the different TrackMania events: OnStartLine, OnWayPoint, OnGiveUp, OnRespawn, OnStunt.
+* Send a script callback at the beginning and end of each ModeBase section.
+
+### MapTypes
+
+#### ShootMania/BattleArena
+* Save the map type version in the metadata.
+
+#### ShootMania/ComboArena
+* Save the map type version in the metadata.
+
+#### ShootMania/EliteArena
+* Save the map type version in the metadata.
+
+#### ShootMania/HeroesArena
+* Save the map type version in the metadata.
+
+#### ShootMania/JoustArena
+* Save the map type version in the metadata.
+
+#### ShootMania/MeleeArena
+* Save the map type version in the metadata.
+
+#### ShootMania/RealmArena
+* Save the map type version in the metadata.
+
+#### ShootMania/RoyalArena
+* Save the map type version in the metadata.
+* Small UI fix.
+
+#### ShootMania/SiegeV1Arena
+* MapType for the old Siege mode.
+* Support for the new Gate block.
+
+#### ShootMania/SiegeV2Arena
+* MapType for the new Siege mode.
+
+#### ShootMania/TimeAttackArena
+* Save the map type version in the metadata.
+
+
+
+
+
+
+<a id="2013-07-26"></a>2013-07-26
 ---------------------------------
 
 [Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/b1f8b3177cfe303cb401473850bbb639a5893f62)

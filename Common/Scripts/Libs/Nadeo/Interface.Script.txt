@@ -1,7 +1,7 @@
 /**
  * Interface library
  */
-#Const Version		"2013-07-19"
+#Const Version		"2013-11-29"
 #Const ScriptName	"Interface.Script.txt"
 
 // ---------------------------------- //
@@ -33,18 +33,26 @@
 </frame>
 """
 
-#Const C_LibUI_VisibilityAll		1
-#Const C_LibUI_VisibilityPlayers	2
-#Const C_LibUI_VisibilitySpectators	3
+#Const C_LibUI_VisibilityAll			1
+#Const C_LibUI_VisibilityPlayers		2
+#Const C_LibUI_VisibilitySpectators		3
 
-#Const C_LibUI_ImgSrc				"file://Media/Manialinks/Shootmania/Common/"
-#Const C_LibUI_SlidePause			5000	///< Time spent on each slide
-#Const C_LibUI_SlideType_Top		1
-#Const C_LibUI_SlideType_Text		2
-#Const C_LibUI_SlideType_Img		3
-#Const C_LibUI_SlideBufferDuration	1000
-#Const C_LibUI_SlideHidePos			<-70., 115.>
-#Const C_LibUI_SlideShowPos			<-70., 86.>
+#Const C_LibUI_ImgSrc					"file://Media/Manialinks/Shootmania/Common/"
+#Const C_LibUI_ImgTopsBg2 				"file://Media/Manialinks/ShootMania/Common/TopsBg2.dds"
+#Const C_LibUI_ImgTopsLine 				"file://Media/Manialinks/ShootMania/Common/TopsLine.png"
+#Const C_LibUI_ImgButtonRed 			"file://Media/Manialinks/Common/Lobbies/small-button-RED.dds"
+#Const C_LibUI_ImgButtonRedOn			"file://Media/Manialinks/Common/Lobbies/small-button-RED-ON.dds"
+#Const C_LibUI_ImgButtonMinimizeHide	"file://Media/Manialinks/ShootMania/Common/button-hide.png"
+#Const C_LibUI_ImgButtonMinimizeShow	"file://Media/Manialinks/ShootMania/Common/button-show.png"
+#Const C_LibUI_ImgButtonMinimizeHideOn	"file://Media/Manialinks/ShootMania/Common/button-hide-on.png"
+#Const C_LibUI_ImgButtonMinimizeShowOn	"file://Media/Manialinks/ShootMania/Common/button-show-on.png"
+#Const C_LibUI_SlidePause				5000	///< Time spent on each slide
+#Const C_LibUI_SlideType_Top			1
+#Const C_LibUI_SlideType_Text			2
+#Const C_LibUI_SlideType_Img			3
+#Const C_LibUI_SlideBufferDuration		1000
+#Const C_LibUI_SlideHidePos				<-70., 115.>
+#Const C_LibUI_SlideShowPos				<-70., 86.>
 
 // ---------------------------------- //
 // Globales
@@ -342,7 +350,7 @@ Void SetLayerPosition(CUILayer _LayerPosition) {
  *
  *	@param	_Player		The player to update
  */
-Void UpdatePosition(CSmPlayer _Player) {
+Void UpdatePosition(CPlayer _Player) {
 	declare UI <=> UIManager.GetUI(_Player);
 	if (UI == Null) return;
 	
@@ -353,8 +361,18 @@ Void UpdatePosition(CSmPlayer _Player) {
 	
 	Net_LibInterface_LayerInfoUpdate = Now;
 	Net_LibInterface_PosTotal = Scores.count;
-	Net_LibInterface_PosCurrent = Scores.keyof(_Player.Score) + 1;
-		
+	//Net_LibInterface_PosCurrent = Scores.keyof(_Player.Score) + 1;
+	// Fix for TM compatibility
+	declare PosCurrent = 1;
+	foreach (Score in Scores) {
+		if (Score.User.Id == _Player.User.Id) {
+			Net_LibInterface_PosCurrent = PosCurrent;
+			break;
+		}
+		PosCurrent += 1;
+	}
+
+	
 	// Play a sound if the player ranking changes while he's in top 5
 	if (
 		LibInterface_LastPosCurrent != Net_LibInterface_PosCurrent
@@ -510,21 +528,29 @@ Text Private_CreateSlideModel() {
 	declare RecordPosX = NamePosX + NameSizeX + RecordSizeX;
 	
 	return """
+	
 <framemodel id="Slide_TopEntry">
 	<format style="TextCardSmallScores2" />
-	<quad posn="0 0" sizen="{{{RankSizeX}}} {{{CardSizeY}}}" valign="center" bgcolor="000a" />
-	<label posn="{{{RankSizeX/2.}}} 0.3" sizen="{{{RankSizeX}}} {{{CardSizeY}}}" halign="center" valign="center" textprefix="$s" text="XX" id="Label_Rank"/>
+
+	<label posn="{{{RankSizeX/2.}}} 0.3" sizen="{{{RankSizeX}}} {{{CardSizeY}}}" style="TextTitle3" textcolor="00000"  opacity="0.5"  halign="center" valign="center" text="XX" id="Label_Rank"/>
+	
 	<quad posn="{{{NamePosX}}} 0" sizen="{{{NameSizeX+RecordSizeX}}} {{{CardSizeY}}}" valign="center" bgcolor="2220" />
-	<label posn="{{{NamePosX+1.}}} 0.3" sizen="{{{NameSizeX-1.}}} {{{CardSizeY}}}" valign="center" id="Label_Name" />
-	<label posn="{{{RecordPosX-1.}}} 0.3" sizen="{{{RecordSizeX-1.}}} {{{CardSizeY}}}" halign="right" valign="center" id="Label_Value" />
+	
+	<quad posn="{{{NamePosX+0.1}}} 2.6 1" sizen="{{{NameSizeX+RecordSizeX-0.2}}} {{{CardSizeY-0.6}}}" style="Icons128x128_Blink" substyle="ShareBlink" id="Label_QuadPlayer" hidden="1" />
+	<quad posn="{{{NamePosX+0.15}}} 3 2" sizen="{{{NameSizeX+RecordSizeX-0.1}}} {{{CardSizeY}}}" image="{{{C_LibUI_ImgTopsLine}}}" id="Label_QuadTopsLine" hidden="0" opacity="0.8"/>
+	<quad posn="{{{NamePosX+0.8}}} 1.6 3" sizen="3.5 3.5" image="file://Avatars/LoginDuJoueur/Default" id="Quad_Avatar"/>
+	
+	<label posn="{{{NamePosX+4.8}}} 0.3 4" sizen="{{{NameSizeX-1.}}} {{{CardSizeY}}}" valign="center" id="Label_Name" />
+	<label posn="{{{RecordPosX-1.}}} 0.3 5" sizen="{{{RecordSizeX-1.}}} {{{CardSizeY}}}" halign="right" valign="center" id="Label_Value" />
 </framemodel>
+
 <framemodel id="Slide_Top">
 	<frame id="Frame_Global">
-		<quad posn="0 38 -1" sizen="48 110" image="{{{C_LibUI_ImgSrc}}}topsBg.dds" />
-		<label posn="25 2" sizen="50 5" halign="center" textemboss="1" id="Label_Title" />
+		<quad posn="3 3" sizen="43 6" image="{{{C_LibUI_ImgButtonRed}}}" imagefocus="{{{C_LibUI_ImgButtonRedOn}}}" id="Quad_ButtonRed" scriptevents="1" />
+		<label posn="25 -1.8" sizen="50 5" scale="0.8" halign="center" valign="bottom" style="TextButtonBig" textcolor="ffff"  textemboss="1" id="Label_Title"/>
 		<frame posn="2 -1" id="Frame_Top">
-			<frameinstance posn="0 -6" modelid="Slide_TopEntry" id="Frame_TopEntry_1" />
-			<frameinstance posn="0-12" modelid="Slide_TopEntry" id="Frame_TopEntry_2" />
+			<frameinstance posn="0  -6" modelid="Slide_TopEntry" id="Frame_TopEntry_1" />
+			<frameinstance posn="0 -12" modelid="Slide_TopEntry" id="Frame_TopEntry_2" />
 			<frameinstance posn="0 -18" modelid="Slide_TopEntry" id="Frame_TopEntry_3" />
 			<frameinstance posn="0 -24" modelid="Slide_TopEntry" id="Frame_TopEntry_4" />
 			<frameinstance posn="0 -30" modelid="Slide_TopEntry" id="Frame_TopEntry_5" />
@@ -536,14 +562,14 @@ Text Private_CreateSlideModel() {
 </framemodel>
 <framemodel id="Slide_Text">
 	<frame id="Frame_Global">
-		<quad posn="0 17.5" sizen="100 50" halign="center" image="{{{C_LibUI_ImgSrc}}}topsBg.dds" />
+		<quad posn="0 17.5" sizen="100 50" halign="center" image="{{{C_LibUI_ImgTopsBg2}}}" />
 		<label posn="0 0" sizen="90 5" halign="center" textemboss="1" id="Label_Title" />
 		<label posn="0 -15" sizen="90 40" halign="center" valign="center" textemboss="1" autonewline="1" id="Label_Content" />
 	</frame>
 </framemodel>
 <framemodel id="Slide_Img">
 	<frame id="Frame_Global">
-		<quad posn="0 17.5" sizen="100 50" halign="center" image="{{{C_LibUI_ImgSrc}}}topsBg.dds" />
+		<quad posn="0 17.5" sizen="100 50" halign="center" image="{{{C_LibUI_ImgTopsBg2}}}" />
 		<label posn="0 0" sizen="90 5" halign="center" textemboss="1" id="Label_Title" />
 		<quad posn="0 -15" sizen="90 15" halign="center" valign="center" id="Quad_Img" />
 	</frame>
@@ -568,6 +594,7 @@ Text Private_CreateSliderScript() {
 #Const C_AnimDuration	1000
 
 declare CMlFrame[Integer] G_Slides;
+//declare CBuddy Buddy for UI;
 
 Void UpdateSlideTop(Integer _SlideId, Text _Title, Text _TopId) {	
 	declare Label_Title		<=> (G_Slides[_SlideId].GetFirstChild("Label_Title") as CMlLabel);
@@ -576,20 +603,33 @@ Void UpdateSlideTop(Integer _SlideId, Text _Title, Text _TopId) {
 	// Values shared from the Top2 library
 	declare Text[Integer][Text]	LibUI_TopValue		for UI;
 	declare Text[Integer][Text]	LibUI_TopName		for UI;
+	declare Text[Integer][Text]	LibUI_TopLogin		for UI;
 	if (!LibUI_TopValue.existskey(_TopId) || !LibUI_TopName.existskey(_TopId)) return;
 	
 	declare Frame_Top <=> (G_Slides[_SlideId].GetFirstChild("Frame_Top") as CMlFrame);
 	declare Entry = 1;
 	foreach (Frame_TopEntry in Frame_Top.Controls) {		
-		declare Label_Rank	<=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Label_Rank") as CMlLabel);
-		declare Label_Name	<=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Label_Name") as CMlLabel);
-		declare Label_Value	<=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Label_Value") as CMlLabel);
+		declare Label_Rank	 <=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Label_Rank") as CMlLabel);
+		declare Label_Name	 <=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Label_Name") as CMlLabel);
+		declare Label_Value	 <=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Label_Value") as CMlLabel);
+		declare Label_QuadPlayer	 <=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Label_QuadPlayer") as CMlQuad);
+		declare Quad_Avatar <=> ((Frame_TopEntry as CMlFrame).GetFirstChild("Quad_Avatar") as CMlQuad);
+		
+		Label_QuadPlayer.Hide();
+		Quad_Avatar.Hide();
 		
 		Label_Rank.SetText(TL::ToText(Entry));
 		if (!LibUI_TopName[_TopId].existskey(Entry) || !LibUI_TopValue[_TopId].existskey(Entry)) {
 			Label_Name.SetText("---");
 			Label_Value.SetText("---");
 		} else {
+			if(InputPlayer.Name == LibUI_TopName[_TopId][Entry])
+			{
+				Label_QuadPlayer.Show();
+			}
+			
+			Quad_Avatar.ChangeImageUrl("file://Avatars/"^LibUI_TopLogin[_TopId][Entry]^"/Default");
+			Quad_Avatar.Show();
 			Label_Name.SetText(LibUI_TopName[_TopId][Entry]);
 			Label_Value.SetText(LibUI_TopValue[_TopId][Entry]);
 		}
@@ -654,6 +694,10 @@ main() {
 	declare PrevContent = Text[Integer];
 	declare PrevTopUpdate = -1;
 	
+	declare Boolean ForceHideTop = False;
+	declare Boolean ButtonForceHideTop = False;
+	declare netread Boolean ButtonSlideHidden for UI;
+	
 	declare PauseDuration = C_SlidePause;
 	declare NextRotation = Now + PauseDuration;
 	declare Slides = Integer[];
@@ -665,9 +709,16 @@ main() {
 	declare SliderIsVisible = False;
 	
 	declare Frame_Slider <=> (Page.GetFirstChild("Frame_Slider") as CMlFrame);
+	declare Frame_SliderGlobal <=> (Page.GetFirstChild("Frame_SliderGlobal") as CMlFrame);
+	declare Slider_MinimizeTop <=> (Page.GetFirstChild("Slider_MinimizeTop") as CMlFrame);
+	declare Quad_MinimizeTop <=> (Page.GetFirstChild("Quad_MinimizeTop") as CMlQuad);
+	declare Quad_ButtonRed <=> (Page.GetFirstChild("Quad_ButtonRed") as CMlQuad);
+	
 	Frame_Slider.Hide();
 	declare FirstSlide = True;
-	foreach (Control in Frame_Slider.Controls) {
+	
+	foreach (Control in Frame_Slider.Controls) 
+	{
 		declare SlideId = TL::ToInteger(TL::SubString(Control.ControlId, 6, 30));
 		G_Slides[SlideId] = (Control as CMlFrame);
 		PrevTitle[SlideId] = "";
@@ -677,54 +728,159 @@ main() {
 		FirstSlide = False;
 	}
 	
-	while (True) {
+
+	while (True) 
+	{
 		yield;
 		
 		if (InputPlayer == Null) continue;
 		if (!PageIsVisible) continue;
 		
-		if (PrevVisibilityUpdate != Net_LibUI_VisibilityUpdate) {
+
+		if (PrevVisibilityUpdate != Net_LibUI_VisibilityUpdate) 
+		{
 			PrevVisibilityUpdate = Net_LibUI_VisibilityUpdate;
 			PrevSliderVisibility = Net_LibUI_SliderVisibility;
+			
+			if(!ButtonSlideHidden)
+			{
+				Slider_MinimizeTop.Show();
+			}
+			
+			
+			if(ButtonSlideHidden && !SliderIsVisible && AnimEndTime <= 0)
+			{
+				Slider_MinimizeTop.Hide();
+			}
 		}
 		
 		declare ToRemove = Integer[];
-		foreach (Time => IsVisible in PrevSliderVisibility) {
-			if (Time <= ArenaNow) {
-				ToRemove.add(Time);
-				if (IsVisible && !SliderIsVisible) {
-					AnimStartTime	= Now;
-					AnimEndTime		= AnimStartTime + C_AnimDuration;
-					AnimStartPos	= Net_LibUI_SlideHidePos;
-					AnimEndPos		= Net_LibUI_SlideShowPos;
-					SliderIsVisible	= True;
-					Frame_Slider.Show();
-				} else if (!IsVisible && SliderIsVisible) {
-					AnimStartTime	= Now;
-					AnimEndTime		= AnimStartTime + C_AnimDuration;
-					AnimStartPos	= Net_LibUI_SlideShowPos;
-					AnimEndPos		= Net_LibUI_SlideHidePos;
-					SliderIsVisible	= False;
+		
+		if (!ForceHideTop && !ButtonForceHideTop) 
+		{
+			foreach (Time => IsVisible in PrevSliderVisibility) 
+			{
+				if (Time <= ArenaNow) 
+				{
+					ToRemove.add(Time);
+					if (IsVisible && !SliderIsVisible) 
+					{
+						AnimStartTime	= Now;
+						AnimEndTime		= AnimStartTime + C_AnimDuration;
+						AnimStartPos	= Net_LibUI_SlideHidePos;
+						AnimEndPos		= Net_LibUI_SlideShowPos;
+						SliderIsVisible	= True;
+						Frame_Slider.Show();
+						Slider_MinimizeTop.Show();
+					} 
+					else if (!IsVisible && SliderIsVisible) 
+					{
+						AnimStartTime	= Now;
+						AnimEndTime		= AnimStartTime + C_AnimDuration;
+						AnimStartPos	= Net_LibUI_SlideShowPos;
+						AnimEndPos		= Net_LibUI_SlideHidePos;
+						SliderIsVisible	= False;
+					}
+				}
+			}
+			
+			
+		} 
+		
+		
+		
+		
+		
+		foreach(Event in PendingEvents) 
+		{
+			switch(Event.Type)
+			{
+				case CMlEvent::Type::MouseClick:
+				{
+					
+					if(Event.ControlId == "Quad_MinimizeTop" && AnimEndTime == 0) // Vérifie que l'animation est bien terminée pour activer le bouton
+					{
+						
+						ButtonForceHideTop=True;
+						
+						if (!SliderIsVisible) 
+						{
+							AnimStartTime	= Now;
+							AnimEndTime		= AnimStartTime + C_AnimDuration;
+							AnimStartPos	= Net_LibUI_SlideHidePos;
+							AnimEndPos		= Net_LibUI_SlideShowPos;
+							SliderIsVisible	= True;
+							Frame_Slider.Show();
+						}
+						else
+						{
+							AnimStartTime	= Now;
+							AnimEndTime		= AnimStartTime + C_AnimDuration;
+							AnimStartPos	= Net_LibUI_SlideShowPos;
+							AnimEndPos		= Net_LibUI_SlideHidePos;
+							SliderIsVisible	= False;
+							ForceHideTop = True;
+						}
+						
+						
+					}
+					else if(Event.ControlId =="Quad_ButtonRed")
+					{
+						NextRotation=0; //<- Permet d'afficher le Top suivant
+					}
+				}
+				
+				case CMlEvent::Type::MouseOver:
+				{
+					if(Event.ControlId == "Quad_MinimizeTop" && AnimEndTime == 0) // Vérifie que l'animation est bien terminée pour activer le bouton
+					{
+						if(Quad_MinimizeTop.ImageUrl== "{{{C_LibUI_ImgButtonMinimizeShow}}}")
+						{
+							Quad_MinimizeTop.ChangeImageUrl("{{{C_LibUI_ImgButtonMinimizeShowOn}}}");
+						}
+						else if(Quad_MinimizeTop.ImageUrl== "{{{C_LibUI_ImgButtonMinimizeHide}}}")
+						{
+							Quad_MinimizeTop.ChangeImageUrl("{{{C_LibUI_ImgButtonMinimizeHideOn}}}");
+						}
+					}
+				}
+				case CMlEvent::Type::MouseOut:
+				{
+					if(Event.ControlId == "Quad_MinimizeTop" && AnimEndTime == 0) // Vérifie que l'animation est bien terminée pour activer le bouton
+					{
+						if(Quad_MinimizeTop.ImageUrl== "{{{C_LibUI_ImgButtonMinimizeHideOn}}}")
+						{
+							Quad_MinimizeTop.ChangeImageUrl("{{{C_LibUI_ImgButtonMinimizeHide}}}");
+						}
+						else if(Quad_MinimizeTop.ImageUrl== "{{{C_LibUI_ImgButtonMinimizeShowOn}}}")
+						{
+							Quad_MinimizeTop.ChangeImageUrl("{{{C_LibUI_ImgButtonMinimizeShow}}}");
+						}
+					}
 				}
 			}
 		}
-		foreach (Item in ToRemove) {
+		
+		
+		foreach (Item in ToRemove){
+		
 			declare Removed = PrevSliderVisibility.removekey(Item);
 		}
 		
 		if (!Frame_Slider.Visible) continue;
 		
-		if (PrevSlideUpdate != Net_LibUI_SlideUpdate) {
+		if (PrevSlideUpdate != Net_LibUI_SlideUpdate){
 			PrevSlideUpdate = Net_LibUI_SlideUpdate;
 			
-			foreach (SlideId => SlideFrame in G_Slides) {
+			foreach (SlideId => SlideFrame in G_Slides){
 				if (!Net_LibUI_SlideType.existskey(SlideId)) continue;
 				
-				if (Net_LibUI_SlideTitle[SlideId] != PrevTitle[SlideId] || Net_LibUI_SlideContent[SlideId] != PrevContent[SlideId]) {
+				if (Net_LibUI_SlideTitle[SlideId] != PrevTitle[SlideId] || Net_LibUI_SlideContent[SlideId] != PrevContent[SlideId]){
+				
 					PrevTitle[SlideId]		= Net_LibUI_SlideTitle[SlideId];
 					PrevContent[SlideId]	= Net_LibUI_SlideContent[SlideId];
 					
-					switch (Net_LibUI_SlideType[SlideId]) {
+					switch (Net_LibUI_SlideType[SlideId]){
 						case C_SlideType_Top	: UpdateSlideTop(SlideId, PrevTitle[SlideId], PrevContent[SlideId]);
 						case C_SlideType_Text	: UpdateSlideText(SlideId, PrevTitle[SlideId], PrevContent[SlideId]);
 						case C_SlideType_Img	: UpdateSlideImg(SlideId, PrevTitle[SlideId], PrevContent[SlideId]);
@@ -733,31 +889,45 @@ main() {
 			}
 		}
 		
-		if (PrevTopUpdate != LibUI_TopUpdate) {
+		if (PrevTopUpdate != LibUI_TopUpdate){
 			PrevTopUpdate = LibUI_TopUpdate;
 			
-			foreach (SlideId => SlideType in Net_LibUI_SlideType) {
+			foreach (SlideId => SlideType in Net_LibUI_SlideType){
 				if (SlideType == C_SlideType_Top) UpdateSlideTop(SlideId, PrevTitle[SlideId], PrevContent[SlideId]);
 			}
 		}
 		
-		if (AnimEndTime > 0 && AnimEndTime > Now) {
-			Frame_Slider.PosnX = EaseInOutBack(Now - AnimStartTime, AnimStartPos.X, AnimEndPos.X, C_AnimDuration, 1.1);
-			Frame_Slider.PosnY = EaseInOutBack(Now - AnimStartTime, AnimStartPos.Y, AnimEndPos.Y, C_AnimDuration, 1.1);
-		} else if (AnimEndTime > 0) {
-			Frame_Slider.PosnX = AnimEndPos.X;
-			Frame_Slider.PosnY = AnimEndPos.Y;
+		if (AnimEndTime > 0 && AnimEndTime > Now){
+			Frame_SliderGlobal.PosnX = EaseInOutBack(Now - AnimStartTime, AnimStartPos.X, AnimEndPos.X, C_AnimDuration, 1.1);
+			Frame_SliderGlobal.PosnY = EaseInOutBack(Now - AnimStartTime, AnimStartPos.Y, AnimEndPos.Y, C_AnimDuration, 1.1);
+			
+		} else if (AnimEndTime > 0){
+		
+			Frame_SliderGlobal.PosnX = AnimEndPos.X;
+			Frame_SliderGlobal.PosnY = AnimEndPos.Y;
 			AnimStartTime = 0;
 			AnimEndTime = 0;
-			if (!SliderIsVisible) Frame_Slider.Hide();
+			if (!SliderIsVisible){
+				Quad_MinimizeTop.ChangeImageUrl("{{{C_LibUI_ImgButtonMinimizeShow}}}");
+				Frame_Slider.Hide();
+			} else{
+				ForceHideTop=False;
+				Quad_MinimizeTop.ChangeImageUrl("{{{C_LibUI_ImgButtonMinimizeHide}}}");
+			}
+			
+			if(ButtonSlideHidden && !SliderIsVisible){
+				Slider_MinimizeTop.Hide();
+			}
+			
+			ButtonForceHideTop=False;
 		}
 		
-		if (Slides.count > 1) {
-			if (PauseDuration != Net_LibUI_SlidePauseDuration && Net_LibUI_SlidePauseDuration > 0) {
+		if (Slides.count > 1){
+			if (PauseDuration != Net_LibUI_SlidePauseDuration && Net_LibUI_SlidePauseDuration > 0){
 				PauseDuration = Net_LibUI_SlidePauseDuration;
 			}
 			
-			if (NextRotation <= Now) {
+			if (NextRotation <= Now){
 				NextRotation = Now + PauseDuration;
 				G_Slides[Slides[CurrentSlide]].Hide();
 				CurrentSlide += 1;
@@ -765,6 +935,8 @@ main() {
 				G_Slides[Slides[CurrentSlide]].Show();
 			}
 		}
+		
+		
 	}
 }
 --></script>
@@ -775,9 +947,14 @@ main() {
 /// Update the slider manialink
 Void Private_UpdateSliderML() {
 	if (G_LibUI_LayerSliderId == NullId || !UIManager.UILayers.existskey(G_LibUI_LayerSliderId)) return;
+
+
 	
 	declare ML = "";
-	ML ^= """<frame posn="-70 86" id="Frame_Slider">""";
+	ML ^= """<frame posn="-70 86" id="Frame_SliderGlobal">""";
+		
+	ML ^= """	<frame posn="0 0" id="Frame_Slider">""";
+	
 	ML ^= Private_CreateSlideModel();
 	foreach (SlideKey => SlideType in G_LibUI_SlideType) {
 		switch (SlideType) {
@@ -787,7 +964,17 @@ Void Private_UpdateSliderML() {
 		}
 	}
 	ML ^= Private_CreateSliderScript();
-	ML ^= """</frame>""";
+
+	ML ^= 	"""	</frame>""";
+	ML ^= """	<frame posn="0 0" id="Slider_MinimizeTop" hidden="1">
+					<quad posn="-5.70 6 -1" sizen="60 60" image="{{{C_LibUI_ImgTopsBg2}}}" />
+					<quad posn="47.30 -20 0" sizen="3.93 5.83 0" image="{{{C_LibUI_ImgButtonMinimizeHide}}}" id="Quad_MinimizeTop" scriptevents="1"/>
+
+			 	</frame>
+			</frame>""";
+			
+
+
 	
 	UIManager.UILayers[G_LibUI_LayerSliderId].ManialinkPage = ML;
 }
@@ -799,13 +986,14 @@ Void Private_UpdateSliderML() {
  *	@param	_Delay		The delay before the display of the slider
  *	@param	_Visibility	True if the slider is visible, false otherwise
  */
-Void Private_UpdateSliderVisibity(CSmPlayer _Player, Integer _Delay, Boolean _Visibility) {
+Void Private_UpdateSliderVisibity(CPlayer _Player, Integer _Delay, Boolean _Visibility) {
 	if (_Player == Null) return;
 	declare UI <=> UIManager.GetUI(_Player);
 	if (UI == Null) return;
 	
 	declare netwrite Integer Net_LibUI_VisibilityUpdate for UI;
 	declare netwrite Boolean[Integer] Net_LibUI_SliderVisibility for UI;
+	declare netwrite Boolean ButtonSlideHidden for UI;
 	declare ToRemove = Integer[];
 	foreach (Time => Visibility in Net_LibUI_SliderVisibility) {
 		if (Time + C_LibUI_SlideBufferDuration < Now) ToRemove.add(Time);
@@ -815,6 +1003,15 @@ Void Private_UpdateSliderVisibity(CSmPlayer _Player, Integer _Delay, Boolean _Vi
 	}
 	Net_LibUI_VisibilityUpdate = Now;
 	Net_LibUI_SliderVisibility[Now + _Delay] = _Visibility;
+	
+	if(_Visibility)
+	{
+		ButtonSlideHidden= False;
+	}
+	else
+	{
+		ButtonSlideHidden= True;
+	}
 }
 
 // ---------------------------------- //
@@ -943,7 +1140,7 @@ Void UpdateSlide(Integer _Id, Text _Title, Text _Content) {
  *	@param	_Player		The player who'll see the slider
  *	@param	_Delay		The delay before the display of the slider
  */
-Void ShowSlider(CSmPlayer _Player, Integer _Delay) {
+Void ShowSlider(CPlayer _Player, Integer _Delay) {
 	Private_UpdateSliderVisibity(_Player, _Delay, True);
 }
 
@@ -953,7 +1150,7 @@ Void ShowSlider(CSmPlayer _Player, Integer _Delay) {
  *	@param	_Player		The player who'll see the slider
  *	@param	_Delay		The delay before the display of the slider
  */
-Void HideSlider(CSmPlayer _Player, Integer _Delay) {
+Void HideSlider(CPlayer _Player, Integer _Delay) {
 	Private_UpdateSliderVisibity(_Player, _Delay, False);
 }
 
@@ -963,7 +1160,7 @@ Void HideSlider(CSmPlayer _Player, Integer _Delay) {
  *	@param	_Player		The affected player
  *	@param	_Duration	The new duration of the pause
  */
-Void SetSliderPause(CSmPlayer _Player, Integer _Duration) {
+Void SetSliderPause(CPlayer _Player, Integer _Duration) {
 	if (_Player == Null) return;
 	declare UI <=> UIManager.GetUI(_Player);
 	if (UI == Null) return;

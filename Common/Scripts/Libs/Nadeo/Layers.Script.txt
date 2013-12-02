@@ -1,8 +1,10 @@
 /** 
- * UI Layers library
+ *	DEPRECATED - Use the new Layers2 library instead
+ *
+ *	UI Layers library
  */
 
-#Const Version		"2012-08-06"
+#Const Version		"2012-08-26"
 #Const ScriptName	"Layers.Script.txt"
 
 /* ------------------------------------- */
@@ -105,7 +107,7 @@ Boolean Attach(Text _LayerName, Ident _PlayerId) {
 	if (!Exists(_LayerName)) return False;
 	
 	if (_PlayerId != NullId) {
-		declare CSmPlayer Player;
+		declare CPlayer Player;
 		if (Players.existskey(_PlayerId)) {
 			Player <=> Players[_PlayerId];
 		} else if (Spectators.existskey(_PlayerId)) {
@@ -138,7 +140,7 @@ Boolean Detach(Text _LayerName, Ident _PlayerId) {
 	if (!Exists(_LayerName)) return False;
 	
 	if (_PlayerId != NullId) {
-		declare CSmPlayer Player;
+		declare CPlayer Player;
 		if (Players.existskey(_PlayerId)) {
 			Player <=> Players[_PlayerId];
 		} else if (Spectators.existskey(_PlayerId)) {
@@ -166,7 +168,7 @@ Boolean Detach(Text _LayerName, Ident _PlayerId) {
  */
 Boolean DetachAll(Ident _PlayerId) {
 	if (_PlayerId != NullId) {
-		declare CSmPlayer Player;
+		declare CPlayer Player;
 		if (Players.existskey(_PlayerId)) {
 			Player <=> Players[_PlayerId];
 		} else if (Spectators.existskey(_PlayerId)) {
@@ -202,6 +204,18 @@ Boolean Update(Text _LayerName, Text _LayerManialink) {
 }
 
 /* ------------------------------------- */
+/** Set the type of a layer
+ *
+ *	@param	_LayerName		The name of the layer
+ *	@param	_LayerType		The type of layer to set
+ */
+Void SetType(Text _LayerName, CUILayer::EUILayerType _LayerType) {
+	if (!Exists(_LayerName)) return;
+	
+	UIManager.UILayers[G_LibLayer_Layers[_LayerName]].Type = _LayerType;
+}
+
+/* ------------------------------------- */
 /** Check if the player is missing a layer
  *	
  *	@param _LayerName	The layer to check
@@ -210,7 +224,7 @@ Boolean Update(Text _LayerName, Text _LayerManialink) {
  *	@return		True if the player doesn't have the layer, false otherwise
  */
 Boolean IsMissing(Text _LayerName, Ident _PlayerId) {
-	declare CSmPlayer Player;
+	declare CPlayer Player;
 	if (Players.existskey(_PlayerId)) {
 		Player <=> Players[_PlayerId];
 	} else if (Spectators.existskey(_PlayerId)) {
@@ -238,7 +252,7 @@ Boolean IsMissing(Text _LayerName, Ident _PlayerId) {
 Text[] IsMissing(Text[] _LayersName, Ident _PlayerId) {
 	declare MissingLayers = Text[];
 	
-	declare CSmPlayer Player;
+	declare CPlayer Player;
 	if (Players.existskey(_PlayerId)) {
 		Player <=> Players[_PlayerId];
 	} else if (Spectators.existskey(_PlayerId)) {

@@ -1,6 +1,20 @@
-#RequireContext CSmMapType
-#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+/**
+ *	MapType for Melee
+ *
+ *	At least one spawn
+ */
 
+#RequireContext CSmMapType
+#Const Version			"2013-11-07"
+#Const MapTypeVersion	1
+#Const ScriptName		"MeleeArena.Script.txt"
+
+#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Include "Libs/Nadeo/MapType.Script.txt" as MapType
+
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
 Void UpdateValidability() {
 	foreach(Data in AnchorData) {
 		if(Data.Tag == "Spawn") Data.Order = 0;		
@@ -9,10 +23,12 @@ Void UpdateValidability() {
 	if( !Anchor::HasAtLeastOneAnchor("Spawn", 0, _("You must place at least one Spawn")) ) return;	
 }
 
-/////////////////////////////////////
+// ---------------------------------- //
 // Main
-
-main() {		
+// ---------------------------------- //
+main() {
+	MapType::SetVersion(MapTypeVersion);
+	
 	UpdateValidability();
 	while (True) {	
 		yield;

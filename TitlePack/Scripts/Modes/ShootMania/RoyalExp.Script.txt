@@ -2,7 +2,7 @@
 
 #Extends "Modes/ShootMania/Royal.Script.txt"
 
-#Const DeluxeVersion 		"2012-06-14"
+#Const DeluxeVersion 		"2012-09-27"
 #Const DeluxeScriptName		"RoyalExp.Script.txt"
 
 #Include "Libs/Nadeo/ShootMania/RoyalExp/RoyalExpCharacter.Script.txt" as Character
@@ -48,7 +48,7 @@ MB_LogVersion(CharacterXp::GetScriptName(), CharacterXp::GetScriptVersion());
 
 ***ScoresTable***
 ***
-ScoresTable::SetColumnsName(_("Level"), _("|Hit/Survival,6 chars max|Hit/Sv"), _("Pole"), _("Round"), _("Total"));
+ST2::CreateCol("Level", _("Level"), "0", 3., 50.5);
 ***
 
 ***ModeRulesText***
@@ -167,7 +167,7 @@ foreach(Player in Players)
 	
 ***
 
-***Yied***
+***Yield***
 ***
 	+++UpdatePlayersStatusFromUI+++
 ***
@@ -324,11 +324,9 @@ else {
 		
 		declare Boolean XpCharacter_Built for UI;
 		if(! XpCharacter_Built) continue;
-		
 		Character::FrameUpdate(Player);
 		
 		if (! CharacterUI::ButtonClicked(Player, UI)) continue;
-		
 		declare Integer CurrentArmorMax = Player.ArmorMax;
 		declare CaracsClicked = CharacterUI::GetCaracsClicked(Player, UI);
 		declare Boolean CaracImpactsArmor = Character::CaracImpactsArmor(UI, CaracsClicked);
@@ -339,8 +337,6 @@ else {
 				Incremented = Incremented || IncrementDone;
 			}
 		}
-		
-		
 		
 		// RESPE
 		declare netwrite Boolean XpCharacter_MapRespeDone for UI = False;
@@ -506,7 +502,7 @@ else {
 		if(XpCharacter_FusionLvl > 0) {
 			LvlRebirthScoreText ^= "/$0af"^XpCharacter_FusionLvl^"";
 		}
-		ScoresTable::SetCustom1(_Player, LvlRebirthScoreText);
+		ST2::SetColValue("Level", _Player.Score, LvlRebirthScoreText);
 	}
 ***
 

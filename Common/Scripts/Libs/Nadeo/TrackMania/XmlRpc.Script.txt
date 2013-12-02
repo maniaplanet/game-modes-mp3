@@ -1,0 +1,315 @@
+/**
+ *	XmlRpc lib
+ *	Simple commons callbacks
+ *	And mode specific callbacks
+ */
+#Const	Version		"2013-10-31"
+#Const	ScriptName	"XmlRpc.Script.txt"
+
+#Include "TextLib" as TL
+
+// ---------------------------------- //
+// Globales
+// ---------------------------------- //
+declare Boolean G_UseLibXmlRpc;
+
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
+
+// ---------------------------------- //
+// Private
+// ---------------------------------- //
+
+// ---------------------------------- //
+/// Wrapper for the SendCallbackArray() method
+Void Private_SendCallbackArray(Text _Type, Text[] _Data) {
+	//log(Now^"> LibXmlRpc > SendCallbackArray() > Type: "^_Type^" | Data: "^_Data);
+	XmlRpc.SendCallbackArray(_Type, _Data);
+}
+
+// ---------------------------------- //
+// Public
+// ---------------------------------- //
+
+// ---------------------------------- //
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+// ---------------------------------- //
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+// ---------------------------------- //
+/// Unload the library
+Void Unload() {
+	
+}
+
+// ---------------------------------- //
+/// Load the library
+Void Load() {
+	
+}
+
+// ---------------------------------- //
+/// Enable the script callbacks
+Void Enable() {
+	G_UseLibXmlRpc = True;
+}
+
+// ---------------------------------- //
+/// Disable the script callbacks
+Void Disable() {
+	G_UseLibXmlRpc = False;
+}
+
+// ---------------------------------- //
+/** Callback sent when starting to load the map
+ *	Data:
+ *	[Number of the map]
+ */
+Void LoadingMap(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_LoadingMap", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the beginning of the match
+ *	Data:
+ *	[Number of the match]
+ */
+Void BeginMatch(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginMatch", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the beginning of the map
+ *	Data:
+ *	[Number of the map]
+ */
+Void BeginMap(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginMap", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the beginning of the submatch
+ *	Data:
+ *	[Number of the submatch]
+ */
+Void BeginSubmatch(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginSubmatch", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the beginning of the round
+ *	Data:
+ *	[Number of the round]
+ */
+Void BeginRound(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginRound", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the beginning of the turn
+ *	Data:
+ *	[Number of the turn]
+ */
+Void BeginTurn(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginTurn", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the end of the turn
+ *	Data:
+ *	[Number of the turn]
+ */
+Void EndTurn(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndTurn", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the end of the round
+ *	Data:
+ *	[Number of the round]
+ */
+Void EndRound(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndRound", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the end of the submatch
+ *	Data:
+ *	[Number of the submatch]
+ */
+Void EndSubmatch(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndSubmatch", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the end of the map
+ *	Data:
+ *	[Number of the map]
+ */
+Void EndMap(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndMap", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the end of the match
+ *	Data:
+ *	[Number of the match]
+ */
+Void EndMatch(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndMatch", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/// Callback sent at the beginning of the warmup
+Void BeginWarmUp() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginWarmUp", [""]);
+}
+
+// ---------------------------------- //
+/// Callback sent at the end of the warmup
+Void EndWarmUp() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndWarmUp", [""]);
+}
+
+// ---------------------------------- //
+/** Callback sent when a player starts a race
+ *	Data:
+ *	[Player login]
+ *
+ *	@param	_Event		The event to handle
+ */
+Void OnStartLine(CTmModeEvent _Event) {
+	if (!G_UseLibXmlRpc) return;
+	
+	
+	Private_SendCallbackArray("LibXmlRpc_OnStartLine", [_Event.Player.Login]);
+}
+
+// ---------------------------------- //
+/** Callback sent when a player crosses a waypoint (checkpoint or finish)
+ *	Data:
+ *	[Player login, id of the waypoint block, current race time, the checkpoint number in the race, is the end of the race, current lap time, the checkpoint number in the lap, is the end of the lap]
+ *
+ *	@param	_Event		The event to handle
+ */
+Void OnWayPoint(CTmModeEvent _Event) {
+	if (!G_UseLibXmlRpc) return;	
+	
+	Private_SendCallbackArray("LibXmlRpc_OnWayPoint", [_Event.Player.Login, ""^_Event.BlockId, TL::ToText(_Event.RaceTime), TL::ToText(_Event.CheckpointInRace), TL::ToText(_Event.IsEndRace), TL::ToText(_Event.LapTime), TL::ToText(_Event.CheckpointInLap), TL::ToText(_Event.IsEndLap)]);
+}
+
+// ---------------------------------- //
+/** Callback sent when a player restarts
+ *	Data:
+ *	[Player login]
+ *
+ *	@param	_Event		The event to handle
+ */
+Void OnGiveUp(CTmModeEvent _Event) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_OnGiveUp", [_Event.Player.Login]);
+}
+
+// ---------------------------------- //
+/** Callback sent when a player respawns
+ *	Data:
+ *	[Player login]
+ *
+ *	@param	_Event		The event to handle
+ */
+Void OnRespawn(CTmModeEvent _Event) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_OnRespawn", [_Event.Player.Login]);
+}
+
+// ---------------------------------- //
+/** Callback sent when a player does a stunt
+ *	Data:
+ *	[Player login, the stunt points, the combo, the total stunts score, the factor, the stunt name, the angle, if the stunt is straight, if the stunt is reversed, if the stunt is a master jump]
+ *
+ *	@param	_Event		The event to handle
+ */
+Void OnStunt(CTmModeEvent _Event) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_OnStunt", [_Event.Player.Login, TL::ToText(_Event.Points), TL::ToText(_Event.Combo), TL::ToText(_Event.StuntsScore), TL::ToText(_Event.Factor), ""^_Event.StuntFigure, TL::ToText(_Event.Angle), TL::ToText(_Event.IsStraight), TL::ToText(_Event.IsReverse), TL::ToText(_Event.IsMasterJump)]);
+}
+
+// ---------------------------------- //
+/** Automatically handle the event
+ *
+ *	@param	_Event		The event to handle
+ */
+Void PassOn(CTmModeEvent _Event) {
+	switch (_Event.Type) {
+		case CTmModeEvent::EType::StartLine	: OnStartLine(_Event);
+		case CTmModeEvent::EType::WayPoint	: OnWayPoint(_Event);
+		case CTmModeEvent::EType::GiveUp	: OnGiveUp(_Event);
+		case CTmModeEvent::EType::Respawn	: OnRespawn(_Event);
+		case CTmModeEvent::EType::Stunt		: OnStunt(_Event);
+	}
+}
+
+// ---------------------------------- //
+// Listening on XmlRpc port
+// ---------------------------------- //
+
+// ---------------------------------- //
+/// Wait for XmlRpc callbacks
+Void Loop() {
+	if (!G_UseLibXmlRpc) return;
+	
+	/*foreach (Event in XmlRpc.PendingEvents) {
+		if (Event.Type == CXmlRpcEvent::EType::Callback) {
+			switch (Event.Param1) {
+				
+			}
+		}
+	}*/
+}
+
+// ---------------------------------- //
+// Mode dependent callbacks
+// ---------------------------------- //

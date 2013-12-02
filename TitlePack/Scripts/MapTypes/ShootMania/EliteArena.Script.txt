@@ -1,13 +1,29 @@
-#RequireContext CSmMapType
-#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
-#Const Version "2012-09-03"
+/**
+ *	MapType for Elite
+ *
+ *	One spawn for each clan, between 1 and 3 poles, between à and 3 checkpoints
+ */
 
+#RequireContext CSmMapType
+#Const Version			"2013-11-07"
+#Const MapTypeVersion	1
+#Const ScriptName		"EliteArena.Script.txt"
+
+#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Include "Libs/Nadeo/MapType.Script.txt" as MapType
+
+// ---------------------------------- //
+// Gloables
+// ---------------------------------- //
 declare Text Rules;
 declare Boolean HasGoalB;
 declare Boolean HasGoalC;
 declare Integer CheckpointNb;
 
-/* -------------------------------------- */
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
+// ---------------------------------- //
 // Initialize the anchors
 Void InitAnchors() {
 	HasGoalB = False;
@@ -29,7 +45,7 @@ Void InitAnchors() {
 	}	
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Check if the map is valid
 Void UpdateValidability() {
 	InitAnchors();
@@ -50,7 +66,7 @@ Void UpdateValidability() {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Return the manialink for spawn edition
 Text EditSpawnManialink() {
 	
@@ -108,7 +124,7 @@ Text EditSpawnManialink() {
 	return MLText;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Return the manialink for pole edition
 Text EditPoleManialink() {
 	
@@ -170,7 +186,7 @@ Text EditPoleManialink() {
 	return MLText;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Manialink for non editable anchor
 Text NoEditManialink() {
 	return """
@@ -208,7 +224,7 @@ Text NoEditManialink() {
 	""";
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Show the anchor edition manialink
 Void EditAnchorData(Ident _EditedAnchorDataId) {	
 	declare Text AnchorTag for ManialinkPage;
@@ -228,11 +244,12 @@ Void EditAnchorData(Ident _EditedAnchorDataId) {
 	UpdateValidability();
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Main
-/* -------------------------------------- */
-
-main() {		
+// ---------------------------------- //
+main() {
+	MapType::SetVersion(MapTypeVersion);
+	
 	CustomEditAnchorData = True;
 	Rules = _("You must place exactly one SpawnDefense, one SpawnAttack and one Goal A. In addition you can place one Goal B, one Goal C and between one and three Checkpoints.");
 	InitAnchors();

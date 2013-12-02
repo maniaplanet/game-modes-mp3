@@ -6,7 +6,7 @@
  *	You'll have to update both at the same time
  */
 
-#Const Version		"2013-07-15"
+#Const Version		"2013-10-23"
 #Const ScriptName	"Top2.Script.txt"
 
 #Include "TextLib" as TL
@@ -39,6 +39,7 @@ declare Integer[Ident][Text]	G_LibTop_TopSort;			///< SortValue[UserId][TopId] T
 
 declare Text[Integer][Text] G_LibTop_NetTopValue;	///< All the top values sorted
 declare Text[Integer][Text] G_LibTop_NetTopName;	///< All the top names sorted
+declare Text[Integer][Text] G_LibTop_NetTopLogin;	///< All the top logins sorted
 
 declare Real		G_LibTop_TopWidth;				///< Width of the top manialink
 declare Real		G_LibTop_PlayerCardHeight;		///< Height of one player card
@@ -229,11 +230,13 @@ main() {
 	declare netread Integer				Net_LibTop_TopUpdate	for UI;
 	declare netread Text[Integer][Text]	Net_LibTop_TopValue		for UI;
 	declare netread Text[Integer][Text]	Net_LibTop_TopName		for UI;
+	declare netread Text[Integer][Text]	Net_LibTop_TopLogin		for UI;
 	
 	// Share the values with the Interface library
 	declare Integer				LibUI_TopUpdate		for UI;
 	declare Text[Integer][Text]	LibUI_TopValue		for UI;
 	declare Text[Integer][Text]	LibUI_TopName		for UI;
+	declare Text[Integer][Text]	LibUI_TopLogin		for UI;
 	
 	declare LastUpdate = Net_LibTop_TopUpdate;
 	declare LastLibUIUpdate = Net_LibTop_TopUpdate;
@@ -251,6 +254,7 @@ main() {
 			LibUI_TopUpdate	= Net_LibTop_TopUpdate;
 			LibUI_TopValue	= Net_LibTop_TopValue;
 			LibUI_TopName	= Net_LibTop_TopName;
+			LibUI_TopLogin	= Net_LibTop_TopLogin;
 		}
 		
 		if (!PageIsVisible) continue;
@@ -307,12 +311,14 @@ Void Private_LoadTop(Text[] _TopId) {
 		declare Rank = 1;
 		G_LibTop_NetTopValue[TopId]	= Text[Integer];
 		G_LibTop_NetTopName[TopId]	= Text[Integer];
+		G_LibTop_NetTopLogin[TopId] = Text[Integer];
 		
 		declare RemovedIds = Ident[];
 		foreach (UserId => Sort in G_LibTop_TopSort[TopId]) {
 			if (Rank <= G_LibTop_TopSize[TopId]) {
 				G_LibTop_NetTopValue[TopId][Rank]	= G_LibTop_TopValue[TopId][UserId];
-				G_LibTop_NetTopName[TopId][Rank]		= Users[UserId].Name;
+				G_LibTop_NetTopName[TopId][Rank]	= Users[UserId].Name;
+				G_LibTop_NetTopLogin[TopId][Rank]	= Users[UserId].Login;
 			} else {
 				RemovedIds.add(UserId);
 			}
@@ -331,17 +337,19 @@ Void Private_LoadTop(Text[] _TopId) {
  *
  *	@param	_Player		The player to update
  */
-Void Private_SendTopTo(CSmPlayer _Player) {	
+Void Private_SendTopTo(CPlayer _Player) {	
 	declare UI <=> UIManager.GetUI(_Player);
 	if (UI == Null) return;
 		
 	declare netwrite Integer				Net_LibTop_TopUpdate	for UI;
 	declare netwrite Text[Integer][Text] 	Net_LibTop_TopValue		for UI;
 	declare netwrite Text[Integer][Text]	Net_LibTop_TopName		for UI;
+	declare netwrite Text[Integer][Text]	Net_LibTop_TopLogin		for UI;
 	
 	Net_LibTop_TopUpdate	= Now;
 	Net_LibTop_TopValue		= G_LibTop_NetTopValue;
 	Net_LibTop_TopName		= G_LibTop_NetTopName;
+	Net_LibTop_TopLogin		= G_LibTop_NetTopLogin;
 }
 
 /* ------------------------------------- */
@@ -562,12 +570,32 @@ Void SetTabName(Text _TabName) {
  *	@param	_Value		The value to display in the top
  *	@param	_SortValue	The value used to sort the top
  */
-Void SetRecord(CSmPlayer _Player, Text _TopId, Text _Value, Integer _SortValue) {
+Void SetRecord(CPlayer _Player, Text _TopId, Text _Value, Integer _SortValue) {
 	if (_Player == Null) return;
 	if (!G_LibTop_TopId.exists(_TopId)) return;
 	
 	G_LibTop_TopValue[_TopId][_Player.User.Id] = _Value;
 	G_LibTop_TopSort[_TopId][_Player.User.Id] = _SortValue;
+	
+	if (!G_LibTop_TopUpdated.exists(_TopId)) G_LibTop_TopUpdated.add(_TopId);
+}
+
+/* ------------------------------------- */
+/** Remove an entry in a top for a player
+ *	After unsetting a record you must send it using SendRecords()
+ *	For performance reason you must call 
+ *	the SendRecords() function ONLY once per frame
+ *
+ *	@param	_Player		The player to remove
+ *	@param	_TopId		The top to update
+ */
+Void UnsetRecord(CPlayer _Player, Text _TopId) {
+	if (_Player == Null) return;
+	if (!G_LibTop_TopId.exists(_TopId)) return;
+	
+	declare Removed = False;
+	Removed = G_LibTop_TopValue[_TopId].removekey(_Player.User.Id);
+	Removed = G_LibTop_TopSort[_TopId].removekey(_Player.User.Id);
 	
 	if (!G_LibTop_TopUpdated.exists(_TopId)) G_LibTop_TopUpdated.add(_TopId);
 }
@@ -580,7 +608,7 @@ Void SetRecord(CSmPlayer _Player, Text _TopId, Text _Value, Integer _SortValue) 
  *
  *	@return				The top value if found, an empty string otherwise
  */
-Text GetRecord(CSmPlayer _Player, Text _TopId) {
+Text GetRecord(CPlayer _Player, Text _TopId) {
 	if (_Player == Null) return "";
 	if (!G_LibTop_TopValue.existskey(_TopId)) return "";
 	if (!G_LibTop_TopValue[_TopId].existskey(_Player.User.Id)) return "";
@@ -620,7 +648,7 @@ Text GetRecord(Text _TopId, Integer _Rank) {
  *
  *	@return				The rank of the player if found, 0 otherwise
  */
-Integer GetRank(CSmPlayer _Player, Text _TopId) {
+Integer GetRank(CPlayer _Player, Text _TopId) {
 	if (_Player == Null) return 0;
 	if (!G_LibTop_TopSort.existskey(_TopId)) return 0;
 	

@@ -7,16 +7,15 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"TimeAttackArena"
-#Const Version				"2013-07-24"
+#Const Version				"2013-10-29"
 #Const ScriptName			"TimeAttack.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
-#Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Chrono.Script.txt" as Chrono
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
-#Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
 
 
 // ---------------------------------- //
@@ -49,7 +48,6 @@ MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
 MB_LogVersion(Chrono::GetScriptName(), Chrono::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
-MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 ***
 
@@ -73,32 +71,24 @@ SpawnScreen::CreateMapInfo();
 
 // ---------------------------------- //
 // Create the UI layers
-declare LayerAttached	= False;
-declare LayerDetached	= False;
-declare LayerUpdated	= False;
 // UI All
-declare LayerTopTimesId			= Layers::Create("TopTimes");
+Layers::Create("TopTimes");
+Layers::Create("Info",  CreateLayerInfo());
 // UI Player
-declare LayerInfoId				= Layers::Create("Info",  CreateLayerInfo());
-declare LayerTimeDiff			= Layers::Create("TimeDiff");
+Layers::Create("TimeDiff");
 
-LayerAttached = Layers::Attach("TopTimes", NullId);
-LayerAttached = Layers::Attach("Info", NullId);
+Layers::Attach("TopTimes", Null);
+Layers::Attach("Info", Null);
 
 Chrono::Load();
 
 // ---------------------------------- //
 // Create the scores table
-declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
-ScoresTable::Load();
-ScoresTable::SetTableFormat(2, 6);
-ScoresTable::SetColumnsWidth(3., 2., 3., 16., 2., 2., 8., 0., 0., 0., 0.);
-ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 56.>, <207., 178.>);
-ScoresTable::SetColumnName("Custom1", _("Best time"));
-ScoresTable::SetDefaultCustom1("--:--.--");
-ScoresTable::SetDefaultFooterScore(" ");
-ScoresTable::SetDefaultFooterStats(TextLib::Compose(_("Time limit: %1"), TextLib::TimeToText(S_TimeLimit*1000, False)));
-ScoresTable::Build();
+ST2::SetStyle("LibST_SMBaseSolo");
+ST2::CreateCol("BestTime", "", "--:--.--", 8., 110.);
+ST2::SetColTextAlign("BestTime", CMlControl::AlignHorizontal::Right);
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+ST2::Build("SM");
 ***
 
 // ---------------------------------- //
@@ -119,7 +109,7 @@ UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 
 // ---------------------------------- //
 // Attach and update layers
-LayerUpdated = Layers::Update("TopTimes", "");
+Layers::Update("TopTimes", "");
 
 // ---------------------------------- //
 // Debug
@@ -139,12 +129,7 @@ foreach (BlockPole in BlockPoles) {
 
 if (G_TimeLimit != S_TimeLimit) {
 	G_TimeLimit = S_TimeLimit;
-	foreach (Player in Players) {
-		ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Time limit: %1"), TextLib::TimeToText(S_TimeLimit*1000, False)));
-	}
-	foreach (Spectator in Spectators) {
-		ScoresTable::SetFooterStats(Spectator, TextLib::Compose(_("Time limit: %1"), TextLib::TimeToText(S_TimeLimit*1000, False)));
-	}
+	ST2::SetFooterText(TextLib::Compose("%1 "^TextLib::TimeToText(S_TimeLimit*1000, False),_("Time limit : ")));
 	CreateRules();
 }
 
@@ -158,7 +143,7 @@ foreach (Base in Bases) {
 }
 
 Mode::Ladder_OpenMatch_All();
-ScoresTable::StartMatch();
+ST2::ClearScores();
 
 StartTime = Now + 3000;
 EndTime = StartTime + (G_TimeLimit * 1000);
@@ -171,10 +156,9 @@ EndTime = StartTime + (G_TimeLimit * 1000);
 ***
 // ---------------------------------- //
 // Update the layers when a new player arrives
-LayerAttached = Layers::Attach("TimeDiff", Player.Id);
-LayerUpdated = Layers::Update("TimeDiff", CreateLayerTimeDiff());
+Layers::Attach("TimeDiff", Player);
+Layers::Update("TimeDiff", CreateLayerTimeDiff());
 Chrono::Create(Player.Id);
-ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Time limit: %1"), TextLib::TimeToText(EndTime-StartTime, False)));
 
 declare UI <=> UIManager.GetUI(Player);
 if (UI != Null) {
@@ -188,7 +172,6 @@ if (UI != Null) {
 	Net_BestTime = Best;
 	Net_PrevTime = 0;
 }
-ScoresTable::RestoreCustomScores(Player);
 ***
 
 // ---------------------------------- //
@@ -198,12 +181,9 @@ ScoresTable::RestoreCustomScores(Player);
 ***
 // ---------------------------------- //
 // Update the layers when a new spectator arrives
-LayerDetached = Layers::Detach("Info", Spectator.Id);
-LayerDetached = Layers::Detach("TimeDiff", Spectator.Id);
+Layers::Detach("Info", Spectator);
+Layers::Detach("TimeDiff", Spectator);
 Chrono::Destroy(Spectator.Id);
-ScoresTable::SetFooterStats(Spectator, TextLib::Compose(_("Time limit: %1"), TextLib::TimeToText(EndTime-StartTime, False)));
-
-ScoresTable::RestoreCustomScores(Spectator);
 ***
 
 // ---------------------------------- //
@@ -335,8 +315,6 @@ declare WinnerId = NullId;
 declare Best = -1;
 declare Worst = -1;
 
-ScoresTable::EndMatch();
-
 // ---------------------------------- //
 // Search the user id of the winner
 foreach (Score in Scores) {
@@ -389,12 +367,11 @@ UIManager.UIAll.BigMessage = "";
 // ---------------------------------- //
 ***EndServer***
 ***
-ScoresTable::Unload();
 Chrono::Unload();
 SpawnScreen::DestroyRules();
 SpawnScreen::DestroyMapInfo();
-LayerDetached = Layers::Detach("TopTimes", NullId);
-LayerDetached = Layers::Detach("Info", NullId);
+Layers::Detach("TopTimes", Null);
+Layers::Detach("Info", Null);
 UIManager.UILayerDestroyAll();
 ***
 
@@ -648,9 +625,9 @@ Text UpdateLayerTopTimes(Text _Name, Integer _Time) {
 		
 		List ^= 
 """
-	<label posn="0 {{{ I * -5 }}} 5" sizen="5 5" textprefix="$s" text="{{{ I + 1 }}}." />
-	<label posn="5 {{{ I * -5 }}} 5" sizen="50 5" textprefix="$s" text="{{{ TextLib::MLEncode(G_TopTimesNames[Id]) }}}" />
-	<label posn="56 {{{ I * -5 }}} 5" sizen="15 5" textprefix="$s" text="{{{ TextLib::TimeToText(Run, True) }}}" />
+	<label posn="0 {{{ I * -5 }}} 5" sizen="4 5" text="{{{ I + 1 }}}." />
+	<label posn="4 {{{ I * -5 }}} 5" sizen="40 5" text="{{{ TextLib::MLEncode(G_TopTimesNames[Id]) }}}" />
+	<label posn="45 {{{ I * -5 }}} 5" sizen="15 5" text="{{{ TextLib::TimeToText(Run, True) }}}" />
 """;
 		
 		I += 1;
@@ -658,7 +635,8 @@ Text UpdateLayerTopTimes(Text _Name, Integer _Time) {
 	
 	ML = 
 """
-	<frame posn="85 {{{ -68 + (G_TopTimesRuns.count * 5) }}} 0">
+	<frame posn="99 {{{ -68 + (G_TopTimesRuns.count * 5) }}} 0" >
+		<format textsize="2" textemboss="1" />
 		{{{ List}}}
 	</frame>
 """;
@@ -811,11 +789,11 @@ Void ActiveFinish(CSmPlayer _Player) {
 		CheckpointsTimeBest = CheckpointsTimeLast;
 		UpdateRanking();
 		NewBestTime = _("(New best time!)");
-		ScoresTable::SetCustom1(_Player, TextLib::TimeToText(RunBest, True));
+		ST2::SetColValue("BestTime", _Player.Score, TextLib::TimeToText(RunBest, True));
 	}
 	
 	declare LayerUpdated = False;
-	LayerUpdated = Layers::Update("TopTimes", UpdateLayerTopTimes(_Player.Name, RunNew));
+	Layers::Update("TopTimes", UpdateLayerTopTimes(_Player.Name, RunNew));
 	
 	RestartPlayer(_Player);
 	

@@ -4,7 +4,7 @@
  *	on the server from Club xml files
  */
 
-#Const Version		"2013-07-19"
+#Const Version		"2013-11-22"
 #Const ScriptName	"Clublink.Script.txt"
 
 #Include "TextLib" as TL
@@ -20,8 +20,6 @@
 // Globales
 // ---------------------------------- //
 declare Boolean					G_LibClubLink_Loaded;				///< State of the library
-declare Boolean					G_LibClubLink_SettingForceClans;	///< Only the players listed in the Clubs can play
-declare Boolean					G_LibClubLink_ForceClans;			///< Only the players listed in the Clubs can play
 declare Ident[Integer]			G_LibClubLink_SourcePlayerId;		///< Id of the player owning the ClubLink to load
 declare Ident[Integer]			G_LibClubLink_LoadingPlayerId;		///< Id of the player owning the ClubLink currently loading
 declare Ident[Integer]			G_LibClubLink_LoadedPlayerId;		///< Id of the player owning the loaded ClubLink
@@ -31,6 +29,7 @@ declare Ident					G_LibClubLink_LayerTeamsId;			///< Id of the team layer
 declare Text[]					G_LibClubLink_TeamDefaultName;		///< Default name for each team
 declare Vec3[]					G_LibClubLink_TeamDefaultColor;		///< Default color for each team
 declare Vec3[]					G_LibClubLink_TeamDesiredColor;		///< Color for each team as specified in the clublink
+declare Boolean					G_LibClubLink_Updated;				///< The ClubLink of a team is updated
 
 // ---------------------------------- //
 // Functions
@@ -128,6 +127,7 @@ Text Private_ReadXmlText(CXmlNode _Node, Text _ChildName) {
  */
 Boolean Private_CheckPlayersList(Integer _ClanNb, CXmlDocument _Xml, Text _ClubLinkUrl) {
 	declare CXmlNode Root;
+	
 	if (_Xml != Null && _Xml.Root != Null && _Xml.Root.Name == "club") Root <=> _Xml.Root;
 	else return False;
 	
@@ -152,30 +152,6 @@ Boolean Private_CheckPlayersList(Integer _ClanNb, CXmlDocument _Xml, Text _ClubL
 }
 
 // ---------------------------------- //
-/// Check if a team has a defined player list
-Void Private_SwitchForceClan() {
-	if (!G_LibClubLink_SettingForceClans) return;
-	
-	declare HasPlayerList = False;
-	for (I, 0, 1) {
-		declare Text[] LibClubLink_TeamPlayerLogins for Teams[I];
-		if (LibClubLink_TeamPlayerLogins.count > 0) {
-			HasPlayerList = True; 
-			break;
-		}
-	}
-	if (HasPlayerList) {
-		UseForcedClans				= True;
-		G_LibClubLink_ForceClans	= True;
-	} else {
-		UseForcedClans				= False;
-		G_LibClubLink_ForceClans	= False;
-	}
-}
-
-
-
-// ---------------------------------- //
 /** Set the two teams color from desired colors, and avoid hue overlap.
  *
  */
@@ -191,8 +167,8 @@ Void Private_ApplyDesiredTeamColors() {
  *
  *	@param	_ClanNb		The clan to reset
  */
-Void Private_ResetClan(Integer _ClanNb) {
-	if (G_LibClubLink_Loaded) {
+Void Private_ResetClan(Integer _ClanNb) {	
+	if (G_LibClubLink_Loaded) {	
 		G_LibClubLink_SourcePlayerId[_ClanNb]	= NullId;
 		G_LibClubLink_LoadingPlayerId[_ClanNb]	= NullId;
 		G_LibClubLink_LoadedPlayerId[_ClanNb]	= NullId;
@@ -222,7 +198,7 @@ Void Private_ResetClan(Integer _ClanNb) {
 	LibClubLink_TeamPlayerNicknames.clear();
 	LibClubLink_TeamPlayerAvatars.clear();
 	
-	//Private_SwitchForceClan();
+	G_LibClubLink_Updated = True;
 }
 
 // ---------------------------------- //
@@ -287,56 +263,7 @@ Void Private_SetClan(Integer _ClanNb, CXmlDocument _Xml, Text _ClubLinkUrl) {
 		}
 	}
 	
-	//Private_SwitchForceClan();
-}
-
-// ---------------------------------- //
-/// Automatically set player clan based on the clublinks players list
-Void Private_EnforcePlayerPolicy() {
-	declare Text[][Integer] TeamPlayers;
-	for (I, 0, 1) {
-		declare Text[] LibClubLink_TeamPlayerLogins for Teams[I];
-		TeamPlayers[I + 1] = LibClubLink_TeamPlayerLogins;
-	}
-	foreach (Player in Players) {
-		declare NewClan = 0;
-		if (TeamPlayers[1].count > 0 && TeamPlayers[1].exists(Player.Login)) {
-			if (Player.CurrentClan != 1) {
-				UnspawnPlayer(Player);
-				SetPlayerClan(Player, 1);
-			}
-			continue;
-		}
-		if (TeamPlayers[2].count > 0 && TeamPlayers[2].exists(Player.Login)) {
-			if (Player.CurrentClan != 2) {
-				UnspawnPlayer(Player);
-				SetPlayerClan(Player, 2);
-			}
-			continue;
-		}
-		if (TeamPlayers[1].count <= 0 && TeamPlayers[1].count <= TeamPlayers[2].count) {
-			if (Player.CurrentClan != 1) {
-				UnspawnPlayer(Player);
-				SetPlayerClan(Player, 1);
-			}
-			continue;
-		}
-		if (TeamPlayers[2].count <= 0 && TeamPlayers[2].count <= TeamPlayers[1].count) {
-			if (Player.CurrentClan != 2) {
-				UnspawnPlayer(Player);
-				SetPlayerClan(Player, 2);
-			}
-			continue;
-		}
-		declare LibClubLink_LastWarning for Player = 0;
-		/*if (LibClubLink_LastWarning + 1000 < Now) {
-			LibClubLink_LastWarning = Now;
-			declare UI <=> UIManager.GetUI(Player);
-			if (UI != Null) UI.SendChat("$fffYou're not in the list of allowed players. You've been sent into spectator mode.");
-			log(Now^"> "^Player.Login^" > Go to spectator > CurrentClan: "^Player.CurrentClan);
-		}*/
-		Users_RequestSwitchToSpectator(Player.User);
-	}
+	G_LibClubLink_Updated = True;
 }
 
 // ---------------------------------- //
@@ -381,19 +308,17 @@ Void Unload() {
 	if (UIManager.UILayers.existskey(G_LibClubLink_LayerTeamsId)) UIManager.UILayerDestroy(UIManager.UILayers[G_LibClubLink_LayerTeamsId]);
 	G_LibClubLink_LayerTeamsId = NullId;
 	
-	UseForcedClans					= False;
-	G_LibClubLink_SettingForceClans	= False;
-	G_LibClubLink_ForceClans		= False;
+	//UseForcedClans					= False;
 	G_LibClubLink_Loaded			= False;
+	G_LibClubLink_Updated			= True;
 }
 
 // ---------------------------------- //
 /** Load the library
  *
  *	@param	_UsePlayerClubLinks			Active the use of the players clublinks
- *	@param	_ForceClansFromClublink		Force the player's clan based on the clublink players list
  */
-Void Load(Boolean _UsePlayerClubLinks/*, Boolean _ForceClansFromClubLinks*/) {
+Void Load(Boolean _UsePlayerClubLinks) {
 	G_LibClubLink_TeamDefaultName = C_LibClubLink_TeamDefaultName;
 	G_LibClubLink_TeamDefaultColor = C_LibClubLink_TeamDefaultColor;
 	G_LibClubLink_TeamDesiredColor = C_LibClubLink_TeamDefaultColor;
@@ -413,14 +338,27 @@ Void Load(Boolean _UsePlayerClubLinks/*, Boolean _ForceClansFromClubLinks*/) {
 	LayerTeams.ManialinkPage = Private_CreateLayerTeams();
 	UIManager.UIAll.UILayers.add(LayerTeams);
 	
-	UseForcedClans					= False;
-	//G_LibClubLink_SettingForceClans	= _ForceClansFromClubLinks;
-	G_LibClubLink_SettingForceClans	= False;	///< Not fully implemented
-	G_LibClubLink_ForceClans		= False;
+	//UseForcedClans					= False;
 	G_LibClubLink_Loaded			= True;
 	
 	declare netwrite Net_LibClubLink_DisplaySponsors for Teams[0] = True;
 	Net_LibClubLink_DisplaySponsors = True;
+}
+
+// ---------------------------------- //
+/** Reset the clublink of a clan
+ *
+ *	@param	_ClanNb		The clan to reset
+ */
+Void Reset(Integer _ClanNb) {
+	Private_ResetClan(_ClanNb);
+}
+
+// ---------------------------------- //
+/// Reset the clublink of a all clans
+Void ResetAll() {
+	Private_ResetClan(1);
+	Private_ResetClan(2);
 }
 
 // ---------------------------------- //
@@ -503,8 +441,6 @@ Text[] GetTeamSponsors(Integer _Team) {
 /// Manage HTTP requests (asynchrone)
 Void Update() {
 	if (!G_LibClubLink_Loaded) return;
-	
-	//if (G_LibClubLink_ForceClans) Private_EnforcePlayerPolicy();
 	
 	for (I, 1, 2) {
 		// Stop the previous request if a new source player is set
@@ -744,7 +680,7 @@ Void DefineTeamAuto() {
  *
  *	@param		The source player if found, Null otherwise
  */
-CSmPlayer GetSourcePlayer(Integer _ClanNb) {
+CPlayer GetSourcePlayer(Integer _ClanNb) {
 	if (!G_LibClubLink_Loaded) return Null;
 	
 	if (Players.existskey(G_LibClubLink_SourcePlayerId[_ClanNb])) return Players[G_LibClubLink_SourcePlayerId[_ClanNb]];
@@ -752,40 +688,12 @@ CSmPlayer GetSourcePlayer(Integer _ClanNb) {
 }
 
 // ---------------------------------- //
-/** Get the clan selection status
+/** Check if the a clublink was set/reset since the last this function was called
  *
- *	@return		True if the clans are forced, false otherwise
+ *	@return		True if a clublink was set/reset, false otherwise
  */
-Boolean ClansAreForced() {
-	return G_LibClubLink_ForceClans;
-}
-
-// ---------------------------------- //
-/** Get the right requested clan for a player
- *	based on the clan selection status
- *
- *	@param	_Player		The player to search for
- *
- *	@return		The requested clan of the player
- */
-Integer GetPlayerRequestedClan(CSmPlayer _Player) {
-	if (_Player == Null) return 0;
-	if (!G_LibClubLink_ForceClans) return _Player.RequestedClan;
-	else {
-		
-	}
-	
-	return 0;
-}
-
-CSmPlayer[] GetAllowedPlayers(Integer _ClanNb) {
-	declare CSmPlayer[] AllowedPlayers;
-	if (!G_LibClubLink_Loaded) AllowedPlayers;
-	
-	return AllowedPlayers;
-}
-
-Void UpdateSetup() {
-	if (!G_LibClubLink_Loaded) return;
-	
+Boolean Updated() {
+	declare Updated = G_LibClubLink_Updated;
+	G_LibClubLink_Updated = False;
+	return Updated;
 }

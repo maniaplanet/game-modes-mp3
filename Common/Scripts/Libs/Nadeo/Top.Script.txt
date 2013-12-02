@@ -1,3 +1,9 @@
+/**
+ *	DEPRECATED - Use the new Top2 library instead
+ *
+ *	Top library
+ */
+
 #Const Version		"2013-02-06"
 #Const ScriptName	"Top.Script.txt"
 

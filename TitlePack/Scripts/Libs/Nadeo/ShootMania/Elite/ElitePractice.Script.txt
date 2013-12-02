@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2013-07-25"
+#Const Version    "2013-10-03"
 #Const ScriptName "ElitePractice.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -18,7 +18,7 @@
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
-#Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
+#Include "Libs/Nadeo/ScoresTable2.Script.txt" as ST2
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 #Include "Libs/Nadeo/ShootMania/Elite/EliteEndSequence.Script.txt" as EliteEndSequence
 
@@ -58,6 +58,8 @@
 #Const C_LibEP_WinType_PoleCaptured			2	///< Win by pole capture
 #Const C_LibEP_WinType_AttackersEliminated	3	///< Win by eliminating all the attackers
 #Const C_LibEP_WinType_DefendersEliminated	4	///< Win by eliminating all the defenders
+
+#Const C_LibEP_UseToken True
 
 #Const C_LibEP_BlueBotsNb	0	///< Blue bots number
 #Const C_LibEP_RedBotsNb	0	///< Red bots number
@@ -231,9 +233,9 @@ Void Private_UpdateCustomScore(CSmPlayer _Player, Integer _Hit, Integer _Elimina
 		declare GoalAverage = LibEP_HasHit - LibEP_IsHit;
 		declare Format = "$0c0+";
 		if (GoalAverage < 0) Format = "$c00";
-		ScoresTable::SetCustom1(_Player, "$n$555+"^LibEP_HasHit);
-		ScoresTable::SetCustom2(_Player, "$n$555-"^LibEP_IsHit);
-		ScoresTable::SetCustom3(_Player, Format^GoalAverage);
+		ST2::SetColValue("HasHit", _Player.Score, "$555+"^LibEP_HasHit);
+		ST2::SetColValue("IsHit", _Player.Score, "$555-"^LibEP_IsHit);
+		ST2::SetColValue("GoalAverage", _Player.Score, Format^GoalAverage);
 		
 		_Player.Score.RoundPoints = GoalAverage;
 	}
@@ -642,20 +644,22 @@ Void Private_HitNotification(CSmPlayer _Victim) {
 }
 
 // ---------------------------------- //
-/* Update the longest laser display in the scores table
+/* Update the footer display in the scores table
  *
  *	@param	_Player			The player to update
  *	@param	_Distance		The distance of the longest laser
  *	@param	_Name			The name of the player with the longest laser
+ *	@param	_CurrentTurn	The number of turn played
+ *	@param	_MaxTurn		The total number of turns to play
  */
-Void Private_UpdateLongestLaser(CSmPlayer _Player, Real _Distance, Text _Name) {
+Void Private_UpdateFooter(Real _Distance, Text _Name, Integer _CurrentTurn, Integer _MaxTurn) {
 	declare Distance = "-";
 	declare Name = "-";
 	if (_Distance > 0.) {
 		Distance = (ML::NearestInteger(_Distance*10.0)/10.0)^"m";
 		Name = "$<"^_Name^"$>";
 	}
-	ScoresTable::SetFooterStats(_Player, TL::Compose(_("Longest Laser: %1 by %2"), Distance, Name));
+	ST2::SetFooterText(TL::Compose("%1 $<"^ServerName^"$>   |   %2 $<"^ServerModeName^"$>   |   %3 "^Distance^" %4 "^Name^"   |   %5: "^_CurrentTurn^"/"^_MaxTurn, _("Server name : "), _("Game mode :"), _("Longest Laser :"), _("by"), _("|Noun|Turn")));
 }
 
 // ---------------------------------- //
@@ -1088,8 +1092,22 @@ Void Run() {
 	// display the rules reminder layer
 	CreateRulesReminderLayer();
 	
-	ScoresTable::Load();
+	
 	EliteEndSequence::Load();
+	// ---------------------------------- //
+	// Init scores table
+	ST2::Load();
+	ST2::SetStyle("LibST_Base");
+	ST2::SetStyle("LibST_SMBaseOneColumn");
+	ST2::CreateCol("LibST_SMPoints", _("Score"), "0", 3., 110.);
+	ST2::SetColTextAlign("LibST_SMPoints", CMlControl::AlignHorizontal::Right);
+	ST2::SetColTextSize("LibST_SMPoints", 4.);
+	ST2::CreateCol("HasHit", "", "$555+0", 2., 80.);
+	ST2::CreateCol("IsHit", "", "$555-0", 2., 90.);
+	ST2::CreateCol("GoalAverage", _("Ratio"), "$0c0+0", 2., 100.);
+	ST2::SetColTextSize("HasHit", 2.);
+	ST2::SetColTextSize("IsHit", 2.);
+	ST2::Build("SM");
 	
 	// ---------------------------------- //
 	// Create rules
@@ -1098,10 +1116,10 @@ Void Run() {
 	SpawnScreen::AddSubsection(_("Type"), _("Free For All - 1 vs 3"), 0.);
 	SpawnScreen::AddSubsection(
 	_("Objectives"), 
-	TL::Compose(_("$<%11. $>The game is divided in rounds. During a round, one player is the Attacker, the others are Defenders.\n$<%12. $>The Attacker has to eliminate all Defenders or capture the pole between %2 and %3 seconds. Defenders must prevent him or her from doing so.\n$<%13. $>The Attacker plays with the Laser. Defenders play with Rockets."), "$"^SpawnScreen::GetModeColor() , "45", "60"), 20.);
+	TL::Compose(_("$<%11. $>The game is divided in rounds. During a round, one player is the Attacker, the others are Defenders.\n$<%12. $>The Attacker has to eliminate all Defenders or capture the pole between %2 and %3 seconds. Defenders must prevent them from doing so.\n$<%13. $>The Attacker plays with the Laser. Defenders play with Rockets."), "$"^SpawnScreen::GetModeColor() , "45", "60"), 20.);
 	SpawnScreen::AddSubsection(
 	_("Score"), 
-	TL::Compose(_("$<%11. $>A successful attack grants 1 point to the Attacker.\n$<%12. $>Hitting a player grants 1 goal average point. Being hit removes 1 goal average point. The goal average points are used to break tie between players.\n$<%13. $>After a fixed number of rounds, the player with the best score wins the map."), "$"^SpawnScreen::GetModeColor()),
+	TL::Compose(_("$<%11. $>A successful attack scores 1 point to the Attacker.\n$<%12. $>Hitting a player scores 1 goal average point. Being hit removes 1 goal average point. The goal average points are used to break tie between players.\n$<%13. $>After a fixed number of rounds, the player with the best score wins the map."), "$"^SpawnScreen::GetModeColor()),
 	73.);
 	
 	SpawnScreen::SetModeName(ModeName);
@@ -1188,6 +1206,7 @@ Void Run() {
 			declare ForfeitWinnerName = "";		///< The name of the winner in this case
 			declare LongestLaserDistance = 0.;	///< Distance of the longest laser shot
 			declare LongestLaserName = "";		///< Name of the player who's shot the longest laser
+			declare TokenUsed = False;			///< The players used their tokens
 			// ---------------------------------- //
 			// <<< +++InitMap+++
 			// ---------------------------------- //
@@ -1225,7 +1244,7 @@ Void Run() {
 				Base.IsActive = True;
 			}
 			if (SpawnAttack != SpawnDefense) {
-				SpawnAttack.Base.Clan = C_LibEP_AtkClan;
+				if (SpawnAttack.Base != Null) SpawnAttack.Base.Clan = C_LibEP_AtkClan;
 			}
 			
 			// ---------------------------------- //
@@ -1242,21 +1261,6 @@ Void Run() {
 	
 			Layers::Update("Info", Private_CreateLayerInfo(Checkpoints.count, ""));
 			Layers::Attach("Info", NullId);
-			declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
-			ScoresTable::Load();
-			ScoresTable::SetTableFormat(1, 4);
-			ScoresTable::SetColumnsWidth(1.5, 1., 2., 18., 1.5, 1.5, 2., 1.5, 3., 0., 3.);
-			ScoresTable::SetColumnsName("", "", _("Goal average"), "", _("Score"));
-			ScoresTable::SetTableWidth(110.);
-			ScoresTable::SetPlayerCardHeight(12.);
-			ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 48.>, <124., 155.>);
-			ScoresTable::SetDefaultCustom1("$n$555+0");
-			ScoresTable::SetDefaultCustom2("$n$555-0");
-			ScoresTable::SetDefaultCustom3("$0c0+0");
-			ScoresTable::SetDefaultFooterScore(" ");
-			ScoresTable::SetDefaultFooterStats(TL::Compose(_("Longest Laser: %1 by %2"), "-", "-"));
-			ScoresTable::Build(True, False);
-			ScoresTable::StartMatch();
 			
 			// ---------------------------------- //
 			// Misc init
@@ -1271,6 +1275,10 @@ Void Run() {
 			// ---------------------------------- //
 			// Wait for players connections
 			Private_WaitConnection(!S_Matchmaking);
+			
+			// ---------------------------------- //
+			// Demo mode
+			if (C_LibEP_UseToken) DemoToken_StartUsingToken();
 			
 			// ---------------------------------- //
 			// <<< +++StartMap+++
@@ -1489,7 +1497,7 @@ Void Run() {
 							
 							// ---------------------------------- //
 							// Filter the players displayed in the scores table
-							ScoresTable::FilterLogins(ScoresTableLogins);
+							ST2::FilterLogins(ScoresTableLogins);
 							
 							// ---------------------------------- //
 							// Display the turn announcement
@@ -1500,12 +1508,7 @@ Void Run() {
 								UIManager.UIAll.StatusMessage = TL::Compose(
 									"%1 %2/%3", _("|Noun|Turn"), TL::ToText(CurrentTurn), TL::ToText(MaxTurn)
 								);
-								foreach (Player in AllPlayers) {
-									ScoresTable::SetFooterScore(
-										Player,
-										TL::Compose("%1: %2/%3", _("|Noun|Turn"), TL::ToText(CurrentTurn), TL::ToText(MaxTurn))
-									);
-								}
+								Private_UpdateFooter(LongestLaserDistance, LongestLaserName, CurrentTurn, MaxTurn);
 								Private_Sleep(2000);
 								UIManager.UIAll.BigMessage = "";
 								UIManager.UIAll.StatusMessage = "";
@@ -1571,6 +1574,8 @@ Void Run() {
 								SM::SpawnPlayer(LastAttackerSpawned, C_LibEP_AtkClan, LastAttackerSpawned.ArmorMax, SpawnAttack, Now);
 								Private_SetAttackerAmmo(LastAttackerSpawned);
 								
+								if (C_LibEP_UseToken && !TokenUsed) DemoToken_GetAndUseToken(LastAttackerSpawned.User);
+								
 								declare UI <=> UIManager.GetUI(LastAttackerSpawned);
 								if (UI != Null) {
 									UI.SpectatorForceCameraType = UIManager.UIAll.SpectatorForceCameraType;
@@ -1585,12 +1590,16 @@ Void Run() {
 								SM::SpawnPlayer(Player, C_LibEP_DefClan, Player.ArmorMax, SpawnDefense, Now);
 								Private_SetDefenderAmmo(Player);
 								
+								if (C_LibEP_UseToken && !TokenUsed) DemoToken_GetAndUseToken(Player.User);
+								
 								declare UI <=> UIManager.GetUI(Player);
 								if (UI != Null) {
 									UI.SpectatorForceCameraType = UIManager.UIAll.SpectatorForceCameraType;
 									UI.SpectatorForcedClan = C_LibEP_DefClan;
 								}
 							}
+							
+							TokenUsed = True;
 							
 							// ---------------------------------- //
 							// Update UI
@@ -1635,11 +1644,7 @@ Void Run() {
 									// ---------------------------------- //
 									// >>> +++OnNewPlayer+++
 									// ---------------------------------- //
-									ScoresTable::SetFooterScore(
-										Player,
-										TL::Compose("%1: %2/%3", _("|Noun|Turn"), TL::ToText(CurrentTurn), TL::ToText(MaxTurn))
-									);
-									Private_UpdateLongestLaser(Player, LongestLaserDistance, LongestLaserName);
+									
 									// ---------------------------------- //
 									// <<< +++OnNewPlayer+++
 									// ---------------------------------- //
@@ -1658,11 +1663,7 @@ Void Run() {
 									// ---------------------------------- //
 									// >>> +++OnNewSpectator+++
 									// ---------------------------------- //
-									ScoresTable::SetFooterScore(
-										Spectator,
-										TL::Compose("%1: %2/%3", _("|Noun|Turn"), TL::ToText(CurrentTurn), TL::ToText(MaxTurn))
-									);
-									Private_UpdateLongestLaser(Spectator, LongestLaserDistance, LongestLaserName);
+									
 									// ---------------------------------- //
 									// <<< +++OnNewSpectator+++
 									// ---------------------------------- //
@@ -1868,9 +1869,7 @@ Void Run() {
 													if (Distance > LongestLaserDistance) {
 														LongestLaserDistance = Distance;
 														LongestLaserName = Event.Shooter.Name;
-														foreach (Player in AllPlayers) {
-															Private_UpdateLongestLaser(Player, LongestLaserDistance, LongestLaserName);
-														}
+														Private_UpdateFooter(LongestLaserDistance, LongestLaserName, CurrentTurn, MaxTurn);
 													}
 												}
 												PassOn(Event);
@@ -2174,6 +2173,10 @@ Void Run() {
 			// ---------------------------------- //
 			
 			// ---------------------------------- //
+			// Demo mode
+			if (C_LibEP_UseToken) DemoToken_StopUsingToken();
+			
+			// ---------------------------------- //
 			// Ladder points attribution
 			foreach (Score in Scores) {				
 				declare LibEP_HasHit for Score = 0;
@@ -2273,7 +2276,7 @@ Void Run() {
 	// ---------------------------------- //
 	// >>> +++EndServer+++
 	// ---------------------------------- //
-	ScoresTable::Unload();
+	ST2::Unload();
 	
 	Layers::Destroy("Info");
 	Layers::Clean();

@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2013-07-24"
+#Const	Version				"2013-11-18"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "TextLib" as TL
@@ -14,7 +14,6 @@
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
-#Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 #Include "Libs/Nadeo/ShootMania/KingOfTheLobby.Script.txt" as Lobby
 
@@ -87,7 +86,7 @@
 #Const C_WaitConnectionTimeLimit	60000
 #Const C_SleepEndMap				15000
 
-#Const Description _("TYPE: 2 vs 2\nOBJECTIVE:\n- Eliminate the two opponents within a short range of time (Combo Time).\n- Your Combo Time starts when you eliminate one opponent: eliminate the second one before it ends to win the round.\n- Each time you eliminate an opponent, your Combo Time increases.\n- Use '1', '2', '3' and '4' on your keyboard to switch weapon. Collecting a weapon item grants your team with the ability to use it this round, or with 1 extra ammo max if you already own it.")
+#Const Description _("TYPE: 2 vs 2\nOBJECTIVE:\n- Eliminate the two opponents within a short period of time (Combo Time).\n- Your Combo Time starts when you eliminate one opponent: eliminate the second one before it ends to win the round.\n- Each time you eliminate an opponent, your Combo Time increases.\n- Use '1', '2', '3' and '4' on your keyboard to switch weapon. Collecting a weapon item grants your team with the ability to use it this round, or with 1 extra ammo max if you already own it.")
 
 #Const C_BlueBots	0
 #Const C_RedBots	0
@@ -121,7 +120,6 @@ MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(WarmUp2::GetScriptName(), WarmUp2::GetScriptVersion());
 MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
-MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
 ***
@@ -181,7 +179,18 @@ WarmUp2::DisplayClanSelection(True);
 
 // ---------------------------------- //
 // Create the scores table
-ScoresTable::Load();
+ST2::SetStyle("LibST_SMBaseTeams");
+ST2::SetStyle("LibST_SMBasePoints");
+ST2::SetStyle("LibST_SMWithLegends");
+ST2::SetFormat(2, 4);
+ST2::SetTextScale(1.1);
+ST2::CreateCol("HitsPerWeapon", _("Hits per weapon"), "0/0/0/0", 8., 50.);
+ST2::SetColTextAlign("HitsPerWeapon", CMlControl::AlignHorizontal::Right);
+ST2::SetColLegend("LibST_SMRoundPoints", _("Hits"));
+ST2::SetColLegend("LibST_SMPoints", _("Score"));
+ST2::SetColWidth("LibST_Name", 15.);
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+ST2::Build("SM");
 
 // ---------------------------------- //
 // Load items
@@ -201,7 +210,7 @@ declare LayerInfoId = Layers::Create("Info");
 ***InitMap***
 ***
 declare Integer MapWinnerClan;
-declare CSmBlockSpawn[Integer] Spawns;
+declare CSmMapPlayerSpawn[Integer] Spawns;
 if (S_Matchmaking) MB_UseIntro = False;
 else MB_UseIntro = True;
 ***
@@ -217,9 +226,9 @@ SM::SetupDefaultVisibility();
 MapWinnerClan = 0;
 G_ClansPlayers = [1 => Ident[], 2 => Ident[]];
 Spawns = [1 => Null, 2 => Null];
-foreach (BlockSpawn in BlockSpawns) {
-	if (BlockSpawn.Order == 1) Spawns[1] = BlockSpawn;
-	else if (BlockSpawn.Order == 2) Spawns[2] = BlockSpawn;
+foreach (MapLandmark in MapLandmarks_PlayerSpawn) {
+	if (MapLandmark.Order == 1) Spawns[1] <=> MapLandmark.PlayerSpawn;
+	else if (MapLandmark.Order == 2) Spawns[2] <=> MapLandmark.PlayerSpawn;
 }
 assert(Spawns[1] != Null && Spawns[2] != Null);
 UpdateModeStatusMessage();
@@ -252,30 +261,18 @@ foreach (Score in Scores) {
 
 // ---------------------------------- //
 // Set storm center
-foreach (BlockPole in BlockPoles) {
-	if (BlockPole.Tag == "Checkpoint") {
-		OffZoneCenterBlockId = BlockPole.Id;
+foreach (Pole in MapLandmarks_Gauge) {
+	if (Pole.Tag == "Checkpoint") {
+		OffZoneCenterLandmarkId = Pole.Id;
 		break;
 	}
 }
 
 // ---------------------------------- //
-// Build the scores table
-declare ScoresBGImg			= C_ImgBaseDir^"scoresBg.dds";
-declare ScoresBGImgLeft		= C_ImgBaseDir^"scoresBg_left.dds";
-declare ScoresBGImgRight	= C_ImgBaseDir^"scoresBg_right.dds";
-declare Clan1Color			= Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
-declare Clan2Color			= Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
-ScoresTable::SetTableBackgroundLeftRightImage(
-	ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0.05, 53.5>, <207., 175.>
-);
-ScoresTable::SetTableFormat(2, 5);
-ScoresTable::SetPlayerCardHeight(12.);
-ScoresTable::SetColumnsName("", "", _("Hits per weapon"), _("Hits"), _("Score"));
-ScoresTable::SetColumnsWidth(2., 2., 3., 15., 1.5, 1.5, 0., 0., 5., 3., 3.);
-ScoresTable::SetDefaultCustom3("0/0/0/0");
-ScoresTable::Build();
-ScoresTable::StartMatch();
+// Update the scores table
+ST2::ClearScores();
+ST2::SetFooterText(TL::Compose("%1 "^S_PointsLimit, _("Points limit : ")));
+
 UpdateScoresHeader();
 
 // ---------------------------------- //
@@ -307,15 +304,6 @@ if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") {
 } else {
 	Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 }
-
-// ---------------------------------- //
-// Rebuild the scores table with new info on teams
-Clan1Color = Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
-Clan2Color = Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
-ScoresTable::SetTableBackgroundLeftRightImage(
-	ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0.05, 53.5>, <207., 175.>
-);
-ScoresTable::Build();
 
 // ---------------------------------- //
 // Initialize UI
@@ -374,9 +362,9 @@ UpdateClansPlayers();
 // ---------------------------------- //
 // Initialize objects
 ObjectDestroyAll();
-foreach (ObjectAnchor in ObjectAnchors) {
-	declare ObjectSpawned for ObjectAnchor = False;
-	declare ObjectNextSpawn for ObjectAnchor = Now;
+foreach (MapLandmark in MapLandmarks_ObjectAnchor) {
+	declare ObjectSpawned for MapLandmark = False;
+	declare ObjectNextSpawn for MapLandmark = Now;
 	ObjectSpawned = False;
 	ObjectNextSpawn = Now + C_Object_Delay;
 }
@@ -393,17 +381,17 @@ foreach (Player in Players) {
 	if (!G_ClansPlayers.existskey(Player.CurrentClan)) continue;
 	if (!G_ClansPlayers[Player.CurrentClan].exists(Player.Id)) continue;
 	
-	declare CSmBlockSpawn BlockSpawn;
+	declare CSmMapPlayerSpawn MapLandmark_PlayerSpawn;
 	if (Player.CurrentClan == 1) {
-		BlockSpawn <=> Spawns[SpawnClan1];
+		MapLandmark_PlayerSpawn <=> Spawns[SpawnClan1];
 		SpawnClan1 = 3 - SpawnClan1;
 	} else if (Player.CurrentClan == 2) {
-		BlockSpawn <=> Spawns[SpawnClan2];
+		MapLandmark_PlayerSpawn <=> Spawns[SpawnClan2];
 		SpawnClan2 = 3 - SpawnClan2;
 	}
 	declare SpawnTime = Now + 2000;
 	if (SpawnTime < StartTime) SpawnTime = StartTime;
-	if (BlockSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, C_Default_Armor, BlockSpawn, SpawnTime);
+	if (MapLandmark_PlayerSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, C_Default_Armor, MapLandmark_PlayerSpawn, SpawnTime);
 }
 
 // ---------------------------------- //
@@ -432,8 +420,6 @@ Message::SendStatusMessage(_("Players are invincible"), InvincibilityEndTime - N
 
 ***OnNewPlayer***
 ***
-ScoresTable::SetFooterStats(Player, TL::Compose(_("Points limit: %1"), TL::ToText(S_Script_PointsLimit)));
-
 InitializePlayer(Player);
 
 declare UI <=> UIManager.GetUI(Player);
@@ -445,7 +431,6 @@ if (UI != Null) {
 
 ***OnNewSpectator***
 ***
-ScoresTable::SetFooterStats(Spectator, TL::Compose(_("Points limit: %1"), TL::ToText(S_Script_PointsLimit)));
 declare UI <=> UIManager.GetUI(Spectator);
 if (UI != Null) {
 	UI.SpectatorForceCameraType = -1;
@@ -496,7 +481,7 @@ foreach (Event in PendingEvents) {
 					case 2: HitRocket += 1;
 				}
 				
-				ScoresTable::SetCustom3(Event.Shooter, HitLaser^"/"^HitNucleus^"/"^HitArrow^"/"^HitRocket);
+				ST2::SetColValue("HitsPerWeapon", Event.Shooter.Score, HitLaser^"/"^HitNucleus^"/"^HitArrow^"/"^HitRocket);
 			}
 			PassOn(Event);
 		}
@@ -529,7 +514,7 @@ foreach (Event in PendingEvents) {
 		if (Event.Player == Null) {
 			Discard(Event);
 		} else {
-			SwitchWeapon(Event.Player, Event.ActionSlot);
+			SwitchWeapon(Event.Player, Event.ActionInput);
 			PassOn(Event);
 		}		
 	}
@@ -606,15 +591,15 @@ foreach (Player in Players) {
 			
 			Player.ArmorMax = C_Default_ArmorMax;
 			
-			declare CSmBlockSpawn BlockSpawn;
+			declare CSmMapPlayerSpawn MapLandmark_PlayerSpawn;
 			if (Player.CurrentClan == 1) {
-				BlockSpawn <=> Spawns[SpawnClan1];
+				MapLandmark_PlayerSpawn <=> Spawns[SpawnClan1];
 				SpawnClan1 = 3 - SpawnClan1;
 			} else if (Player.CurrentClan == 2) {
-				BlockSpawn <=> Spawns[SpawnClan2];
+				MapLandmark_PlayerSpawn <=> Spawns[SpawnClan2];
 				SpawnClan2 = 3 - SpawnClan2;
 			}
-			if (BlockSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, C_Default_Armor, BlockSpawn, Now);
+			if (MapLandmark_PlayerSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, C_Default_Armor, MapLandmark_PlayerSpawn, Now);
 			
 			declare netwrite Net_Combo_AmmoMax for Player = C_AmmoMax;
 			SetPlayerAmmo(Player, CSmMode::EWeapon::Rocket, Net_Combo_AmmoMax["Rocket"]/2);
@@ -663,7 +648,7 @@ if (S_Script_RoundTimeLimit != S_RoundTimeLimit) {
 }
 if (S_Script_PointsLimit != S_PointsLimit) {
 	S_Script_PointsLimit = S_PointsLimit;
-	foreach (Player in AllPlayers) ScoresTable::SetFooterStats(Player, TL::Compose(_("Points limit: %1"), TL::ToText(S_Script_PointsLimit)));
+	ST2::SetFooterText(TL::Compose("%1 "^S_PointsLimit, _("Points limit : ")));
 }
 if (S_Script_NbPlayersPerTeam != S_NbPlayersPerTeam) {
 	S_Script_NbPlayersPerTeam = S_NbPlayersPerTeam;
@@ -787,7 +772,6 @@ foreach (Score in Scores) {
 	declare PrevPoints for Score = 0;
 	Score.Points = PrevPoints;
 }
-ScoresTable::EndMatch();
 
 // ---------------------------------- //
 // Winning sequence
@@ -811,7 +795,6 @@ MatchmakingWait();
 ***EndServer***
 ***
 WarmUp2::Unload();
-ScoresTable::Unload();
 SpawnScreen::DestroyRules();
 
 // ---------------------------------- //
@@ -879,9 +862,9 @@ Void InitializePlayer(CSmPlayer _Player) {
 // ---------------------------------- //
 /// Update the base colors
 Void UpdateBasesColors() {
-	foreach (Base in Bases) {
-		Base.Clan = 0;
-		Base.IsActive = True;
+	foreach (MapBase in MapBases) {
+		MapBase.Clan = 0;
+		MapBase.IsActive = True;
 	}
 }
 
@@ -1149,7 +1132,7 @@ Void UpdateClansPlayers() {
 		foreach (PlayerId in ClanPlayers) {
 			if (!Players.existskey(PlayerId)) {
 				ToRemove[Clan].add(PlayerId);
-				UpdateCombo(3 - Clan);
+				if (!S_AllowUnbalancedTeams || PlayerId != NullId) UpdateCombo(3 - Clan);
 			} else {
 				AllowedPlayers.add(PlayerId);
 			}
@@ -1183,14 +1166,17 @@ Void UpdateClansPlayers() {
 // ---------------------------------- //
 /// Spawn objects
 Void Combo_SpawnObjects() {
-	foreach (ObjectAnchor in ObjectAnchors) {
-		declare ObjectSpawned for ObjectAnchor = False;
-		declare ObjectNextSpawn for ObjectAnchor = Now;
+	foreach (MapLandmark in MapLandmarks_ObjectAnchor) {
+		declare ObjectAnchor <=> MapLandmark.ObjectAnchor;
+		if (ObjectAnchor == Null) continue;
+		
+		declare ObjectSpawned for MapLandmark = False;
+		declare ObjectNextSpawn for MapLandmark = Now;
 		if (ObjectSpawned) continue;
 		if (ObjectNextSpawn > Now) continue;
 		
 		declare CSmObject Object;
-		switch (ObjectAnchor.Tag) {
+		switch (MapLandmark.Tag) {
 			case C_Object["Armor"]		: Object = ObjectCreate(G_ObjectId[C_Object["Armor"]]);
 			case C_Object["Rocket"]		: Object = ObjectCreate(G_ObjectId[C_Object["Rocket"]]);
 			case C_Object["Laser"]		: Object = ObjectCreate(G_ObjectId[C_Object["Laser"]]);
@@ -1199,9 +1185,9 @@ Void Combo_SpawnObjects() {
 		}
 		if (Object != Null) {
 			declare AnchorId for Object = NullId;
-			declare Tag for Object = ObjectAnchor.Tag;
-			AnchorId = ObjectAnchor.Id;
-			Tag = ObjectAnchor.Tag;
+			declare Tag for Object = MapLandmark.Tag;
+			AnchorId = MapLandmark.Id;
+			Tag = MapLandmark.Tag;
 			ObjectSpawned = True;
 			Object.SetAnchor(ObjectAnchor);
 		}
@@ -1292,10 +1278,10 @@ Void PickUpObject(CSmPlayer _Player, CSmObject _Object) {
 	declare Tag for _Object = "";
 	declare AnchorId for _Object = NullId;
 	
-	if (!ObjectAnchors.existskey(AnchorId)) return;
-	declare ObjectAnchor <=> ObjectAnchors[AnchorId];
-	declare ObjectSpawned for ObjectAnchor = False;
-	declare ObjectNextSpawn for ObjectAnchor = Now;
+	if (!MapLandmarks_ObjectAnchor.existskey(AnchorId)) return;
+	declare MapLandmark <=> MapLandmarks_ObjectAnchor[AnchorId];
+	declare ObjectSpawned for MapLandmark = False;
+	declare ObjectNextSpawn for MapLandmark = Now;
 	ObjectSpawned = False;
 	if (C_Timers.existskey(Tag)) ObjectNextSpawn = Now + C_Timers[Tag];
 	
@@ -1332,13 +1318,13 @@ Void PickUpObject(CSmPlayer _Player, CSmObject _Object) {
  *	@param	_Player		The player who will switch weapon
  *	@param	_Weapon		The number of the new weapon
  */
-Void SwitchWeapon(CSmPlayer _Player, CSmModeEvent::EActionSlots _Weapon) {
+Void SwitchWeapon(CSmPlayer _Player, CSmModeEvent::EActionInput _Weapon) {
 	declare Weapons for _Player = C_Default_Weapons;
 	declare CurrentWeapon for _Player = C_Default_Weapon;
 	
 	switch (_Weapon) {
 		// Rocket
-		case CSmModeEvent::EActionSlots::Activable4: {
+		case CSmModeEvent::EActionInput::Activable4: {
 			if (!Weapons.exists(CSmMode::EWeapon::Rocket)) return;
 			SetPlayerWeapon(_Player, CSmMode::EWeapon::Rocket, False);
 			CurrentWeapon = CSmMode::EWeapon::Rocket;
@@ -1347,7 +1333,7 @@ Void SwitchWeapon(CSmPlayer _Player, CSmModeEvent::EActionSlots _Weapon) {
 			Net_Combo_Weapon = "Rocket";
 		}
 		// Laser
-		case CSmModeEvent::EActionSlots::Activable1: {
+		case CSmModeEvent::EActionInput::Activable1: {
 			if (!Weapons.exists(CSmMode::EWeapon::Laser)) return;
 			SetPlayerWeapon(_Player, CSmMode::EWeapon::Laser, False);
 			CurrentWeapon = CSmMode::EWeapon::Laser;
@@ -1356,7 +1342,7 @@ Void SwitchWeapon(CSmPlayer _Player, CSmModeEvent::EActionSlots _Weapon) {
 			Net_Combo_Weapon = "Laser";
 		}
 		// Nucleus
-		case CSmModeEvent::EActionSlots::Activable2: {
+		case CSmModeEvent::EActionInput::Activable2: {
 			if (!Weapons.exists(CSmMode::EWeapon::Nucleus)) return;
 			SetPlayerWeapon(_Player, CSmMode::EWeapon::Nucleus, False);
 			CurrentWeapon = CSmMode::EWeapon::Nucleus;
@@ -1365,7 +1351,7 @@ Void SwitchWeapon(CSmPlayer _Player, CSmModeEvent::EActionSlots _Weapon) {
 			Net_Combo_Weapon = "Nucleus";
 		}
 		// Arrow
-		case CSmModeEvent::EActionSlots::Activable3: {
+		case CSmModeEvent::EActionInput::Activable3: {
 			if (!Weapons.exists(CSmMode::EWeapon::Arrow)) return;
 			SetPlayerWeapon(_Player, CSmMode::EWeapon::Arrow, False);
 			CurrentWeapon = CSmMode::EWeapon::Arrow;
@@ -1405,10 +1391,10 @@ Void CycleWeapon(CSmPlayer _Player, Integer _Step) {
 	
 	declare netwrite Text Net_Combo_Weapon for _Player;
 	switch (CurrentWeapon) {
-		case CSmMode::EWeapon::Laser	: SwitchWeapon(_Player, CSmModeEvent::EActionSlots::Activable1);
-		case CSmMode::EWeapon::Nucleus	: SwitchWeapon(_Player, CSmModeEvent::EActionSlots::Activable2);
-		case CSmMode::EWeapon::Arrow	: SwitchWeapon(_Player, CSmModeEvent::EActionSlots::Activable3);
-		case CSmMode::EWeapon::Rocket	: SwitchWeapon(_Player, CSmModeEvent::EActionSlots::Activable4);
+		case CSmMode::EWeapon::Laser	: SwitchWeapon(_Player, CSmModeEvent::EActionInput::Activable1);
+		case CSmMode::EWeapon::Nucleus	: SwitchWeapon(_Player, CSmModeEvent::EActionInput::Activable2);
+		case CSmMode::EWeapon::Arrow	: SwitchWeapon(_Player, CSmModeEvent::EActionInput::Activable3);
+		case CSmMode::EWeapon::Rocket	: SwitchWeapon(_Player, CSmModeEvent::EActionInput::Activable4);
 	}
 }
 
@@ -1490,6 +1476,12 @@ main() {
 					}
 				}
 			}
+			
+			if (Net_ModeSport_PlayersNbTotal > 0 && Net_ModeSport_PlayersNbTotal >= {{{TotalReqPlayers}}}) {
+				PlayUiSound(::EUISound::Custom4, 1, 0.75);
+			} else {
+				PlayUiSound(::EUISound::Custom4, 0, 0.75);
+			}
 		}
 		
 		if (!Frame_Waiting.Visible && PrevPlayersNbTotal < {{{TotalReqPlayers}}}) {
@@ -1533,17 +1525,6 @@ Void WaitConnection() {
 		
 		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
 			Net_ModeSport_PlayersNbTotal = PlayersNbTotal;
-			if (ClansNbPlayers[1] >= S_Script_NbPlayersPerTeam && ClansNbPlayers[2] >= S_Script_NbPlayersPerTeam) {
-				UIManager.UIAll.SendNotice(
-					"", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, 
-					CUIConfig::EUISound::Custom4, 1
-				);
-			} else {
-				UIManager.UIAll.SendNotice(
-					"", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, 
-					CUIConfig::EUISound::Custom4, 0
-				);
-			}
 		}
 		
 		if (PrevClansNbPlayers[1] != ClansNbPlayers[1] || PrevClansNbPlayers[2] != ClansNbPlayers[2]) {
@@ -1591,6 +1572,8 @@ Void WaitConnection() {
 // ---------------------------------- //
 /// Manage the warm up sequence
 Void WarmUp() {
+	XmlRpc::BeginWarmUp();
+	
 	// Init warm up
 	declare PrevSequence = UIManager.UIAll.UISequence;
 	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
@@ -1604,9 +1587,9 @@ Void WarmUp() {
 	// ---------------------------------- //
 	// Initialize objects
 	ObjectDestroyAll();
-	foreach (ObjectAnchor in ObjectAnchors) {
-		declare ObjectSpawned for ObjectAnchor = False;
-		declare ObjectNextSpawn for ObjectAnchor = Now;
+	foreach (MapLandmark in MapLandmarks_ObjectAnchor) {
+		declare ObjectSpawned for MapLandmark = False;
+		declare ObjectNextSpawn for MapLandmark = Now;
 		ObjectSpawned = False;
 		ObjectNextSpawn = Now;
 	}
@@ -1756,4 +1739,6 @@ Void WarmUp() {
 	UIManager.UIAll.BigMessage = "";
 	UIManager.UIAll.StatusMessage = "";
 	UIManager.UIAll.UISequence = PrevSequence;
+	
+	XmlRpc::EndWarmUp();
 }

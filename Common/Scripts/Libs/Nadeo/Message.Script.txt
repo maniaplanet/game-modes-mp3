@@ -2,8 +2,14 @@
  * Message library
  */
 
-#Const Version		"2013-05-06"
+#Const Version		"2013-11-05"
 #Const ScriptName	"Message.Script.txt"
+
+// ---------------------------------- //
+// Globales
+// ---------------------------------- //
+declare Text G_LibMessage_DefaultBigMessage;		///< Default general BigMessage
+declare Text G_LibMessage_DefaultStatusMessage;		///< Default general StatusMessage
 
 // ---------------------------------- //
 // Functions
@@ -27,7 +33,7 @@
 Void Private_DisplayMessage(
 	CUIConfig _UI, 
 	Integer _Level,
-	CSmPlayer _Player, 
+	CPlayer _Player, 
 	Text _Message, 
 	Integer _Duration, 
 	CUIConfig::EUISound _Sound, 
@@ -67,7 +73,7 @@ Void Private_DisplayMessage(
  */
 Void Private_SendMessageTo(
 	Integer _Level, 
-	CSmPlayer _Player, 
+	CPlayer _Player, 
 	Text _Message, 
 	Integer _Duration, 
 	Integer _Priority,
@@ -75,11 +81,7 @@ Void Private_SendMessageTo(
 	Integer _SoundVariant
 ) {	
 	// Send message to all players (Players + Spectators)
-	if (_Player == Null) {	
-		declare AllPlayers = CSmPlayer[];
-		foreach (Player in Players) { AllPlayers.add(Player); }
-		foreach (Spectator in Spectators) { AllPlayers.add(Spectator); }
-		
+	if (_Player == Null) {			
 		foreach (Player in AllPlayers) {
 			/* Priority of the current message, 
 			 * a lower priority message can't overwrite it. 
@@ -121,10 +123,6 @@ Void Private_SendMessageTo(
 // ---------------------------------- //
 /// Clean all messages
 Void Private_CleanMessages(Integer _Level) {
-	declare AllPlayers = CSmPlayer[];
-	foreach (Player in Players) { AllPlayers.add(Player); }
-	foreach (Spectator in Spectators) { AllPlayers.add(Spectator); }
-	
 	foreach (Player in AllPlayers) {
 		declare UI <=> UIManager.GetUI(Player);
 		if (UI != Null) {
@@ -144,6 +142,35 @@ Void Private_CleanMessages(Integer _Level) {
 		}
 		if (LibMessage_MessageEndTime[1] <= 0 && LibMessage_MessageEndTime[2] <= 0) {
 			LibMessage_MessageActive = False;
+		}
+	}
+}
+
+// ---------------------------------- //
+/** Set the default message to display when the player don't have any custom message
+ *
+ *	@param	_Message			The default message
+ */
+Void Private_SetDefaultMessage(Integer _Level, Text _Message) {
+	if (_Level != 1 && _Level != 2) return;
+	
+	if (_Level == 1) {
+		G_LibMessage_DefaultBigMessage = _Message;
+	} else if (_Level == 2) {
+		G_LibMessage_DefaultStatusMessage = _Message;
+	}
+	
+	foreach (Player in AllPlayers) {
+		if (Player.User.IsFakeUser) continue;
+		
+		declare LibMessage_MessageEndTime for Player = [1 => -1, 2 => -1];
+		
+		if (LibMessage_MessageEndTime[_Level] <= 0) {
+			declare UI <=> UIManager.GetUI(Player);
+			if (UI != Null) {
+				if (_Level == 1) UI.BigMessage = G_LibMessage_DefaultBigMessage;
+				else if (_Level == 2) UI.StatusMessage = G_LibMessage_DefaultStatusMessage;
+			}
 		}
 	}
 }
@@ -189,7 +216,7 @@ Void SendBigMessage(Text _Message, Integer _Duration, Integer _Priority) {
  *	@param	_Duration	The message to duration
  *	@param	_Priority		The message priority
  */
-Void SendBigMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
+Void SendBigMessage(CPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
 	Private_SendMessageTo(1, _Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
 }
 
@@ -216,7 +243,7 @@ Void SendBigMessage(Text _Message, Integer _Duration, Integer _Priority, CUIConf
  *	@param	_Sound			The sound to play with the message
  *	@param	_SoundVariant	The sound variant to play
  */
-Void SendBigMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
+Void SendBigMessage(CPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
 	Private_SendMessageTo(1, _Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
 }
 
@@ -239,7 +266,7 @@ Void SendStatusMessage(Text _Message, Integer _Duration, Integer _Priority) {
  *	@param	_Duration	The message to duration
  *	@param	_Priority		The message priority
  */
-Void SendStatusMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
+Void SendStatusMessage(CPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
 	Private_SendMessageTo(2, _Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
 }
 
@@ -266,8 +293,37 @@ Void SendStatusMessage(Text _Message, Integer _Duration, Integer _Priority, CUIC
  *	@param	_Sound			The sound to play with the message
  *	@param	_SoundVariant	The sound variant to play
  */
-Void SendStatusMessage(CSmPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
+Void SendStatusMessage(CPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
 	Private_SendMessageTo(2, _Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
+}
+
+// ---------------------------------- //
+/** Set the default BigMessage to display when the player don't have any custom message
+ *
+ *	@param	_Message			The default BigMessage
+ */
+Void SetDefaultBigMessage(Text _Message) {
+	Private_SetDefaultMessage(1, _Message);
+}
+
+// ---------------------------------- //
+/** Set the default StatusMessage to display when the player don't have any custom message
+ *
+ *	@param	_Message			The default StatusMessage
+ */
+Void SetDefaultStatusMessage(Text _Message) {
+	Private_SetDefaultMessage(2, _Message);
+}
+
+// ---------------------------------- //
+/** Set the default BigMessage and StatusMessage to display when the player don't have any custom message
+ *
+ *	@param	_Message			The default BigMessage and StatusMessage
+ */
+Void SetDefaultAllMessages(Text _Message) {
+	for (I, 1, 2) {
+		Private_SetDefaultMessage(I, _Message);
+	}
 }
 
 // ---------------------------------- //
@@ -292,7 +348,7 @@ Void CleanAllMessages() {
 /// Main loop
 Void Loop() {
 	foreach (Player in AllPlayers) {
-		if (Player.IsFakePlayer) continue;
+		if (Player.User.IsFakeUser) continue;
 		
 		declare LibMessage_MessageActive for Player = False;
 		
@@ -307,8 +363,8 @@ Void Loop() {
 				
 					declare UI <=> UIManager.GetUI(Player);
 					if (UI != Null) {
-						if (I == 1) UI.BigMessage = "";
-						else if (I == 2) UI.StatusMessage = "";
+						if (I == 1) UI.BigMessage = G_LibMessage_DefaultBigMessage;
+						else if (I == 2) UI.StatusMessage = G_LibMessage_DefaultStatusMessage;
 					}
 					
 					if (LibMessage_MessageEndTime[1] <= 0 && LibMessage_MessageEndTime[2] <= 0) {

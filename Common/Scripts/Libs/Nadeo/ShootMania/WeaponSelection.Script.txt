@@ -1,4 +1,6 @@
 /**
+ *	DEPRECATED - Use the new WeaponSelection2 library instead
+ *
  *	Weapon selection library
  *	Display an interface for choosing a weapon while not spawned
  */

@@ -1,24 +1,75 @@
-// ==============================
-//  
-// ==============================
-Void EnterPlayground(Integer _NbPlayers) 
-{ 
-	assert(_NbPlayers == 1); // TODO sinon.
-	if (!IsSwitchedToPlayground) 
-	{ 
-		RequestEnterPlayground(); 
-	} 
-	wait(IsSwitchedToPlayground); 
-	wait(Mode != Null && Mode.Players.count >= 1);
-	assert(Mode.Players.count == _NbPlayers);
-	
+/** 
+ *	MapType library
+ */
+
+#Const Version		"2013-11-14"
+#Const ScriptName	"MapType.Script.txt"
+
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
+// ---------------------------------- //
+// Public
+// ---------------------------------- //
+
+// ---------------------------------- //
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
 }
 
-Void LeavePlayground() 
-{ 
-	if (IsSwitchedToPlayground) 
-	{ 
-		RequestLeavePlayground(); 
-	} 
-	wait(!IsSwitchedToPlayground); 
-} 
+// ---------------------------------- //
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+// ---------------------------------- //
+/** Start map test
+ *
+ *	@param	_NbPlayers		Number of players testing
+ */
+Void EnterPlayground(Integer _NbPlayers) {
+	assert(_NbPlayers == 1);
+	if (!IsSwitchedToPlayground) {
+		RequestEnterPlayground();
+	}
+	wait(IsSwitchedToPlayground);
+	wait(Mode != Null && Mode.Players.count >= 1);
+	assert(Mode.Players.count == _NbPlayers);
+}
+
+// ---------------------------------- //
+/// Stop map test
+Void LeavePlayground() {
+	if (IsSwitchedToPlayground) {
+		RequestLeavePlayground();
+	}
+	wait(!IsSwitchedToPlayground);
+}
+
+// ---------------------------------- //
+/** Save the map type script version in the metadata of the map
+ *
+ *	@param	_Version	The version number of the maptype
+ */
+Void SetVersion(Integer _Version) {
+	declare metadata LibMapType_MapTypeVersion for Map = 0;
+	LibMapType_MapTypeVersion = _Version;
+}
+
+// ---------------------------------- //
+/** Get the map type script version in the metadata of the map
+ *
+ *	@return	The version number of the maptype
+ */
+Integer GetVersion() {
+	declare metadata LibMapType_MapTypeVersion for Map = 0;
+	return LibMapType_MapTypeVersion;
+}

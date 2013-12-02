@@ -1,13 +1,26 @@
 /**
- * Validation for the time attack maps
+ *	Validation for the time attack maps
+ *
+ *	Exactly one spawn and one goal with any number of checkpoints
  */
  
 #RequireContext CSmMapType
-#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Const Version			"2013-11-07"
+#Const MapTypeVersion	1
+#Const ScriptName		"TimeAttackArena.Script.txt"
 
+#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Include "Libs/Nadeo/MapType.Script.txt" as MapType
+
+// ---------------------------------- //
+// Globales
+// ---------------------------------- //
 declare Text Rules;
 
-/* -------------------------------------- */
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
+// ---------------------------------- //
 // Initialize the anchors
 Void InitAnchors() {
 	foreach (Data in AnchorData) {
@@ -21,7 +34,7 @@ Void InitAnchors() {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Check if the map is valid
 Void UpdateValidability() {	 
 	Anchor::UpdateAnchorCounts(); 
@@ -30,7 +43,7 @@ Void UpdateValidability() {
 	//if (!Anchor::HasAtLeastOneAnchor("Checkpoint", 0, _("You must place at least one Checkpoint (use block property mode)."))) return;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Return the manialink for anchor edition
 Text EditAnchorManialink() {
 	
@@ -88,7 +101,7 @@ Text EditAnchorManialink() {
 	return MLText;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Manialink for non editable anchor
 Text NoEditManialink() {
 	return """
@@ -126,10 +139,9 @@ Text NoEditManialink() {
 	""";
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Show the anchor edition manialink
-Void EditAnchorData(Ident _EditedAnchorDataId)
-{	
+Void EditAnchorData(Ident _EditedAnchorDataId) {	
 	declare Text AnchorTag for ManialinkPage;
 	declare Boolean Finish for ManialinkPage;
 	if (AnchorData[_EditedAnchorDataId].DefaultTag != "Goal" && AnchorData[_EditedAnchorDataId].DefaultTag != "Checkpoint") ManialinkText = NoEditManialink();
@@ -144,11 +156,12 @@ Void EditAnchorData(Ident _EditedAnchorDataId)
 	UpdateValidability();
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Main
-/* -------------------------------------- */
-
+// ---------------------------------- //
 main() {
+	MapType::SetVersion(MapTypeVersion);
+	
 	CustomEditAnchorData = True;
 	Rules = _("You must place exactly one Spawn, at least one Goal and as much Checkpoints as you want.");
 	InitAnchors();	

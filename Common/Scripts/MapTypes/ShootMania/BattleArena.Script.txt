@@ -1,9 +1,26 @@
+/**
+ *	MapType for Battle
+ *
+ *	One optionnal engagement checkpoint, at least one goal in each clan with the same number for each, one spawn for each clan
+ */
+
 #RequireContext CSmMapType
+#Const Version			"2013-11-07"
+#Const MapTypeVersion	1
+#Const ScriptName		"BattleArena.Script.txt"
+
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Include "Libs/Nadeo/MapType.Script.txt" as MapType
 
+// ---------------------------------- //
+// Globales
+// ---------------------------------- //
 declare Text Rules;
 
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
 // ---------------------------------- //
 // Initialize the anchors
 Void InitAnchors() {
@@ -198,8 +215,9 @@ Void EditAnchorData(Ident _EditedAnchorDataId)
 // ---------------------------------- //
 // Main
 // ---------------------------------- //
-
-main() {		
+main() {
+	MapType::SetVersion(MapTypeVersion);
+	
 	UpdateValidability();
 	CustomEditAnchorData = True;
 	Rules = _("You must place exactly one Spawn #1 and one Spawn #2.\nYou must place the same number of Goal #1 and Goal #2 with at least one of each.\n\nYou can place one Goal 'Engage' to determine which team will start attacking in Battle Waves mode.");

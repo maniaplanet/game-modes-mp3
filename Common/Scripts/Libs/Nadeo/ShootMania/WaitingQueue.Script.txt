@@ -587,11 +587,11 @@ Text UpdateLayerWaitingQueue() {
 	
 	Frame ^= """
 		<quad posn="0 -2 3" sizen="{{{Width}}} {{{ quadsize*5+7+Marge }}}" halign="left" image="file://Media/Manialinks/ShootMania/Common/RoleChoiceBg.dds" colorize="777" />
-		<label posn="{{{Width/2.}}} -3 5" halign="center" text="{{{_("Waiting Queue")}}}" sizen="40 0" textemboss="1" />""";
+		<label posn="{{{Width/2.}}} -3.5 5" halign="center" text="{{{_("Waiting Queue")}}}" textsize="2" sizen="40 0" textemboss="1" />""";
 
 	for(j, 2, Taille-1) {
 		i += 1;
-		Frame ^= """<label posn="{{{Width/2.}}} {{{ -5*i-4 }}} 5" halign="center" text="{{{ TL::MLEncode(GetTeamName(j)) }}}" sizen="40 0" textemboss="1"  />""";
+		Frame ^= """<label posn="{{{Width/2.}}} {{{ -5*i-4 }}} 5" halign="center" text="{{{ TL::MLEncode(GetTeamName(j)) }}}" textsize="2" sizen="40 0" textemboss="1"  />""";
 	}
 	
 	/*

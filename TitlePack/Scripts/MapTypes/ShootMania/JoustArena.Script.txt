@@ -1,12 +1,25 @@
-// -------------------------------------- //
-//   Maps with 1 spawn point and two poles
-// -------------------------------------- //
+/**
+ *	MapType for Melee
+ *
+ *	Maps with 1 spawn point and two poles
+ */
 
 #RequireContext CSmMapType
-#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Const Version			"2013-11-07"
+#Const MapTypeVersion	1
+#Const ScriptName		"JoustArena.Script.txt"
 
+#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Include "Libs/Nadeo/MapType.Script.txt" as MapType
+
+// ---------------------------------- //
+// Gloables
+// ---------------------------------- //
 declare Text Rules;
-	
+
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
 // -------------------------------------- //
 // Initialize the anchors
 Void InitAnchors() {
@@ -164,14 +177,16 @@ Void EditAnchorData(Ident _EditedAnchorDataId)
 	}
 	
 	AnchorData[_EditedAnchorDataId].Tag = AnchorTag;
-	AnchorData[_EditedAnchorDataId].Order = 0;	
+	AnchorData[_EditedAnchorDataId].Order = 0;
 	UpdateValidability();
 }
 
 // -------------------------------------- //
 // Main
 // -------------------------------------- //
-main() {	
+main() {
+	MapType::SetVersion(MapTypeVersion);
+	
 	CustomEditAnchorData = True;	
 	Rules = _("You must place exactly one Spawn.\nYou must place the same number of Goal1 and Goal2 with at least one of each.");
 	InitAnchors();

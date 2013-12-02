@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"JoustArena"
-#Const	Version				"2013-07-24"
+#Const	Version				"2013-10-25"
 #Const	ScriptName			"Joust.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -19,7 +19,6 @@
 #Include "Libs/Nadeo/ShootMania/WaitingQueue.Script.txt" as WQ
 #Include "Libs/Nadeo/ShootMania/KingOfTheLobby.Script.txt" as Lobby
 #Include "Libs/Nadeo/ShootMania/WarmUpSimple.Script.txt" as WarmupSimple
-#Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
 
 // ---------------------------------- //
 // Settings
@@ -28,7 +27,7 @@
 #Setting S_RoundPointsGap	2		as _("Round points gap")
 #Setting S_RoundPointsLimit	11		as _("Round points limit")
 #Setting S_RoundTimeLimit	0 		as _("Round time limit")
-#Setting S_PoleTimeLimit	60		as _("Pole capture time limit")
+#Setting S_PoleTimeLimit	45		as _("Pole capture time limit")
 
 #Setting S_MatchPointsToWin	3		as _("Match points to win")
 #Setting S_MatchPointsGap	0		as _("Match points gap")
@@ -76,7 +75,6 @@ MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 MB_LogVersion(WQ::GetScriptName(), WQ::GetScriptVersion());
 MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
 MB_LogVersion(WarmupSimple::GetScriptName(), WarmupSimple::GetScriptVersion());
-MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
 ***
 
 // ---------------------------------- //
@@ -111,7 +109,7 @@ MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 // ---------------------------------- //
 // Create the rules
 declare ModeName = "Joust";
-declare ModeObjectives = TextLib::Compose(_("$<%11. $>You must touch your opponent with your weapons to score points.\n$<%12. $>The first player to score at least %2 points with %3 ahead of his opponent wins the round.\n$<%13. $>Take at least %4 rounds with %5 ahead of your opponents to win the match."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_RoundPointsToWin), TextLib::ToText(S_RoundPointsGap), TextLib::ToText(S_MatchPointsToWin), TextLib::ToText(S_MatchPointsGap));
+declare ModeObjectives = TextLib::Compose(_("$<%11. $>You must hit your opponent with your weapons to score points.\n$<%12. $>The first player to score at least %2 points with %3 ahead of their opponent wins the round.\n$<%13. $>Take at least %4 rounds with %5 ahead of your opponents to win the match."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_RoundPointsToWin), TextLib::ToText(S_RoundPointsGap), TextLib::ToText(S_MatchPointsToWin), TextLib::ToText(S_MatchPointsGap));
 declare ModeConditions = TextLib::Compose(_("$<%11. $>Ammunitions are limited. You must alternatively capture poles on each side of the map to reload."), "$"^SpawnScreen::GetModeColor());
 
 SpawnScreen::AddSubsection(_("Type"), _("Duel"), 0.);
@@ -152,18 +150,14 @@ LayerUpdated = Layers::Update("Spectator", CreateLayerSpectator());
 
 ***ScoresTable***
 ***
-declare Text BgImage = "file://Media/Manialinks/ShootMania/Common/topsBg.dds";
-ScoresTable::Load();
-ScoresTable::SetTableFormat(1, 5);
-ScoresTable::SetColumnsWidth(1.5, 1., 2., 18., 1.5, 1.5, 0., 0., 0., 3., 3.);
-ScoresTable::SetTableWidth(148.);
-ScoresTable::SetPlayerCardHeight(12.);
-ScoresTable::SetTableBackgroundImage(BgImage, <0.05, 56.>, <164., 178.>);
-ScoresTable::SetColumnsName("", "", "", _("Hits"), _("Score"));
-ScoresTable::SetRoundScoreFormat("$s$0c0");
-ScoresTable::SetDefaultFooterStats(TextLib::Compose(_("Best combo: %1 by $<%2$>"), "-", "-"));
-ScoresTable::Build();
-UpdateScoresTable();
+ST2::SetStyle("LibST_SMBaseOneColumn");
+ST2::SetStyle("LibST_SMWithLegends");
+ST2::SetStyle("LibST_SMBasePoints");
+ST2::SetColLegend("LibST_SMRoundPoints", _("Hits"));
+ST2::SetColLegend("LibST_SMPoints", _("Score"));
+ST2::SetColTextSize("LibST_SMPoints", 4.);
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+ST2::Build("SM");
 ***
 
 
@@ -190,7 +184,6 @@ declare Ident[] HasPlayed;				///< Save the players who played at least once sin
 Users_SetNbFakeUsers(C_NbBots, 0);
 
 Score::MatchBegin(True);
-UpdateScoresTable();
 
 SkipPlayersPresentation = False;
 MatchWinnerId = NullId;
@@ -218,9 +211,7 @@ foreach (Score in Scores) {
 	declare MapPoints for Score = 0;
 	MapPoints = 0;
 }
-foreach (Player in AllPlayers) {
-	ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Best combo: %1 by $<%2$>"), "-", "-"));
-}
+ST2::SetFooterText(TextLib::Compose("%1 $<$c90-$> %2 -", _("Best combo :"), _("by")));
 
 // ---------------------------------- //
 // Init Poles
@@ -247,11 +238,13 @@ if (S_Matchmaking) {
 // ---------------------------------- //
 // start warmup if requested
 else if(S_UseWarmup) {
+	XmlRpc::BeginWarmUp();
 	WarmupSimple::Initialize(20);
 	WarmupSimple::SetMinimumPlayersNumber(2);
 	WarmupSimple::SetCountdownOnPlayersReady(3);
 	WarmupSimple::Start();
 	MB_Sleep(500); // avoids border effects right after the warmup.
+	XmlRpc::EndWarmUp();
 }
 ***
 
@@ -334,7 +327,6 @@ for (I, 1, 2) {
 
 // ---------------------------------- //
 // Update the score header
-
 SetScoreHeader();
 
 // ---------------------------------- //
@@ -426,11 +418,6 @@ if (!G_CurrPlayerIds.exists(Player.Id)) {
 	LayerAttached = Layers::Attach("Spectator", Player.Id);
 	UpdateLayerSpectator();
 }
-declare BestComboAuthorName = "-";
-declare BestComboHit = "-";
-if (Users.existskey(G_BestComboAuthor)) BestComboAuthorName = Users[G_BestComboAuthor].Name;
-if (G_BestComboHit > 0) BestComboHit = TextLib::ToText(G_BestComboHit);
-ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Best combo: %1 by $<%2$>"), BestComboHit, BestComboAuthorName));
 ***
 
 // ---------------------------------- //
@@ -440,11 +427,6 @@ ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Best combo: %1 by $<%2$>
 ***
 LayerAttached = Layers::Attach("Spectator", Spectator.Id);
 UpdateLayerSpectator();
-declare BestComboAuthorName = "-";
-declare BestComboHit = "-";
-if (Users.existskey(G_BestComboAuthor)) BestComboAuthorName = Users[G_BestComboAuthor].Name;
-if (G_BestComboHit > 0) BestComboHit = TextLib::ToText(G_BestComboHit);
-ScoresTable::SetFooterStats(Spectator, TextLib::Compose(_("Best combo: %1 by $<%2$>"), BestComboHit, BestComboAuthorName));
 ***
 
 // ---------------------------------- //
@@ -836,7 +818,6 @@ if (LoserId != NullId && Players.existskey(LoserId) && Players[LoserId].SpawnSta
 	Players[LoserId].IsHighlighted = False;
 }
 SetScoreHeader();
-UpdateScoresTable();
 
 MB_Sleep(3000);
 StartTime = -1;
@@ -1003,7 +984,6 @@ SpawnScreen::DestroyRules();
 SpawnScreen::DestroyMapInfo();
 SpawnScreen::DestroyScores();
 LayerDestroyed = Layers::Destroy("Spectator");
-ScoresTable::Unload();
 ***
 
 // ---------------------------------- //
@@ -1039,7 +1019,9 @@ Void UpdateBasesColors() {
 	
 	declare UpdatedBases = Ident[];
 	
-	foreach (BlockPole in BlockPoles) {			
+	foreach (BlockPole in BlockPoles) {
+		if (BlockPole.Base == Null) continue;
+		
 		if (!UpdatedBases.exists(BlockPole.Base.Id)) {
 			BlockPole.Base.Clan = BlockPole.Gauge.Clan;
 			if (BlockPole.Gauge.Value <= 0) BlockPole.Base.IsActive = False;
@@ -1140,9 +1122,7 @@ Void UpdateCombo(CSmPlayer _Player) {
 		G_BestComboTimer = ComboTimer;
 		G_BestComboAuthor = _Player.User.Id;
 		
-		foreach (Player in AllPlayers) {
-			ScoresTable::SetFooterStats(Player, TextLib::Compose(_("Best combo: %1 by $<%2$>"), TextLib::ToText(G_BestComboHit), _Player.Name));
-		}
+		ST2::SetFooterText(TextLib::Compose("%1 $<$c90"^G_BestComboHit^"$> %2 $<"^_Player.Name^"$>", _("Best combo :"), _("by")));
 	}
 }
 
@@ -1244,14 +1224,6 @@ Void SetScoreHeader() {
 	}
 	
 	UIManager.UIAll.OverlayScoreSummary = Players.existskey(G_CurrPlayerIds[1]) && Players.existskey(G_CurrPlayerIds[2]);
-}
-
-Void UpdateScoresTable() {
-	foreach(Player in AllPlayers) {
-		if(Player.Score == Null) continue;
-		//ScoresTable::SetFooterScore(Player, ""^Player.Score.Points);
-		ScoresTable::SetFooterScore(Player, " ");
-	}
 }
 
 /** Display the break/counter/last point message

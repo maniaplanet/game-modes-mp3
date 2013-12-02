@@ -72,4 +72,10 @@ Void SetMatchWinnerFromScore(Integer _RoundsToWin, Integer _RoundGapToWin,Intege
 	}
 }
 
+Void ForceMatchWinner(Integer _Clan) {
+	for(Clan, 1, 2) {
+		ClanWinsMatch[Clan] = (_Clan == Clan);
+	}
+}
+
 Void MatchEnd() {}

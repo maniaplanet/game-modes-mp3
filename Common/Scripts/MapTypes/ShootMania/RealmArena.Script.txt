@@ -7,13 +7,24 @@
  */
 
 #RequireContext CSmMapType
+#Const Version			"2013-11-07"
+#Const MapTypeVersion	1
+#Const ScriptName	"RealmArena.Script.txt"
+
 #Include "TextLib" as TL
 #Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Include "Libs/Nadeo/MapType.Script.txt" as MapType
 
+// ---------------------------------- //
+// Constants
+// ---------------------------------- //
 #Const C_MaxPoles 5
 #Const C_Rules _("- You must place 1 SpawnStart #1 for team 1.\n- You must place 1 SpawnStart #2 for team 2.\n- You must place 5 Spawn/Pole couples numbered from #1 to #5.\n")
 
-/* -------------------------------------- */
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
+// ---------------------------------- //
 // Initialize the anchors
 Void InitAnchors() {
 	foreach (Anchor in AnchorData) {
@@ -39,7 +50,7 @@ Void InitAnchors() {
 	}
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Check if the map is valid
 Void UpdateValidability() {
 	InitAnchors();
@@ -54,7 +65,7 @@ Void UpdateValidability() {
 	ValidationStatus = CMapType::ValidationStatus::Validated;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Return the manialink for spawn edition
 Text EditSpawnManialink() {
 	
@@ -157,7 +168,7 @@ Text EditSpawnManialink() {
 	return MLText;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Return the manialink for pole edition
 Text EditPoleManialink() {
 	
@@ -252,7 +263,7 @@ Text EditPoleManialink() {
 	return MLText;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Manialink for non editable anchor
 Text NoEditManialink() {
 	return """
@@ -290,7 +301,7 @@ Text NoEditManialink() {
 """;
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Show the anchor edition manialink
 Void EditAnchorData(Ident _EditedAnchorDataId) {	
 	declare Text	AnchorTag	for ManialinkPage;
@@ -314,10 +325,12 @@ Void EditAnchorData(Ident _EditedAnchorDataId) {
 	UpdateValidability();
 }
 
-/* -------------------------------------- */
+// ---------------------------------- //
 // Main
-/* -------------------------------------- */
+// ---------------------------------- //
 main() {
+	MapType::SetVersion(MapTypeVersion);
+	
 	InitAnchors();
 	UpdateValidability();
 	CustomEditAnchorData = True;

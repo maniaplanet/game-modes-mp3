@@ -1,7 +1,7 @@
-#Const Version		"2013-04-08"
+#Const Version		"2013-11-18"
 #Const ScriptName	"Mode.Script.txt"
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Return the version number of the script
  *
  *	@return		The version number of the script
@@ -10,7 +10,7 @@ Text GetScriptVersion() {
 	return Version;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Return the name of the script
  *
  *	@return		The name of the script
@@ -19,30 +19,24 @@ Text GetScriptName() {
 	return ScriptName;
 }
 
-// ==============================
-//  Synchro
-// ==============================
+// ---------------------------------- //
+/// Do a synchronization
 Void Synchro_DoBarrier()
 {
 	declare Barrier = Synchro_AddBarrier();
 	wait(Synchro_BarrierReached(Barrier) || ServerShutdownRequested);
 }
 
-// ==============================
-//  Team balance
-// ==============================
-
-Void AutoTeamBalance()
-{
+// ---------------------------------- //
+/// Balance the teams
+Void AutoTeamBalance() {
 	This.AutoTeamBalance();
 	Synchro_DoBarrier();
 }
 
-// ==============================
-//  Playlist
-// ==============================
-Void LoadMap() 
-{ 
+// ---------------------------------- //
+/// Load the next map
+Void LoadMap() { 
 	if (!MapLoaded) 
 	{
 		RequestLoadMap(); 
@@ -50,8 +44,9 @@ Void LoadMap()
 	wait(MapLoaded || ServerShutdownRequested); 
 }
 
-Void UnloadMap() 
-{ 
+// ---------------------------------- //
+/// Unload the current map
+Void UnloadMap() { 
 	if (MapLoaded) 
 	{
 		UIManager.UIAll.UISequence = CUIConfig::EUISequence::None;
@@ -62,11 +57,9 @@ Void UnloadMap()
 } 
 
 
-// ==============================
-//  Ladder
-// ==============================
-Void Ladder_OpenMatch_All() // Ladder_OpenMatch(m_Scores) marche pas...
-{
+// ---------------------------------- //
+/// Create a new match on the ladder and register all the scores
+Void Ladder_OpenMatch_All() {
 	Ladder_CancelMatchRequest();
 	wait(!Ladder_RequestInProgress); 
 	
@@ -78,8 +71,12 @@ Void Ladder_OpenMatch_All() // Ladder_OpenMatch(m_Scores) marche pas...
 	wait(!Ladder_RequestInProgress); 
 }
 
-Void Ladder_OpenMatch(CScore[] _Scores)
-{
+// ---------------------------------- //
+/** Create a new match on the ladder and register a list of scores
+ *
+ *	@param	_Scores 	The list of scores to register on the ladder
+ */
+Void Ladder_OpenMatch(CScore[] _Scores) {
 	Ladder_CancelMatchRequest();
 	wait(!Ladder_RequestInProgress); 
 	
@@ -91,9 +88,9 @@ Void Ladder_OpenMatch(CScore[] _Scores)
 	wait(!Ladder_RequestInProgress); 
 }
 
-Void Ladder_CloseMatch() 
-{
-	// assert que les scores sont bien triés, dans le même ordre que le ladder.
+// ---------------------------------- //
+/// Close the current match on the ladder
+Void Ladder_CloseMatch() {
 	declare CScore PrevScore;
 	foreach(Score in Scores) { 
 		if (PrevScore == Null)
@@ -106,9 +103,24 @@ Void Ladder_CloseMatch()
 	wait(!Ladder_RequestInProgress); 
 }
 
-Void Ladder_CancelMatch()
-{
+// ---------------------------------- //
+/// Cancel the current match on the ladder
+Void Ladder_CancelMatch() {
 	Ladder_CancelMatchRequest();
 	wait(!Ladder_RequestInProgress); 
 }
 
+// ---------------------------------- //
+/** Play a sound
+ *
+ *	@param	_Name		The name of the sound to play
+ *	@param	_Variant	The variant to use
+ */
+Void PlaySound(CUIConfig::EUISound _Name, Integer _Variant) {
+	UIManager.UIAll.SendNotice(
+		"", 
+		CUIConfig::ENoticeLevel::PlayerInfo, Null, 
+		CUIConfig::EAvatarVariant::Default, 
+		_Name, _Variant
+	);
+}

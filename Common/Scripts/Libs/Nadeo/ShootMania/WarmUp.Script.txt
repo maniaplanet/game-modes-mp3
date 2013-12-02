@@ -1,3 +1,9 @@
+/**
+ *	DEPRECATED - Use the new WarmUp2 library instead
+ *
+ *	WarmUp lib
+ */
+
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 

@@ -3,29 +3,29 @@
  *	Handle more than 2 clans in a game
  */
 
-#Const Version		"2012-11-05"
+#Const Version		"2013-11-29"
 #Const ScriptName	"Color.Script.txt"
 
 #Include "TextLib" as TextLib
 #Include "MathLib" as MathLib
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Settings
-/* ------------------------------------- */
+// ---------------------------------- //
 
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Globales
-/* ------------------------------------- */
+// ---------------------------------- //
 #Const C_GoldenRatioInverse 0.618033988749895
 
 declare Real[Text] G_ColorHue;	///< Last generated hue for clan color
 
-/* ------------------------------------- */
+// ---------------------------------- //
 // Functions
-/* ------------------------------------- */
+// ---------------------------------- //
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Return the version number of the script
  *
  *	@return		The version number of the script
@@ -34,7 +34,7 @@ Text GetScriptVersion() {
 	return Version;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Return the name of the script
  *
  *	@return		The name of the script
@@ -43,19 +43,20 @@ Text GetScriptName() {
 	return ScriptName;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
+/// Unload the library
+Void Unload() {
+	G_ColorHue.clear();
+}
+
+// ---------------------------------- //
 /// Load the library
 Void Load() {
+	Unload();
 	G_ColorHue["LibColor_DefaultSet"] = MathLib::Rand(0., 1.);
 }
 
-/* ------------------------------------- */
-/// Load the library
-Void Unload() {
-	G_ColorHue = Real[Text];
-}
-
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Convert a HSV color to a RGB color
  *
  *	@param	_HSV	The HSV values [0.-1.[
@@ -86,7 +87,7 @@ Vec3 HsvToRgb(Vec3 _HSV) {
 	return RGB;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Convert a RGB color to a HSV color
  *
  *	@param	_RGB	The RGB values [0.-1.[
@@ -126,7 +127,7 @@ Vec3 RgbToHsv(Vec3 _RGB) {
 	return HSV;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Convert a value betwwen 0 and 15 to an hexadecimal value 
  *
  *	@param	_Dec	A decimal value [0 - 15]
@@ -152,7 +153,7 @@ Text DecToHex(Integer _Dec) {
 	return Hex;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Convert a RGB color to a Hexadecimal RGB code
  *
  *	@param	_RGB	The RGB color [0., 1.[
@@ -173,20 +174,69 @@ Text RgbToHex(Vec3 _RGB) {
 	return Hex;
 }
 
+// ---------------------------------- //
+/** Convert a RGB color to a Hexadecimal RGB code
+ *
+ *	@param	_RGB	The RGB color [0., 1.[
+ *
+ *	@return		The RGB hexadecimal code
+ */
+Text RgbToHex_New(Vec3 _RGB) {
+	return TextLib::ColorToText(_RGB);
+}
+
+// ---------------------------------- //
+/** Convert a HSV color to a Hexadecimal RGB code
+ *
+ *	@param	_HSV	The HSV color [0., 1.[
+ *
+ *	@return		The RGB hexadecimal code
+ */
 Text HsvToHex(Vec3 _HSV) {
 	return RgbToHex(HsvToRgb(_HSV));
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
+/** Convert an Hexadecimal RGB color to an RGB code
+ *
+ *	@param	_Hex	The RGB hexadecimal code
+ *
+ *	@return		The RGB color [0., 1.[
+ */
+Vec3 HexToRgb(Text _Hex) {
+	return TextLib::ToColor(_Hex);
+}
+
+// ---------------------------------- //
+/** Convert an Hexadecimal RGB color to an HSV code
+ *
+ *	@param	_Hex	The RGB hexadecimal code
+ *
+ *	@return		The HSV color [0., 1.[
+ */
+Vec3 HexToHsv(Text _Hex) {
+	return RgbToHsv(HexToRgb(_Hex));
+}
+
+// ---------------------------------- //
 /** Create a new color set
  *
- *	@param	_SetName	The name of new set
+ *	@param	_SetName	The name of the new set
  */
 Void CreateSet(Text _SetName) {
 	G_ColorHue[_SetName] = MathLib::Rand(0., 1.);
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
+/** Destroy a color set
+ *
+ *	@param	_SetName	The name of the set
+ */
+Void DestroySet(Text _SetName) {
+	declare Removed = G_ColorHue.removekey(_SetName);
+}
+
+// ---------------------------------- //
 /** Darken an HSV color
  *
  *	@param	_Color	The HSV color to darken
@@ -200,7 +250,7 @@ Vec3 Darken(Vec3 _Color, Real _Power) {
 	return NewColor;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Generate a new color
  *	The generated colors are evenly distributed
  *
@@ -222,13 +272,13 @@ Vec3 GetNewColor(Text _Set) {
 	return RGB;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /** Generate a new color in a specific range [0..1[
  *	The generated colors are evenly distributed
  *
  *	@param	_Set		The set to use
  *	@param	_RangeMin	The start of the range
- *	@param	_RangeMax	THe end of the range
+ *	@param	_RangeMax	The end of the range
  *
  *	@return		A RGB color
  */
@@ -250,7 +300,7 @@ Vec3 GetNewColor(Text _Set, Real _RangeMin, Real _RangeMax) {
 	return RGB;
 }
 
-/* ------------------------------------- */
+// ---------------------------------- //
 /// Get a new color in the default set
 Vec3 GetNewColor() {
 	return GetNewColor("LibColor_DefaultSet");

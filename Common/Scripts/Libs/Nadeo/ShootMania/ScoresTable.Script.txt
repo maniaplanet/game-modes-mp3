@@ -1,8 +1,10 @@
 /** 
- * ScoresTable library
+ *	DEPRECATED - Use the new ScoresTable2 library instead
+ *	
+ *	ScoresTable library
  */
 
-#Const Version		"2013-07-24"
+#Const Version		"2013-07-26"
 #Const ScriptName	"ScoresTable.Script.txt"
 
 #Include "TextLib" as TL
@@ -1766,8 +1768,8 @@ Void UpdateHeader() {
 			Label_ScoreTeam2.SetText("");
 		}
 		
-		Quad_ColorTeam1.Colorize = Teams[0].ColorPrimary;
-		Quad_ColorTeam2.Colorize = Teams[1].ColorPrimary;
+		if (Quad_ColorTeam1 != Null) Quad_ColorTeam1.Colorize = Teams[0].ColorPrimary;
+		if (Quad_ColorTeam2 != Null) Quad_ColorTeam2.Colorize = Teams[1].ColorPrimary;
 	} else {
 		declare Label_Header <=> (Page.GetFirstChild("Label_Header") as CMlLabel);
 		if (Label_Header == Null) return;

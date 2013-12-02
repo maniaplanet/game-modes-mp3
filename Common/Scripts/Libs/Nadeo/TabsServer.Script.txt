@@ -1,4 +1,4 @@
-#Const Version		"2013-05-07"
+#Const Version		"2013-10-23"
 #Const ScriptName	"TabsServer.Script.txt"
 
 #Const C_BgColor 	 		"0007" // "3329"
@@ -270,7 +270,7 @@ Void UseTabs(CUIConfig UI) {
 	UseTabs(UI, "");
 }
 
-CSmPlayer FindPlayer(Text _Login) {
+CPlayer FindPlayer(Text _Login) {
 	foreach (Player in AllPlayers) {
 		if (Player.Login == _Login) return Player;
 	}

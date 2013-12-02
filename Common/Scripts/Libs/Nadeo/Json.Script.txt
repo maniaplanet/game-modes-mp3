@@ -2,7 +2,7 @@
  *	Json lib
  *	Stringify basic classes
  */
-#Const	Version		"2013-03-08"
+#Const	Version		"2013-09-13"
 #Const ScriptName	"Json.Script.txt"
 
 #Include "TextLib" as TextLib
@@ -710,8 +710,7 @@ Text StringifyMinimal(Text _Name, CSmModeEvent _Event, Text _More) {
 {
 	"Type": "{{{_Event.Type}}}",
 	"Damage": {{{_Event.Damage}}},
-	"WeaponNum": {{{_Event.WeaponNum}}},
-	"MissDist": {{{_Event.MissDist}}}
+	"WeaponNum": {{{_Event.WeaponNum}}}
 	{{{More}}}
 }
 """;

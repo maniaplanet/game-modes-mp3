@@ -3,6 +3,10 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
+#Const	CompatibleMapTypes	"RealmArena"
+#Const	Version				"2013-10-24"
+#Const	ScriptName			"Realm.Script.txt"
+
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 #Include "Libs/Nadeo/Color.Script.txt" as Color
@@ -10,12 +14,7 @@
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Scores
-#Include "Libs/Nadeo/ShootMania/ScoresTable.Script.txt" as ScoresTable
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
-
-#Const	CompatibleMapTypes	"RealmArena"
-#Const	Version				"2013-07-24"
-#Const	ScriptName			"Realm.Script.txt"
 
 // ---------------------------------- //
 // Settings
@@ -61,7 +60,6 @@ MB_LogVersion(Color::GetScriptName(), Color::GetScriptVersion());
 MB_LogVersion(Scores::GetScriptName(), Scores::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
-MB_LogVersion(ScoresTable::GetScriptName(), ScoresTable::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 ***
 
@@ -99,7 +97,10 @@ Layers::GetFromId(LayerMarkersId).Type = CUILayer::EUILayerType::Markers;
 
 // ---------------------------------- //
 // Init scores table
-ScoresTable::Load();
+ST2::SetStyle("LibST_SMBaseTeams");
+ST2::SetStyle("LibST_SMBasePoints");
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+ST2::Build("SM");
 ***
 
 ***InitMap***
@@ -143,7 +144,7 @@ foreach (Spawn in BlockSpawns) {
 
 // ---------------------------------- //
 // Misc init
-ScoresTable::StartMatch();
+ST2::ClearScores();
 Scores::MatchBegin();
 LayerAttached = Layers::Attach("Markers", NullId);
 LayerAttached = Layers::Attach("Info", NullId);
@@ -163,17 +164,6 @@ CreateRules();
 if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
 else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 Clublink::SyncUpdate();
-
-// ---------------------------------- //
-// Build the scores table
-declare ScoresBGImg			= C_ImgBaseDir^"scoresBg.dds";
-declare ScoresBGImgLeft		= C_ImgBaseDir^"scoresBg_left.dds";
-declare ScoresBGImgRight	= C_ImgBaseDir^"scoresBg_right.dds";
-declare Clan1Color 	= Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
-declare Clan2Color 	= Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
-ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0.05, 53.5>, <207., 175.>);
-ScoresTable::SetColumnsWidth(2., 1.5, 2., 19., 1.5, 1.5, 0., 0., 0., 3., 3.);
-ScoresTable::Build();
 ***
 
 ***InitRound***
@@ -236,7 +226,7 @@ foreach (Key => Pole in PoleList) {
 	Pole.Gauge.Max		= S_PoleCaptureDuration * 1000;
 	Pole.Gauge.Value	= 0;
 	Pole.Gauge.Speed	= 0;
-	Pole.Base.Clan		= 0;
+	if (Pole.Base != Null) Pole.Base.Clan = 0;
 	BaseClanList[Key]	= 0;
 	
 	declare PoleClan for Pole = 0;
@@ -278,18 +268,9 @@ if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTe
 else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 Clublink::SyncUpdate();
 
-// ---------------------------------- //
-// Build the scores table
-declare ScoresBGImg			= C_ImgBaseDir^"scoresBg.dds";
-declare ScoresBGImgLeft		= C_ImgBaseDir^"scoresBg_left.dds";
-declare ScoresBGImgRight	= C_ImgBaseDir^"scoresBg_right.dds";
-declare Clan1Color 	= Teams[0].ColorPrimary.X^" "^Teams[0].ColorPrimary.Y^" "^Teams[0].ColorPrimary.Z;
-declare Clan2Color 	= Teams[1].ColorPrimary.X^" "^Teams[1].ColorPrimary.Y^" "^Teams[1].ColorPrimary.Z;
-ScoresTable::SetTableBackgroundLeftRightImage(ScoresBGImg, ScoresBGImgLeft, ScoresBGImgRight, Clan1Color, Clan2Color, 75, 49, 52, <0.05, 53.5>, <207., 175.>);
-ScoresTable::Build();
-
 UpdateScoresHeader(ClanMapScores);
 Scores::RoundBegin();
+ST2::SetFooterText(TL::Compose("%1 "^S_MapPointsLimit, _("Points limit : ")));
 
 LayerUpdated = Layers::Update("Markers", CreateLayerMarkers());
 LayerUpdated = Layers::Update("Info", CreateLayerInfo());
@@ -305,7 +286,6 @@ StartTime			= Now + 1000;
 
 ***OnNewPlayer***
 ***
-ScoresTable::RestoreCustomScores(Player);
 declare UI <=> UIManager.GetUI(Player);
 SetPlayerClan(Player, Player.RequestedClan);
 if (UI != Null) {
@@ -320,7 +300,6 @@ if (Player.Score != Null) {
 
 ***OnNewSpectator***
 ***
-ScoresTable::RestoreCustomScores(Spectator);
 declare UI <=> UIManager.GetUI(Spectator);
 if (UI != Null) {
 	UI.SpectatorForcedClan		= 0;
@@ -625,6 +604,7 @@ Scores::RoundEnd();
 if (MB_SectionTurnNb % 2 == 1) Turn1Winner = ClanTurnWinner;
 else Turn2Winner = ClanTurnWinner;
 UpdateRoundScores(ClanRoundScores);
+ST2::SetFooterText(TL::Compose("%1 "^S_MapPointsLimit, _("Points limit : ")));
 
 // ---------------------------------- //
 // Display result
@@ -688,8 +668,8 @@ if (ClanMapScores[1] >= S_MapPointsLimit && ClanMapScores[1] - ClanMapScores[2] 
 ***
 // ---------------------------------- //
 // Update map scores
-ScoresTable::EndMatch();
 Scores::MatchEnd();
+UpdateScoresHeader(ClanMapScores);
 
 LayerDetached = Layers::Detach("Markers", NullId);
 LayerDetached = Layers::Detach("Info", NullId);
@@ -728,7 +708,6 @@ UIManager.UILayerDestroyAll();
 // ---------------------------------- //
 // Stop the library
 Color::Unload();
-ScoresTable::Unload();
 ***
 
 // ---------------------------------- //
@@ -838,6 +817,8 @@ Void UpdateBasesColors() {
 	declare UpdatedBases = Ident[];
 	
 	foreach (BlockSpawn in BlockSpawns) {
+		if (BlockSpawn.Base == Null) continue;
+		
 		declare SpawnClan for BlockSpawn = 0;
 		
 		if (!UpdatedBases.exists(BlockSpawn.Base.Id)) {
@@ -860,6 +841,8 @@ Void UpdateBasesColors() {
 	}
 	
 	foreach (BlockPole in BlockPoles) {
+		if (BlockPole.Base == Null) continue;
+		
 		declare PoleClan for BlockPole = 0;
 		
 		if (!UpdatedBases.exists(BlockPole.Base.Id)) {
