@@ -2,8 +2,10 @@
  *	TM library
  */
 
-#Const Version		"2013-08-30"
+#Const Version		"2013-12-16"
 #Const ScriptName	"TM2.Script.txt"
+
+#Include "TextLib" as TL
 
 // ---------------------------------- //
 // Constant
@@ -287,4 +289,171 @@ Void Loop() {
 			if (Player.RaceStartTime > 0) WaitRace(Player);
 		}
 	}
+}
+
+// ---------------------------------- //
+/**	Get a player from its login
+ *
+ *	@param	_Login		Login of the player to get
+ *	
+ *	@return				The player if found, Null otherwise
+ */
+CTmPlayer GetPlayer(Text _Login) {
+	foreach (Player in AllPlayers) {
+		if (Player.Login == _Login) return Player;
+	}
+	
+	return Null;
+}
+
+// ---------------------------------- //
+/**	Convert a time (Integer) to a Text
+ *
+ *	@param	_Time		The time to convert
+ *	
+ *	@return				The time converted in Text
+ */
+Text TimeToText(Integer _Time) {
+	if (_Time < 0) {
+		return "???";
+	}
+	
+	declare MilliSeconds = _Time % 1000;
+	declare Seconds = (_Time / 1000) % 60;
+	declare Minutes = (_Time / 60000) % 60;
+	declare Hours = (_Time / 3600000) % 24;
+	
+	declare Time = TL::FormatInteger(Minutes, 2)^":"^TL::FormatInteger(Seconds, 2)^"."^TL::FormatInteger(MilliSeconds, 3);
+	if (Hours > 0) Time = Hours^":"^Time;
+	return Time;
+}
+
+// ---------------------------------- //
+/**	Convert a Text to a time (Integer)
+ *
+ *	@param	_Value		The Text to convert
+ *	
+ *	@return				The Text converted in time
+ */
+Integer TextToTime(Text _Value) {
+	declare Time = 0;
+	declare Split = TL::Split(":", _Value);
+	
+	// mm:ss.xxx
+	if (Split.count == 2) { 
+		Time += TL::ToInteger(Split[0]) * 60000;
+		
+		// ss.xxx
+		declare Split2 = TL::Split(".", Split[1]);
+		if (Split2.count > 1) {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+			Time += TL::ToInteger(Split2[1]);
+		} else {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+		}
+	} 
+	// h:mm:ss.xxx
+	else if (Split.count == 3) { 
+		Time += TL::ToInteger(Split[0]) * 3600000;
+		Time += TL::ToInteger(Split[1]) * 60000;
+		
+		// ss.xxx
+		declare Split2 = TL::Split(".", Split[2]);
+		if (Split2.count > 1) {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+			Time += TL::ToInteger(Split2[1]);
+		} else {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+		}
+	} 
+	// ss.xxx
+	else {
+		declare Split2 = TL::Split(".", Split[0]);
+		if (Split2.count > 1) {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+			Time += TL::ToInteger(Split2[1]);
+		} else {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+		}
+	}
+	
+	if (Time < 0) Time = 0;
+	return Time;
+}
+
+// ---------------------------------- //
+/**	Inject TimeToText into a ManiaLink
+ *	
+ *	@return		TimeToText() function
+ */
+Text InjectMLTimeToText() {
+	return """
+Text TimeToText(Integer _Time) {
+	if (_Time < 0) {
+		return "???";
+	}
+	
+	declare MilliSeconds = _Time % 1000;
+	declare Seconds = (_Time / 1000) % 60;
+	declare Minutes = (_Time / 60000) % 60;
+	declare Hours = (_Time / 3600000) % 24;
+	
+	declare Time = TL::FormatInteger(Minutes, 2)^":"^TL::FormatInteger(Seconds, 2)^"."^TL::FormatInteger(MilliSeconds, 3);
+	if (Hours > 0) Time = Hours^":"^Time;
+	return Time;
+}""";
+}
+
+// ---------------------------------- //
+/**	Inject TextToTime into a ManiaLink
+ *	
+ *	@return			TextToTime() function
+ */
+Text InjectMLTextToTime() {
+	return """
+Integer TextToTime(Text _Value) {
+	declare Time = 0;
+	declare Split = TL::Split(":", _Value);
+	
+	// mm:ss.xxx
+	if (Split.count == 2) { 
+		Time += TL::ToInteger(Split[0]) * 60000;
+		
+		// ss.xxx
+		declare Split2 = TL::Split(".", Split[1]);
+		if (Split2.count > 1) {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+			Time += TL::ToInteger(Split2[1]);
+		} else {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+		}
+	} 
+	// h:mm:ss.xxx
+	else if (Split.count == 3) { 
+		Time += TL::ToInteger(Split[0]) * 3600000;
+		Time += TL::ToInteger(Split[1]) * 60000;
+		
+		// ss.xxx
+		declare Split2 = TL::Split(".", Split[2]);
+		if (Split2.count > 1) {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+			Time += TL::ToInteger(Split2[1]);
+		} else {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+		}
+	} 
+	// ss.xxx
+	else {
+		declare Split2 = TL::Split(".", Split[0]);
+		if (Split2.count > 1) {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+			Time += TL::ToInteger(Split2[1]);
+		} else {
+			Time += TL::ToInteger(Split2[0]) * 1000;
+		}
+	}
+	
+	if (Time < 0) Time = 0;
+	return Time;
+}""";
 }

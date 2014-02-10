@@ -5,24 +5,23 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2013-11-28"
+#Const Version				"2013-12-18"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
-#Include "Libs/Nadeo/Map.Script.txt" 							as Map
 #Include "Libs/Nadeo/Top2.Script.txt" 							as Top
 #Include "Libs/Nadeo/Color.Script.txt"							as Color
-#Include "Libs/Nadeo/Layers.Script.txt" 						as Layers
+#Include "Libs/Nadeo/Layers2.Script.txt" 						as Layers
 #Include "Libs/Nadeo/Message.Script.txt" 						as Message
 #Include "Libs/Nadeo/Interface.Script.txt"						as Slider
 #Include "Libs/Nadeo/TabsServer.Script.txt" 					as Tabs
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" 					as SM
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" 				as Map
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" 				as Score
 #Include "Libs/Nadeo/ShootMania/MultiClans.Script.txt" 			as MultiClans
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" 		as SpawnScreen
 #Include "Libs/Nadeo/ShootMania/BeginnersWelcome.Script.txt" 	as Beginners
-#Include "Libs/Nadeo/ShootMania/AFK.Script.txt" 				as AFK
 
 // ---------------------------------- //
 // Settings
@@ -39,7 +38,7 @@
 #Setting S_MultiClans				True	as _("Allow multi clans mode")
 #Setting S_MinPlayersNbPerClan		3		as _("Minimum number of players per clan")
 #Setting S_AllowBeginners			False	as _("Is a Beginners Welcome server")
-#Setting S_AutoManageAFK			True	as _("Switch inactive players to spectators")
+#Setting S_AutoManageAFK			True	//as _("Switch inactive players to spectators")
 
 #Const C_OffZoneMinRadius		16.		///< Minimum size of the OffZone at the end
 #Const C_OffZoneDefaultRadius	300.	///< Starting radius of the OffZone
@@ -56,7 +55,6 @@
 #Const C_ScoresTableScale		1.		///< Scale of the scores table UI
 #Const C_ScoresTableNbPlayers	16		///< Number of players in the scores table
 #Const C_ScoresTablePlayerHeight 6.		///< Height of a line for a player
-#Const C_AFKsCheckFrequency		30000 	///< milli sec., check AFKs every ...
 
 #Const C_ScoreHit		1	///< Index for hit points
 #Const C_ScoreSurvival	2	///< Index for survival points
@@ -113,7 +111,6 @@ declare Integer			G_PointsOnCapture;
 ***
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
-MB_LogVersion(AFK::GetScriptName(), AFK::GetScriptVersion());
 MB_LogVersion(Map::GetScriptName(), Map::GetScriptVersion());
 MB_LogVersion(Top::GetScriptName(), Top::GetScriptVersion());
 MB_LogVersion(Color::GetScriptName(), Color::GetScriptVersion());
@@ -129,10 +126,6 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 
 ***InitServer***
 ***
-declare LayerAttached	= False;
-declare LayerDetached	= False;
-declare LayerUpdated	= False;
-declare LayerDestroyed	= False;
 declare AllowDoubleCapture = C_AllowDoubleCapture;
 declare OffZoneMaxSpeedTime = 20; ///<Duration of capture to reach maximum speed
 
@@ -210,10 +203,10 @@ SpawnScreen::CreateScores("Score.RoundPoints + Score.Points");
 
 // ---------------------------------- //
 // Init UI
-declare LayerSpawnQueueId		= Layers::Create("SpawnQueue");
-declare LayerRoundInfosId		= Layers::Create("RoundInfo", CreateLayerRoundInfos());
-Layers::GetFromName("RoundInfo").Type = CUILayer::EUILayerType::Normal;
-LayerAttached = Layers::Attach("ScoresInSpawn", NullId);
+Layers::Create("SpawnQueue");
+Layers::Create("RoundInfo", CreateLayerRoundInfos());
+Layers::SetType("RoundInfo", CUILayer::EUILayerType::Normal);
+Layers::Attach("ScoresInSpawn");
 
 UIManager.UIAll.AltMenuNoCustomScores = True;
 UIManager.UIAll.NoticesFilter_LevelToShowAsBigMessage = CUIConfig::ENoticeLevel::MatchInfo;
@@ -340,7 +333,6 @@ declare Integer 	MaxHitThisRound = 0;
 G_BestHitPlayerThisRound = NullId;
 
 declare Boolean AllowBeginners = S_AllowBeginners;
-declare Integer CheckAFKsTime = 0;
 ***
 
 
@@ -428,8 +420,8 @@ PlayersSpawnQueue = PlayersSpawnQueue.sort();
 
 // ---------------------------------- //
 // Update UI
-LayerAttached = Layers::Attach("SpawnQueue", NullId);
-LayerUpdated = Layers::Update("ScoresInSpawn", UpdateLayerScoresInSpawn());
+Layers::Attach("SpawnQueue");
+Layers::Update("ScoresInSpawn", UpdateLayerScoresInSpawn());
 ST2::SetFooterText(TextLib::Compose("%1 "^S_MapPointsLimit, _("Points limit : ")));
 
 SM::SetupDefaultVisibility();
@@ -633,7 +625,7 @@ switch (GameplaySequence) {
 			}
 			
 			UpdateMarkers = True;
-			LayerUpdated = Layers::Update("SpawnQueue", UpdateLayerSpawnQueue(PlayersSpawnQueue));
+			Layers::Update("SpawnQueue", UpdateLayerSpawnQueue(PlayersSpawnQueue));
 			if (SpawnQueueCount <= 0) {
 				GameplaySequence = 1;
 			}
@@ -652,8 +644,8 @@ switch (GameplaySequence) {
 			Message::SendStatusMessage(
 				_("The pole can now be captured."), OffZoneAutoStartTime, 1, CUIConfig::EUISound::PhaseChange, 0
 			);
-			LayerDetached = Layers::Detach("SpawnQueue", NullId);
-			LayerAttached = Layers::Attach("RoundInfo", NullId);		
+			Layers::Detach("SpawnQueue");
+			Layers::Attach("RoundInfo");		
 			UpdateLayerInfo(PlayersNbAlive);
 			GameplaySequence = 2;
 			
@@ -753,7 +745,7 @@ if (S_UseEarlyRespawn && EarlyRespawnAllowed) {
 			declare Removed = EarlyRespawnPool.remove(RandomPlayerSpawn);
 
 			declare LastLocationSpawn for Player <=> CSmMapLandmark;
-			if (LastLocationSpawn == Null || C_RandomEarlyRespawn) {
+			if (LastLocationSpawn == Null || (C_RandomEarlyRespawn && !UseMultiClans)) {
 				LastLocationSpawn <=> MapLandmarks_PlayerSpawn[MathLib::Rand(0, MapLandmarks_PlayerSpawn.count - 1)];
 			}
 			
@@ -1148,13 +1140,6 @@ if (TimeLimitReached || AllEliminated) {
 	MB_StopRound = True;
 }
 
-
-// Manage inactive players
-if(S_AutoManageAFK && (Now > CheckAFKsTime) && (!MB_StopRound)) {
-	CheckAFKsTime = Now + C_AFKsCheckFrequency;
-	AFK::ManageAFKPlayers();
-}
-
 // update status message
 UpdateModeStatusMessage();
 ***
@@ -1182,8 +1167,8 @@ UpdateModeStatusMessage();
 
 ***EndRound***
 ***
-LayerDetached = Layers::Detach("SpawnQueue", NullId);
-LayerDetached = Layers::Detach("RoundInfo", NullId);
+Layers::Detach("SpawnQueue");
+Layers::Detach("RoundInfo");
 Message::CleanAllMessages();
 UIManager.UIAll.BigMessage = "";
 UIManager.UIAll.StatusMessage = "";
@@ -1281,7 +1266,7 @@ MB_Sleep(6000);
 Score::RoundEnd();
 MB_Sleep(4000);
 
-LayerDetached = Layers::Detach("Tops", NullId);
+Layers::Detach("Tops");
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 UIManager.UIAll.BigMessage = "";
 
@@ -1311,7 +1296,7 @@ Score::MatchEnd();
 //Top::RoundEnd();
 //Top::MatchEnd();
 
-LayerAttached = Layers::Attach("Tops", NullId);
+Layers::Attach("Tops");
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 
 // ---------------------------------- //
@@ -1323,7 +1308,7 @@ MB_Sleep(DisplayTime);
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
 MB_Sleep(DisplayTime);
 
-LayerDetached = Layers::Detach("Tops", NullId);
+Layers::Detach("Tops");
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 UIManager.UIAll.BigMessage = "";
 
@@ -1335,14 +1320,14 @@ Slider::DestroySlider();
 ***
 /* -------------------------------------- */
 // Layers destruction
-LayerDetached = Layers::DetachAll(NullId);
-LayerDestroyed = Layers::Destroy("SpawnQueue");
-LayerDestroyed = Layers::Destroy("RoundInfo");
-LayerDestroyed = Layers::Destroy("TabScoresTable");
-LayerDestroyed = Layers::Destroy("AltScoresTable");
-LayerDestroyed = Layers::Destroy("Tops");
-LayerDestroyed = Layers::Destroy("ScoresInSpawn");
-LayerDestroyed = Layers::Destroy("RulesReminder");
+Layers::DetachAll();
+Layers::Destroy("SpawnQueue");
+Layers::Destroy("RoundInfo");
+Layers::Destroy("TabScoresTable");
+Layers::Destroy("AltScoresTable");
+Layers::Destroy("Tops");
+Layers::Destroy("ScoresInSpawn");
+Layers::Destroy("RulesReminder");
 SpawnScreen::DestroyRules();
 Layers::Clean();
 MultiClans::Unload();
@@ -1547,7 +1532,7 @@ Void UpdateMarkers(Boolean _ShowPoleMarker) {
 		Pole.Position.X}}} {{{Pole.Position.Y + 25.}}} {{{Pole.Position.Z}}}" />""";
 		
 	//log(Markers);
-	UIManager.UIAll.Hud3dMarkers = Markers;
+	UIManager.UIAll.MarkersXML = Markers;
 }
 
 // ---------------------------------- //
@@ -1899,6 +1884,6 @@ Void CreateRulesReminderLayer() {
 	</frame>
 	""";
 	
-	declare Ident RulesReminderLayerId	= Layers::Create("RulesReminder", MLText);
-	declare Boolean Attached			= Layers::Attach("RulesReminder", NullId);
+	Layers::Create("RulesReminder", MLText);
+	Layers::Attach("RulesReminder");
 }

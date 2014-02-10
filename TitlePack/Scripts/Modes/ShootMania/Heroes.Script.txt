@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-07-24"
+#Const Version		"2013-12-13"
 #Const ScriptName	"Heroes.Script.txt"
 
 #Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
@@ -59,6 +59,24 @@ SpawnScreen::CreatePrettyRules(ModeName);
 ModeStatusMessage = _("TYPE: Team versus Team (5 vs 5)\nOBJECTIVE: Capture the pole when you're the attacker. Defend the pole when you're a defender.");
 ***
 
+***StartServer***
+***
+ST2::SetStyle("LibST_SMBaseTeams");
+ST2::SetStyle("LibST_SMWithLegends");
+ST2::CreateCol("DefPoints", _("|Substantive|Hit"), "0", 3., 100.);
+ST2::SetColTextAlign("DefPoints", CMlControl::AlignHorizontal::Right);
+ST2::CreateCol("AtkPoints", _("|Attack,Substantive|Atk"), "0", 3., 110.);
+ST2::SetColTextAlign("AtkPoints", CMlControl::AlignHorizontal::Right);
+ST2::SetColTextSize("AtkPoints", 3.);
+ST2::Build("SM");
+***
+
+***StartMap***
+***
+ST2::ClearScores();
+ST2::Attach();
+***
+
 ***InitTurn***
 ***
 declare ElimationCountdown = False;	///< Switch the elimination countdown for capture on or off
@@ -82,7 +100,7 @@ Player.StaminaMax	= 1. * C_DefStaminaMaxMultiplier;
 Player.StaminaGain	= 1. * C_DefStaminaMaxMultiplier;
 Player.ArmorMax		= C_DefArmorMax;
 SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, True); 
-SM::SpawnPlayer(Player, G_DefClan, DefBlockSpawn, Now);
+SM::SpawnPlayer(Player, G_DefClan, DefSpawn, Now);
 Player.IsHighlighted = True;
 DefSpawned += 1;
 ***
@@ -110,7 +128,7 @@ if (Player.Id == G_AtkPlayerId) {
 	Player.AmmoGain		= 1. * C_AtkLaserAmmoGain;
 	SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
 }
-SM::SpawnPlayer(Player, G_AtkClan, AtkBlockSpawn, Now);
+SM::SpawnPlayer(Player, G_AtkClan, AtkSpawn, Now);
 Player.IsHighlighted = True;
 AtkSpawned += 1;
 ***
@@ -128,17 +146,17 @@ if (ClansNbPlayersAlive[G_DefClan] <= 0 && S_TimePoleElimination >= 0) {
 		UIManager.UIAll.CountdownEndTime = -1;
 		EndTime = Now + MathLib::NearestInteger(S_TimePoleElimination * 1000);
 	}
-	foreach (Goal in BlockPoles) {
-		if (Goal.Gauge.Clan == G_DefClan) {
-			Goal.Gauge.Clan = G_AtkClan;
-			Goal.Gauge.Value = 0;
-			Goal.Gauge.Max = MathLib::NearestInteger(S_TimeCapture * 1000) * BlockPoles.count;
+	foreach (LandmarkGauge in MapLandmarks_Gauge) {
+		if (LandmarkGauge.Gauge.Clan == G_DefClan) {
+			LandmarkGauge.Gauge.Clan = G_AtkClan;
+			LandmarkGauge.Gauge.Value = 0;
+			LandmarkGauge.Gauge.Max = MathLib::NearestInteger(S_TimeCapture * 1000) * MapLandmarks_Gauge.count;
 		}
 		
-		if (Goal.Sector.PlayersIds.exists(G_AtkPlayerId)) {
-			Goal.Gauge.Speed = 1;
+		if (LandmarkGauge.Sector != Null && LandmarkGauge.Sector.PlayersIds.exists(G_AtkPlayerId)) {
+			LandmarkGauge.Gauge.Speed = 1;
 		} else {
-			Goal.Gauge.Speed = 0;
+			LandmarkGauge.Gauge.Speed = 0;
 		}
 	}
 } else if (Now >= PoleTime) {
@@ -152,20 +170,20 @@ if (ClansNbPlayersAlive[G_DefClan] <= 0 && S_TimePoleElimination >= 0) {
 	
 	/* -------------------------------------- */
 	// Check if the attacker is capturing the pole
-	foreach (Goal in BlockPoles) {
-		if (Goal.Gauge.Value == 0 && Goal.Gauge.Clan == G_DefClan) {
-			Goal.Gauge.Clan = G_AtkClan;
-			Goal.Gauge.Max = MathLib::NearestInteger(S_TimeCapture * 1000) * BlockPoles.count;
+	foreach (LandmarkGauge in MapLandmarks_Gauge) {
+		if (LandmarkGauge.Gauge.Value == 0 && LandmarkGauge.Gauge.Clan == G_DefClan) {
+			LandmarkGauge.Gauge.Clan = G_AtkClan;
+			LandmarkGauge.Gauge.Max = MathLib::NearestInteger(S_TimeCapture * 1000) * MapLandmarks_Gauge.count;
 		}
 		
-		if (Goal.Sector.PlayersIds.exists(G_AtkPlayerId)) {
-			if(Goal.Gauge.Clan == G_DefClan) {
-				Goal.Gauge.Speed = -1;
+		if (LandmarkGauge.Sector != Null && LandmarkGauge.Sector.PlayersIds.exists(G_AtkPlayerId)) {
+			if(LandmarkGauge.Gauge.Clan == G_DefClan) {
+				LandmarkGauge.Gauge.Speed = -1;
 			} else {
-				Goal.Gauge.Speed = 1;
+				LandmarkGauge.Gauge.Speed = 1;
 			}
 		} else {
-			Goal.Gauge.Speed = 0;
+			LandmarkGauge.Gauge.Speed = 0;
 		}
 	}
 }
@@ -217,6 +235,7 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 				NbHit += 1;
 				declare netwrite Net_LayerST_DefPoints for Event.Shooter = 0;
 				Net_LayerST_DefPoints = NbHit;
+				ST2::SetColValue("DefPoints", Event.Shooter.Score, TextLib::ToText(NbHit));
 			}
 			
 			if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) DisplayHitDistance(Event.Shooter, Event.Victim, False);
@@ -276,6 +295,7 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 					NbHit += 1;
 					Net_LayerST_DefPoints = NbHit;
 				}
+				ST2::SetColValue("DefPoints", Event.Shooter.Score, TextLib::ToText(NbHit));
 			}
 		}
 	}
@@ -283,7 +303,7 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 	if (Event.WeaponNum == 1) {
 		DisplayHitDistance(Event.Shooter, Event.Victim, True);
 	}
-	LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
+	//Layers::Update("ScoresTable", CreateLayerScoresTable());
 	XmlRpc::OnHit(Event);
 	PassOn(Event);
 }
@@ -493,6 +513,8 @@ declare ML ="";
 
 ***CreateLayerScoresTable***
 ***
+return "";
+
 declare CW = 1.;
 declare SW = 1.;
 
@@ -890,14 +912,14 @@ Void UpdateMarkers() {
 	}
 	
 	declare PolesMarker = "";
-	foreach (Goal in BlockPoles) {
+	foreach (LandmarkGauge in MapLandmarks_Gauge) {
 		declare Icon = "";
 		declare Name = "";
-		if (Goal.Tag == "Goal A") { Icon = "PointA"; Name = "$w$s$oA"; }
-		else if (Goal.Tag == "Goal B") { Icon = "PointB"; Name = "$w$s$oB"; }
-		else if (Goal.Tag == "Goal C") { Icon = "PointC"; Name = "$w$s$oC"; }
+		if (LandmarkGauge.Tag == "Goal A") { Icon = "PointA"; Name = "$w$s$oA"; }
+		else if (LandmarkGauge.Tag == "Goal B") { Icon = "PointB"; Name = "$w$s$oB"; }
+		else if (LandmarkGauge.Tag == "Goal C") { Icon = "PointC"; Name = "$w$s$oC"; }
 		else continue;
-		PolesMarker ^= """<marker icon="{{{Icon}}}" pos="{{{Goal.Position.X}}} {{{Goal.Position.Y + 25}}} {{{Goal.Position.Z}}}" />""";
+		PolesMarker ^= """<marker icon="{{{Icon}}}" pos="{{{LandmarkGauge.Position.X}}} {{{LandmarkGauge.Position.Y + 25}}} {{{LandmarkGauge.Position.Z}}}" />""";
 	}
 		
 	foreach (Player in Players) {

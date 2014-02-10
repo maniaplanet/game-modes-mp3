@@ -89,8 +89,11 @@ MB_WarmUp(WarmUpTimeLimit);
 
 ***CanSpawn***
 ***
-if (Score.Points > S_PointsLimit) CanSpawn = False;
-else CanSpawn = True;
+foreach (Score in Scores) {
+	declare CanSpawn for Score = True;
+	if (Score.Points > S_PointsLimit) CanSpawn = False;
+	else CanSpawn = True;
+}
 ***
 
 ***PlayLoop***

@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"TimeAttackArena"
-#Const Version				"2013-10-29"
+#Const Version				"2013-12-6"
 #Const ScriptName			"TimeAttack.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -15,6 +15,8 @@
 #Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Chrono.Script.txt" as Chrono
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
+#Include "Libs/Nadeo/ShootMania/Debug.Script.txt" as Debug
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
 
@@ -25,7 +27,7 @@
 
 #Const C_NbTopTimes			5		///< Number of players in the top times UI
 #Const C_UseWeapons			True	///< Player can use weapons on himself
-#Const C_NbBot				0		///< Number of bots
+#Const C_Debug				False	///< Debug mode
 
 #Const Description _("TYPE: Individual\nOBJECTIVE: Finish the race as fast as possible after going through all the checkpoints.\nYou can start over and improve your time as much as you want. The player with the best time at the end to the time limit wins the map.")
 
@@ -46,6 +48,8 @@ declare Integer[Ident]		G_StartList;		///< List of player in the starting block
 ***
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
+MB_LogVersion(Map::GetScriptName(), Map::GetScriptVersion());
+MB_LogVersion(Debug::GetScriptName(), Debug::GetScriptVersion());
 MB_LogVersion(Chrono::GetScriptName(), Chrono::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
@@ -71,16 +75,14 @@ SpawnScreen::CreateMapInfo();
 
 // ---------------------------------- //
 // Create the UI layers
-// UI All
 Layers::Create("TopTimes");
 Layers::Create("Info",  CreateLayerInfo());
-// UI Player
-Layers::Create("TimeDiff");
-
-Layers::Attach("TopTimes", Null);
-Layers::Attach("Info", Null);
-
+Layers::Create("TimeDiff", CreateLayerTimeDiff());
+Layers::Attach("TimeDiff");
+Layers::Attach("TopTimes");
+Layers::Attach("Info");
 Chrono::Load();
+if (C_Debug) Debug::Load();
 
 // ---------------------------------- //
 // Create the scores table
@@ -113,7 +115,7 @@ Layers::Update("TopTimes", "");
 
 // ---------------------------------- //
 // Debug
-Users_SetNbFakeUsers(C_NbBot, 0);
+if (C_Debug) Debug::StartMap();
 
 // ---------------------------------- //
 // Initalization
@@ -123,8 +125,8 @@ G_TimeLimit		= 0;
 declare LastUITick = 0;
 declare PrevScoresTotal = 0;
 declare CheckpointTotal = 0;
-foreach (BlockPole in BlockPoles) {
-	if (BlockPole.Tag == "Checkpoint") CheckpointTotal += 1;
+foreach (Checkpoint in MapLandmarks_Gauge) {
+	if (Checkpoint.Tag == "Checkpoint") CheckpointTotal += 1;
 }
 
 if (G_TimeLimit != S_TimeLimit) {
@@ -137,7 +139,7 @@ InitPlayers();
 
 // ---------------------------------- //
 // Turn the lights on
-foreach (Base in Bases) {
+foreach (Base in MapBases) {
 	Base.Clan = 0;
 	Base.IsActive = True;
 }
@@ -156,8 +158,6 @@ EndTime = StartTime + (G_TimeLimit * 1000);
 ***
 // ---------------------------------- //
 // Update the layers when a new player arrives
-Layers::Attach("TimeDiff", Player);
-Layers::Update("TimeDiff", CreateLayerTimeDiff());
 Chrono::Create(Player.Id);
 
 declare UI <=> UIManager.GetUI(Player);
@@ -181,9 +181,12 @@ if (UI != Null) {
 ***
 // ---------------------------------- //
 // Update the layers when a new spectator arrives
-Layers::Detach("Info", Spectator);
-Layers::Detach("TimeDiff", Spectator);
 Chrono::Destroy(Spectator.Id);
+***
+
+***Yield***
+***
+if (C_Debug) Debug::Loop();
 ***
 
 // ---------------------------------- //
@@ -258,14 +261,14 @@ foreach (Player in Players) {
 	// Finish
 	// All checkpoints activated
 	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned
-		&& Player.BlockPole != Null && Player.BlockPole.Tag == "Goal"
+		&& Player.CapturedLandmark != Null && Player.CapturedLandmark.Tag == "Goal"
 		&& CheckpointsTimeLast.count >= CheckpointTotal
 	) {
 		ActiveFinish(Player);
 		continue;
 	} // Missed a checkpoint 
 	else if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned
-		&& Player.BlockPole != Null && Player.BlockPole.Tag == "Goal"
+		&& Player.CapturedLandmark != Null && Player.CapturedLandmark.Tag == "Goal"
 		&& CheckpointsTimeLast.count < CheckpointTotal
 	) {
 		declare UI <=> UIManager.GetUI(Player);
@@ -279,10 +282,10 @@ foreach (Player in Players) {
 	
 	// Checkpoint
 	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned
-		&& Player.BlockPole != Null && Player.BlockPole.Tag == "Checkpoint"
-		&& !CheckpointsTimeLast.existskey(Player.BlockPole.Id)
+		&& Player.CapturedLandmark != Null && Player.CapturedLandmark.Tag == "Checkpoint"
+		&& !CheckpointsTimeLast.existskey(Player.CapturedLandmark.Id)
 	) {
-		ActiveCheckpoint(Player, Player.BlockPole.Id);
+		ActiveCheckpoint(Player, Player.CapturedLandmark.Id);
 	}
 }
 
@@ -367,11 +370,13 @@ UIManager.UIAll.BigMessage = "";
 // ---------------------------------- //
 ***EndServer***
 ***
+if (C_Debug) Debug::Unload();
 Chrono::Unload();
 SpawnScreen::DestroyRules();
 SpawnScreen::DestroyMapInfo();
-Layers::Detach("TopTimes", Null);
-Layers::Detach("Info", Null);
+Layers::Detach("TopTimes");
+Layers::Detach("Info");
+Layers::Detach("TimeDiff");
 UIManager.UILayerDestroyAll();
 ***
 
@@ -440,8 +445,7 @@ Void UpdateRanking() {
  *	@return		The manialink Text
  */
 Text CreateLayerInfo() {
-return 
-"""
+	return """
 <frame posn="159 -89" id="Frame_Info">
 	<label posn="-7 12" halign="left" valign="bottom" textemboss="1" text="/-" id="PosTotal" />
 	<label posn="-7 11" halign="right" valign="bottom" style="TextRaceChrono" text="-" id="PosCurrent" />
@@ -470,6 +474,7 @@ return
 		
 		while(True) {
 			yield;
+			
 			if (LastUpdate + C_RefreshInterval > Now) continue;
 			LastUpdate = Now;
 			
@@ -508,6 +513,8 @@ return
 	}
 --></script>
 """;
+
+
 }
 
 // ---------------------------------- //
@@ -515,9 +522,8 @@ return
  *
  *	@return	The manialink Text
  */
-Text CreateLayerTimeDiff() {	
-	return
-"""
+Text CreateLayerTimeDiff() {
+	return """
 <frame posn="0 61" id="TimeDiff">
 	<label posn="0 7" scale="1.5" halign="center" id="Time" />
 	<label posn="0 0" scale="1.2" halign="center" id="Diff" />
@@ -696,9 +702,9 @@ Void RestartPlayer(CSmPlayer _Player) {
 	declare RunStartTime for _Player = 0;
 	declare Delay = 3000;
 	declare PlayerStartTime = Now + Delay;
-	CheckpointLast = SM::GetSpawn("Spawn", 0).Id;
+	CheckpointLast = Map::GetLandmarkPlayerSpawn("Spawn", 0).Id;
 	
-	SM::SpawnPlayer(_Player, 0, BlockSpawns[CheckpointLast], PlayerStartTime);
+	SM::SpawnPlayer(_Player, 0, MapLandmarks_PlayerSpawn[CheckpointLast].PlayerSpawn, PlayerStartTime);
 	G_StartList[_Player.Id] = PlayerStartTime;
 	DisableWeapon(_Player);
 	CheckpointsTimeLast.clear();

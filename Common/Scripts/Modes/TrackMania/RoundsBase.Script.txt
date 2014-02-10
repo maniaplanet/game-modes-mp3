@@ -63,7 +63,10 @@ MB_SetLapsNb(S_ForceLapsNb);
 
 ***CanSpawn***
 ***
-CanSpawn = True;
+foreach (Score in Scores) {
+	declare CanSpawn for Score = True;
+	CanSpawn = True;
+}
 ***
 
 ***StartRound***
@@ -81,10 +84,11 @@ MB_SetLapsNb(S_ForceLapsNb);
 foreach (Score in Scores) {
 	Score.PrevRace = Null;
 	Score.PrevRaceDeltaPoints = 0;
-
-	declare CanSpawn for Score = True;
-	---CanSpawn---
 }
+
+// ---------------------------------- //
+// Set the players who can spawn
+---CanSpawn---
 
 // ---------------------------------- //
 // Spawn players for the race
@@ -101,10 +105,10 @@ foreach (Player in Players) {
 }
 ***
 
-***PlayLoop***
+***PlayLoopSpawnPlayers***
 ***
 // ---------------------------------- //
-// Spawn players joining during the round
+// Spawn allowed players
 foreach (Player in Players) {
 	if (Player.Score == Null) continue;
 	
@@ -114,6 +118,13 @@ foreach (Player in Players) {
 		CanSpawn = False;
 	}
 }
+***
+
+***PlayLoop***
+***
+// ---------------------------------- //
+// Spawn players joining during the round
+---PlayLoopSpawnPlayers---
 
 // ---------------------------------- //
 // Manage XmlRpc events

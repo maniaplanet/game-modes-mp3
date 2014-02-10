@@ -5,13 +5,11 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"MeleeArena"
-#Const	Version				"2013-11-06"
+#Const	Version				"2013-12-13"
 #Const	ScriptName			"Melee.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
-#Include "Libs/Nadeo/Map.Script.txt" as Map
-#Include "Libs/Nadeo/Layers.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/Interface.Script.txt" as Interface
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
@@ -43,7 +41,6 @@ declare Ident	G_LatestSpawnId;	///< Id of the last landmark used
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
-MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
 MB_LogVersion(Interface::GetScriptName(), Interface::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
@@ -109,7 +106,7 @@ SM::SetupDefaultVisibility();
 
 // ---------------------------------- //
 // Init bases
-foreach (Base in Bases) {
+foreach (Base in MapBases) {
 	Base.Clan = 0;
 	Base.IsActive = True;
 }

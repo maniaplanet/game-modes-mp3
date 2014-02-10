@@ -3,7 +3,7 @@
  *
  *	The library has a list of default columns ready to use,
  *	you can check the CreateCol() function to have more details:
- *	General -> LibST_Avatar, LibST_Name, LibST_ManiaStars, LibST_Tools
+ *	General -> LibST_Avatar, LibST_Name, LibST_ManiaStars, LibST_Tools, LibST_Tags
  *	TM -> LibST_TMBestTime, LibST_PrevTime, LibST_TMStunts, LibST_TMRespawns, LibST_TMCheckpoints, LibST_TMPoints, LibST_TMPrevRaceDeltaPoints
  *	SM -> LibST_SMPoints, LibST_SMRoundPoints
  *
@@ -21,7 +21,7 @@
  *	- LibST_SMWithLegends, add a space for columns legends in the header
  */
 
-#Const Version		"2013-11-27"
+#Const Version		"2014-02-03"
 #Const ScriptName	"ScoresTable.Script.txt"
 
 #Include "TextLib" as TL
@@ -61,6 +61,8 @@
 #Const C_LibST_ColWeight		0
 #Const C_LibST_ColWidth			1
 #Const C_LibST_ColTextSize		2
+
+#Const C_LibST_IdleThreshold	60000
 
 #Const C_LibST_RequestTimeout	5000
 
@@ -178,7 +180,10 @@ Text GetScriptName() {
 }
 
 // ---------------------------------- //
-/// Clear one custom score values
+/** Clear one custom score values
+ *
+ *	@param	_Score		The score to clear
+ */
 Void ClearScore(CScore _Score) {
 	declare netwrite Text[Text] Net_LibST_ColsValues for _Score;
 	declare netwrite Integer Net_LibST_Update for _Score;
@@ -284,19 +289,19 @@ Void Load(Boolean _Full) {
 }
 
 // ---------------------------------- //
-// Soft unload, only reset the scores table properties
+/// Soft unload, only reset the scores table properties
 Void Unload() {
 	Unload(True);
 }
 
 // ---------------------------------- //
-// Soft load, only set the scores table properties
+/// Soft load, only set the scores table properties
 Void Load() {
 	Load(True);
 }
 
 // ---------------------------------- //
-// Reset the scores table to its default state
+/// Reset the scores table to its default state
 Void Reset() {	
 	Load(False);
 }
@@ -326,7 +331,7 @@ Void DestroyCol(Text _ColId) {
  *
  *	@param	_Id				The id of the column
  *							Some ids are already used by default, using one of this id will create a special column: 
- *								General -> LibST_Avatar, LibST_Name, LibST_ManiaStars, LibST_Tools, 
+ *								General -> LibST_Avatar, LibST_Name, LibST_ManiaStars, LibST_Tools, LibST_Tags
  *								TM -> LibST_TMBestTime, LibST_PrevTime, LibST_TMStunts, LibST_TMRespawns, LibST_TMCheckpoints, LibST_TMPoints, LibST_TMPrevRaceDeltaPoints
  *								SM -> LibST_SMPoints, LibST_SMRoundPoints
  *							When using an already created column name, the previous column will be destroyed and replaced by the new one
@@ -520,6 +525,35 @@ CUILayer GetLayer() {
 }
 
 // ---------------------------------- //
+/// Attach the scores table layer
+Void Attach() {	
+	if (UIManager.UIAll.UILayers.existskey(G_LibST_LayerScoresTableId)) return;
+	if (!UIManager.UILayers.existskey(G_LibST_LayerScoresTableId)) return;
+	
+	UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibST_LayerScoresTableId]);
+}
+
+// ---------------------------------- //
+/// Detach the scores table layer
+Void Detach() {
+	declare Removed = UIManager.UIAll.UILayers.removekey(G_LibST_LayerScoresTableId);
+}
+
+// ---------------------------------- //
+/// Show the scores table layer
+Void Show() {	
+	declare Layer <=> GetLayer();
+	if (Layer != Null && !Layer.IsVisible) Layer.IsVisible = True;
+}
+
+// ---------------------------------- //
+/// Hide the scores table layer
+Void Hide() {
+	declare Layer <=> GetLayer();
+	if (Layer != Null && Layer.IsVisible) Layer.IsVisible = False;
+}
+
+// ---------------------------------- //
 /** Set the legend of a column
  *
  *	@param	_ColId		The name of the column to set
@@ -547,6 +581,7 @@ Void SetColWidth(Text _ColId, Real _Width) {
 
 // ---------------------------------- //
 /** Set the weight of a column
+ *	The smallest numbers are on the left and the biggest on the right
  *
  *	@param	_ColId		The name of the column to set
  *	@param	_Weight		The new weight of the column
@@ -609,7 +644,7 @@ Void SetFooterScript(Text _Script) {
 }
 
 // ---------------------------------- //
-/** Set the sizes of the differents scores table section
+/** Set the sizes of the different scores table sections
  *	Use a negative value to not modify a size
  *
  *	@param	_HeaderSize		The new size of the header section
@@ -975,7 +1010,7 @@ Void FilterLogins(Text[] _Logins) {
 
 // ---------------------------------- //
 /** Build the scores table manialink
- *	/!\ Use with care, this function use a lot of resources
+ *	/!\ Use with care, this function uses a lot of resources
  *	/!\ Rebuild the scores table only when necessary
  *
  *	@param	_Game	Choose between SM and TM
@@ -1287,11 +1322,37 @@ Void Build(Text _Game) {
 </frame>""";			
 				}
 				case "LibST_Tools": {
-					declare ButtonSize = Private_ResizeKeepRatio(<10., 10.>, <ColsSizeX["LibST_Tools"], PlayerCardTopSizeY/2.>);
+					declare ButtonSize = Private_ResizeKeepRatio(<10., 10.>, <ColsSizeX[ColId], PlayerCardTopSizeY/2.>);
 					ML_PlayerCard[Side] ^= """
 <frame posn="{{{ColPosX}}} {{{(-PlayerCardTopSizeY/2.)-PlayerCardTopMargin+(PlayerCardTopSizeY*0.05)}}} 2">
 	<quad posn="0 {{{ButtonSize.Y/2.}}}" sizen="{{{ButtonSize.X}}} {{{ButtonSize.Y}}}" scale="1.3" halign="{{{ColHAlign}}}" valign="center" style="UIConstructionSimple_Buttons" substyle="Camera" scriptevents="1" id="Button_Spec" />
 	<quad posn="0 {{{-ButtonSize.Y/2.}}}" sizen="{{{ButtonSize.X}}} {{{ButtonSize.Y}}}" scale="1.3" halign="{{{ColHAlign}}}" valign="center" style="UIConstructionSimple_Buttons" substyle="Author" scriptevents="1" id="Button_Profile" />
+</frame>""";
+				}
+				case "LibST_Tags": {
+					declare TagSize = Private_ResizeKeepRatio(<4., 2.>, <ColsSizeX[ColId]*0.8, PlayerCardTopSizeY/3.>);
+					declare MedalSize = Private_ResizeKeepRatio(<1., 1.5>, <ColsSizeX[ColId]*0.3, TagSize.Y>);
+					MedalSize.Y *= 1.08;
+					declare MedalPosX = 0.;
+					declare TagPosX = MedalSize.X * 0.4;
+					switch (G_LibST_ColsText[ColId][C_LibST_ColHAlign]) {
+						case "center"	: { MedalPosX = -TagSize.X/2. * 0.8; TagPosX = MedalSize.X*0.4 / 2.; }
+						case "right"	: { MedalPosX = -TagSize.X * 0.8; TagPosX = 0.; }
+					}
+					ML_PlayerCard[Side] ^= """
+<frame posn="{{{ColPosX}}} {{{-PlayerCardTopSizeY/2.}}}" id="Frame_LibST_Tags">
+	<frame posn="0 {{{TagSize.Y}}}">
+		<quad posn="{{{MedalPosX}}} 0 2" sizen="{{{MedalSize.X}}} {{{MedalSize.Y}}}" halign="{{{ColHAlign}}}" valign="center" style="Icons64x64_1" substyle="TagTypeNone" />
+		<quad posn="{{{TagPosX}}} 0 1" sizen="{{{TagSize.X}}} {{{TagSize.Y}}}" halign="{{{ColHAlign}}}" valign="center" />
+	</frame>
+	<frame posn="0 0">
+		<quad posn="{{{MedalPosX}}} 0 2" sizen="{{{MedalSize.X}}} {{{MedalSize.Y}}}" halign="{{{ColHAlign}}}" valign="center" style="Icons64x64_1" substyle="TagTypeNone" />
+		<quad posn="{{{TagPosX}}} 0 1" sizen="{{{TagSize.X}}} {{{TagSize.Y}}}" halign="{{{ColHAlign}}}" valign="center" />
+	</frame>
+	<frame posn="0 {{{-TagSize.Y}}}">
+		<quad posn="{{{MedalPosX}}} 0 2" sizen="{{{MedalSize.X}}} {{{MedalSize.Y}}}" halign="{{{ColHAlign}}}" valign="center" style="Icons64x64_1" substyle="TagTypeNone" />
+		<quad posn="{{{TagPosX}}} 0 1" sizen="{{{TagSize.X}}} {{{TagSize.Y}}}" halign="{{{ColHAlign}}}" valign="center" />
+	</frame>
 </frame>""";
 				}
 				default : {
@@ -1422,7 +1483,9 @@ else if (Player.IsSpawned && LibST_Status != C_Status_Spawned) {
 	LibST_Status = C_Status_Spawned;
 } else if (!Player.IsSpawned && !Player.RequestsSpectate && LibST_Status != C_Status_NotSpawned) {
 	LibST_Status = C_Status_NotSpawned;
-}""";
+}
+
+LibST_IdleDuration = 0;""";
 		
 		// Update table slot
 		MLScript[2] = "";
@@ -1494,7 +1557,9 @@ else if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && LibST_Status 
 	LibST_Status = C_Status_Spawned;
 } else if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::Spawned && !Player.RequestsSpectate && LibST_Status != C_Status_NotSpawned) {
 	LibST_Status = C_Status_NotSpawned;
-}""";
+}
+
+LibST_IdleDuration = Player.IdleDuration;""";
 
 		// Update table slot
 		MLScript[2] = "";
@@ -1762,6 +1827,7 @@ Void UpdateSlot(Integer _Slot, CScore _Score) {
 	declare Button_Spec				<=> (Frame_Player.GetFirstChild("Button_Spec")				as CMlQuad);
 	declare Button_Profile			<=> (Frame_Player.GetFirstChild("Button_Profile")			as CMlQuad);
 	declare Label_SpecConfirmPos	<=> (Frame_Player.GetFirstChild("Label_SpecConfirmPos")		as CMlLabel);
+	declare Frame_LibST_Tags		<=> (Frame_Player.GetFirstChild("Frame_LibST_Tags")			as CMlFrame);
 	
 	if (!Frame_Player.Visible) Frame_Player.Visible = True;
 	
@@ -1791,8 +1857,43 @@ Void UpdateSlot(Integer _Slot, CScore _Score) {
 		}
 	}
 	
+	if (Frame_LibST_Tags != Null) {
+		declare I = 0;
+		foreach (Control in Frame_LibST_Tags.Controls) {
+			if (I > _Score.User.Tags_Favored_Indices.count-1) Control.Visible = False;
+			else {
+				Control.Visible = True;
+				declare Frame_Tag <=> (Control as CMlFrame);
+				declare Quad_Medal <=> (Frame_Tag.Controls[0] as CMlQuad);
+				declare Quad_Tag <=> (Frame_Tag.Controls[1] as CMlQuad);
+				declare TagKey = _Score.User.Tags_Favored_Indices[I];
+				Quad_Tag.ImageUrl = "file://Tags/"^_Score.User.Login^"/"^_Score.User.Tags_Id[TagKey];
+				switch (_Score.User.Tags_Type[TagKey]) {
+					case CUser::ETagType::Bronze	: Quad_Medal.Substyle = "TagTypeBronze";
+					case CUser::ETagType::Silver	: Quad_Medal.Substyle = "TagTypeSilver";
+					case CUser::ETagType::Gold		: Quad_Medal.Substyle = "TagTypeGold";
+					case CUser::ETagType::Nadeo		: Quad_Medal.Substyle = "TagTypeNadeo";
+					default							: Quad_Medal.Substyle = "TagTypeNone";
+				}
+				
+				if (_Score.User.Tags_Favored_Indices.count == 3) {
+					if (I == 0) Frame_Tag.RelativePosition.Y = Quad_Tag.Size.Y;
+					else if (I == 1) Frame_Tag.RelativePosition.Y = 0.;
+					else Frame_Tag.RelativePosition.Y = -Quad_Tag.Size.Y;
+				} else if (_Score.User.Tags_Favored_Indices.count == 2) {
+					if (I == 0) Frame_Tag.RelativePosition.Y = Quad_Tag.Size.Y/2.;
+					else Frame_Tag.RelativePosition.Y = -Quad_Tag.Size.Y/2.;
+				} else {
+					Frame_Tag.RelativePosition.Y = 0.;
+				}
+			}
+			I += 1;
+		}
+	}
+	
 	if (Quad_Status != Null) {
 		declare LibST_Status for _Score.User = C_Status_Disconnected;
+		declare LibST_IsIdle for _Score.User = False;
 		declare Style = "Icons64x64_2";
 		declare SubStyle = "DisconnectedLight";
 		declare netread Boolean	Net_LibST_UsePlayerDarkening for Teams[0];
@@ -1801,8 +1902,13 @@ Void UpdateSlot(Integer _Slot, CScore _Score) {
 		
 		switch (LibST_Status) {
 			case C_Status_Spawned: {
-				Style = "Icons64x64_1";
-				SubStyle = "LvlGreen";
+				if (LibST_IsIdle) {
+					Style = "UIConstruction_Buttons";
+					SubStyle = "TestSm";
+				} else {
+					Style = "Icons64x64_1";
+					SubStyle = "LvlGreen";
+				}
 				if (UsePlayerDarkening && Quad_PlayerDarkening.Visible) Quad_PlayerDarkening.Visible = False;
 			}
 			case C_Status_NotSpawned: {
@@ -1827,10 +1933,10 @@ Void UpdateSlot(Integer _Slot, CScore _Score) {
 	if (Quad_Echelon != Null) {
 		declare EchelonPath = GetEchelonPath(_Score.User.Echelon, _Slot);
 		if (EchelonPath != "" && Http.IsValidUrl(EchelonPath)) {
-			Quad_Echelon.Show();
+			Quad_Echelon.Visible = True;
 			Quad_Echelon.ChangeImageUrl(EchelonPath);
 		} else {
-			Quad_Echelon.Hide();
+			Quad_Echelon.Visible = False;
 		}
 	}
 	
@@ -2176,11 +2282,17 @@ main() {
 				declare LibST_LastTick for Player.User = -1;
 				LibST_LastTick = Now;
 				
+				declare LibST_IdleDuration for Player.User = -1;
+				declare LibST_IsIdle for Player.User = False;
+				
 				declare LibST_Status for Player.User = C_Status_Disconnected;
 				if (Player.RequestsSpectate && LibST_Status != C_Status_Spectating) {
 					LibST_Status = C_Status_Spectating;
 				}
 				{{{MLScript[1]}}}
+				
+				if (LibST_IsIdle && LibST_IdleDuration < {{{C_LibST_IdleThreshold}}}) LibST_IsIdle = False;
+				else if (!LibST_IsIdle && LibST_IdleDuration > {{{C_LibST_IdleThreshold}}}) LibST_IsIdle = True;
 			}
 			
 			G_NbScoresClan1 = 0;
@@ -2253,6 +2365,13 @@ main() {
 				declare LibST_PrevStatus for Score.User = C_Status_Disconnected;
 				if (LibST_PrevStatus != LibST_Status) {
 					LibST_PrevStatus = LibST_Status;
+					SlotNeedUpdate = True;
+				}
+				
+				declare LibST_IsIdle for Score.User = False;
+				declare LibST_PrevIsIdle for Score.User = False;
+				if (LibST_PrevIsIdle != LibST_IsIdle) {
+					LibST_PrevIsIdle = LibST_IsIdle;
 					SlotNeedUpdate = True;
 				}
 				
@@ -2408,7 +2527,8 @@ Void SetStyle(Text _Style) {
 	
 	if (_Style == "LibST_Base") {
 		CreateCol("LibST_Avatar", "", "", 3., 10.);
-		CreateCol("LibST_Name", "", "", 20., 20.);
+		CreateCol("LibST_Name", "", "", 16., 20.);
+		CreateCol("LibST_Tags", "", "", 4., 25.);
 		CreateCol("LibST_ManiaStars", "", "", 3., 30.);
 		CreateCol("LibST_Tools", "", "", 2., 40.);
 		SetColTextAlign("LibST_Name", CMlControl::AlignHorizontal::Left);
@@ -2780,7 +2900,7 @@ Void Private_ReadXml(CXmlDocument _Xml, Boolean _SafeMode) {
  *
  *	@param	_Style		The path to the XML file to use
  *
- *	@return				True if the request was create, false otherwise
+ *	@return				True if the request was created, false otherwise
  */
 Boolean RequestStyleFromXml(Text _XmlPath) {
 	log(Now^"> LibScoresTable > RequestStyleFromXml() > Try to load XML : "^_XmlPath);	

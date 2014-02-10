@@ -2,7 +2,7 @@
  *	Json lib
  *	Stringify basic classes
  */
-#Const	Version		"2013-09-13"
+#Const	Version		"2013-12-10"
 #Const ScriptName	"Json.Script.txt"
 
 #Include "TextLib" as TextLib
@@ -589,6 +589,35 @@ Text StringifyMinimal(Text _Name, CSmBlockPole _BlockPole, Text _More) {
 	"Tag": "{{{Escape(_BlockPole.Tag)}}}",
 	"Order": {{{_BlockPole.Order}}},
 	{{{Stringify("Captured", _BlockPole.Captured)}}}
+	{{{More}}}
+}""";
+	} else {
+		JSON = """"{{{_Name}}}": null""";
+	}
+	
+	return JSON;
+}
+
+/* ------------------------------------- */
+/** Stringify minimal Pole values from landmark
+ *
+ *	@param	_Name		The name of the stringified object
+ *	@param	_Landmark	The pole to stringify
+ *	@param	_More		Allow to insert more info about the pole
+ */
+Text StringifyMinimal(Text _Name, CSmMapLandmark _Landmark, Text _More) {
+	declare JSON = "";
+	
+	declare More = "";
+	if (_More != "") More = ","^_More;
+	
+	if (_Landmark != Null) {
+		JSON = """
+"{{{_Name}}}":
+{
+	"Tag": "{{{Escape(_Landmark.Tag)}}}",
+	"Order": {{{_Landmark.Order}}},
+	{{{Stringify("Captured", _Landmark.Gauge.Captured)}}}
 	{{{More}}}
 }""";
 	} else {

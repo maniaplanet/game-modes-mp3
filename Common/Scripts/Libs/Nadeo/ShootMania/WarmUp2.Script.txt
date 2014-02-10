@@ -1,7 +1,7 @@
 /**
  *	WarmUp lib
  */
-#Const	Version		"2013-11-22"
+#Const	Version		"2014-02-04"
 #Const	ScriptName	"WarmUp2.Script.txt"
 
 #Include "TextLib" as TL
@@ -18,7 +18,12 @@ declare Ident G_LibWarmUp2_LayerWarmUpId;
 declare Ident[Integer][Text] G_LibWarmUp2_GroupsIds;
 declare Text[Integer][Text] G_LibWarmUp2_GroupsLogins;
 declare Text[Integer][Text] G_LibWarmUp2_GroupsIcons;
+declare Integer[][Integer][Text] G_LibWarmUp2_GroupsTimers;
+declare Integer[Text] G_LibWarmUp2_GroupsCurrentTimer;
+declare Integer G_LibWarmUp2_CurrentTimer;
+declare Integer[Integer] G_LibWarmUp2_SavedTimer;
 declare Boolean G_LibWarmUp2_Updated;
+declare Boolean G_LibWarmUp2_Stop;
 declare Text[] G_LibWarmUp2_GroupsDisabled;
 
 // ---------------------------------- //
@@ -653,6 +658,13 @@ Void Unload() {
 	G_LibWarmUp2_GroupsIcons.clear();
 	G_LibWarmUp2_Updated = True;
 	G_LibWarmUp2_GroupsDisabled.clear();
+	G_LibWarmUp2_GroupsTimers.clear();
+	G_LibWarmUp2_GroupsCurrentTimer.clear();
+	G_LibWarmUp2_CurrentTimer = -1;
+	G_LibWarmUp2_SavedTimer.clear();
+	
+	declare LibXmlRpc_LibWarmUp2Loaded for XmlRpc = False;
+	LibXmlRpc_LibWarmUp2Loaded = False;
 }
 
 // ---------------------------------- //
@@ -667,6 +679,9 @@ Void Load() {
 	
 	declare netwrite Net_LibWarmUp2_LayerPosition for Teams[0] = C_LibWarmUp2_LayerPosition;
 	Net_LibWarmUp2_LayerPosition = C_LibWarmUp2_LayerPosition;
+	
+	declare LibXmlRpc_LibWarmUp2Loaded for XmlRpc = False;
+	LibXmlRpc_LibWarmUp2Loaded = True;
 }
 
 // ---------------------------------- //
@@ -1069,6 +1084,7 @@ Void DestroyGroup(Text _GroupName) {
 	G_LibWarmUp2_GroupsIds.removekey(_GroupName);
 	G_LibWarmUp2_GroupsLogins.removekey(_GroupName);
 	G_LibWarmUp2_GroupsIcons.removekey(_GroupName);
+	G_LibWarmUp2_GroupsTimers.removekey(_GroupName);
 	
 	G_LibWarmUp2_Updated = True;
 	Private_SendGroupsToUI();
@@ -1237,6 +1253,25 @@ Void Clean() {
 }
 
 // ---------------------------------- //
+/** Set a group timers
+ *	@param	_GroupName		The name of the group to update
+ *	@param	_Timers			The new timers with this format :
+ *							[Timer => [MinPlayerReady, MinPlayer]]
+ *							If MinPlayerReady < 0 then the value will be replaced
+ *							by the current number of players in the group
+ *							(meaning that all the players of the group must be ready)
+ */
+Void SetGroupTimers(Text _GroupName, Integer[][Integer] _Timers) {
+	if (!GroupExists(_GroupName)) return;
+	
+	foreach (PlayersNb in _Timers) {
+		if (PlayersNb.count != 2) return;
+	}
+	G_LibWarmUp2_GroupsTimers[_GroupName] = _Timers;
+	G_LibWarmUp2_GroupsCurrentTimer[_GroupName] = -1;
+}
+
+// ---------------------------------- //
 /// Attach the warm up layer
 Void Attach() {
 	if (
@@ -1262,12 +1297,20 @@ Void Begin() {
 	Net_LibWarmUp2_SynchroServer = Private_SynchroServer();
 	
 	G_LibWarmUp2_Updated = True;
+	G_LibWarmUp2_Stop = False;
+	
+	StartTime = Now + 1000;
+	EndTime = -1;
 }
 
 // ---------------------------------- //
 /// Clean after the warm up
 Void End() {	
 	Detach();
+	G_LibWarmUp2_Stop = False;
+	
+	StartTime = -1;
+	EndTime = -1;
 }
 
 // ---------------------------------- //
@@ -1305,6 +1348,83 @@ Void Loop() {
 		}
 	}
 	
+	// Timer management
+	declare NeedUpdate = False;
+	foreach (GroupName => Timers in G_LibWarmUp2_GroupsTimers) {
+		declare I = 0;
+		foreach (Timer => PlayersNb in Timers) {
+			declare PlayersReadyTarget = PlayersNb[0];
+			declare PlayersTotalTarget = PlayersNb[1];
+			declare PlayersReadyCurrent = GetReadyPlayersNb(GroupName);
+			declare PlayersTotalCurrent = GetPlayersNb(GroupName);
+			if (PlayersReadyTarget < 0) PlayersReadyTarget = PlayersTotalCurrent;
+			if (PlayersTotalTarget < 0) PlayersTotalTarget = PlayersTotalCurrent;
+			
+			if (PlayersReadyCurrent >= PlayersReadyTarget && PlayersTotalCurrent >= PlayersTotalTarget) {
+				if (G_LibWarmUp2_GroupsCurrentTimer[GroupName] != Timer) {
+					G_LibWarmUp2_GroupsCurrentTimer[GroupName] = Timer;
+					NeedUpdate = True;
+				}
+				break;
+			}
+			I += 1;
+			if (I == Timers.count) {
+				if (G_LibWarmUp2_GroupsCurrentTimer[GroupName] != -1) {
+					G_LibWarmUp2_GroupsCurrentTimer[GroupName] = -1;
+					NeedUpdate = True;
+				}
+			}
+		}
+	}
+	if (NeedUpdate) {
+		declare NewTimer = -1;
+		foreach (GroupName => Timer in G_LibWarmUp2_GroupsCurrentTimer) {
+			if (Timer == -1) {
+				NewTimer = -1;
+				break;
+			}
+			if (Timer > NewTimer) NewTimer = Timer;
+		}
+		
+		if (G_LibWarmUp2_CurrentTimer != NewTimer) {
+			declare OverrideEndTime = -1;
+			if (NewTimer > 0 && NewTimer < G_LibWarmUp2_CurrentTimer) {
+				G_LibWarmUp2_SavedTimer.clear();
+				G_LibWarmUp2_SavedTimer[G_LibWarmUp2_CurrentTimer] = EndTime;
+			} else if (G_LibWarmUp2_SavedTimer.existskey(NewTimer)) {
+				OverrideEndTime = G_LibWarmUp2_SavedTimer[NewTimer];
+				G_LibWarmUp2_SavedTimer.clear();
+			} else {
+				G_LibWarmUp2_SavedTimer.clear();
+			}
+			G_LibWarmUp2_CurrentTimer = NewTimer;
+			
+			if (OverrideEndTime >= 0) EndTime = OverrideEndTime;
+			else if (G_LibWarmUp2_CurrentTimer >= 0) EndTime = Now + G_LibWarmUp2_CurrentTimer;
+			else EndTime = -1;
+		}
+	}
+	
+	if (EndTime > 0 && EndTime <= Now) G_LibWarmUp2_Stop = True;
+	
+	// XmlRpc commands
+	foreach (Event in XmlRpc.PendingEvents) {
+		if (Event.Param1 == "WarmUp_Extend") {
+			declare ExtendTime = TL::ToInteger(Event.Param2);
+			if (EndTime >= 0) {
+				EndTime += ExtendTime;
+				if (G_LibWarmUp2_SavedTimer.count > 0) {
+					declare Key = -1;
+					foreach (Timer => PrevEndTime in G_LibWarmUp2_SavedTimer) { Key = Timer; break; }
+					G_LibWarmUp2_SavedTimer[Key] += ExtendTime;
+				}
+			}
+		} else if (Event.Param1 == "WarmUp_Stop") {
+			G_LibWarmUp2_Stop = True;
+		}
+	}
+		
+	// Cleaning
 	Clean();
 }
 
@@ -1345,5 +1465,5 @@ Void ManageEvents() {
 Boolean Stop() {
 	if (ServerShutdownRequested || MatchEndRequested) return True;
 	
-	return False;
+	return G_LibWarmUp2_Stop;
 }

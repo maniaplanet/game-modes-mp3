@@ -4,7 +4,7 @@
  *	Utilility functions for ShootMania
  */
 
-#Const Version		"2013-11-13"
+#Const Version		"2013-12-16"
 #Const ScriptName	"SM.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -268,4 +268,19 @@ Void SetupDefaultVisibility() {
 Void SetPlayerWeapon(CSmPlayer _Player, Real _AmmoGainCoeff, Boolean _AutoSwitchWeapon) {
 	SetPlayerWeapon(_Player, CSmMode::EWeapon::Rocket, _AutoSwitchWeapon);
 	_Player.AmmoGain = _AmmoGainCoeff;
+}
+
+// ---------------------------------- //
+/**	Get a player from its login
+ *
+ *	@param	_Login		Login of the player to get
+ *	
+ *	@return				The player if found, Null otherwise
+ */
+CSmPlayer GetPlayer(Text _Login) {
+	foreach (Player in AllPlayers) {
+		if (Player.Login == _Login) return Player;
+	}
+	
+	return Null;
 }

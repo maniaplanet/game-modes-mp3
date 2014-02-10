@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"Race"
-#Const	Version		"2013-10-31"
+#Const	Version		"2014-01-22"
 #Const	ScriptName	"TimeAttack.Script.txt"
 
 #Include "TextLib" as TL
@@ -47,7 +47,7 @@ MB_SetDefaultRespawnMode(CTmMode::ETMRespawnBehaviour::GiveUpBeforeFirstCheckPoi
 
 // ---------------------------------- //
 // Initialize UI
-UI::Load(["TimeGap", "CheckpointTime"]);
+UI::Load(["TimeGap"]);
 UI::SetTimeGapMode("BestRace");
 
 // ---------------------------------- //
@@ -61,12 +61,18 @@ MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
 ST2::Build("TM");
 ***
 
+***InitMap***
+***
+// ---------------------------------- //
+// Initialize scores
+Scores_Clear();
+ST2::ClearScores();
+***
+
 ***StartMap***
 ***
 // ---------------------------------- //
 // Initialize map
-Scores_Clear();
-ST2::ClearScores();
 Mode::Ladder_OpenMatch_All();
 Users_SetNbFakeUsers(C_BotsNb, 0);
 

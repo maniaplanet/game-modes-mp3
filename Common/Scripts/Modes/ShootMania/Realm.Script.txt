@@ -4,15 +4,16 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"RealmArena"
-#Const	Version				"2013-10-24"
+#Const	Version				"2013-12-13"
 #Const	ScriptName			"Realm.Script.txt"
 
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 #Include "Libs/Nadeo/Color.Script.txt" as Color
-#Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Scores
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
@@ -56,6 +57,7 @@
 ***
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
+MB_LogVersion(Map::GetScriptName(), Map::GetScriptVersion());
 MB_LogVersion(Color::GetScriptName(), Color::GetScriptVersion());
 MB_LogVersion(Scores::GetScriptName(), Scores::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
@@ -65,10 +67,6 @@ MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 
 ***InitServer***
 ***
-declare LayerUpdated		= False;
-declare LayerAttached		= False;
-declare LayerDetached		= False;
-declare LayerDestroyed		= False;
 MB_UseSectionRound			= True;
 MB_UseSectionTurn			= True;
 MB_UsePlayerClublinks		= S_UsePlayerClublinks;
@@ -90,10 +88,10 @@ ModeStatusMessage =  _("TYPE: Team versus Team\nOBJECTIVE: Your team must contro
 
 // ---------------------------------- //
 // Create the layers
-declare LayerSpawnSelectionId	= Layers::Create("SpawnSelection", CreateLayerSpawnSelection());
-declare LayerInfoId				= Layers::Create("Info");
-declare LayerMarkersId			= Layers::Create("Markers");
-Layers::GetFromId(LayerMarkersId).Type = CUILayer::EUILayerType::Markers;
+Layers::Create("SpawnSelection", CreateLayerSpawnSelection());
+Layers::Create("Info");
+Layers::Create("Markers");
+Layers::SetType("Markers", CUILayer::EUILayerType::Markers);
 
 // ---------------------------------- //
 // Init scores table
@@ -105,9 +103,9 @@ ST2::Build("SM");
 
 ***InitMap***
 ***
-declare CSmBlockPole[Integer]	PoleList;
-declare CSmBlockSpawn[Integer]	SpawnList;
-declare CSmBlockSpawn[Integer]	SpawnStartList;
+declare CSmMapLandmark[Integer]	PoleList;
+declare CSmMapLandmark[Integer]	SpawnList;
+declare CSmMapLandmark[Integer]	SpawnStartList;
 declare Integer[Integer]		BaseClanList;
 declare Integer[Integer]		ClanMapScores;
 declare Integer[Integer]		ClanMapAdvantage;
@@ -126,28 +124,28 @@ Users_SetNbFakeUsers(C_BlueBots, C_RedBots);
 // Init pole
 UIManager.UIAll.Hud3dMarkers = "";
 PoleList.clear();
-foreach (Pole in BlockPoles) {
-	if (Pole.Tag == "Pole") {
-		PoleList[Pole.Order] = Pole;
+foreach (LandmarkGauge in MapLandmarks_Gauge) {
+	if (LandmarkGauge.Tag == "Pole" && LandmarkGauge.Sector != Null) {
+		PoleList[LandmarkGauge.Order] <=> LandmarkGauge;
 		//Create markers
-		UIManager.UIAll.Hud3dMarkers ^= """<marker pos="{{{Pole.Position.X}}} {{{Pole.Position.Y+25.}}} {{{Pole.Position.Z}}}" manialinkframeid="Marker_Pole_{{{Pole.Order}}}" />""";
+		UIManager.UIAll.Hud3dMarkers ^= """<marker pos="{{{LandmarkGauge.Position.X}}} {{{LandmarkGauge.Position.Y+25.}}} {{{LandmarkGauge.Position.Z}}}" manialinkframeid="Marker_Pole_{{{LandmarkGauge.Order}}}" />""";
 	}
 }
 
 // ---------------------------------- //
 // Init spawn
 SpawnList.clear();
-foreach (Spawn in BlockSpawns) {
-	if (Spawn.Tag == "Spawn") SpawnList[Spawn.Order] = Spawn;
-	else if (Spawn.Tag == "SpawnStart") SpawnStartList[Spawn.Order] = Spawn;
+foreach (LandmarkPlayerSpawn in MapLandmarks_PlayerSpawn) {
+	if (LandmarkPlayerSpawn.Tag == "Spawn") SpawnList[LandmarkPlayerSpawn.Order] <=> LandmarkPlayerSpawn;
+	else if (LandmarkPlayerSpawn.Tag == "SpawnStart") SpawnStartList[LandmarkPlayerSpawn.Order] <=> LandmarkPlayerSpawn;
 }
 
 // ---------------------------------- //
 // Misc init
 ST2::ClearScores();
 Scores::MatchBegin();
-LayerAttached = Layers::Attach("Markers", NullId);
-LayerAttached = Layers::Attach("Info", NullId);
+Layers::Attach("Markers");
+Layers::Attach("Info");
 ClanMapScores		= [1 => 0, 2 => 0];
 ClanMapAdvantage	= [1 => 0, 2 => 0];
 ClanMapWinner		= 0;
@@ -234,10 +232,10 @@ foreach (Key => Pole in PoleList) {
 }
 UpdatePolesStatus(BaseClanList);
 
-foreach (BlockSpawn in BlockSpawns) {
-	declare SpawnClan for BlockSpawn = 0;
-	if (BlockSpawn.Tag == "SpawnStart") {
-		SpawnClan = BlockSpawn.Order;
+foreach (LandmarkPlayerSpawn in MapLandmarks_PlayerSpawn) {
+	declare SpawnClan for LandmarkPlayerSpawn = 0;
+	if (LandmarkPlayerSpawn.Tag == "SpawnStart") {
+		SpawnClan = LandmarkPlayerSpawn.Order;
 	} else {
 		SpawnClan = 0;
 	}
@@ -272,8 +270,8 @@ UpdateScoresHeader(ClanMapScores);
 Scores::RoundBegin();
 ST2::SetFooterText(TL::Compose("%1 "^S_MapPointsLimit, _("Points limit : ")));
 
-LayerUpdated = Layers::Update("Markers", CreateLayerMarkers());
-LayerUpdated = Layers::Update("Info", CreateLayerInfo());
+Layers::Update("Markers", CreateLayerMarkers());
+Layers::Update("Info", CreateLayerInfo());
 UIManager.UIAll.UISequence		= CUIConfig::EUISequence::Playing;
 UIManager.UIAll.BigMessageSound	= CUIConfig::EUISound::Default;
 UIManager.UIAll.StatusMessage	= GetScoresString(TurnPointsLimit, TurnPointsLimit, 0, [1 => False, 2 => False]);
@@ -380,7 +378,7 @@ foreach (Key => Pole in PoleList) {
 		declare OpposingClan	= 3 - Pole.Gauge.Clan;
 		
 		// Capturing
-		if (PlayerCount[CapturingClan] > PlayerCount[OpposingClan] && !Pole.Captured) {
+		if (PlayerCount[CapturingClan] > PlayerCount[OpposingClan] && !Pole.Gauge.Captured) {
 			Pole.Gauge.Speed = PlayerCount[CapturingClan] - PlayerCount[OpposingClan];
 		} 
 		// Opposing
@@ -394,7 +392,7 @@ foreach (Key => Pole in PoleList) {
 		}
 	} 
 	// Pole regenaration
-	else if (S_UsePoleRegeneration && BaseClanList[Key] != 0 && !Pole.Captured) {
+	else if (S_UsePoleRegeneration && BaseClanList[Key] != 0 && !Pole.Gauge.Captured) {
 		if (BaseClanList[Key] == Pole.Gauge.Clan) {
 			Pole.Gauge.Speed = 1;
 		} else {
@@ -451,8 +449,8 @@ if (PrevPlayerRefresh + C_PlayerRefreshInterval <= Now) {
 		if (!SkipSpawnSelection) {
 			if (!WaitForRespawn) {
 				WaitForRespawn	= True;
-				LayerAttached	= Layers::Attach("SpawnSelection", Player.Id);
 				SynchroClient	= -1;
+				Layers::Attach("SpawnSelection", Player);
 				SetPlayerClan(Player, Player.RequestedClan);
 			}
 			
@@ -474,7 +472,7 @@ if (PrevPlayerRefresh + C_PlayerRefreshInterval <= Now) {
 				} else if (SpawnList.existskey(SpectatedSpawn)) {
 					SpawnId = SpawnList[SpectatedSpawn].Id;
 				}
-				UI.SpectatorForcedTarget	= SpawnId;
+				UI.SpectatorForcedTarget = SpawnId;
 			}
 		}
 		
@@ -483,26 +481,26 @@ if (PrevPlayerRefresh + C_PlayerRefreshInterval <= Now) {
 		if (SkipSpawnSelection || (NextSpawnTime <= Now && DesiredSpawn >= 0)) {
 			if (SkipSpawnSelection) DesiredSpawn = 0;
 			
-			declare CSmBlockSpawn Spawn;
+			declare CSmMapPlayerSpawn Spawn;
 			if (DesiredSpawn == 0) {
-				if (Player.CurrentClan == 1) Spawn <=> SpawnStartList[Side1Clan];
-				else if (Player.CurrentClan == 2) Spawn <=> SpawnStartList[Side2Clan];
+				if (Player.CurrentClan == 1) Spawn <=> SpawnStartList[Side1Clan].PlayerSpawn;
+				else if (Player.CurrentClan == 2) Spawn <=> SpawnStartList[Side2Clan].PlayerSpawn;
 			} else if (
 				SpawnList.existskey(DesiredSpawn) 
 				&& BaseClanList.existskey(DesiredSpawn)
 				&& BaseClanList[DesiredSpawn] == Player.CurrentClan
 			) {
-				Spawn <=> SpawnList[DesiredSpawn];
+				Spawn <=> SpawnList[DesiredSpawn].PlayerSpawn;
 			}
 			
 			if (Spawn != Null) {
 				SkipSpawnSelection	= False;
 				WaitForRespawn		= False;
-				LayerDetached		= Layers::Detach("SpawnSelection", Player.Id);
 				SpectatedSpawn		= -1;
 				DesiredSpawn		= -1;
 				UI.SpectatorForcedTarget	= NullId;
 				UI.SpectatorForcedClan		= Player.CurrentClan;
+				Layers::Detach("SpawnSelection", Player);
 				SM::SpawnPlayer(Player, Player.CurrentClan, Spawn, Now);
 			}
 		}
@@ -584,8 +582,8 @@ StartTime = -1;
 
 // ---------------------------------- //
 // Clean UI
-foreach (Player in Players) LayerDetached = Layers::Detach("SpawnSelection", Player.Id);
-foreach (Spectator in Spectators) LayerDetached = Layers::Detach("SpawnSelection", Spectator.Id);
+foreach (Player in Players) Layers::Detach("SpawnSelection", Player);
+foreach (Spectator in Spectators) Layers::Detach("SpawnSelection", Spectator);
 Message::CleanAllMessages();
 
 // ---------------------------------- //
@@ -671,8 +669,8 @@ if (ClanMapScores[1] >= S_MapPointsLimit && ClanMapScores[1] - ClanMapScores[2] 
 Scores::MatchEnd();
 UpdateScoresHeader(ClanMapScores);
 
-LayerDetached = Layers::Detach("Markers", NullId);
-LayerDetached = Layers::Detach("Info", NullId);
+Layers::Detach("Markers");
+Layers::Detach("Info");
 UIManager.UIAll.BigMessage		= "";
 UIManager.UIAll.StatusMessage	= "";
 
@@ -699,9 +697,9 @@ UIManager.UIAll.BigMessage				= "";
 // ---------------------------------- //
 // Clean the UI
 SpawnScreen::DestroyRules();
-LayerDestroyed = Layers::Destroy("SpawnSelection");
-LayerDestroyed = Layers::Destroy("Markers");
-LayerDestroyed = Layers::Destroy("Info");
+Layers::Destroy("SpawnSelection");
+Layers::Destroy("Markers");
+Layers::Destroy("Info");
 UIManager.ResetAll();
 UIManager.UILayerDestroyAll();
 
@@ -809,49 +807,49 @@ Void UpdateScoresHeader(Integer[Integer] _Points) {
 // ---------------------------------- //
 /// End map timer for MatchMaking
 Void UpdateBasesColors() {
-	foreach (Base in Bases) {
+	foreach (Base in MapBases) {
 		Base.Clan = 0;
 		Base.IsActive = True;
 	}
 	
 	declare UpdatedBases = Ident[];
 	
-	foreach (BlockSpawn in BlockSpawns) {
-		if (BlockSpawn.Base == Null) continue;
+	foreach (LandmarkPlayerSpawn in MapLandmarks_PlayerSpawn) {
+		if (LandmarkPlayerSpawn.Base == Null) continue;
 		
-		declare SpawnClan for BlockSpawn = 0;
+		declare SpawnClan for LandmarkPlayerSpawn = 0;
 		
-		if (!UpdatedBases.exists(BlockSpawn.Base.Id)) {
-			if (BlockSpawn.Tag == "SpawnStart") {
-				BlockSpawn.Base.Clan = BlockSpawn.Order;
+		if (!UpdatedBases.exists(LandmarkPlayerSpawn.Base.Id)) {
+			if (LandmarkPlayerSpawn.Tag == "SpawnStart") {
+				LandmarkPlayerSpawn.Base.Clan = LandmarkPlayerSpawn.Order;
 			} else {
-				BlockSpawn.Base.Clan = SpawnClan;
-				if (SpawnClan == 0) BlockSpawn.Base.IsActive = False;
+				LandmarkPlayerSpawn.Base.Clan = SpawnClan;
+				if (SpawnClan == 0) LandmarkPlayerSpawn.Base.IsActive = False;
 			}
 		} else {
-			if (BlockSpawn.Tag == "SpawnStart") {
-				if (BlockSpawn.Base.Clan != BlockSpawn.Order) BlockSpawn.Base.Clan = 0;
-				BlockSpawn.Base.IsActive = True;
-			} else if (SpawnClan != BlockSpawn.Base.Clan) {
-				BlockSpawn.Base.Clan = 0;
-				BlockSpawn.Base.IsActive = True;
+			if (LandmarkPlayerSpawn.Tag == "SpawnStart") {
+				if (LandmarkPlayerSpawn.Base.Clan != LandmarkPlayerSpawn.Order) LandmarkPlayerSpawn.Base.Clan = 0;
+				LandmarkPlayerSpawn.Base.IsActive = True;
+			} else if (SpawnClan != LandmarkPlayerSpawn.Base.Clan) {
+				LandmarkPlayerSpawn.Base.Clan = 0;
+				LandmarkPlayerSpawn.Base.IsActive = True;
 			}
 		}
-		UpdatedBases.add(BlockSpawn.Base.Id);
+		UpdatedBases.add(LandmarkPlayerSpawn.Base.Id);
 	}
 	
-	foreach (BlockPole in BlockPoles) {
-		if (BlockPole.Base == Null) continue;
+	foreach (LandmarkGauge in MapLandmarks_Gauge) {
+		if (LandmarkGauge.Base == Null) continue;
 		
-		declare PoleClan for BlockPole = 0;
+		declare PoleClan for LandmarkGauge = 0;
 		
-		if (!UpdatedBases.exists(BlockPole.Base.Id)) {
-			BlockPole.Base.Clan = PoleClan;
-			if (PoleClan == 0) BlockPole.Base.IsActive = False;
-			UpdatedBases.add(BlockPole.Base.Id);
-		} else if (BlockPole.Base.Clan != PoleClan) {
-			BlockPole.Base.Clan = 0;
-			BlockPole.Base.IsActive = True;
+		if (!UpdatedBases.exists(LandmarkGauge.Base.Id)) {
+			LandmarkGauge.Base.Clan = PoleClan;
+			if (PoleClan == 0) LandmarkGauge.Base.IsActive = False;
+			UpdatedBases.add(LandmarkGauge.Base.Id);
+		} else if (LandmarkGauge.Base.Clan != PoleClan) {
+			LandmarkGauge.Base.Clan = 0;
+			LandmarkGauge.Base.IsActive = True;
 		}
 	}
 }
@@ -1208,9 +1206,10 @@ Void UpdatePoleControl(Integer _PoleOrder, Boolean _FullyControled) {
 }
 
 Void UpdatePoleInfo(Integer _BaseClan) {
-	if (InputPlayer == Null || InputPlayer.BlockPole == Null) return;
-	declare Gauge <=> InputPlayer.BlockPole.Gauge;
-	declare Sector <=> InputPlayer.BlockPole.Sector;
+	if (InputPlayer == Null || InputPlayer.CapturedLandmark == Null) return;
+	if (InputPlayer.CapturedLandmark.Gauge == Null || InputPlayer.CapturedLandmark.Sector == Null) return;
+	declare Gauge <=> InputPlayer.CapturedLandmark.Gauge;
+	declare Sector <=> InputPlayer.CapturedLandmark.Sector;
 	
 	declare State = 0;
 	
@@ -1279,9 +1278,10 @@ Void UpdatePoleInfo(Integer _BaseClan) {
 }
 
 Void UpdatePoleInfoGauge() {
-	if (InputPlayer == Null || InputPlayer.BlockPole == Null) return;
-	Gauge_PoleValue.SetClan(InputPlayer.BlockPole.Gauge.Clan);
-	Gauge_PoleValue.SetRatio(InputPlayer.BlockPole.Gauge.ValueReal);
+	if (InputPlayer == Null || InputPlayer.CapturedLandmark == Null) return;
+	if (InputPlayer.CapturedLandmark.Gauge == Null) return;
+	Gauge_PoleValue.SetClan(InputPlayer.CapturedLandmark.Gauge.Clan);
+	Gauge_PoleValue.SetRatio(InputPlayer.CapturedLandmark.Gauge.ValueReal);
 }
 
 main() {
@@ -1292,11 +1292,11 @@ main() {
 	
 	declare Integer[Integer]	BasesClan;
 	declare Boolean[Integer]	FullyControled;
-	foreach (Pole in BlockPoles) {
-		if (Pole.Tag != "Pole") continue;
-		Markers_Pole[Pole.Order]	= (Page.GetFirstChild("Marker_Pole_"^Pole.Order) as CMlFrame);
-		BasesClan[Pole.Order]		= 0;
-		FullyControled[Pole.Order]	= False;
+	foreach (LandmarkGauge in MapLandmarks_Gauge) {
+		if (LandmarkGauge.Tag != "Pole") continue;
+		Markers_Pole[LandmarkGauge.Order]	= (Page.GetFirstChild("Marker_Pole_"^LandmarkGauge.Order) as CMlFrame);
+		BasesClan[LandmarkGauge.Order]		= 0;
+		FullyControled[LandmarkGauge.Order]	= False;
 	}
 	
 	declare Frame_ScoreInfo			<=> (Page.GetFirstChild("Frame_ScoreInfo")		as CMlFrame);
@@ -1324,23 +1324,23 @@ main() {
 		if (InputPlayer == Null) continue;
 		
 		if (Frame_PoleInfo != Null && InputPlayer != Null) {
-			if (!IsOnPole && InputPlayer.BlockPole != Null && InputPlayer.BlockPole.Tag == "Pole") {
+			if (!IsOnPole && InputPlayer.CapturedLandmark != Null && InputPlayer.CapturedLandmark.Tag == "Pole") {
 				IsOnPole = True;
 				Frame_PoleInfo.Show();
-			} else if (IsOnPole && InputPlayer.BlockPole == Null) {
+			} else if (IsOnPole && InputPlayer.CapturedLandmark == Null) {
 				IsOnPole = False;
 				Frame_PoleInfo.Hide();
 			}
 			
 			if (IsOnPole) {
 				if (
-					PrevBaseClan != BasesClan[InputPlayer.BlockPole.Order]
-					|| PrevGaugeClan != InputPlayer.BlockPole.Gauge.Clan
-					|| PrevGaugeSpeed != InputPlayer.BlockPole.Gauge.Speed
+					PrevBaseClan != BasesClan[InputPlayer.CapturedLandmark.Order]
+					|| PrevGaugeClan != InputPlayer.CapturedLandmark.Gauge.Clan
+					|| PrevGaugeSpeed != InputPlayer.CapturedLandmark.Gauge.Speed
 				) {
-					PrevBaseClan	= BasesClan[InputPlayer.BlockPole.Order];
-					PrevGaugeClan	= InputPlayer.BlockPole.Gauge.Clan;
-					PrevGaugeSpeed	= InputPlayer.BlockPole.Gauge.Speed;
+					PrevBaseClan	= BasesClan[InputPlayer.CapturedLandmark.Order];
+					PrevGaugeClan	= InputPlayer.CapturedLandmark.Gauge.Clan;
+					PrevGaugeSpeed	= InputPlayer.CapturedLandmark.Gauge.Speed;
 					UpdatePoleInfo(PrevBaseClan);
 				}
 				UpdatePoleInfoGauge();
@@ -1350,22 +1350,22 @@ main() {
 		if (LastRefresh + C_RefreshInterval <= Now) {
 			LastRefresh = Now;
 			
-			foreach (Pole in BlockPoles) {
-				if (Pole.Tag != "Pole") continue;
+			foreach (LandmarkGauge in MapLandmarks_Gauge) {
+				if (LandmarkGauge.Tag != "Pole") continue;
 				
-				if (Net_BaseClanList.existskey(Pole.Order) && BasesClan[Pole.Order] != Net_BaseClanList[Pole.Order]) {
-					BasesClan[Pole.Order] = Net_BaseClanList[Pole.Order];
-					UpdatePoleClan(Pole.Order, BasesClan[Pole.Order]);
-					UpdatePoleGauge(Pole.Order, Pole.Gauge.Clan, Pole.Gauge.ValueReal);
+				if (Net_BaseClanList.existskey(LandmarkGauge.Order) && BasesClan[LandmarkGauge.Order] != Net_BaseClanList[LandmarkGauge.Order]) {
+					BasesClan[LandmarkGauge.Order] = Net_BaseClanList[LandmarkGauge.Order];
+					UpdatePoleClan(LandmarkGauge.Order, BasesClan[LandmarkGauge.Order]);
+					UpdatePoleGauge(LandmarkGauge.Order, LandmarkGauge.Gauge.Clan, LandmarkGauge.Gauge.ValueReal);
 				}
 				
-				if (Pole.Captured != FullyControled[Pole.Order]) {
-					FullyControled[Pole.Order] = Pole.Captured;
-					UpdatePoleControl(Pole.Order, Pole.Captured);
+				if (LandmarkGauge.Gauge.Captured != FullyControled[LandmarkGauge.Order]) {
+					FullyControled[LandmarkGauge.Order] = LandmarkGauge.Gauge.Captured;
+					UpdatePoleControl(LandmarkGauge.Order, LandmarkGauge.Gauge.Captured);
 				}
 				
-				if (Pole.Gauge.Speed != 0) {
-					UpdatePoleGauge(Pole.Order, Pole.Gauge.Clan, Pole.Gauge.ValueReal);
+				if (LandmarkGauge.Gauge.Speed != 0) {
+					UpdatePoleGauge(LandmarkGauge.Order, LandmarkGauge.Gauge.Clan, LandmarkGauge.Gauge.ValueReal);
 				}
 			}
 			
@@ -1402,15 +1402,15 @@ Text CreateLayerMarkers() {
 	declare ImgPole 	 	= C_ImgBaseDir^"goal.dds";
 	declare ImgPoleCapture	= C_ImgBaseDir^"goal_cap.dds";
 	
-	foreach (Pole in BlockPoles) {
-		if (Pole.Tag == "Pole") {
+	foreach (LandmarkGauge in MapLandmarks_Gauge) {
+		if (LandmarkGauge.Tag == "Pole") {
 			MarkersML ^= """
-<frame id="Marker_Pole_{{{Pole.Order}}}">
+<frame id="Marker_Pole_{{{LandmarkGauge.Order}}}">
 	<gauge id="Gauge_Capture" posn="2.5 -3. -1" sizen="{{{ImgSize*1.5}}} 6." style="EnergyBar" drawbg="false" rotation="-90" drawblockbg="false" />
 	<quad sizen="{{{WidthFactor*ImgSize}}} {{{ImgSize}}}" halign="center" valign="center" image="{{{ImgPole}}}" colorize="{{{Teams[0].ColorPrimary.X}}} {{{Teams[0].ColorPrimary.Y}}} {{{Teams[0].ColorPrimary.Z}}}" autoscale="False" id="Quad_PoleClan1" hidden="1" />
 	<quad sizen="{{{WidthFactor*ImgSize}}} {{{ImgSize}}}" halign="center" valign="center" image="{{{ImgPole}}}" colorize="{{{Teams[1].ColorPrimary.X}}} {{{Teams[1].ColorPrimary.Y}}} {{{Teams[1].ColorPrimary.Z}}}" autoscale="False" id="Quad_PoleClan2" hidden="1" />
 	<quad sizen="{{{WidthFactor*ImgSize}}} {{{ImgSize}}}" halign="center" valign="center" image="{{{ImgPole}}}" colorize="0. 0. 0." autoscale="False" id="Quad_PoleDefault" />
-	<label posn="0 1.8" halign="center" valign="center" textprefix="$s" text="{{{GetLetterFromNumber(Pole.Order)}}}" textsize="1" id="Label_PoleName" />
+	<label posn="0 1.8" halign="center" valign="center" textprefix="$s" text="{{{GetLetterFromNumber(LandmarkGauge.Order)}}}" textsize="1" id="Label_PoleName" />
 </frame>
 """;
 		}
@@ -1431,16 +1431,16 @@ Text CreateLayerInfo() {
 	declare ImgPole 	 	= C_ImgBaseDir^"goal.dds";
 	declare ImgPoleCapture	= C_ImgBaseDir^"goal_cap.dds";
 	
-	foreach (Pole in BlockPoles) {
-		if (Pole.Tag == "Pole") {
+	foreach (LandmarkGauge in MapLandmarks_Gauge) {
+		if (LandmarkGauge.Tag == "Pole") {
 			MarkersML ^= """
-<frame posn="{{{90 + (Pole.Order * 10)}}} 86 30" id="Marker_Pole_{{{Pole.Order}}}">
+<frame posn="{{{90 + (LandmarkGauge.Order * 10)}}} 86 30" id="Marker_Pole_{{{LandmarkGauge.Order}}}">
 	<gauge id="Gauge_Capture" posn="4 -3 -1" sizen="{{{ImgSize*1.5}}} 8." style="EnergyBar" drawbg="false" rotation="-90" drawblockbg="false" />
 	<!--<gauge id="Gauge_Capture" posn="2.5 -3. -1" sizen="{{{ImgSize*1.5}}} 6." style="EnergyBar" drawbg="false" rotation="-90" drawblockbg="false" />-->
 	<quad sizen="{{{WidthFactor*ImgSize}}} {{{ImgSize}}}" halign="center" valign="center" image="{{{ImgPole}}}" colorize="{{{Teams[0].ColorPrimary.X}}} {{{Teams[0].ColorPrimary.Y}}} {{{Teams[0].ColorPrimary.Z}}}" autoscale="False" id="Quad_PoleClan1" hidden="1" />
 	<quad sizen="{{{WidthFactor*ImgSize}}} {{{ImgSize}}}" halign="center" valign="center" image="{{{ImgPole}}}" colorize="{{{Teams[1].ColorPrimary.X}}} {{{Teams[1].ColorPrimary.Y}}} {{{Teams[1].ColorPrimary.Z}}}" autoscale="False" id="Quad_PoleClan2" hidden="1" />
 	<quad sizen="{{{WidthFactor*ImgSize}}} {{{ImgSize}}}" halign="center" valign="center" image="{{{ImgPole}}}" colorize="0. 0. 0." autoscale="False" id="Quad_PoleDefault" />
-	<label posn="0 1.8" scale="0.3" halign="center" valign="center" style="TextRaceMessageBig" text="{{{GetLetterFromNumber(Pole.Order)}}}" id="Label_PoleName" />
+	<label posn="0 1.8" scale="0.3" halign="center" valign="center" style="TextRaceMessageBig" text="{{{GetLetterFromNumber(LandmarkGauge.Order)}}}" id="Label_PoleName" />
 </frame>
 <frame posn="0 -50 10" id="Frame_PoleInfo" hidden="1">
 	<quad sizen="18 18" halign="center" valign="bottom" id="Quad_PoleImage" />

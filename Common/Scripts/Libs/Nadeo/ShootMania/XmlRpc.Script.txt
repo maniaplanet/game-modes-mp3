@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2013-11-21"
+#Const	Version		"2014-02-04"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -404,6 +404,11 @@ Void OnPlayerRequestRespawn(CSmModeEvent _Event) {
 	Private_SendCallbackArray("LibXmlRpc_OnPlayerRequestRespawn", Data);
 }
 
+Void SendWarmUpStatus() {
+	declare LibXmlRpc_LibWarmUp2Loaded for XmlRpc = False;
+	Private_SendCallbackArray("WarmUp_Status", [TL::ToText(LibXmlRpc_LibWarmUp2Loaded)]);
+}
+
 // ---------------------------------- //
 // Listening on XmlRpc port
 // ---------------------------------- //
@@ -421,6 +426,7 @@ Void Loop() {
 				case "LibXmlRpc_DisableAltMenu"	: Private_ToggleAltMenu(False, Event.Param2);
 				case "LibXmlRpc_EnableAltMenu"	: Private_ToggleAltMenu(True, Event.Param2);
 				case "LibXmlRpc_GetScores"		: SendScores();
+				case "WarmUp_GetStatus"			: SendWarmUpStatus();
 			}
 		}
 	}

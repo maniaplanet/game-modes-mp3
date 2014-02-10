@@ -2,7 +2,7 @@
  * UI Layers library
  */
 
-#Const Version		"2012-11-20"
+#Const Version		"2014-01-08"
 #Const ScriptName	"Layers.Script.txt"
 
 // ---------------------------------- //
@@ -108,6 +108,14 @@ Void Destroy(Text _LayerName) {
 	
 	UIManager.UILayerDestroy(UIManager.UILayers[G_LibLayer_Layers[_LayerName]]);
 	declare Removed = G_LibLayer_Layers.removekey(_LayerName);
+}
+
+// ---------------------------------- //
+/// Destroy all layers
+Void DestroyAll() {
+	foreach (LayerName => LayerId in G_LibLayer_Layers) {
+		Destroy(LayerName);
+	}
 }
 
 // ---------------------------------- //

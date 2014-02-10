@@ -1,4 +1,4 @@
-#Const Version		"2013-10-23"
+#Const Version		"2013-12-02"
 #Const ScriptName	"TabsServer.Script.txt"
 
 #Const C_BgColor 	 		"0007" // "3329"
@@ -359,4 +359,10 @@ Void Load() {
 	EmptyLayerAlt.ManialinkPage = EmptyLayerAltMLPage;
 	EmptyLayerAlt.Type = CUILayer::EUILayerType::AltMenu;
 	UIManager.UIAll.UILayers.add(EmptyLayerAlt);
+}
+
+// ---------------------------------- //
+// Unload the lib
+Void Unload() {
+	
 }

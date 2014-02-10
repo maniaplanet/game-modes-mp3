@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2013-10-03"
+#Const Version    "2013-12-13"
 #Const ScriptName "ElitePractice.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -14,9 +14,10 @@
 
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ScoresTable2.Script.txt" as ST2
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
@@ -352,10 +353,10 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 	UseClans = False;
 	
 	declare netwrite Integer Net_ModeSport_PlayersNbTotal for Teams[0];
-	declare LayerWaitConnectionId = Layers::Create("WaitConnection", Private_CreateLayerWaitConnection());
-	Layers::GetFromId(LayerWaitConnectionId).Type = CUILayer::EUILayerType::CutScene;
-	declare LayerAttached = Layers::Attach("WaitConnection", NullId);
-	Layers::Detach("Info", NullId);
+	Layers::Create("WaitConnection", Private_CreateLayerWaitConnection());
+	Layers::SetType("WaitConnection", CUILayer::EUILayerType::CutScene);
+	Layers::Attach("WaitConnection");
+	Layers::Detach("Info");
 	
 	if (_CanSpawn) {
 		UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
@@ -393,10 +394,10 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 		if (PlayersNbTotal >= IdealPlayersNb) break;
 		if (UIManager.UIAll.CountdownEndTime != -1 && Now >= UIManager.UIAll.CountdownEndTime - TimeOut) break;
 		
-		if (_CanSpawn && BlockSpawns.count > 0) {
+		if (_CanSpawn && MapLandmarks_PlayerSpawn.count > 0) {
 			foreach (Player in Players) {
 				if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
-					SM::SpawnPlayer(Player, 0, 200, BlockSpawns[ML::Rand(0, BlockSpawns.count - 1)], Now + 3000);
+					SM::SpawnPlayer(Player, 0, 200, MapLandmarks_PlayerSpawn[ML::Rand(0, MapLandmarks_PlayerSpawn.count - 1)].PlayerSpawn, Now + 3000);
 				}
 			}
 			foreach (Event in PendingEvents) {
@@ -440,9 +441,9 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 	
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 	UIManager.UIAll.UISequence_CanSkipIntroMT = True;
-	declare LayerDetached = Layers::Detach("WaitConnection", NullId);
-	declare LayerDestroyed = Layers::Destroy("WaitConnection");
-	Layers::Attach("Info", NullId);
+	Layers::Detach("WaitConnection");
+	Layers::Destroy("WaitConnection");
+	Layers::Attach("Info");
 	
 	UseClans = True;
 	StartTime = -1;
@@ -659,7 +660,7 @@ Void Private_UpdateFooter(Real _Distance, Text _Name, Integer _CurrentTurn, Inte
 		Distance = (ML::NearestInteger(_Distance*10.0)/10.0)^"m";
 		Name = "$<"^_Name^"$>";
 	}
-	ST2::SetFooterText(TL::Compose("%1 $<"^ServerName^"$>   |   %2 $<"^ServerModeName^"$>   |   %3 "^Distance^" %4 "^Name^"   |   %5: "^_CurrentTurn^"/"^_MaxTurn, _("Server name : "), _("Game mode :"), _("Longest Laser :"), _("by"), _("|Noun|Turn")));
+	ST2::SetFooterText(TL::Compose("%1 "^Distance^" %2 "^Name^"   |   %3: "^_CurrentTurn^"/"^_MaxTurn, _("Longest Laser :"), _("by"), _("|Noun|Turn")));
 }
 
 // ---------------------------------- //
@@ -724,10 +725,10 @@ Text Private_GetMarkers() {
 	declare Content = "";
 	declare Pos = Vec3;
 	
-	foreach (BlockPole in BlockPoles) {
-		Pos = BlockPole.Position;
+	foreach (LandmarkGauge in MapLandmarks_Gauge) {
+		Pos = LandmarkGauge.Position;
 		
-		switch (BlockPole.Tag) {
+		switch (LandmarkGauge.Tag) {
 			case "Goal A": {
 				Content = """ icon="PointA" """;
 				Pos.Y += 25;
@@ -859,11 +860,11 @@ main() {
 		if (IsSpectatorMode) {
 			declare MaxValueReal = 0.;
 			declare Clan = 0;
-			foreach (BlockPole in BlockPoles) {
-				if (BlockPole.Tag == "Checkpoint" || BlockPole.Gauge.Speed <= 0) continue;
-				if (BlockPole.Gauge.ValueReal > MaxValueReal) {
-					MaxValueReal = BlockPole.Gauge.ValueReal;
-					Clan = BlockPole.Gauge.Clan;
+			foreach (LandmarkGauge in MapLandmarks_Gauge) {
+				if (LandmarkGauge.Tag == "Checkpoint" || LandmarkGauge.Gauge.Speed <= 0) continue;
+				if (LandmarkGauge.Gauge.ValueReal > MaxValueReal) {
+					MaxValueReal = LandmarkGauge.Gauge.ValueReal;
+					Clan = LandmarkGauge.Gauge.Clan;
 				}
 			}
 			if (MaxValueReal > 0.) {
@@ -877,14 +878,15 @@ main() {
 		} else {
 			if (
 				TargetPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned
-				&& TargetPlayer.BlockPole != Null 
-				&& TargetPlayer.BlockPole.Gauge.Speed > 0 
-				&& TargetPlayer.BlockPole.Tag != "Checkpoint"
+				&& TargetPlayer.CapturedLandmark != Null 
+				&& TargetPlayer.CapturedLandmark.Gauge != Null
+				&& TargetPlayer.CapturedLandmark.Gauge.Speed > 0 
+				&& TargetPlayer.CapturedLandmark.Tag != "Checkpoint"
 			) {
 				if (!Frame_Capture.Visible) Frame_Capture.Visible = True;
-				Gauge_Capture.Ratio = TargetPlayer.BlockPole.Gauge.ValueReal;
-				Gauge_Capture.Clan = TargetPlayer.BlockPole.Gauge.Clan;
-				Label_Capture.Value = ML::FloorInteger(TargetPlayer.BlockPole.Gauge.ValueReal * 100.)^"%";
+				Gauge_Capture.Ratio = TargetPlayer.CapturedLandmark.Gauge.ValueReal;
+				Gauge_Capture.Clan = TargetPlayer.CapturedLandmark.Gauge.Clan;
+				Label_Capture.Value = ML::FloorInteger(TargetPlayer.CapturedLandmark.Gauge.ValueReal * 100.)^"%";
 			} else if (Frame_Capture.Visible) {
 				Frame_Capture.Visible = False;
 			}
@@ -1023,10 +1025,9 @@ Void CreateRulesReminderLayer() {
 	</frame>
 	""";
 	
-	declare Ident RulesReminderLayerId	= Layers::Create("RulesReminder", MLText);
-	declare CUILayer LayerRuleReminder  = Layers::GetFromName("RulesReminder");
-	LayerRuleReminder.Type = CUILayer::EUILayerType::CutScene;
-	declare Boolean Attached			= Layers::Attach("RulesReminder", NullId);
+	Layers::Create("RulesReminder", MLText);
+	Layers::SetType("RulesReminder", CUILayer::EUILayerType::CutScene);
+	Layers::Attach("RulesReminder");
 }
 
 
@@ -1070,10 +1071,6 @@ Void Run() {
 	// ---------------------------------- //
 	// Create the attacking order
 	declare AttackingOrder	= Ident[];
-	declare LayerAttached	= False;
-	declare LayerDetached	= False;
-	declare LayerUpdated	= False;
-	declare LayerDestroyed	= False;
 	// ---------------------------------- //
 	// <<< +++InitServer+++
 	// ---------------------------------- //
@@ -1130,7 +1127,7 @@ Void Run() {
 	
 	// ---------------------------------- //
 	// UI creation
-	declare LayerInfoId = Layers::Create("Info");
+	Layers::Create("Info");
 	
 	SpawnScreen::CreateScores("Score.Points");
 	SpawnScreen::CreateMapInfo();
@@ -1222,16 +1219,17 @@ Void Run() {
 			declare SpawnAttack = SM::GetSpawn("SpawnAttack", 0);
 			declare SpawnDefense = SM::GetSpawn("SpawnDefense", 0);
 			
-			declare Poles = CSmBlockPole[];
-			declare Checkpoints = CSmBlockPole[];
-			foreach (BlockPole in BlockPoles) {
-				if (BlockPole.Tag == "Goal A" || BlockPole.Tag == "Goal B" || BlockPole.Tag == "Goal C") Poles.add(BlockPole);
-				else if (BlockPole.Tag == "Checkpoint") Checkpoints.add(BlockPole);
+			declare Poles = CSmMapLandmark[];
+			declare Checkpoints = CSmMapLandmark[];
+			foreach (LandmarkGauge in MapLandmarks_Gauge) {
+				if (LandmarkGauge.Sector == Null) continue;
+				if (LandmarkGauge.Tag == "Goal A" || LandmarkGauge.Tag == "Goal B" || LandmarkGauge.Tag == "Goal C") Poles.add(LandmarkGauge);
+				else if (LandmarkGauge.Tag == "Checkpoint") Checkpoints.add(LandmarkGauge);
 			}
 			// Compatibility with old MapType
 			if (Poles.count <= 0) {
 				log(Now^"> Old MapType compatibility");
-				declare OldPole <=> SM::GetPole("Goal", 0);
+				declare OldPole <=> Map::GetLandmarkGauge("Goal", 0);
 				if (OldPole != Null) Poles.add(OldPole);
 			}
 			
@@ -1260,7 +1258,7 @@ Void Run() {
 			UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::Never;
 	
 			Layers::Update("Info", Private_CreateLayerInfo(Checkpoints.count, ""));
-			Layers::Attach("Info", NullId);
+			Layers::Attach("Info");
 			
 			// ---------------------------------- //
 			// Misc init
@@ -1538,7 +1536,7 @@ Void Run() {
 								Pole.Gauge.Max		= PoleTime - Now;
 								Pole.Gauge.Speed	= -1;
 								Pole.Gauge.Value	= Pole.Gauge.Max;
-								Pole.Captured		= False;
+								Pole.Gauge.Captured		= False;
 							}
 							// ---------------------------------- //
 							// Init checkpoints
@@ -1547,7 +1545,7 @@ Void Run() {
 								Checkpoint.Gauge.Max = 1;
 								Checkpoint.Gauge.Speed = 0;
 								Checkpoint.Gauge.Value = 0;
-								Checkpoint.Captured = False;
+								Checkpoint.Gauge.Captured = False;
 							}
 							declare netwrite Integer Net_LibEP_CheckpointsCaptured for Teams[0];
 							Net_LibEP_CheckpointsCaptured = 0;
@@ -1772,7 +1770,7 @@ Void Run() {
 							// Manage the poles capture
 							if (PoleActivated) {
 								foreach (Pole in Poles) {
-									if (Pole.Captured) continue;
+									if (Pole.Gauge.Captured) continue;
 									
 									declare CapturersNb = 0;
 									foreach (PlayerId in Pole.Sector.PlayersIds) {
@@ -1791,7 +1789,7 @@ Void Run() {
 							// Manage the checkpoints capture
 							else {
 								foreach (Checkpoint in Checkpoints) {
-									if (Checkpoint.Captured) continue;
+									if (Checkpoint.Gauge.Captured) continue;
 									
 									declare CapturersNb = 0;
 									foreach (PlayerId in Checkpoint.Sector.PlayersIds) {
@@ -1937,14 +1935,14 @@ Void Run() {
 											continue;
 										}
 										
-										if (Event.BlockPole.Tag == "Goal A" || Event.BlockPole.Tag == "Goal B" || Event.BlockPole.Tag == "Goal C") {
+										if (Event.Landmark.Tag == "Goal A" || Event.Landmark.Tag == "Goal B" || Event.Landmark.Tag == "Goal C") {
 											PoleCaptured = True;
 											UIManager.UIAll.SendNotice(
 												"", CUIConfig::ENoticeLevel::MatchInfo, 
 												Null, CUIConfig::EAvatarVariant::Default, 
 												CUIConfig::EUISound::Capture, 0
 											);
-										} else if (Event.BlockPole.Tag == "Checkpoint") {
+										} else if (Event.Landmark.Tag == "Checkpoint") {
 											CheckpointsCapturedNb += 1;
 											declare netwrite Integer Net_LibEP_CheckpointsCaptured for Teams[0];
 											Net_LibEP_CheckpointsCaptured = CheckpointsCapturedNb;

@@ -5,24 +5,23 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2013-11-25"
+#Const	Version				"2013-12-13"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/Victory.Script.txt" as Victory
 #Include "Libs/Nadeo/Interface.Script.txt" as Interface
-#Include "Libs/Nadeo/Layers.Script.txt" as Layers0
+#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/TabsServer.Script.txt" as Tabs
-#Include "Libs/Nadeo/Map.Script.txt" as Map
 #Include "Libs/Nadeo/Top2.Script.txt" as Top
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/BalancedWeapons.Script.txt" as BalancedWeapons
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 #Include "Libs/Nadeo/ShootMania/BeginnersWelcome.Script.txt" as Beginners
-#Include "Libs/Nadeo/ShootMania/AFK.Script.txt" as AFK
 
 // ---------------------------------- //
 // Settings
@@ -36,7 +35,7 @@
 #Setting	S_CaptureMaxValue	30000	as _("Capture time (milliseconds)") ///< Pole capture time (milliseconds)
 #Setting	S_AlternativePoints	False	as _("Use atk and def points as score")
 #Setting 	S_AllowBeginners	False	as _("Is a Beginners Welcome server")
-#Setting 	S_AutoManageAFK		True	as _("Switch inactive players to spectators")
+#Setting 	S_AutoManageAFK		True	//as _("Switch inactive players to spectators")
 #Setting	S_ArmorPoints		2		as _("Armor points")
 
 // Clublinks settings
@@ -85,8 +84,6 @@
 #Const 		C_JustInTimeLimit				3000 //milli sec.
 //#Const C_CountdownY	85.
 
-#Const 		C_AFKsCheckFrequency 			30000 //milli sec.
-
 #Const C_TopId_Hit 		"HIT"
 #Const C_TopId_Capture	"CAPTURE"
 #Const C_TopId_Defense 	"DEFENSE"
@@ -115,10 +112,9 @@ declare CSmMapLandmark[Integer] G_ClanSpawnAnchors;
 ***
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
-MB_LogVersion(AFK::GetScriptName(), AFK::GetScriptVersion());
 MB_LogVersion(Top::GetScriptName(), Top::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
-MB_LogVersion(Layers0::GetScriptName(), Layers0::GetScriptVersion());
+MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
 MB_LogVersion(Victory::GetScriptName(), Victory::GetScriptVersion());
 MB_LogVersion(Interface::GetScriptName(), Interface::GetScriptVersion());
@@ -397,8 +393,6 @@ Void ComputeCaptureMaxValue()
 
 	declare WavesDuration = S_WaveDuration; // Waves durations can only be changed between rounds.
 	declare Boolean AllowBeginners = S_AllowBeginners;
-	
-	declare Integer CheckAFKsTime = 0;
 ***
 
 
@@ -884,13 +878,6 @@ if (Now > LatestUITick + UITickPeriod)
 	}
 }
 
-
-// Manage inactive players
-if(S_AutoManageAFK && (Now > CheckAFKsTime) ) {
-	CheckAFKsTime = Now + C_AFKsCheckFrequency;
-	AFK::ManageAFKPlayers();
-}
-
 // Update the status message
 UpdateModeStatusMessage();
 ***
@@ -1239,7 +1226,7 @@ Void InitializePlayer(CSmPlayer Player, Integer NbPolesByClan, CUILayer LayerMar
 	Battle_ServToUIShowFrame = ! Battle_ServToUIShowFrame;
 	Battle_UIRoundPhase = C_RoundPhase_Playing;
 	
-	UI.Hud3dMarkers = PoleMarkers;	
+	UI.MarkersXML = PoleMarkers;	
 	Tabs::UseTabs(UI, "ScoresTab");	
 	UpdateScoreTeamsUI(Player);
 }
@@ -2388,6 +2375,6 @@ Void CreateRulesReminderLayer() {
 	</frame>
 	""";
 	
-	declare Ident RulesReminderLayerId	= Layers0::Create("RulesReminder", MLText);
-	declare Boolean Attached			= Layers0::Attach("RulesReminder", NullId);
+	Layers::Create("RulesReminder", MLText);
+	Layers::Attach("RulesReminder");
 }

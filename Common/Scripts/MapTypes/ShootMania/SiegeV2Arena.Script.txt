@@ -180,7 +180,6 @@ Text EditAnchorManialink() {
 			<label posn="0 -25" sizen="60 5" text="{{{_("The last SpawnDefense is linked to the Goal.")}}}" />
 			<label posn="0 -30" sizen="60 5" text="{{{_("The other SpawnDefense are linked to at least one Gate.")}}}" autonewline="1" maxline="3" />
 		</frame>
-		</frame>
 	</frame>
 </frame>
 <script><!--

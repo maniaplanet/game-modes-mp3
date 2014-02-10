@@ -4,7 +4,7 @@
  *	on the server from Club xml files
  */
 
-#Const Version		"2013-11-22"
+#Const Version		"2013-12-10"
 #Const ScriptName	"Clublink.Script.txt"
 
 #Include "TextLib" as TL
@@ -563,7 +563,7 @@ Void SyncUpdate() {
  *	@param	_Player1	Source for team 1
  *	@param	_Player2	Source for team 2
  */
-Void DefineTeamFromPlayers(CSmPlayer _Player1, CSmPlayer _Player2) {
+Void DefineTeamFromPlayers(CPlayer _Player1, CPlayer _Player2) {
 	if (!G_LibClubLink_Loaded) return;
 	
 	if (_Player1 != Null) G_LibClubLink_SourcePlayerId[1] = _Player1.Id;

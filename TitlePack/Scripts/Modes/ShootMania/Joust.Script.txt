@@ -7,13 +7,14 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"JoustArena"
-#Const	Version				"2013-10-25"
+#Const	Version				"2013-12-13"
 #Const	ScriptName			"Joust.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
-#Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 #Include "Libs/Nadeo/ShootMania/WaitingQueue.Script.txt" as WQ
@@ -69,6 +70,7 @@ declare Integer				G_BestComboTimer;		///< Duration of the best combo
 ***
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
+MB_LogVersion(Map::GetScriptName(), Map::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
@@ -83,10 +85,6 @@ MB_LogVersion(WarmupSimple::GetScriptName(), WarmupSimple::GetScriptVersion());
 ***InitServer***
 ***
 declare SkipPlayersPresentation = False; ///< Play the player presentation sequence
-declare Boolean LayerUpdated;
-declare Boolean LayerAttached;
-declare Boolean LayerDetached;
-declare Boolean LayerDestroyed;
 ***
 
 // ---------------------------------- //
@@ -141,8 +139,8 @@ WQ::SetShowScore(False);
 
 // ---------------------------------- //
 // Create layers
-declare LayerSpectatorId = Layers::Create("Spectator");
-LayerUpdated = Layers::Update("Spectator", CreateLayerSpectator());
+Layers::Create("Spectator");
+Layers::Update("Spectator", CreateLayerSpectator());
 
 +++ScoresTable+++
 ***
@@ -170,9 +168,9 @@ declare Ident MatchWinnerId;			///< Id of the round winner
 declare Ident MatchLoserId;				///< Id of the round loser
 declare Integer MatchPointsToWin;		///< Adaptable match point limit
 declare Integer[Integer] CurrGoalsSide;	///< The goals side each player can currently capture
-declare CSmBlockPole[][Integer] Goals;	///< The goals ordered by side
-declare CSmBlockPole[] GoalsSide1;		///< The goals on side 1
-declare CSmBlockPole[] GoalsSide2;		///< The goals on side 2
+declare CSmMapLandmark[][Integer] Goals;	///< The goals ordered by side
+declare CSmMapLandmark[] GoalsSide1;		///< The goals on side 1
+declare CSmMapLandmark[] GoalsSide2;		///< The goals on side 2
 declare Ident[] HasPlayed;				///< Save the players who played at least once since the beginning of the map
 ***
 
@@ -190,9 +188,9 @@ MatchWinnerId = NullId;
 MatchLoserId = NullId;
 MatchPointsToWin = S_MatchPointsToWin;
 CurrGoalsSide = Integer[Integer];
-Goals = CSmBlockPole[][Integer];
-GoalsSide1 = CSmBlockPole[];
-GoalsSide2 = CSmBlockPole[];
+Goals = CSmMapLandmark[][Integer];
+GoalsSide1 = CSmMapLandmark[];
+GoalsSide2 = CSmMapLandmark[];
 HasPlayed = Ident[];
 G_BestComboAuthor = NullId;
 G_BestComboHit = 0;
@@ -215,9 +213,9 @@ ST2::SetFooterText(TextLib::Compose("%1 $<$c90-$> %2 -", _("Best combo :"), _("b
 
 // ---------------------------------- //
 // Init Poles
-foreach (Pole in BlockPoles) {
-	if (Pole.Tag == "Goal1") GoalsSide1.add(Pole);
-	else if (Pole.Tag == "Goal2") GoalsSide2.add(Pole);
+foreach (Landmark in MapLandmarks_Gauge) {
+	if (Landmark.Tag == "Goal1") GoalsSide1.add(Landmark);
+	else if (Landmark.Tag == "Goal2") GoalsSide2.add(Landmark);
 }
 Goals = [1 => GoalsSide1, 2 => GoalsSide2];
 
@@ -361,9 +359,9 @@ else  Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 // ---------------------------------- //
 // Init goals
 CurrGoalsSide = [1=>-1, 2=>-1];
-foreach (Goal in BlockPoles) {
-	Goal.Gauge.Value = 0;
-	Goal.Gauge.Clan = 0;
+foreach (Landmark in MapLandmarks_Gauge) {
+	Landmark.Gauge.Value = 0;
+	Landmark.Gauge.Clan = 0;
 }
 UpdateBasesColors();
 
@@ -376,10 +374,10 @@ for (I, 1, 2) {
 	if (UI == Null) continue;
 	
 	UI.Hud3dMarkers = "";
-	foreach (Pole in BlockPoles) {
-		declare Pos = Pole.Position;
+	foreach (Landmark in MapLandmarks_Gauge) {
+		declare Pos = Landmark.Position;
 		declare Icon = "PointA";
-		if (Pole.Tag == "Goal2") Icon = "PointB";
+		if (Landmark.Tag == "Goal2") Icon = "PointB";
 		UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" /> """;
 	}
 }
@@ -415,7 +413,7 @@ UsePvPCollisions = False;
 ***OnNewPlayer***
 ***
 if (!G_CurrPlayerIds.exists(Player.Id)) {
-	LayerAttached = Layers::Attach("Spectator", Player.Id);
+	Layers::Attach("Spectator", Player);
 	UpdateLayerSpectator();
 }
 ***
@@ -425,7 +423,7 @@ if (!G_CurrPlayerIds.exists(Player.Id)) {
 // ---------------------------------- //
 ***OnNewSpectator***
 ***
-LayerAttached = Layers::Attach("Spectator", Spectator.Id);
+Layers::Attach("Spectator", Spectator);
 UpdateLayerSpectator();
 ***
 
@@ -561,10 +559,10 @@ G_CurrPlayers = [1=>Players[G_CurrPlayerIds[1]], 2=>Players[G_CurrPlayerIds[2]]]
 // Capture
 for (I, 1, 2) {
 	if (CurrGoalsSide[I] == -1) {
-		declare MeCapturingGoal1 = (G_CurrPlayers[I].BlockPole != Null 
-									&& G_CurrPlayers[I].BlockPole.Tag == "Goal1");
-		declare MeCapturingGoal2 = (G_CurrPlayers[I].BlockPole != Null 
-									&& G_CurrPlayers[I].BlockPole.Tag == "Goal2");
+		declare MeCapturingGoal1 = (G_CurrPlayers[I].CapturedLandmark != Null 
+									&& G_CurrPlayers[I].CapturedLandmark.Tag == "Goal1");
+		declare MeCapturingGoal2 = (G_CurrPlayers[I].CapturedLandmark != Null 
+									&& G_CurrPlayers[I].CapturedLandmark.Tag == "Goal2");
 		
 		if (MeCapturingGoal1) {
 			CurrGoalsSide[I] = 2;
@@ -589,7 +587,7 @@ for (I, 1, 2) {
 		}
 	} else {
 		declare MeCapturingNextGoal = 
-			(G_CurrPlayers[I].BlockPole != Null && G_CurrPlayers[I].BlockPole.Tag == "Goal"^CurrGoalsSide[I]);
+			(G_CurrPlayers[I].CapturedLandmark != Null && G_CurrPlayers[I].CapturedLandmark.Tag == "Goal"^CurrGoalsSide[I]);
 		
 		if (MeCapturingNextGoal) {
 			CurrGoalsSide[I] = 3 - CurrGoalsSide[I];
@@ -646,10 +644,10 @@ if (AGoalHaveBeenCaptured) {
 				UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" />""";
 			}
 		} else {
-			foreach (Pole in BlockPoles) {
-				declare Pos = Pole.Position;
+			foreach (Landmark in MapLandmarks_Gauge) {
+				declare Pos = Landmark.Position;
 				declare Icon = "PointA";
-				if (Pole.Tag == "Goal2") Icon = "PointB";
+				if (Landmark.Tag == "Goal2") Icon = "PointB";
 				UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" />""";
 			}
 		}
@@ -806,9 +804,9 @@ foreach (Player in Players) {
 	declare PoleTime for Player = -1;
 	PoleTime = -1;
 	Player.EndTime = PoleTime;
-	LayerDetached = Layers::Detach("Spectator", Player.Id);
+	Layers::Detach("Spectator", Player);
 }
-foreach (Spectator in Spectators) LayerDetached = Layers::Detach("Spectator", Spectator.Id);
+foreach (Spectator in Spectators) Layers::Detach("Spectator", Spectator);
 UIManager.UIAll.StatusMessage = "";
 
 // ---------------------------------- //
@@ -983,7 +981,7 @@ MatchmakingWait();
 SpawnScreen::DestroyRules();
 SpawnScreen::DestroyMapInfo();
 SpawnScreen::DestroyScores();
-LayerDestroyed = Layers::Destroy("Spectator");
+Layers::Destroy("Spectator");
 ***
 
 // ---------------------------------- //
@@ -1012,24 +1010,24 @@ Void MatchmakingWait() {
 // ---------------------------------- //
 /// End map timer for MatchMaking
 Void UpdateBasesColors() {
-	foreach (Base in Bases) {
+	foreach (Base in MapBases) {
 		Base.Clan = 0;
 		Base.IsActive = True;
 	}
 	
 	declare UpdatedBases = Ident[];
 	
-	foreach (BlockPole in BlockPoles) {
-		if (BlockPole.Base == Null) continue;
+	foreach (Landmark in MapLandmarks_Gauge) {
+		if (Landmark.Base == Null) continue;
 		
-		if (!UpdatedBases.exists(BlockPole.Base.Id)) {
-			BlockPole.Base.Clan = BlockPole.Gauge.Clan;
-			if (BlockPole.Gauge.Value <= 0) BlockPole.Base.IsActive = False;
-			UpdatedBases.add(BlockPole.Base.Id);
-		} else if (BlockPole.Base.Clan == BlockPole.Gauge.Clan) {
-			if (BlockPole.Gauge.Value > 0) BlockPole.Base.IsActive = True;
+		if (!UpdatedBases.exists(Landmark.Base.Id)) {
+			Landmark.Base.Clan = Landmark.Gauge.Clan;
+			if (Landmark.Gauge.Value <= 0) Landmark.Base.IsActive = False;
+			UpdatedBases.add(Landmark.Base.Id);
+		} else if (Landmark.Base.Clan == Landmark.Gauge.Clan) {
+			if (Landmark.Gauge.Value > 0) Landmark.Base.IsActive = True;
 		} else {
-			BlockPole.Base.Clan = 0;
+			Landmark.Base.Clan = 0;
 		}
 	}
 }
@@ -1059,7 +1057,7 @@ Void WaitForPlayers(Integer _MinimumNbPlayers) {
 			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned
 				&& PlayersNbTotal < _MinimumNbPlayers)
 			{
-				SM::SpawnPlayer(Player, 0, SM::GetSpawn("Spawn", 0), Now);
+				SM::SpawnPlayer(Player, 0, Map::GetPlayerSpawn("Spawn", 0), Now);
 				Player.AmmoGain = 1.;
 			}
 		}
@@ -1137,7 +1135,7 @@ Void RespawnPlayer(CSmPlayer _Player, Integer _SpawnDate, Integer _Armor) {
 	UnspawnPlayer(_Player);
 	
 	_Player.ArmorMax = S_RoundPointsToWin * 100;
-	SM::SpawnPlayer(_Player, 0, _Armor, SM::GetSpawn("Spawn", 0), _SpawnDate);
+	SM::SpawnPlayer(_Player, 0, _Armor, Map::GetPlayerSpawn("Spawn", 0), _SpawnDate);
 	
 	declare PoleTime for _Player = -1;
 	_Player.EndTime = PoleTime;

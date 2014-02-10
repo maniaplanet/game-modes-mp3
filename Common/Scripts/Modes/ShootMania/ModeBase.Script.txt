@@ -3,18 +3,19 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2013-10-24"
+#Const ModeBaseVersion		"2014-02-04"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
 #Include "Libs/Nadeo/ScoresTable2.Script.txt" as ST2
 #Include "Libs/Nadeo/Clublink.Script.txt" as Clublink
 #Include "Libs/Nadeo/ShootMania/XmlRpc.Script.txt" as XmlRpc
+#Include "Libs/Nadeo/ShootMania/AFK.Script.txt" as AFK
 
+#Setting S_AutoManageAFK		False	as _("Switch inactive players to spectators")
 #Setting S_UseScriptCallbacks	False	as "<hidden>"	///< Turn on/off the script callbacks, usefull for server manager
 #Setting S_NeutralEmblemUrl		""		as "<hidden>"	///< Replace the default neutral emblem by another one
 #Setting S_ScoresTableStylePath	""		as "<hidden>"	///< Try to load a scores table style from an XML file
-
 
 #Const C_PlayersPresentationTime	4000	///< Duration of the player presentation sequence (default: 4000)
 
@@ -25,6 +26,7 @@
 ***
 MB_LogVersion(ModeBaseScriptName, ModeBaseVersion);
 MB_LogVersion(Mode::GetScriptName(), Mode::GetScriptVersion());
+MB_LogVersion(AFK::GetScriptName(), AFK::GetScriptVersion());
 MB_LogVersion(XmlRpc::GetScriptName(), XmlRpc::GetScriptVersion());
 MB_LogVersion(Clublink::GetScriptName(), Clublink::GetScriptVersion());
 MB_LogVersion(ST2::GetScriptName(), ST2::GetScriptVersion());
@@ -35,15 +37,9 @@ MB_LogVersion(ST2::GetScriptName(), ST2::GetScriptVersion());
 if (MB_UseLogging) MB_Log("MapIntro");
 Clublink::Update();
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
-MB_Log("MapIntroStart");
-MB_Log("UIManager.UIAll.UISequenceIsCompleted: "^UIManager.UIAll.UISequenceIsCompleted);
 while (!UIManager.UIAll.UISequenceIsCompleted) {
 	MB_Yield();
-	
-	break;///< @Debug Problème de fake user qui ne termine plus les UI sequence
 }
-
-MB_Log("MapIntroStop");
 ***
 
 /*
@@ -138,6 +134,10 @@ Void MB_Yield() {
 	XmlRpc::Loop();
 	Clublink::Update();
 	ST2::XmlRpcLoop();
+	if (S_AutoManageAFK) {
+		AFK::XmlRpcLoop();
+		AFK::AutoManageAFKPlayers();
+	}
 	+++Yield+++
 }
 
@@ -236,9 +236,10 @@ main() {
 	+++LogVersion+++
 	// Server initialization
 	// Options
-	declare MB_UseLogging	= False;
-	declare MB_UseIntro		= True;
-	declare MB_UseOutro		= True;
+	declare MB_UseLogging		= False;
+	declare MB_UseIntro			= True;
+	declare MB_UseOutro			= True;
+	declare MB_UseOnNewLabels	= True;
 	// Determine wich section will be used
 	declare MB_UseSectionSubmatch	= False;	///< Use the submatch section
 	declare MB_UseSectionRound		= False;	///< Use the round section
@@ -259,6 +260,7 @@ main() {
 	if (MB_UseLogging) MB_Log("StartServer");
 
 	ST2::Load();
+	AFK::Load();
 	+++InitServer+++
 	+++StartServer+++
 	XmlRpc::Load();
@@ -302,6 +304,8 @@ main() {
 			MatchEndRequested = False;
 			MB_XmlRpcCheck();
 			MB_NeutralEmblemUpdate();
+			
+			+++BeforeLoadMap+++
 			
 			XmlRpc::LoadingMap(MB_SectionMapNb);
 			Mode::LoadMap();
@@ -427,41 +431,43 @@ main() {
 						) {
 							MB_Yield();
 							
-							// ---------------------------------- //
-							// Create a custom event when a player is added to the Players array
-							foreach (Player in Players) {
-								declare MB_NewPlayer for Player = True;
-								declare MB_NewSpectator for Player = True;
-								
-								if (MB_NewPlayer) {
-									if (MB_UseLogging) MB_Log("New player > Login: "^Player.Login);
-									MB_NewPlayer = False;
-									MB_NewSpectator = True;
-									+++OnNewPlayer+++
+							if (MB_UseOnNewLabels) {
+								// ---------------------------------- //
+								// Create a custom event when a player is added to the Players array
+								foreach (Player in Players) {
+									declare MB_NewPlayer for Player = True;
+									declare MB_NewSpectator for Player = True;
+									
+									if (MB_NewPlayer) {
+										if (MB_UseLogging) MB_Log("New player > Login: "^Player.Login);
+										MB_NewPlayer = False;
+										MB_NewSpectator = True;
+										+++OnNewPlayer+++
+									}
 								}
-							}
-							// ---------------------------------- //
-							// Create a custom event when a spectator is added to the Spectators array
-							foreach (Spectator in Spectators) {
-								declare MB_NewPlayer for Spectator = True;
-								declare MB_NewSpectator for Spectator = True;
-								
-								if (MB_NewSpectator) {
-									if (MB_UseLogging) MB_Log("New spectator > Login: "^Spectator.Login);
-									MB_NewPlayer = True;
-									MB_NewSpectator = False;
-									+++OnNewSpectator+++
+								// ---------------------------------- //
+								// Create a custom event when a spectator is added to the Spectators array
+								foreach (Spectator in Spectators) {
+									declare MB_NewPlayer for Spectator = True;
+									declare MB_NewSpectator for Spectator = True;
+									
+									if (MB_NewSpectator) {
+										if (MB_UseLogging) MB_Log("New spectator > Login: "^Spectator.Login);
+										MB_NewPlayer = True;
+										MB_NewSpectator = False;
+										+++OnNewSpectator+++
+									}
 								}
-							}
-							// ---------------------------------- //
-							// Create a custom event when a bot is added to the BotPlayers array
-							foreach (Bot in  BotPlayers) {
-								declare MB_NewBot for Bot = True;
-								
-								if (MB_NewBot) {
-									if (MB_UseLogging) MB_Log("New bot > Login: "^Bot.Login);
-									MB_NewBot = False;
-									+++OnNewBot+++
+								// ---------------------------------- //
+								// Create a custom event when a bot is added to the BotPlayers array
+								foreach (Bot in  BotPlayers) {
+									declare MB_NewBot for Bot = True;
+									
+									if (MB_NewBot) {
+										if (MB_UseLogging) MB_Log("New bot > Login: "^Bot.Login);
+										MB_NewBot = False;
+										+++OnNewBot+++
+									}
 								}
 							}
 							
@@ -527,6 +533,8 @@ main() {
 			+++EndMap+++
 			XmlRpc::SendScores();
 			Mode::UnloadMap();
+			
+			+++AfterUnloadMap+++
 		}
 // ---------------------------------- //
 // Match end
@@ -551,5 +559,6 @@ main() {
 	Clublink::Unload();
 	XmlRpc::Unload();
 	+++EndServer+++
+	AFK::Unload();
 	ST2::Unload();
 }

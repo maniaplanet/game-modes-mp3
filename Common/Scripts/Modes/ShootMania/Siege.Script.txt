@@ -11,11 +11,10 @@
 
 #Include "MathLib" as ML
 #Include "TextLib" as TL
-#Include "Libs/Nadeo/Map.Script.txt" as Map
 #Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
-#Include "Libs/Nadeo/ShootMania/AFK.Script.txt" as AFK
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Debug.Script.txt" as Debug
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
@@ -35,7 +34,7 @@
 #Setting S_ClanNbMaxPlayers		0		as _("Maximum number of players per team (0: no max)")	///< do not spawn players beyond this limit, 0=no limit
 #Setting S_UseSuddenDeathMode	True	as _("Do not allow a team to win on first turn")		///< Do not allow a team to win on first turn
 #Setting S_AutoBalance			True	as _("Use autobalance")									///< Use auto balance at the start of the map
-#Setting S_AutoManageAFK		True	as _("Switch inactive players to spectators")			///< Switch inactive players to spectators
+#Setting S_AutoManageAFK		True	//as _("Switch inactive players to spectators")			///< Switch inactive players to spectators
 #Setting S_DisplayRulesReminder True	as "<hidden>" 											///< Display a window with the rules when the match begins
 #Setting S_Matchmaking			False	as "<hidden>"											///< Use Elite with matchmaking
 #Setting S_MatchmakingSleep		0		as "<hidden>" 											///< Matchmaking match end duration (-1: infinite)
@@ -57,7 +56,6 @@
 #Const C_LaserGain					0.8		///< Laser ammo regen speed
 #Const C_NucleusGain				0.4		///< Nucleus ammo regen speed
 #Const C_MaxDamage					100		///< Maximum damage inflicted by weapons
-#Const C_AFKsCheckFrequency			15000	///< Time (ms) between AFK check
 
 #Const C_ImgCommonDir			"file://Media/Manialinks/Shootmania/Common/"
 #Const C_ImgInfoDir				"file://Media/Manialinks/Shootmania/InfoPanel/"
@@ -88,7 +86,6 @@ declare Text						G_AdvantageExplanation;		///< Explanation of the advantage
 ***
 MB_LogVersion(ScriptName, Version);
 MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
-MB_LogVersion(AFK::GetScriptName(), AFK::GetScriptVersion());
 MB_LogVersion(Map::GetScriptName(), Map::GetScriptVersion());
 MB_LogVersion(Debug::GetScriptName(), Debug::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
@@ -107,8 +104,8 @@ declare Integer InitialCapturingClan;	///< First clan to capture on the map
 ***StartServer***
 ***
 if (C_Debug) Debug::Load();
-WarmUp2::Load();
-WeaponSelection::Load();
+//WarmUp2::Load();
+//WeaponSelection::Load();
 
 // ---------------------------------- //
 // Initialize globales
@@ -146,10 +143,10 @@ SpawnScreen::DestroyRules();
 declare ModeName = "Siege";
 declare ModeObjectives = TL::Compose(_("$<%11. $>The goal of this mode is to capture a maximum of poles.\n$<%12. $>A game is divided in rounds of two turns each.\n$<%13. $>During a round each team plays one turn on attack and one turn on defense.\n$<%14. $>The attackers must capture the poles in order on the map. The defenders must stop them.\n$<%15. $>If a team captures all the poles during its turn, this team instantly wins the map.\n$<%16. $>After %2 rounds, the team that captured the most poles wins the map."), "$"^SpawnScreen::GetModeColor(), TL::ToText(S_NbRoundMax));
 declare ModeConditions = TL::Compose(_("$<%11. $>If an attacker is eliminated they will not respawn for the rest of the turn.\n$<%12. $>If a defender is eliminated they are respawned as soon as a pole is captured.\n$<%13. $>For each new round, the attackers restart from the beginning of the map, but with one additional armor."), "$"^SpawnScreen::GetModeColor());
-SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
-SpawnScreen::AddSubsection(_("Objectives"), ModeObjectives, 25.);
-SpawnScreen::AddSubsection(_("Conditions"), ModeConditions, 85.);
-SpawnScreen::CreatePrettyRules(ModeName);
+//SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
+//SpawnScreen::AddSubsection(_("Objectives"), ModeObjectives, 25.);
+//SpawnScreen::AddSubsection(_("Conditions"), ModeConditions, 85.);
+//SpawnScreen::CreatePrettyRules(ModeName);
 ModeStatusMessage = _("TYPE: Team versus Team\nOBJECTIVE: Capture the poles when you're an attacker. Eliminate the attackers when you're a defender.");
 
 // ---------------------------------- //
@@ -265,7 +262,6 @@ G_CaptureTime = [1 => 0, 2 => 0];
 declare Boolean Win_AttackersEliminated;	///< All the attackers were eliminated
 declare Boolean Win_PoleCaptured;			///< The final pole was captured
 declare Boolean Win_TimeLimit;				///< The time limit was reached
-declare Integer CheckAFKsTime;				///< Last time the AFK were checked
 ***
 
 ***StartTurn***
@@ -285,7 +281,6 @@ G_CaptureInfo[G_CapturingClan] = Ident[];
 Win_AttackersEliminated = False;
 Win_PoleCaptured = False;
 Win_TimeLimit = False;
-CheckAFKsTime = 0;
 
 InitCapturables();
 UpdateBasesColors();
@@ -661,13 +656,6 @@ foreach (Event in PendingEvents) {
 }
 
 // ---------------------------------- //
-// Manage inactive players
-if(S_AutoManageAFK && (Now > CheckAFKsTime) ) {
-	CheckAFKsTime = Now + C_AFKsCheckFrequency;
-	AFK::ManageAFKPlayers(30000, 15000);
-}
-
-// ---------------------------------- //
 // Victory condition
 if (Win_TimeLimit || Win_PoleCaptured || Win_AttackersEliminated) {
 	if (Win_TimeLimit) {
@@ -749,7 +737,7 @@ Message::CleanAllMessages();
 Layers::Detach("Markers");
 Layers::Hide("Progression");
 Layers::Hide("ScoresTable");
-UIManager.UIAll.Hud3dMarkers = "";
+UIManager.UIAll.MarkersXML = "";
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UpdateHeader();
 
@@ -962,9 +950,9 @@ Layers::Destroy("Markers");
 Layers::Destroy("Interlude");
 Layers::Destroy("RulesReminder");
 
-SpawnScreen::DestroyRules();
-WeaponSelection::Unload();
-WarmUp2::Unload();
+//SpawnScreen::DestroyRules();
+//WeaponSelection::Unload();
+//WarmUp2::Unload();
 if (C_Debug) Debug::Unload();
 ***
 
@@ -1155,11 +1143,11 @@ Void InitWarmUp() {
 		else WarmUp2::CreateGroup("Clan1", S_ClanNbMaxPlayers);
 		if (WarmUp2::GroupExists("Clan2")) WarmUp2::SetSlotsNb("Clan2", S_ClanNbMaxPlayers);
 		else WarmUp2::CreateGroup("Clan2", S_ClanNbMaxPlayers);
-		WarmUp2::DisplayClanSelection(True);
+		//WarmUp2::DisplayClanSelection(True);
 	} else {
 		WarmUp2::DestroyGroup("Clan1");
 		WarmUp2::DestroyGroup("Clan2");
-		WarmUp2::DisplayClanSelection(False);
+		//WarmUp2::DisplayClanSelection(False);
 	}
 }
 
@@ -1396,6 +1384,7 @@ Void SendEliminationMessage(CSmPlayer _Player, Integer[Integer] _RemainingPlayer
  *	@return		The ManiaLink text
  */
 Text GetMLScoresTable() {
+	return "";
 	declare Panels = [1 => "", 2 => ""];
 	declare Text ArmorImage = C_ImgCommonDir^"ShieldWhite.dds";
 	
@@ -1566,6 +1555,7 @@ Void UpdateProgressionsUI() {
  *	@return		The ManiaLink text
  */
 Text GetMLProgression() {
+	return "";
 	declare Text ImgProgressionBg	= C_ImgInfoDir^"info-bg.dds";
 	declare Text ImgProgressionFg	= C_ImgInfoDir^"info-metal-small.dds";
 	declare Text ImgPolesBg			= C_ImgInfoDir^"info-poles.dds";
@@ -1718,6 +1708,7 @@ Void UpdateInterludeUI() {
  *	@return		The ManiaLink text
  */
 Text GetMLInterlude() {
+	return "";
 	declare Text CAlign = """ valign="center" halign="center" """;
 
 	declare Text LeftSideBgImage		= C_ImgSiegeDir^"bigboard-left.dds";
@@ -2037,6 +2028,7 @@ Text GetMLInterlude() {
  *	@return		The ManiaLink text
  */
 Text GetMLRulesReminder() {
+	return "";
 	if (!S_DisplayRulesReminder) return "";
 
 	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
@@ -2189,6 +2181,7 @@ Text GetMLRulesReminder() {
  *	@return		The ManiaLink text
  */
 Text GetMLMarkers() {
+	return "";
 	declare ScreenRatio		= 9./16.;
 	declare MarkerHeight	= 8.;
 	declare MarkerWidth		= MarkerHeight * ScreenRatio;
@@ -2224,6 +2217,7 @@ Text GetMLMarkers() {
 // ---------------------------------- //
 /// Update the 3D markers
 Void UpdateMarkers() {
+	return;
 	declare MarkersText = "";
 	Layers::Update("Markers", GetMLMarkers());
 	
@@ -2240,7 +2234,7 @@ Void UpdateMarkers() {
 		if (Pole != Null) MarkersText ^= """<marker manialinkframeid="Marker_Capturable_{{{CapturableId}}}" pos="{{{Pole.Position.X}}} {{{Pole.Position.Y + 8}}} {{{Pole.Position.Z}}}" />""";
 	}
 	
-	UIManager.UIAll.Hud3dMarkers = MarkersText;
+	UIManager.UIAll.MarkersXML = MarkersText;
 }
 
 // ---------------------------------- //
@@ -2249,6 +2243,7 @@ Void UpdateMarkers() {
  *	@return		The manialink
  */
 Text GetMLWaitConnection() {
+	return "";
 	declare Integer TotalReqPlayers	= S_ClanNbMinPlayers*2;
 	declare Text 	ImgPlayer		= "file://Media/Manialinks/Shootmania/Common/DefendersLeft.dds";
 	declare Real	ImgSize			= 8.;
@@ -2479,8 +2474,8 @@ Void ActivateCheckpoint(CSmMapLandmark _Checkpoint) {
 Void SelectWeapons() {	
 	declare PreRoundEndTime = Now + C_WeaponSelectionDuration;
 	
-	WeaponSelection::SetLayerPosition(<0., -40.>);
-	WeaponSelection::Begin();
+	//WeaponSelection::SetLayerPosition(<0., -40.>);
+	//WeaponSelection::Begin();
 	WeaponSelection::CreateGroup("Attack", [CSmMode::EWeapon::Rocket, CSmMode::EWeapon::Laser]);
 	WeaponSelection::CreateGroup("Defense", [CSmMode::EWeapon::Rocket, CSmMode::EWeapon::Nucleus]);
 	WeaponSelection::SetEndTime(PreRoundEndTime);
@@ -2510,7 +2505,7 @@ Void SelectWeapons() {
 	}
 	
 	WeaponSelection::UnsetEndTime();
-	WeaponSelection::End();
+	//WeaponSelection::End();
 	
 	// Sleep a little to let the server receive all the selected weapon
 	MB_Sleep(1000);
@@ -2603,7 +2598,7 @@ Void DoWarmUp() {
 	WarmUp2::Clean();	
 	
 	//WarmUp2();
-	WarmUp2::Begin();
+	//WarmUp2::Begin();
 	WarmUp2::Fill();
 	
 	StartTime = Now + 1000;
@@ -2691,7 +2686,7 @@ Void DoWarmUp() {
 		}
 	}
 	
-	WarmUp2::End();
+	//WarmUp2::End();
 	StartTime = -1;
 	EndTime = -1;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;

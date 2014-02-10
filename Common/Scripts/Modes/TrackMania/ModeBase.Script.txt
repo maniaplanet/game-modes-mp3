@@ -4,7 +4,7 @@
 
 #RequireContext CTmMode
 
-#Const	ModeBaseVersion		"2013-11-26"
+#Const	ModeBaseVersion		"2014-01-23"
 #Const	ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -427,6 +427,8 @@ main() {
 			MB_XmlRpcCheck();
 			MB_AllowRespawnCheck();	
 			
+			+++BeforeLoadMap+++
+			
 			// Load map
 			XmlRpc::LoadingMap(MB_SectionMapNb);
 			Mode::LoadMap();
@@ -630,6 +632,8 @@ main() {
 			}
 			
 			Mode::UnloadMap();
+			
+			+++AfterUnloadMap+++
 		}
 // ---------------------------------- //
 // Match end

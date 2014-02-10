@@ -180,7 +180,6 @@ Text EditAnchorManialink() {
 			<label posn="0 -15" sizen="60 5" text="{{{_("Minimum 1 Goal and SpawnDefense.")}}}" />
 			<label posn="0 -20" sizen="60 5" text="{{{_("Each Goal can optionally be associated with one or several Gates.")}}}" autonewline="1" />
 		</frame>
-		</frame>
 	</frame>
 </frame>
 <script><!--

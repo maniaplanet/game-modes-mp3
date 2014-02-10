@@ -2,7 +2,7 @@
  * Map library
  */
 
-#Const Version		"2013-11-15"
+#Const Version		"2013-12-17"
 #Const ScriptName	"Map.Script.txt"
 
 // ---------------------------------- //
@@ -308,6 +308,20 @@ Integer GetLandmarksCount(Text Type) {
 			}
 			return Count;
 		}
+		case "BotPath"		: {
+			declare Count = 0;
+			foreach (MapLandmark in MapLandmarks) {
+				if (MapLandmark.BotPath != Null) Count += 1;
+			}
+			return Count;
+		}
+		case "ObjectAnchor"		: {
+			declare Count = 0;
+			foreach (MapLandmark in MapLandmarks) {
+				if (MapLandmark.ObjectAnchor != Null) Count += 1;
+			}
+			return Count;
+		}
 		default				: return MapLandmarks.count;
 	}
 	
@@ -366,6 +380,24 @@ Integer GetSectorsCount() {
  */
 Integer GetPlayerSpawnsCount() {
 	return GetLandmarksCount("PlayerSpawn");
+}
+
+// ---------------------------------- //
+/**	Count the number of bot paths
+ *
+ *	@return		The number of bot paths
+ */
+Integer GetBotPathsCount() {
+	return GetLandmarksCount("BotPath");
+}
+
+// ---------------------------------- //
+/**	Count the number of object anchors
+ *
+ *	@return		The number of object anchors
+ */
+Integer GetObjectAnchorsCount() {
+	return GetLandmarksCount("ObjectAnchor");
 }
 
 // ---------------------------------- //

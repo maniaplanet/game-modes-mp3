@@ -2,8 +2,10 @@
  *	MapType library
  */
 
-#Const Version		"2013-11-14"
+#Const Version		"2014-01-03"
 #Const ScriptName	"MapType.Script.txt"
+
+#Include "MathLib" as ML
 
 // ---------------------------------- //
 // Functions
@@ -72,4 +74,48 @@ Void SetVersion(Integer _Version) {
 Integer GetVersion() {
 	declare metadata LibMapType_MapTypeVersion for Map = 0;
 	return LibMapType_MapTypeVersion;
+}
+
+// ---------------------------------- //
+/** Set the time objectives of a map based on the author time
+ *
+ *	@param	_AuthorTime		The time of the author of the map
+ */
+Void SetObjectivesFromAuthorTime(Integer _AuthorTime) {
+	Map.TMObjective_AuthorTime = _AuthorTime;
+	
+	// The gold, silver and bronze times are automatically overwritten by new values 
+	// based on the author time when the author time changes
+	// So its not needed to do it manually
+	/*declare BronzeTime = _AuthorTime + ML::NearestInteger(_AuthorTime * 0.5);
+	Map.TMObjective_BronzeTime = BronzeTime - (BronzeTime % 1000);
+	
+	declare SilverTime = _AuthorTime + ML::NearestInteger(_AuthorTime * 0.2);
+	Map.TMObjective_SilverTime = SilverTime - (SilverTime % 1000);
+	
+	declare GoldTime = _AuthorTime + ML::NearestInteger(_AuthorTime * 0.05);
+	Map.TMObjective_GoldTime = GoldTime - (GoldTime % 1000);*/
+}
+
+// ---------------------------------- //
+/** Check if the objectives times are valid
+ *
+ *	For the time being this function shoud always return True
+ *	because the values set in the TMObjectives variables
+ *	are automatically checked by the game and sanitized
+ *	when necessary.
+ *
+ *	@return		True if the objectives are valid, false otherwise
+ */
+Boolean ObjectivesAreValid() {
+	if (
+		Map.TMObjective_BronzeTime <= 0
+		|| Map.TMObjective_SilverTime > Map.TMObjective_BronzeTime
+		|| Map.TMObjective_GoldTime > Map.TMObjective_SilverTime
+		|| Map.TMObjective_AuthorTime > Map.TMObjective_GoldTime
+	) {
+		return False;
+	}
+	
+	return True;
 }

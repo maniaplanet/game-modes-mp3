@@ -2,7 +2,7 @@
  *	Debug library
  */
 
-#Const Version		"2013-11-20"
+#Const Version		"2014-01-03"
 #Const ScriptName	"Debug.Script.txt"
 
 #Include "TextLib" as TL
@@ -285,6 +285,18 @@ Text Private_CreateManialinkStyles() {
 		}
 	}
 	
+	declare Gauges_Style = "";
+	K = 0;
+	for (I, 1, ItemNbY*2) {
+		for (J, 1, ItemNbX) {
+			if (J % 2 == 0) continue;
+			PosnX = (J - 1) * (ItemSizeX + ItemMarginX);
+			PosnY = (I - 1) * (ItemSizeY + ItemMarginY) * -0.5;
+			Gauges_Style ^= """<quad posn="{{{PosnX^" "^PosnY}}}" sizen="{{{ItemSizeX*2.^" "^ItemSizeY*0.5}}}" scriptevents="1" class="Gauge_Style" id="{{{K}}}" /><gauge posn="{{{PosnX^" "^PosnY}}} 1" sizen="{{{ItemSizeX*2.^" "^ItemSizeY*0.5}}}" style="" ratio="0.5" drawbg="1" drawblockbg="1" />""";
+			K += 1;
+		}
+	}
+	
 	declare SampleText = "SampleText";
 	K = 0;
 	declare Labels_Style = "";
@@ -341,7 +353,8 @@ Text Private_CreateManialinkStyles() {
 </frame>
 <frame posn="0 0 56" hidden="1" id="Frame_Global">
 	<quad posn="0 0 1" sizen="320 180" halign="center" valign="center" bgcolor="777" />
-	<quad posn="-152 80 2" sizen="56 58" bgcolor="555" />
+	<quad posn="-152 80 2" sizen="56 40" bgcolor="555" />
+	<quad posn="-152 38 2" sizen="56 16" bgcolor="555" />
 	<quad posn="-92 80 2" sizen="110 58" bgcolor="555" />
 	<quad posn="22 80 2" sizen="56 28" bgcolor="555" />
 	<quad posn="22 48 2" sizen="56 26" bgcolor="555" />
@@ -355,9 +368,9 @@ Text Private_CreateManialinkStyles() {
 			<include url="http://maniahome.maniaplanet.com/add/?url=ml-styles"/>
 		</frame>
 		<frame posn="150 64" hidden="1" id="Frame_Stats">
-	        <format textemboss="1" />
-	        <label posn="0 0" sizen="60" halign="right" text="Manialink displayed: 0" />
-	      </frame>
+			<format textemboss="1" />
+			<label posn="0 0" sizen="60" halign="right" text="Manialink displayed: 0" />
+		</frame>
 		<frame posn="-150 72" id="Frame_StyleSelector">
 			<frame posn="0 0">
 				<label posn="0 4" scale="0.5" valign="center2" style="TextRaceMessageBig" text="Background" />
@@ -367,26 +380,34 @@ Text Private_CreateManialinkStyles() {
 				<label posn="0 -18" style="CardButtonSmallXL" text="UiSMSpectatorScoreBig" scriptevents="1" class="Button_QuadStyleSelector" id="UiSMSpectatorScoreBig" />
 				<label posn="0 -24" style="CardButtonSmallXL" text="EnergyBar" scriptevents="1" class="Button_QuadStyleSelector" id="EnergyBar" />
 			</frame>
+			<frame posn="0 -42">
+				<label posn="0 4" scale="0.5" valign="center2" style="TextRaceMessageBig" text="Gauge" />
+				<label posn="0 0" style="CardButtonSmallXL" text="All" scriptevents="1" class="Button_GaugeStyleSelector" id="Gauge_All" />
+			</frame>
 			<frame posn="60 0">
 				<label posn="0 4" scale="0.5" valign="center2" style="TextRaceMessageBig" text="Icons" />
-				<label posn="0 0" style="CardButtonSmallXL" text="Icons128x128_1" scriptevents="1" class="Button_QuadStyleSelector" id="Icons128x128_1" />
-				<label posn="0 -6" style="CardButtonSmallXL" text="Icons128x128_Blink" scriptevents="1" class="Button_QuadStyleSelector" id="Icons128x128_Blink" />
-				<label posn="0 -12" style="CardButtonSmallXL" text="Icons128x32_1" scriptevents="1" class="Button_QuadStyleSelector" id="Icons128x32_1" />
-				<label posn="0 -18" style="CardButtonSmallXL" text="Icons64x64_1" scriptevents="1" class="Button_QuadStyleSelector" id="Icons64x64_1" />
-				<label posn="0 -24" style="CardButtonSmallXL" text="Icons64x64_2" scriptevents="1" class="Button_QuadStyleSelector" id="Icons64x64_2" />
-				<label posn="0 -30" style="CardButtonSmallXL" text="UIConstruction_Buttons" scriptevents="1" class="Button_QuadStyleSelector" id="UIConstruction_Buttons" />
-				<label posn="0 -36" style="CardButtonSmallXL" text="BgsChallengeMedals" scriptevents="1" class="Button_QuadStyleSelector" id="BgsChallengeMedals" />
-				<label posn="0 -42" style="CardButtonSmallXL" text="BgRaceScore2" scriptevents="1" class="Button_QuadStyleSelector" id="BgRaceScore2" />
+				<label posn="0 0" style="CardButtonSmall" text="Icons128x128_1" scriptevents="1" class="Button_QuadStyleSelector" id="Icons128x128_1" />
+				<label posn="0 -6" style="CardButtonSmall" text="Icons128x128_Blink" scriptevents="1" class="Button_QuadStyleSelector" id="Icons128x128_Blink" />
+				<label posn="0 -12" style="CardButtonSmall" text="Icons128x32_1" scriptevents="1" class="Button_QuadStyleSelector" id="Icons128x32_1" />
+				<label posn="0 -18" style="CardButtonSmall" text="Icons64x64_1" scriptevents="1" class="Button_QuadStyleSelector" id="Icons64x64_1" />
+				<label posn="0 -24" style="CardButtonSmall" text="Icons64x64_2" scriptevents="1" class="Button_QuadStyleSelector" id="Icons64x64_2" />
+				<label posn="0 -30" style="CardButtonSmall" text="321Go" scriptevents="1" class="Button_QuadStyleSelector" id="321Go" />
+				<label posn="0 -36" style="CardButtonSmall" text="BgsChallengeMedals" scriptevents="1" class="Button_QuadStyleSelector" id="BgsChallengeMedals" />
+				<label posn="0 -42" style="CardButtonSmall" text="BgRaceScore2" scriptevents="1" class="Button_QuadStyleSelector" id="BgRaceScore2" />
 			</frame>
-			<frame posn="114 0">
-				<label posn="0 0" style="CardButtonSmallXL" text="ManiaPlanetLogos" scriptevents="1" class="Button_QuadStyleSelector" id="ManiaPlanetLogos" />
-				<label posn="0 -6" style="CardButtonSmallXL" text="Copilot" scriptevents="1" class="Button_QuadStyleSelector" id="Copilot" />
-				<label posn="0 -12" style="CardButtonSmallXL" text="MedalsBig" scriptevents="1" class="Button_QuadStyleSelector" id="MedalsBig" />
-				<label posn="0 -18" style="CardButtonSmallXL" text="321Go" scriptevents="1" class="Button_QuadStyleSelector" id="321Go" />
-				<label posn="0 -24" style="CardButtonSmallXL" text="ManiaplanetSystem" scriptevents="1" class="Button_QuadStyleSelector" id="ManiaplanetSystem" />
-				<label posn="0 -30" style="CardButtonSmallXL" text="TitleLogos" scriptevents="1" class="Button_QuadStyleSelector" id="TitleLogos" />
-				<label posn="0 -36" style="CardButtonSmallXL" text="Emblems" scriptevents="1" class="Button_QuadStyleSelector" id="Emblems" />
-				<label posn="0 -42" style="CardButtonSmallXL" text="Hud3dEchelons" scriptevents="1" class="Button_QuadStyleSelector" id="Hud3dEchelons" />
+			<frame posn="99 0">
+				<label posn="0 0" style="CardButtonSmall" text="UIConstruction_Buttons" scriptevents="1" class="Button_QuadStyleSelector" id="UIConstruction_Buttons" />
+				<label posn="0 -6" style="CardButtonSmall" text="UIConstruction_Buttons2" scriptevents="1" class="Button_QuadStyleSelector" id="UIConstruction_Buttons2" />
+				<label posn="0 -12" style="CardButtonSmall" text="UIConstructionBullet_Buttons" scriptevents="1" class="Button_QuadStyleSelector" id="UIConstructionBullet_Buttons" />
+				<label posn="0 -18" style="CardButtonSmall" text="ManiaPlanetLogos" scriptevents="1" class="Button_QuadStyleSelector" id="ManiaPlanetLogos" />
+				<label posn="0 -24" style="CardButtonSmall" text="ManiaplanetSystem" scriptevents="1" class="Button_QuadStyleSelector" id="ManiaplanetSystem" />
+				<label posn="0 -30" style="CardButtonSmall" text="TitleLogos" scriptevents="1" class="Button_QuadStyleSelector" id="TitleLogos" />
+				<label posn="0 -36" style="CardButtonSmall" text="Emblems" scriptevents="1" class="Button_QuadStyleSelector" id="Emblems" />
+				<label posn="0 -42" style="CardButtonSmall" text="Hud3dEchelons" scriptevents="1" class="Button_QuadStyleSelector" id="Hud3dEchelons" />
+			</frame>
+			<frame posn="138 0">
+				<label posn="0 0" style="CardButtonSmallS" text="Copilot" scriptevents="1" class="Button_QuadStyleSelector" id="Copilot" />
+				<label posn="0 -6" style="CardButtonSmallS" text="MedalsBig" scriptevents="1" class="Button_QuadStyleSelector" id="MedalsBig" />
 			</frame>
 			<frame posn="174 0">
 				<label posn="0 4" scale="0.5" valign="center2" style="TextRaceMessageBig" text="Text" />
@@ -436,6 +457,9 @@ Text Private_CreateManialinkStyles() {
 		<frame posn="-150 -20" id="Frame_QuadStylesDisplay">
 			{{{Quads_Style}}}
 		</frame>
+		<frame posn="-150 -20" hidden="1" id="Frame_GaugeStylesDisplay">
+			{{{Gauges_Style}}}
+		</frame>
 		<frame posn="-150 -20" hidden="1" id="Frame_LabelStylesDisplay">
 			{{{Labels_Style}}}
 		</frame>
@@ -454,7 +478,9 @@ Text Private_CreateManialinkStyles() {
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 
-#Const C_Quad_Styles ["321Go"=>["1","2","3","Go!"],"BgRaceScore2"=>["BgCardPlayer","BgCardServer","BgScores","Cartouche","CartoucheLine","CupFinisher","CupPotentialFinisher","Fame","Handle","HandleBlue","HandleRed","HandleSelectable","IsLadderDisabled","IsLocalPlayer","LadderPoints","LadderRank","Laps","Podium","Points","SandTimer","ScoreLink","ScoreReplay","SendScore","Speaking","Spectator","Tv","Warmup"],"Bgs1"=>["ArrowDown","ArrowLeft","ArrowRight","ArrowUp","BgButton","BgButtonBig","BgButtonGlow","BgButtonGrayed","BgButtonOff","BgButtonShadow","BgButtonSmall","BgCard","BgCard1","BgCard2","BgCard3","BgCardBuddy","BgCardChallenge","BgCardFolder","BgCardInventoryItem","BgCardList","BgCardOnline","BgCardPlayer","BgCardSystem","BgCardZone","BgColorContour","BgDialogBlur","BgEmpty","BgGradBottom","BgGradLeft","BgGradRight","BgGradTop","BgGradV","BgHealthBar","BgIconBorder","BgList","BgListLine","BgPager","BgProgressBar","BgShadow","BgSlider","BgSystemBar","BgTitle2","BgTitle3","BgTitle3_1","BgTitle3_2","BgTitle3_3","BgTitle3_4","BgTitle3_5","BgTitleGlow","BgTitlePage","BgTitleShadow","BgWindow1","BgWindow2","BgWindow3","EnergyBar","EnergyTeam2","Glow","HealthBar","NavButton","NavButtonBlink","NavButtonQuit","ProgressBar","ProgressBarSmall","Shadow"],"Bgs1InRace"=>["ArrowDown","ArrowLeft","ArrowRight","ArrowUp","BgButton","BgButtonBig","BgButtonGlow","BgButtonGrayed","BgButtonOff","BgButtonShadow","BgButtonSmall","BgCard","BgCard1","BgCard2","BgCard3","BgCardBuddy","BgCardChallenge","BgCardFolder","BgCardInventoryItem","BgCardList","BgCardOnline","BgCardPlayer","BgCardSystem","BgCardZone","BgColorContour","BgDialogBlur","BgEmpty","BgGradBottom","BgGradLeft","BgGradRight","BgGradTop","BgGradV","BgHealthBar","BgIconBorder","BgList","BgListLine","BgPager","BgProgressBar","BgShadow","BgSlider","BgSystemBar","BgTitle2","BgTitle3","BgTitle3_1","BgTitle3_2","BgTitle3_3","BgTitle3_4","BgTitle3_5","BgTitleGlow","BgTitlePage","BgTitleShadow","BgWindow1","BgWindow2","BgWindow3","EnergyBar","EnergyTeam2","Glow","HealthBar","NavButton","NavButtonBlink","NavButtonQuit","ProgressBar","ProgressBarSmall","Shadow"],"BgsChallengeMedals"=>["BgBronze","BgGold","BgNadeo","BgNotPlayed","BgPlayed","BgSilver"],"BgsPlayerCard"=>["BgActivePlayerCard","BgActivePlayerName","BgActivePlayerScore","BgCard","BgCardSystem","BgMediaTracker","BgPlayerCard","BgPlayerCardBig","BgPlayerCardSmall","BgPlayerName","BgPlayerScore","BgRacePlayerLine","BgRacePlayerName","ProgressBar"],"Copilot"=>["Down","DownGood","DownWrong","Left","LeftGood","LeftWrong","Right","RightGood","RightWrong","Up","UpGood","UpWrong"],"Emblems"=>["#0","#1","#2"],"EnergyBar"=>["BgText","EnergyBar","EnergyBar_0.25","EnergyBar_Thin","HeaderGaugeLeft","HeaderGaugeRight"],"Hud3dEchelons"=>["EchelonBronze1","EchelonBronze2","EchelonBronze3","EchelonGold1","EchelonGold2","EchelonGold3","EchelonSilver1","EchelonSilver2","EchelonSilver3"],"Icons128x128_1"=>["Advanced","Back","BackFocusable","Beginner","Browse","Buddies","Challenge","ChallengeAuthor","Coppers","Create","Credits","Custom","CustomStars","Default","Download","Easy","Editor","Event","Extreme","Forever","GhostEditor","Hard","Hotseat","Inputs","Invite","LadderPoints","Lan","Launch","Load","LoadTrack","Manialink","ManiaZones","MedalCount","MediaTracker","Medium","Multiplayer","Nations","NewTrack","Options","Padlock","Paint","Platform","PlayerPage","Profile","ProfileAdvanced","ProfileVehicle","Puzzle","Quit","Race","Rankings","Replay","Save","ServersAll","ServersFavorites","ServersSuggested","Share","ShareBlink","SkillPoints","Solo","Statistics","Stunts","United","Upload","Vehicles"],"Icons128x128_Blink"=>["Advanced","Back","BackFocusable","Beginner","Browse","Buddies","Challenge","ChallengeAuthor","Coppers","Create","Credits","Custom","CustomStars","Default","Download","Easy","Editor","Event","Extreme","Forever","GhostEditor","Hard","Hotseat","Inputs","Invite","LadderPoints","Lan","Launch","Load","LoadTrack","Manialink","ManiaZones","MedalCount","MediaTracker","Medium","Multiplayer","Nations","NewTrack","Options","Padlock","Paint","Platform","PlayerPage","Profile","ProfileAdvanced","ProfileVehicle","Puzzle","Quit","Race","Rankings","Replay","Save","ServersAll","ServersFavorites","ServersSuggested","Share","ShareBlink","SkillPoints","Solo","Statistics","Stunts","United","Upload","Vehicles"],"Icons128x32_1"=>["Empty","ManiaLinkHome","ManiaLinkSwitch","ManiaPlanet","Music","PainterBrush","PainterFill","PainterLayer","PainterMirror","PainterSticker","PainterTeam","RT_Cup","RT_Laps","RT_Rounds","RT_Script","RT_Team","RT_TimeAttack","RT_Stunts","Settings","SliderBar","SliderBar2","SliderCursor","Sound","UrlBg","Windowed"],"Icons64x64_1"=>["3DStereo","Add","ArrowBlue","ArrowDisabled","ArrowDown","ArrowFastNext","ArrowFastPrev","ArrowFirst","ArrowGreen","ArrowLast","ArrowNext","ArrowPrev","ArrowRed","ArrowUp","Browser","Buddy","ButtonLeagues","Camera","CameraLocal","Check","ClipPause","ClipPlay","ClipRewind","Close","Empty","Finish","FinishGrey","First","GenericButton","Green","IconLeaguesLadder","IconPlayers","IconPlayersLadder","IconServers","Inbox","LvlGreen","LvlRed","LvlYellow","ManiaLinkNext","ManiaLinkPrev","Maximize","MediaAudioDownloading","MediaPlay","MediaStop","MediaVideoDownloading","NewMessage","NotBuddy","OfficialRace","Opponents","Outbox","QuitRace","RedHigh","RedLow","Refresh","RestartRace","Save","Second","ShowDown","ShowDown2","ShowLeft","ShowLeft2","ShowRight","ShowRight2","ShowUp","ShowUp2","SliderCursor","SliderCursor2","StateFavourite","StatePrivate","StateSuggested","Sub","TagTypeBronze","TagTypeGold","TagTypeNadeo","TagTypeNone","TagTypeSilver","Third","ToolLeague1","ToolRoot","ToolTree","ToolUp","TrackInfo","TV","YellowHigh","YellowLow"],"Icons64x64_2"=>["ArrowElimination","ArrowHit","Disconnected","DisconnectedLight","LaserElimination","LaserHit","NucleusElimination","NucleusHit","RocketElimination","RocketHit","ServerNotice","UnknownElimination","UnknownHit"],"ManiaPlanetLogos"=>["IconPlanets","IconPlanetsPerspective","IconPlanetsSmall","ManiaPlanetLogoBlack","ManiaPlanetLogoBlackSmall","ManiaPlanetLogoWhite","ManiaPlanetLogoWhiteSmall"],"ManiaplanetSystem"=>["BgDialog","BgDialogAnchor","BgFloat","Events","Medals","Statistics"],"MedalsBig"=>["MedalBronze","MedalGold","MedalGoldPerspective","MedalNadeo","MedalNadeoPerspective","MedalSilver","MedalSlot"],"TitleLogos"=>["Author","Collection","Icon","Title"],"UIConstruction_Buttons"=>["ActionMaker","Add","Author","AuthorTime","BgEditors","BgIcons","BgMain","BgTools","BlockEditor","Camera","Challenge","CopyPaste","DecalEditor","Delete","Directory","Down","Drive","Erase","Help","Item","Left","MacroBlockEditor","MediaTracker","ObjectEditor","OffZone","Options","Paint","Pick","Plugins","Quit","Redo","Reload","Right","Save","SaveAs","ScriptEditor","SpotModelClearUnused","SpotModelDuplicate","SpotModelNew","SpotModelRename","Square","Stats","Sub","TerrainEditor","TestSm","Text","Tools","Underground","Undo","Up","Validate","Validate_Step1","Validate_Step2","Validate_Step3"],"UiSMSpectatorScoreBig"=>["BotLeft","BotLeftGlass","BotRight","BotRightGlass","CenterShield","CenterShieldSmall","HandleLeft","HandleRight","PlayerGlass","PlayerIconBg","PlayerJunction","PlayerSlot","PlayerSlotCenter","PlayerSlotRev","PlayerSlotSmall","PlayerSlotSmallRev","TableBgHoriz","TableBgVert","Top","UIRange1Bg","UIRange2Bg"]]
+#Const C_Quad_Styles ["321Go"=>["1","2","3","Go!"],"BgRaceScore2"=>["BgCardPlayer","BgCardServer","BgScores","Cartouche","CartoucheLine","CupFinisher","CupPotentialFinisher","Fame","Handle","HandleBlue","HandleRed","HandleSelectable","IsLadderDisabled","IsLocalPlayer","LadderPoints","LadderRank","Laps","Podium","Points","SandTimer","ScoreLink","ScoreReplay","SendScore","Speaking","Spectator","Tv","Warmup"],"Bgs1"=>["ArrowDown","ArrowLeft","ArrowRight","ArrowUp","BgButton","BgButtonBig","BgButtonGlow","BgButtonGrayed","BgButtonOff","BgButtonShadow","BgButtonSmall","BgCard","BgCard1","BgCard2","BgCard3","BgCardBuddy","BgCardChallenge","BgCardFolder","BgCardInventoryItem","BgCardList","BgCardOnline","BgCardPlayer","BgCardSystem","BgCardZone","BgColorContour","BgDialogBlur","BgEmpty","BgGradBottom","BgGradLeft","BgGradRight","BgGradTop","BgGradV","BgHealthBar","BgIconBorder","BgList","BgListLine","BgPager","BgProgressBar","BgShadow","BgSlider","BgSystemBar","BgTitle2","BgTitle3","BgTitle3_1","BgTitle3_2","BgTitle3_3","BgTitle3_4","BgTitle3_5","BgTitleGlow","BgTitlePage","BgTitleShadow","BgWindow1","BgWindow2","BgWindow3","EnergyBar","EnergyTeam2","Glow","HealthBar","NavButton","NavButtonBlink","NavButtonQuit","ProgressBar","ProgressBarSmall","Shadow"],"Bgs1InRace"=>["ArrowDown","ArrowLeft","ArrowRight","ArrowUp","BgButton","BgButtonBig","BgButtonGlow","BgButtonGrayed","BgButtonOff","BgButtonShadow","BgButtonSmall","BgCard","BgCard1","BgCard2","BgCard3","BgCardBuddy","BgCardChallenge","BgCardFolder","BgCardInventoryItem","BgCardList","BgCardOnline","BgCardPlayer","BgCardSystem","BgCardZone","BgColorContour","BgDialogBlur","BgEmpty","BgGradBottom","BgGradLeft","BgGradRight","BgGradTop","BgGradV","BgHealthBar","BgIconBorder","BgList","BgListLine","BgPager","BgProgressBar","BgShadow","BgSlider","BgSystemBar","BgTitle2","BgTitle3","BgTitle3_1","BgTitle3_2","BgTitle3_3","BgTitle3_4","BgTitle3_5","BgTitleGlow","BgTitlePage","BgTitleShadow","BgWindow1","BgWindow2","BgWindow3","EnergyBar","EnergyTeam2","Glow","HealthBar","NavButton","NavButtonBlink","NavButtonQuit","ProgressBar","ProgressBarSmall","Shadow"],"BgsChallengeMedals"=>["BgBronze","BgGold","BgNadeo","BgNotPlayed","BgPlayed","BgSilver"],"BgsPlayerCard"=>["BgActivePlayerCard","BgActivePlayerName","BgActivePlayerScore","BgCard","BgCardSystem","BgMediaTracker","BgPlayerCard","BgPlayerCardBig","BgPlayerCardSmall","BgPlayerName","BgPlayerScore","BgRacePlayerLine","BgRacePlayerName","ProgressBar"],"Copilot"=>["Down","DownGood","DownWrong","Left","LeftGood","LeftWrong","Right","RightGood","RightWrong","Up","UpGood","UpWrong"],"Emblems"=>["#0","#1","#2"],"EnergyBar"=>["BgText","EnergyBar","EnergyBar_0.25","EnergyBar_Thin","HeaderGaugeLeft","HeaderGaugeRight"],"Hud3dEchelons"=>["EchelonBronze1","EchelonBronze2","EchelonBronze3","EchelonGold1","EchelonGold2","EchelonGold3","EchelonSilver1","EchelonSilver2","EchelonSilver3"],"Icons128x128_1"=>["Advanced","Back","BackFocusable","Beginner","Browse","Buddies","Challenge","ChallengeAuthor","Coppers","Create","Credits","Custom","CustomStars","Default","Download","Easy","Editor","Event","Extreme","Forever","GhostEditor","Hard","Hotseat","Inputs","Invite","LadderPoints","Lan","Launch","Load","LoadTrack","Manialink","ManiaZones","MedalCount","MediaTracker","Medium","Multiplayer","Nations","NewTrack","Options","Padlock","Paint","Platform","PlayerPage","Profile","ProfileAdvanced","ProfileVehicle","Puzzle","Quit","Race","Rankings","Replay","Save","ServersAll","ServersFavorites","ServersSuggested","Share","ShareBlink","SkillPoints","Solo","Statistics","Stunts","United","Upload","Vehicles"],"Icons128x128_Blink"=>["Advanced","Back","BackFocusable","Beginner","Browse","Buddies","Challenge","ChallengeAuthor","Coppers","Create","Credits","Custom","CustomStars","Default","Download","Easy","Editor","Event","Extreme","Forever","GhostEditor","Hard","Hotseat","Inputs","Invite","LadderPoints","Lan","Launch","Load","LoadTrack","Manialink","ManiaZones","MedalCount","MediaTracker","Medium","Multiplayer","Nations","NewTrack","Options","Padlock","Paint","Platform","PlayerPage","Profile","ProfileAdvanced","ProfileVehicle","Puzzle","Quit","Race","Rankings","Replay","Save","ServersAll","ServersFavorites","ServersSuggested","Share","ShareBlink","SkillPoints","Solo","Statistics","Stunts","United","Upload","Vehicles"],"Icons128x32_1"=>["Close","Empty","ManiaLinkHome","ManiaLinkSwitch","ManiaPlanet","Music","PainterBrush","PainterFill","PainterLayer","PainterMirror","PainterSticker","PainterTeam","RT_Cup","RT_Laps","RT_Rounds","RT_Script","RT_Team","RT_TimeAttack","RT_Stunts","Settings","SliderBar","SliderBar2","SliderCursor","Sound","UrlBg","Windowed"],"Icons64x64_1"=>["3DStereo","Add","ArrowBlue","ArrowDisabled","ArrowDown","ArrowFastNext","ArrowFastPrev","ArrowFirst","ArrowGreen","ArrowLast","ArrowNext","ArrowPrev","ArrowRed","ArrowUp","Browser","Buddy","ButtonLeagues","Camera","CameraLocal","Check","ClipPause","ClipPlay","ClipRewind","Close","Empty","Finish","FinishGrey","First","GenericButton","Green","IconLeaguesLadder","IconPlayers","IconPlayersLadder","IconServers","Inbox","LvlGreen","LvlRed","LvlYellow","ManiaLinkNext","ManiaLinkPrev","Maximize","MediaAudioDownloading","MediaPlay","MediaStop","MediaVideoDownloading","NewMessage","NotBuddy","OfficialRace","Opponents","Outbox","QuitRace","RedHigh","RedLow","Refresh","RestartRace","Save","Second","ShowDown","ShowDown2","ShowLeft","ShowLeft2","ShowRight","ShowRight2","ShowUp","ShowUp2","SliderCursor","SliderCursor2","StateFavourite","StatePrivate","StateSuggested","Sub","TagTypeBronze","TagTypeGold","TagTypeNadeo","TagTypeNone","TagTypeSilver","Third","ToolLeague1","ToolRoot","ToolTree","ToolUp","TrackInfo","TV","YellowHigh","YellowLow"],"Icons64x64_2"=>["ArrowElimination","ArrowHit","Disconnected","DisconnectedLight","LaserElimination","LaserHit","NucleusElimination","NucleusHit","RocketElimination","RocketHit","ServerNotice","UnknownElimination","UnknownHit"],"ManiaPlanetLogos"=>["IconPlanets","IconPlanetsPerspective","IconPlanetsSmall","ManiaPlanetLogoBlack","ManiaPlanetLogoBlackSmall","ManiaPlanetLogoWhite","ManiaPlanetLogoWhiteSmall"],"ManiaplanetSystem"=>["BgDialog","BgDialogAnchor","BgFloat","Events","Medals","Statistics"],"MedalsBig"=>["MedalBronze","MedalGold","MedalGoldPerspective","MedalNadeo","MedalNadeoPerspective","MedalSilver","MedalSlot"],"TitleLogos"=>["Author","Collection","Icon","Title"],"UIConstruction_Buttons"=>["ActionMaker","Add","Author","AuthorTime","BgEditors","BgIcons","BgMain","BgTools","BlockEditor","Camera","Challenge","CopyPaste","DecalEditor","Delete","Directory","Down","Drive","Erase","GhostBlock","Help","Item","Left","MacroBlockEditor","MediaTracker","ObjectEditor","OffZone","Options","Paint","Pick","Plugins","Quit","Redo","Reload","Right","Save","SaveAs","ScriptEditor","SpotModelClearUnused","SpotModelDuplicate","SpotModelNew","SpotModelRename","Square","Stats","Sub","TerrainEditor","TestSm","Text","Tools","Underground","Undo","Up","Validate","Validate_Step1","Validate_Step2","Validate_Step3"],"UiSMSpectatorScoreBig"=>["BotLeft","BotLeftGlass","BotRight","BotRightGlass","CenterShield","CenterShieldSmall","HandleLeft","HandleRight","PlayerGlass","PlayerIconBg","PlayerJunction","PlayerSlot","PlayerSlotCenter","PlayerSlotRev","PlayerSlotSmall","PlayerSlotSmallRev","TableBgHoriz","TableBgVert","Top","UIRange1Bg","UIRange2Bg"],"UIConstruction_Buttons2"=>["Copy","Cut","KeysAdd","KeysCopy","KeysDelete","KeysPaste","New","Open","Symmetry"],"UIConstructionBullet_Buttons"=>["AnimMode","BlocMode","BulletEditorMode","Circle","Core","CoreFolder","DeltaMode","Disc","ExplosionMode","NewBullet","NewRandomBullet","Point","Power","PowerFolder","PreviewMode","RootMotionMode","SmokeDebris","SmokeDebrisFolder","SoundMode","SphereEmpty","SphereFull","Trail","TrailFolder"]]
+
+#Const C_Gauge_Styles ["EnergyBar","BgCard","ProgressBar","ProgressBarSmall"]
 
 declare CMlQuad Button_PagerPrev;
 declare CMlQuad Button_PagerNext;
@@ -463,6 +489,7 @@ declare CMlLabel Label_Style;
 declare CMlLabel Label_Substyle;
 declare CMlEntry Entry_Properties;
 declare CMlFrame Frame_QuadStylesDisplay;
+declare CMlFrame Frame_GaugeStylesDisplay;
 
 declare Text G_CurrentStyle;
 declare Integer G_PageRange;
@@ -470,7 +497,7 @@ declare Integer G_PageStart;
 declare Integer G_PageEnd;
 declare Text G_MLEvents;
 
-Void UpdateStyleDisplay() {
+Void UpdateQuadStyleDisplay() {
 	declare Key = G_PageStart;
 	foreach (Control in Frame_QuadStylesDisplay.Controls) {
 		declare Quad_Style <=> (Control as CMlQuad);
@@ -486,6 +513,29 @@ Void UpdateStyleDisplay() {
 	}
 }
 
+Void UpdateGaugeStyleDisplay() {
+	declare Key = G_PageStart;
+	foreach (Control in Frame_GaugeStylesDisplay.Controls) {
+		if (Control is CMlGauge) {
+			declare Gauge_Style <=> (Control as CMlGauge);
+			if (C_Gauge_Styles.existskey(Key)) {
+				if (!Gauge_Style.Visible) Gauge_Style.Show();
+				Gauge_Style.Style = C_Gauge_Styles[Key];
+			} else {
+				if (Gauge_Style.Visible) Gauge_Style.Hide();
+			}
+			Key += 1;
+		} else {
+			if (C_Gauge_Styles.existskey(Key)) {
+				Control.Show();
+			} else {
+				Control.Hide();
+			}
+		}
+		
+	}
+}
+
 Void SelectQuadStyle(Text _ControlId) {
 	declare ControlId = TL::ToInteger(_ControlId);
 	declare Key = G_PageStart + ControlId;
@@ -496,6 +546,17 @@ Void SelectQuadStyle(Text _ControlId) {
 	Label_Style.SetText(G_CurrentStyle);
 	Label_Substyle.SetText(Substyle);
 	Entry_Properties.Value = "<quad style=\""^G_CurrentStyle^"\" substyle=\""^Substyle^"\" />";
+}
+
+Void SelectGaugeStyle(Text _ControlId) {
+	declare ControlId = TL::ToInteger(_ControlId);
+	declare Key = G_PageStart + ControlId;
+	
+	if (!C_Gauge_Styles.existskey(Key)) return;
+	
+	declare Style = C_Gauge_Styles[Key];
+	Label_Style.SetText(Style);
+	Entry_Properties.Value = "<gauge style=\""^Style^"\" drawbg=\"1\" drawblockbg=\"1\" />";
 }
 
 Void SelectLabelStyle(Text _ControlId) {
@@ -583,6 +644,7 @@ main() {
 	Label_Substyle			<=> (Page.GetFirstChild("Label_Substyle")			as CMlLabel);
 	Entry_Properties		<=> (Page.GetFirstChild("Entry_Properties")			as CMlEntry);
 	Frame_QuadStylesDisplay	<=> (Page.GetFirstChild("Frame_QuadStylesDisplay")	as CMlFrame);
+	Frame_GaugeStylesDisplay<=> (Page.GetFirstChild("Frame_GaugeStylesDisplay")	as CMlFrame);
 	
 	declare Frame_Global				<=> (Page.GetFirstChild("Frame_Global")					as CMlFrame);
 	declare Button_Visibility			<=> (Page.GetFirstChild("Button_Visibility")			as CMlLabel);
@@ -604,7 +666,7 @@ main() {
 	G_MLEvents = "";
 	
 	UpdatePager(0, C_Quad_Styles[G_CurrentStyle].count);
-	UpdateStyleDisplay();
+	UpdateQuadStyleDisplay();
 	
 	declare Sliding = False;
 	declare SliderShiftX = 0.;
@@ -651,6 +713,11 @@ main() {
 					SelectQuadStyle(Event.ControlId);
 				} 
 				// ---------------------------------- //
+				// Click on a gauge style
+				else if (Event.Control.HasClass("Gauge_Style")) {
+					SelectGaugeStyle(Event.ControlId);
+				} 
+				// ---------------------------------- //
 				// Click on a label substyle
 				else if (Event.Control.HasClass("Label_Style")) {
 					SelectLabelStyle(Event.ControlId);
@@ -666,11 +733,11 @@ main() {
 					switch (Event.ControlId) {
 						case "Button_PagerPrev": {
 							UpdatePager(-G_PageRange, C_Quad_Styles[G_CurrentStyle].count);
-							UpdateStyleDisplay();
+							UpdateQuadStyleDisplay();
 						}
 						case "Button_PagerNext": {
 							UpdatePager(G_PageRange, C_Quad_Styles[G_CurrentStyle].count);
-							UpdateStyleDisplay();
+							UpdateQuadStyleDisplay();
 						}
 					}
 				}
@@ -684,10 +751,32 @@ main() {
 					
 					G_PageStart = 0;
 					UpdatePager(0, C_Quad_Styles[G_CurrentStyle].count);
-					UpdateStyleDisplay();
+					UpdateQuadStyleDisplay();
 					
 					if (!Frame_QuadStylesDisplay.Visible) {
 						Frame_QuadStylesDisplay.Show();
+						Frame_GaugeStylesDisplay.Hide();
+						Frame_LabelStylesDisplay.Hide();
+						Frame_LabelStyles2Display.Hide();
+						Frame_ButtonStylesDisplay.Hide();
+						Frame_SoundStylesDisplay.Hide();
+					}
+				} 
+				// ---------------------------------- //
+				// Select a gauge style
+				else if (Event.Control.HasClass("Button_GaugeStyleSelector")) {
+					G_CurrentStyle = Event.ControlId;
+					Label_Style.SetText("...");
+					Label_Substyle.SetText("-");
+					Entry_Properties.Value = "<gauge style=\"...\" drawbg=\"1\" drawblockbg=\"1\" />";
+					
+					G_PageStart = 0;
+					UpdatePager(0, C_Gauge_Styles.count);
+					UpdateGaugeStyleDisplay();
+					
+					if (!Frame_GaugeStylesDisplay.Visible) {
+						Frame_QuadStylesDisplay.Hide();
+						Frame_GaugeStylesDisplay.Show();
 						Frame_LabelStylesDisplay.Hide();
 						Frame_LabelStyles2Display.Hide();
 						Frame_ButtonStylesDisplay.Hide();
@@ -698,6 +787,7 @@ main() {
 				// Select a text style
 				else if (Event.Control.HasClass("Button_TextStyleSelector")) {
 					if (Frame_QuadStylesDisplay.Visible) Frame_QuadStylesDisplay.Hide();
+					if (Frame_GaugeStylesDisplay.Visible) Frame_GaugeStylesDisplay.Hide();
 					if (Frame_SoundStylesDisplay.Visible) Frame_SoundStylesDisplay.Hide();
 					switch (Event.ControlId) {
 						case "WithEvents": {
@@ -740,6 +830,7 @@ main() {
 					
 					if (!Frame_SoundStylesDisplay.Visible) {
 						Frame_QuadStylesDisplay.Hide();
+						Frame_GaugeStylesDisplay.Hide();
 						Frame_LabelStylesDisplay.Hide();
 						Frame_LabelStyles2Display.Hide();
 						Frame_ButtonStylesDisplay.Hide();

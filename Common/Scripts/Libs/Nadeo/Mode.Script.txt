@@ -56,6 +56,13 @@ Void UnloadMap() {
 	wait(!MapLoaded || ServerShutdownRequested); 
 } 
 
+// ---------------------------------- //
+/// Show the new record and medals dialog (and the end-race replay in TM.)
+Void Solo_SetNewRecord(CScore _NewScore, CMode::EMedal _NewMedal) { 
+	This.Solo_SetNewRecord(_NewScore, _NewMedal);
+	wait(!Solo_NewRecordSequenceInProgress || ServerShutdownRequested); 
+} 
+
 
 // ---------------------------------- //
 /// Create a new match on the ladder and register all the scores

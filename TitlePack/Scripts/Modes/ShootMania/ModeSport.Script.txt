@@ -7,16 +7,17 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2013-11-12"
+#Const	ModeSportVersion	"2014-02-07"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/Json.Script.txt" as Json
-#Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/Interface.Script.txt" as Interface
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Toss.Script.txt" as Toss
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
@@ -166,11 +167,6 @@ declare WinnerMatchClan = -1;		///< Winner Clan for a match
 declare WinType = -1;				///< Type of victory for the turn: timelimit = 1, pole capture=2, etc.
 declare SleepMultiplier = 1.;
 
-declare LayerAttached = False;
-declare LayerDetached = False;
-declare LayerUpdated = False;
-declare LayerDestroyed = False;
-
 declare netwrite Integer Clan1MapPoints for XmlRpc;
 declare netwrite Integer Clan1MatchPoints for XmlRpc;
 declare netwrite Integer Clan2MapPoints for XmlRpc;
@@ -201,17 +197,17 @@ WarmUp2::DisplayClanSelection(True);
 // ---------------------------------- //
 // Layers creation
 // UI All
-declare LayerScoresTableId	= Layers::Create("ScoresTable", CreateLayerScoresTable());
+Layers::Create("ScoresTable", CreateLayerScoresTable());
 // UI Players
-declare LayerSpawnScreenAttackId	= Layers::Create("SpawnScreenAttack");
-declare LayerSpawnScreenDefendId	= Layers::Create("SpawnScreenDefend");
+Layers::Create("SpawnScreenAttack");
+Layers::Create("SpawnScreenDefend");
 
-Layers::GetFromId(LayerScoresTableId).Type = CUILayer::EUILayerType::ScoresTable;
-Layers::GetFromId(LayerSpawnScreenAttackId).Type = CUILayer::EUILayerType::ScreenIn3d;
-Layers::GetFromId(LayerSpawnScreenDefendId).Type = CUILayer::EUILayerType::ScreenIn3d;
+Layers::SetType("ScoresTable", CUILayer::EUILayerType::ScoresTable);
+Layers::SetType("SpawnScreenAttack", CUILayer::EUILayerType::ScreenIn3d);
+Layers::SetType("SpawnScreenDefend", CUILayer::EUILayerType::ScreenIn3d);
 
-LayerUpdated = Layers::Update("SpawnScreenAttack", UpdateLayerSpawnScreen("Attack"));
-LayerUpdated = Layers::Update("SpawnScreenDefend", UpdateLayerSpawnScreen("Defend"));
+Layers::Update("SpawnScreenAttack", UpdateLayerSpawnScreen("Attack"));
+Layers::Update("SpawnScreenDefend", UpdateLayerSpawnScreen("Defend"));
 
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
 ***
@@ -257,8 +253,8 @@ TossWinner = -1;
 // ---------------------------------- //
 ***InitMap***
 ***
-declare CSmBlockPole[] Goals;
-declare CSmBlockPole[] Checkpoints;
+declare CSmMapLandmark[] Goals;
+declare CSmMapLandmark[] Checkpoints;
 declare Boolean WinByForfeit;
 declare Boolean TokenUsed;
 declare Text PrevClan1Color;
@@ -267,7 +263,7 @@ declare Save_MatchDefElim = G_MatchDefElim;
 declare Save_MapDefElim = G_MapDefElim;
 declare Save_TieBreakDefElim = G_TieBreakDefElim;
 
-UIManager.UIAll.Hud3dMarkers = ""; ///< Remove the markers from the previous map for the intro
+UIManager.UIAll.MarkersXML = ""; ///< Remove the markers from the previous map for the intro
 if (S_Matchmaking) MB_UseIntro = False;
 else MB_UseIntro = True;
 ***
@@ -282,9 +278,9 @@ G_MapSpecCamDirection = GetOverviewCamDirection();
 
 // ---------------------------------- //
 // Initialize anchors
-Goals = CSmBlockPole[];
-Checkpoints = CSmBlockPole[];
-foreach (Pole in BlockPoles) {
+Goals = CSmMapLandmark[];
+Checkpoints = CSmMapLandmark[];
+foreach (Pole in MapLandmarks_Gauge) {
 	if (Pole.Tag == "Goal A" || Pole.Tag == "Goal B" || Pole.Tag == "Goal C") Goals.add(Pole);
 	else if (Pole.Tag == "Checkpoint") Checkpoints.add(Pole);
 }
@@ -292,7 +288,7 @@ G_CheckpointsNb = Checkpoints.count;
 // Compatibility with old MapType
 if (Goals.count <= 0) {
 	MB_Log("Old MapType compatibility");
-	declare OldPole <=> SM::GetPole("Goal", 0);
+	declare OldPole <=> Map::GetLandmarkGauge("Goal", 0);
 	if (OldPole != Null) Goals.add(OldPole);
 }
 
@@ -342,8 +338,8 @@ InitUi();
 SpawnScreen::AttachRules();
 Clublink::Attach();
 Clublink::SetSponsorsDisplay(False);
-LayerAttached = Layers::Attach("ScoresTable", NullId);
-LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
+Layers::Attach("ScoresTable");
+Layers::Update("ScoresTable", CreateLayerScoresTable());
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 UIManager.UIAll.UISequence_CanSkipIntroMT = True;
 PrevClan1Color = Teams[0].ColorText;
@@ -626,17 +622,18 @@ while (True) {
 	I += 1;
 	if (I >= SlotNb) break;
 }
+ST2::SetFooterText(TextLib::Compose("%1 : %2", _("Attacker"), NextAtkName));
 
 // ---------------------------------- //
 // Attach the correct spawn screen layer and update the scores table
 UpdateLayerScoresTable(C_SequencePlaying);
 foreach (Player in Players) {
 	if (Player.RequestedClan == G_AtkClan) {
-		LayerAttached = Layers::Attach("SpawnScreenAttack", Player.Id);
-		LayerDetached = Layers::Detach("SpawnScreenDefend", Player.Id);
+		Layers::Attach("SpawnScreenAttack", Player);
+		Layers::Detach("SpawnScreenDefend", Player);
 	} else if (Player.RequestedClan == G_DefClan) {
-		LayerAttached = Layers::Attach("SpawnScreenDefend", Player.Id);
-		LayerDetached = Layers::Detach("SpawnScreenAttack", Player.Id);
+		Layers::Attach("SpawnScreenDefend", Player);
+		Layers::Detach("SpawnScreenAttack", Player);
 	}
 }
 
@@ -679,7 +676,7 @@ foreach (Goal in Goals) {
 	Goal.Gauge.Max = PoleTime - Now;
 	Goal.Gauge.Speed = -1;
 	Goal.Gauge.Value = Goal.Gauge.Max;
-	Goal.Captured = False;
+	Goal.Gauge.Captured = False;
 }
 // ---------------------------------- //
 // Init checkpoints
@@ -688,7 +685,7 @@ foreach (Checkpoint in Checkpoints) {
 	Checkpoint.Gauge.Max = 1;
 	Checkpoint.Gauge.Speed = 0;
 	Checkpoint.Gauge.Value = 0;
-	Checkpoint.Captured = False;
+	Checkpoint.Gauge.Captured = False;
 }
 
 // ---------------------------------- //
@@ -711,7 +708,7 @@ Clublink::SyncUpdate();
 if (PrevClan1Color != Teams[0].ColorText || PrevClan2Color != Teams[1].ColorText) {
 	PrevClan1Color = Teams[0].ColorText;
 	PrevClan2Color = Teams[1].ColorText;
-	LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
+	Layers::Update("ScoresTable", CreateLayerScoresTable());
 }
 UpdateLayerScoresTable(C_SequencePlaying);
 UpdateMarkers();
@@ -961,7 +958,7 @@ if (Now > StartTime)  {
 		else if (Players.existskey(G_AtkPlayerId)) {
 			declare GoalCaptured = False;
 			foreach (Goal in Goals) {
-				if (Goal.Captured && Goal.Gauge.Clan == G_AtkClan) GoalCaptured = True;
+				if (Goal.Gauge.Captured && Goal.Gauge.Clan == G_AtkClan) GoalCaptured = True;
 			}
 			
 			// ---------------------------------- //
@@ -1132,6 +1129,7 @@ if (G_Override_NeedWarmUp && WinType == 0) {
 			declare NbHit for Player.Score = 0;
 			declare netwrite Net_LayerST_DefPoints for Player = 0;
 			Net_LayerST_DefPoints = NbHit;
+			ST2::SetColValue("DefPoints", Player.Score, TextLib::ToText(NbHit));
 		}
 	}
 	
@@ -1144,7 +1142,7 @@ if (G_Override_NeedWarmUp && WinType == 0) {
 // ---------------------------------- //
 // Show the capture gauge of the most (but not) captured pole if any
 declare GaugeValue = 0;
-declare MostActivatedGoal <=> CSmBlockPole;
+declare MostActivatedGoal <=> CSmMapLandmark;
 foreach (Goal in Goals) {
 	Goal.Gauge.Speed = 0;
 
@@ -1481,9 +1479,9 @@ if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
 ***
 WarmUp2::Unload();
 // Destroy Layers
-LayerDestroyed = Layers::Destroy("ScoresTable");
-LayerDestroyed = Layers::Destroy("SpawnScreenAttack");
-LayerDestroyed = Layers::Destroy("SpawnScreenDefend");
+Layers::Destroy("ScoresTable");
+Layers::Destroy("SpawnScreenAttack");
+Layers::Destroy("SpawnScreenDefend");
 Layers::Clean();
 ***
 
@@ -1513,19 +1511,19 @@ Integer GetPointLimit() {
 // ---------------------------------- //
 /// Initialize the color of the spawns, poles and other colored elements
 Void InitBasesColor() {
-	foreach (Base in Bases) {
+	foreach (Base in MapBases) {
 		Base.Clan = G_DefClan;
 		Base.IsActive = True;
 	}
 	
 	// Get def and atk spawn
-	declare DefBlockSpawn <=> SM::GetSpawn("SpawnDefense", 0);
-	declare AtkBlockSpawn <=> SM::GetSpawn("SpawnAttack", 0);
+	declare DefSpawn <=> Map::GetLandmarkPlayerSpawn("SpawnDefense", 0);
+	declare AtkSpawn <=> Map::GetLandmarkPlayerSpawn("SpawnAttack", 0);
 	
 	// Color the bases
-	if (DefBlockSpawn.Base != AtkBlockSpawn.Base && DefBlockSpawn.Base != Null && AtkBlockSpawn.Base != Null) {
-		AtkBlockSpawn.Base.Clan = G_AtkClan;
-		AtkBlockSpawn.Base.IsActive = True;
+	if (DefSpawn.Base != AtkSpawn.Base && DefSpawn.Base != Null && AtkSpawn.Base != Null) {
+		AtkSpawn.Base.Clan = G_AtkClan;
+		AtkSpawn.Base.IsActive = True;
 	}
 }
 
@@ -1548,8 +1546,8 @@ Void RestoreScores() {
  */
 Void SpawnThemAll(Integer _Phase) {
 	// Get def and atk spawn
-	declare DefBlockSpawn <=> SM::GetSpawn("SpawnDefense", 0);
-	declare AtkBlockSpawn <=> SM::GetSpawn("SpawnAttack", 0);
+	declare DefSpawn <=> Map::GetPlayerSpawn("SpawnDefense", 0);
+	declare AtkSpawn <=> Map::GetPlayerSpawn("SpawnAttack", 0);
 	
 	// WarmUp classic/free || Waiting time
 	if (_Phase == 2 || _Phase == 3) {
@@ -1567,14 +1565,14 @@ Void SpawnThemAll(Integer _Phase) {
 				Player.StaminaGain = 1.;
 				
 				SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
-				SM::SpawnPlayer(Player, Player.RequestedClan, Player.ArmorMax, AtkBlockSpawn, Now);
+				SM::SpawnPlayer(Player, Player.RequestedClan, Player.ArmorMax, AtkSpawn, Now);
 				SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, C_WUNucleusAmmoMax);
 			} else {
 				Player.AmmoGain	= 1. * C_WURocketAmmoGain;
 				Player.StaminaMax = 1. * C_DefStaminaMaxMultiplier;
 				Player.StaminaGain = 1. * C_DefStaminaMaxMultiplier;
 				SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, True); 
-				SM::SpawnPlayer(Player, Player.RequestedClan, Player.ArmorMax, DefBlockSpawn, Now);
+				SM::SpawnPlayer(Player, Player.RequestedClan, Player.ArmorMax, DefSpawn, Now);
 				SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, C_WUNucleusAmmoMax);
 			}
 			Player.IsHighlighted = True;
@@ -1630,6 +1628,7 @@ Void UpgradeScore(Integer _iClan, Integer _iPlus) {
 				Score::AddPoints(Players[G_AtkPlayerId], 1);
 				declare netwrite Net_LayerST_AtkPoints for Players[G_AtkPlayerId] = 0;
 				Net_LayerST_AtkPoints += 1;
+				ST2::SetColValue("AtkPoints", Players[G_AtkPlayerId].Score, TextLib::ToText(Net_LayerST_AtkPoints));
 			}
 		}
 	} else {
@@ -1642,6 +1641,7 @@ Void UpgradeScore(Integer _iClan, Integer _iPlus) {
 				Score::AddPoints(Players[G_AtkPlayerId], 1);
 				declare netwrite Net_LayerST_AtkPoints for Players[G_AtkPlayerId] = 0;
 				Net_LayerST_AtkPoints += 1;
+				ST2::SetColValue("AtkPoints", Players[G_AtkPlayerId].Score, TextLib::ToText(Net_LayerST_AtkPoints));
 			}
 		}
 	}
@@ -1685,8 +1685,8 @@ Void PlaySound(CUIConfig::EUISound _Sound, Integer _Variant) {
  * @return	The direction of the camera
  */
 Vec3 GetOverviewCamDirection() {
-	declare FirstGoal <=> CSmBlockPole;
-	foreach (Goal in BlockPoles) {
+	declare FirstGoal <=> CSmMapLandmark;
+	foreach (Goal in MapLandmarks_Gauge) {
 		if (Goal.Tag == "Goal A") {
 			FirstGoal <=> Goal;
 			break;
@@ -1694,11 +1694,11 @@ Vec3 GetOverviewCamDirection() {
 	}
 	
 	// Compatibility with old MapType
-	if (FirstGoal == Null) FirstGoal <=> SM::GetPole("Goal", 0);
+	if (FirstGoal == Null) FirstGoal <=> Map::GetLandmarkGauge("Goal", 0);
 	if (FirstGoal == Null) { declare Vec3 NoPosition; return NoPosition; }
 	
-	declare AtkBlockSpawn <=> SM::GetSpawn("SpawnAttack", 0);
-	return AtkBlockSpawn.Position - FirstGoal.Position;
+	declare AtkSpawn <=> Map::GetLandmarkPlayerSpawn("SpawnAttack", 0);
+	return AtkSpawn.Position - FirstGoal.Position;
 }
 
 // ---------------------------------- //
@@ -2164,9 +2164,9 @@ Void WaitConnection() {
 	UIManager.UIAll.CountdownEndTime = -1;
 	
 	declare netwrite Integer Net_ModeSport_PlayersNbTotal for Teams[0];
-	declare LayerWaitConnectionId = Layers::Create("WaitConnection", CreateLayerWaitConnection());
-	Layers::GetFromId(LayerWaitConnectionId).Type = CUILayer::EUILayerType::CutScene;
-	declare LayerAttached = Layers::Attach("WaitConnection", NullId);
+	Layers::Create("WaitConnection", CreateLayerWaitConnection());
+	Layers::SetType("WaitConnection", CUILayer::EUILayerType::CutScene);
+	Layers::Attach("WaitConnection");
 	UIManager.UIAll.UISequence_CanSkipIntroMT = False;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
 	
@@ -2351,8 +2351,8 @@ Void WaitConnection() {
 	WarmUp2::Clean();
 	WarmUp2::Fill();
 	
-	declare LayerDetached = Layers::Detach("WaitConnection", NullId);
-	declare LayerDestroyed = Layers::Destroy("WaitConnection");
+	Layers::Detach("WaitConnection");
+	Layers::Destroy("WaitConnection");
 	UpdateLayerScoresTable(C_SequenceWarmUp);
 	Elite_Sleep(500);
 	UIManager.UIAll.StatusMessage = "";
@@ -2370,7 +2370,7 @@ Void WaitConnection() {
 	Clublink::SyncUpdate();
 	UpdateHeader();
 	
-	declare LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
+	Layers::Update("ScoresTable", CreateLayerScoresTable());
 }
 
 // ---------------------------------- //
@@ -2382,12 +2382,12 @@ Void WarmUp2() {
 	if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginWarmup", Json::Enfold(Json::Stringify("AllReady", False)));
 	
 	// Shutdown the poles during warmup
-	foreach (Goal in BlockPoles) {
+	foreach (Goal in MapLandmarks_Gauge) {
 		Goal.Gauge.Clan = 0;
 		Goal.Gauge.Speed = 0;
 		Goal.Gauge.Value = 0;
 		Goal.Gauge.Max = 1000;
-		Goal.Captured = False;
+		Goal.Gauge.Captured = False;
 	}
 	SM::UnspawnAllPlayers();
 	
@@ -2408,41 +2408,13 @@ Void WarmUp2() {
 	}
 	WarmUp2::Fill();
 	
-	StartTime = Now + 1000;
-	EndTime = -1;
-	declare TmpEndTime = EndTime;
-	declare WarmUpDuration = S_WarmUpDuration;
-	declare PrevWarmUpDuration = WarmUpDuration;
+	declare PrevWarmUpDuration = S_WarmUpDuration-1;
+	declare PrevMode = -1;
 	
-	while (!WarmUp2::Stop() && (EndTime <= 0 || Now < EndTime) && !ServerShutdownRequested && !MatchEndRequested) {
+	while (!WarmUp2::Stop()) {
 		MB_Yield();
 		ManageCommand();
 		ForceClublinkReload();
-		
-		// Check XmlRpc events
-		declare StopWarmUp = False;
-		foreach (Event in XmlRpc.PendingEvents) {
-			if (Event.Param1 == "WarmUp_Extend") {
-				declare ExtendTime = TextLib::ToInteger(Event.Param2);
-				if (EndTime >= 0) {
-					EndTime += ExtendTime;
-					TmpEndTime += ExtendTime;
-				}
-				WarmUpDuration += ExtendTime;
-			} else if (Event.Param1 == "WarmUp_Stop") {
-				StopWarmUp = True;
-			}
-		}
-		if (StopWarmUp) break;
-		
-		if (PrevWarmUpDuration != S_WarmUpDuration) {
-			PrevWarmUpDuration = S_WarmUpDuration;			
-			WarmUpDuration = S_WarmUpDuration;
-			if (EndTime >= 0) {
-				EndTime = Now + (WarmUpDuration * 1000);
-				TmpEndTime = Now + (WarmUpDuration * 1000);
-			}
-		}
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
@@ -2453,6 +2425,23 @@ Void WarmUp2() {
 				SetPlayerClan(Player, Player.RequestedClan);
 				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+			}
+		}
+		
+		if (PrevMode != S_Mode || PrevWarmUpDuration != S_WarmUpDuration) {
+			PrevMode = S_Mode;
+			PrevWarmUpDuration = S_WarmUpDuration;
+			
+			declare LongTimer = S_WarmUpDuration*1000;
+			declare ShortTimer = 5000;
+			if (LongTimer <= 0) { LongTimer = 0; ShortTimer = 0; }
+			
+			if (S_Mode == 0) {
+				WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, C_RequiredPlayersNb], LongTimer => [1, C_RequiredPlayersNb]]);
+				WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, C_RequiredPlayersNb], LongTimer => [1, C_RequiredPlayersNb]]);
+			} else {
+				WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, 1], LongTimer => [1, 1]]);
+				WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, 1], LongTimer => [1, 1]]);
 			}
 		}
 		
@@ -2471,55 +2460,9 @@ Void WarmUp2() {
 				DisplayHitDistance(Event.Shooter, Event.Victim, True);
 			}
 		}
-		
-		declare PlayersNbClan1 = WarmUp2::GetPlayersNb("Clan1");
-		declare PlayersNbClan2 = WarmUp2::GetPlayersNb("Clan2");
-		declare ReadyPlayersClan1 = WarmUp2::GetReadyPlayersNb("Clan1");
-		declare ReadyPlayersClan2 = WarmUp2::GetReadyPlayersNb("Clan2");
-		
-		if (WarmUpDuration <= 0) {
-			if (S_Mode == 0) {
-				if (PlayersNbClan1 >= C_RequiredPlayersNb && PlayersNbClan2 >= C_RequiredPlayersNb) EndTime = Now;
-			} else {
-				if (PlayersNbClan1 >= 1 && PlayersNbClan2 >= 1) EndTime = Now;
-			}
-		} else if (ReadyPlayersClan1 >= C_RequiredPlayersNb && ReadyPlayersClan2 >= C_RequiredPlayersNb) {
-			if (EndTime < 0 || EndTime > Now + 5000) EndTime = Now + 5000;
-		} else if (ReadyPlayersClan1 >= 1 && ReadyPlayersClan2 >= 1) {
-			if (S_Mode == 0) {
-				if (PlayersNbClan1 >= C_RequiredPlayersNb && PlayersNbClan2 >= C_RequiredPlayersNb) {
-					if (EndTime < 0 || EndTime != TmpEndTime) {
-						if (TmpEndTime < 0) TmpEndTime = Now + (WarmUpDuration * 1000);
-						EndTime = TmpEndTime;
-					}
-				} else {
-					if (EndTime >= 0) {
-						TmpEndTime = -1;
-						EndTime = -1;
-					}
-				}
-			} else {
-				if (ReadyPlayersClan1 >= PlayersNbClan1 && ReadyPlayersClan2 >= PlayersNbClan2) {
-					if (EndTime < 0 || EndTime > Now + 5000) EndTime = Now + 5000;
-				} else {
-					if (EndTime < 0 || EndTime != TmpEndTime) {
-						if (TmpEndTime < 0) TmpEndTime = Now + (WarmUpDuration * 1000);
-						EndTime = TmpEndTime;
-					}
-				}
-			}
-		} else {
-			if (EndTime >= 0) {
-				TmpEndTime = -1;
-				EndTime = -1;
-			}
-		}
 	}
 	
 	WarmUp2::End();
-	
-	StartTime = -1;
-	EndTime = -1;
 	
 	if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("EndWarmup", Json::Enfold(Json::Stringify("AllReady", True)));
 	
@@ -2535,7 +2478,7 @@ Void WarmUp2() {
 	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 	Clublink::SyncUpdate();
 	
-	declare LayerUpdated = Layers::Update("ScoresTable", CreateLayerScoresTable());
+	Layers::Update("ScoresTable", CreateLayerScoresTable());
 	
 	+++EndWarmUp+++
 	XmlRpc::EndWarmUp();

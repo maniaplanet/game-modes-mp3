@@ -11,12 +11,11 @@
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
-#Include "Libs/Nadeo/Map.Script.txt" as Map
 #Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/Victory.Script.txt" as Victory
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
-#Include "Libs/Nadeo/ShootMania/AFK.Script.txt" as AFK
+#Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Debug.Script.txt" as Debug
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
@@ -35,7 +34,7 @@
 #Setting S_ClanNbMinPlayers		1		as _("Minumum number of players in each team")		///< Wait until this minimum is reach
 #Setting S_ClanNbMaxPlayers		0		as _("Max number of players per team (0: no max)")	///< do not spawn players beyond this limit, 0=no limit
 #Setting S_AutoBalance			True	as _("Use autobalance")								///< Use auto balance at the start of the map
-#Setting S_AutoManageAFK		True	as _("Switch inactive players to spectators")
+#Setting S_AutoManageAFK		True	//as _("Switch inactive players to spectators")
 #Setting S_DisplayRulesReminder True	as "<hidden>" // _("Display a window with the rules when the match begins")
 #Setting S_Matchmaking			False	as "<hidden>"										///< Use Elite with matchmaking
 #Setting S_MatchmakingSleep		0		as "<hidden>" 										///< Matchmaking match end duration (-1: infinite)
@@ -87,8 +86,6 @@
 
 #Const Description _("TYPE: Team vs Team\nOBJECTIVE:\nThe teams play alternatively in attack or defense. The attackers must capture a maximum of poles while the defenders must eliminate all the attackers.\nThe attackers can play with the Laser or the Rocket, the defenders with the Nucleus or the Rocket.\nAt each new round the attackers start with one additional armor.\nAfter a fixed number of round, the team who captured the more poles wins the map.")
 
-#Const C_AFKsCheckFrequency 		15000 //milli sec.
-
 #Const C_PHASE_MAPSTART				0
 #Const C_PHASE_ROUNDSTART			1
 #Const C_PHASE_TURNSTART			2
@@ -135,7 +132,6 @@ MB_LogVersion(Victory::GetScriptName(), Victory::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 MB_LogVersion(WarmUp2::GetScriptName(), WarmUp2::GetScriptVersion());
 MB_LogVersion(WS::GetScriptName(), WS::GetScriptVersion());
-MB_LogVersion(AFK::GetScriptName(), AFK::GetScriptVersion());
 MB_LogVersion(Debug::GetScriptName(), Debug::GetScriptVersion());
 ***
 
@@ -237,7 +233,7 @@ declare Boolean[Integer]	AllGoalsCaptured;	///< Has the clan capture all checkpo
 declare Boolean				SuddenDeath;		///< A clan captured all goals on first try
 declare Integer				ClanMapWinner;		///< Clan who win the map
 
-UIManager.UIAll.Hud3dMarkers = ""; ///< Remove the markers from the previous map for the intro
+UIManager.UIAll.MarkersXML = ""; ///< Remove the markers from the previous map for the intro
 if (S_Matchmaking) MB_UseIntro = False;
 else MB_UseIntro = True;
 ***
@@ -327,12 +323,6 @@ Layers::Update("Markers", UpdateMarkerLayer());
 Layers::Update("EndSequence", UpdateEndSequenceLayer());
 
 HideEndRoundUI();
-***
-
-
-***InitRound***
-***
-declare Integer CheckAFKsTime = 0;	
 ***
 
 // ---------------------------------- //
@@ -1155,12 +1145,6 @@ else if (ClansNbPlayersAlive[G_CapturingClan] <= 0) {
 		MB_StopTurn = True;
 		log(Now^"> Defending clan win");
 	}
-}
-
-// Manage inactive players
-if(S_AutoManageAFK && (Now > CheckAFKsTime) ) {
-	CheckAFKsTime = Now + C_AFKsCheckFrequency;
-	AFK::ManageAFKPlayers(30000, 15000);
 }
 ***
 
@@ -2352,7 +2336,7 @@ Void UpdateMarker() {
 			Net_UpdateMarkerTime = Now;
 		}
 	}
-	UIManager.UIAll.Hud3dMarkers = CreateMarkers();
+	UIManager.UIAll.MarkersXML = CreateMarkers();
 }
 
 Text UpdateMarkerLayer() {

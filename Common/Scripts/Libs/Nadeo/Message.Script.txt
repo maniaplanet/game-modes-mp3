@@ -2,14 +2,14 @@
  * Message library
  */
 
-#Const Version		"2013-11-05"
+#Const Version		"2013-12-16"
 #Const ScriptName	"Message.Script.txt"
 
 // ---------------------------------- //
 // Globales
 // ---------------------------------- //
-declare Text G_LibMessage_DefaultBigMessage;		///< Default general BigMessage
-declare Text G_LibMessage_DefaultStatusMessage;		///< Default general StatusMessage
+declare Text G_LibMessage_DefaultBigMessage;	///< Default general BigMessage
+declare Text G_LibMessage_DefaultStatusMessage;	///< Default general StatusMessage
 
 // ---------------------------------- //
 // Functions
@@ -153,7 +153,7 @@ Void Private_CleanMessages(Integer _Level) {
  */
 Void Private_SetDefaultMessage(Integer _Level, Text _Message) {
 	if (_Level != 1 && _Level != 2) return;
-	
+
 	if (_Level == 1) {
 		G_LibMessage_DefaultBigMessage = _Message;
 	} else if (_Level == 2) {
@@ -167,7 +167,7 @@ Void Private_SetDefaultMessage(Integer _Level, Text _Message) {
 		
 		if (LibMessage_MessageEndTime[_Level] <= 0) {
 			declare UI <=> UIManager.GetUI(Player);
-			if (UI != Null) {
+			if (UI != Null) {				
 				if (_Level == 1) UI.BigMessage = G_LibMessage_DefaultBigMessage;
 				else if (_Level == 2) UI.StatusMessage = G_LibMessage_DefaultStatusMessage;
 			}
@@ -221,6 +221,21 @@ Void SendBigMessage(CPlayer _Player, Text _Message, Integer _Duration, Integer _
 }
 
 // ---------------------------------- //
+/** Send a big message to all players of a clan
+ *
+ *	@param	_Clan		The clan who'll receive the message
+ *	@param	_Message	The message to display
+ *	@param	_Duration	The message to duration
+ *	@param	_Priority		The message priority
+ */
+Void SendBigMessage(Integer _Clan, Text _Message, Integer _Duration, Integer _Priority) {
+	foreach (Player in AllPlayers) {
+		if (Player.CurrentClan != _Clan) continue;
+		Private_SendMessageTo(1, Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
+	}
+}
+
+// ---------------------------------- //
 /** Send a big message with sound to all players
  *
  *	@param	_Message		The message to display
@@ -248,6 +263,23 @@ Void SendBigMessage(CPlayer _Player, Text _Message, Integer _Duration, Integer _
 }
 
 // ---------------------------------- //
+/** Send a big message with sound to all players of a clan
+ *
+ *	@param	_Clan			The clan who'll receive the message
+ *	@param	_Message		The message to display
+ *	@param	_Duration		The message to duration
+ *	@param	_Priority		The message priority
+ *	@param	_Sound			The sound to play with the message
+ *	@param	_SoundVariant	The sound variant to play
+ */
+Void SendBigMessage(Integer _Clan, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
+	foreach (Player in AllPlayers) {
+		if (Player.CurrentClan != _Clan) continue;
+		Private_SendMessageTo(1, Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
+	}
+}
+
+// ---------------------------------- //
 /** Send a status message to all players
  *
  *	@param	_Message	The message to display
@@ -268,6 +300,21 @@ Void SendStatusMessage(Text _Message, Integer _Duration, Integer _Priority) {
  */
 Void SendStatusMessage(CPlayer _Player, Text _Message, Integer _Duration, Integer _Priority) {
 	Private_SendMessageTo(2, _Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
+}
+
+// ---------------------------------- //
+/** Send a status message to all players of a clan
+ *
+ *	@param	_Clan		The clan who'll receive the message
+ *	@param	_Message	The message to display
+ *	@param	_Duration	The message to duration
+ *	@param	_Priority		The message priority
+ */
+Void SendStatusMessage(Integer _Clan, Text _Message, Integer _Duration, Integer _Priority) {
+	foreach (Player in Players) {
+		if (Player.CurrentClan != _Clan) continue;
+		Private_SendMessageTo(2, Player, _Message, _Duration, _Priority, CUIConfig::EUISound::Silence, 0);
+	}
 }
 
 // ---------------------------------- //
@@ -295,6 +342,23 @@ Void SendStatusMessage(Text _Message, Integer _Duration, Integer _Priority, CUIC
  */
 Void SendStatusMessage(CPlayer _Player, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
 	Private_SendMessageTo(2, _Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
+}
+
+// ---------------------------------- //
+/** Send a status message with sound to all players
+ *
+ *	@param	_Clan			The clan who'll receive the message
+ *	@param	_Message		The message to display
+ *	@param	_Duration		The message to duration
+ *	@param	_Priority		The message priority
+ *	@param	_Sound			The sound to play with the message
+ *	@param	_SoundVariant	The sound variant to play
+ */
+Void SendStatusMessage(Integer _Clan, Text _Message, Integer _Duration, Integer _Priority, CUIConfig::EUISound _Sound, Integer _SoundVariant) {
+	foreach (Player in AllPlayers) {
+		if (Player.CurrentClan != _Clan) continue;
+		Private_SendMessageTo(2, Player, _Message, _Duration, _Priority, _Sound, _SoundVariant);
+	}
 }
 
 // ---------------------------------- //
