@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeV2Arena"
-#Const Version				"2013-11-26"
+#Const Version				"2014-02-12"
 #Const ScriptName			"Siege.Script.txt"
 
 #Include "MathLib" as ML
@@ -31,7 +31,7 @@
 #Setting S_MapsToWin			1		as _("Number of maps to win a match")					///< Number of maps to win the match (0 = don't do match)
 #Setting S_WarmUpDuration		0		as _("Warm up duration (sec.)")							///< Duration of the warm up round (0 = no warmup)
 #Setting S_ClanNbMinPlayers		1		as _("Minumum number of players in each team")			///< Wait until this minimum is reach
-#Setting S_ClanNbMaxPlayers		0		as _("Maximum number of players per team (0: no max)")	///< do not spawn players beyond this limit, 0=no limit
+#Setting S_ClanNbMaxPlayers		0		as _("Maximum number of players per team (0: no max)")	///< Do not spawn players beyond this limit, 0=no limit
 #Setting S_UseSuddenDeathMode	True	as _("Do not allow a team to win on first turn")		///< Do not allow a team to win on first turn
 #Setting S_AutoBalance			True	as _("Use autobalance")									///< Use auto balance at the start of the map
 #Setting S_AutoManageAFK		True	//as _("Switch inactive players to spectators")			///< Switch inactive players to spectators
@@ -104,8 +104,8 @@ declare Integer InitialCapturingClan;	///< First clan to capture on the map
 ***StartServer***
 ***
 if (C_Debug) Debug::Load();
-//WarmUp2::Load();
-//WeaponSelection::Load();
+WarmUp2::Load();
+WeaponSelection::Load();
 
 // ---------------------------------- //
 // Initialize globales
@@ -143,10 +143,10 @@ SpawnScreen::DestroyRules();
 declare ModeName = "Siege";
 declare ModeObjectives = TL::Compose(_("$<%11. $>The goal of this mode is to capture a maximum of poles.\n$<%12. $>A game is divided in rounds of two turns each.\n$<%13. $>During a round each team plays one turn on attack and one turn on defense.\n$<%14. $>The attackers must capture the poles in order on the map. The defenders must stop them.\n$<%15. $>If a team captures all the poles during its turn, this team instantly wins the map.\n$<%16. $>After %2 rounds, the team that captured the most poles wins the map."), "$"^SpawnScreen::GetModeColor(), TL::ToText(S_NbRoundMax));
 declare ModeConditions = TL::Compose(_("$<%11. $>If an attacker is eliminated they will not respawn for the rest of the turn.\n$<%12. $>If a defender is eliminated they are respawned as soon as a pole is captured.\n$<%13. $>For each new round, the attackers restart from the beginning of the map, but with one additional armor."), "$"^SpawnScreen::GetModeColor());
-//SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
-//SpawnScreen::AddSubsection(_("Objectives"), ModeObjectives, 25.);
-//SpawnScreen::AddSubsection(_("Conditions"), ModeConditions, 85.);
-//SpawnScreen::CreatePrettyRules(ModeName);
+SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
+SpawnScreen::AddSubsection(_("Objectives"), ModeObjectives, 25.);
+SpawnScreen::AddSubsection(_("Conditions"), ModeConditions, 85.);
+SpawnScreen::CreatePrettyRules(ModeName);
 ModeStatusMessage = _("TYPE: Team versus Team\nOBJECTIVE: Capture the poles when you're an attacker. Eliminate the attackers when you're a defender.");
 
 // ---------------------------------- //
@@ -950,9 +950,9 @@ Layers::Destroy("Markers");
 Layers::Destroy("Interlude");
 Layers::Destroy("RulesReminder");
 
-//SpawnScreen::DestroyRules();
-//WeaponSelection::Unload();
-//WarmUp2::Unload();
+SpawnScreen::DestroyRules();
+WeaponSelection::Unload();
+WarmUp2::Unload();
 if (C_Debug) Debug::Unload();
 ***
 
@@ -1143,11 +1143,11 @@ Void InitWarmUp() {
 		else WarmUp2::CreateGroup("Clan1", S_ClanNbMaxPlayers);
 		if (WarmUp2::GroupExists("Clan2")) WarmUp2::SetSlotsNb("Clan2", S_ClanNbMaxPlayers);
 		else WarmUp2::CreateGroup("Clan2", S_ClanNbMaxPlayers);
-		//WarmUp2::DisplayClanSelection(True);
+		WarmUp2::DisplayClanSelection(True);
 	} else {
 		WarmUp2::DestroyGroup("Clan1");
 		WarmUp2::DestroyGroup("Clan2");
-		//WarmUp2::DisplayClanSelection(False);
+		WarmUp2::DisplayClanSelection(False);
 	}
 }
 
@@ -1384,7 +1384,6 @@ Void SendEliminationMessage(CSmPlayer _Player, Integer[Integer] _RemainingPlayer
  *	@return		The ManiaLink text
  */
 Text GetMLScoresTable() {
-	return "";
 	declare Panels = [1 => "", 2 => ""];
 	declare Text ArmorImage = C_ImgCommonDir^"ShieldWhite.dds";
 	
@@ -1555,7 +1554,6 @@ Void UpdateProgressionsUI() {
  *	@return		The ManiaLink text
  */
 Text GetMLProgression() {
-	return "";
 	declare Text ImgProgressionBg	= C_ImgInfoDir^"info-bg.dds";
 	declare Text ImgProgressionFg	= C_ImgInfoDir^"info-metal-small.dds";
 	declare Text ImgPolesBg			= C_ImgInfoDir^"info-poles.dds";
@@ -1708,7 +1706,6 @@ Void UpdateInterludeUI() {
  *	@return		The ManiaLink text
  */
 Text GetMLInterlude() {
-	return "";
 	declare Text CAlign = """ valign="center" halign="center" """;
 
 	declare Text LeftSideBgImage		= C_ImgSiegeDir^"bigboard-left.dds";
@@ -2028,7 +2025,6 @@ Text GetMLInterlude() {
  *	@return		The ManiaLink text
  */
 Text GetMLRulesReminder() {
-	return "";
 	if (!S_DisplayRulesReminder) return "";
 
 	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
@@ -2181,7 +2177,6 @@ Text GetMLRulesReminder() {
  *	@return		The ManiaLink text
  */
 Text GetMLMarkers() {
-	return "";
 	declare ScreenRatio		= 9./16.;
 	declare MarkerHeight	= 8.;
 	declare MarkerWidth		= MarkerHeight * ScreenRatio;
@@ -2217,7 +2212,6 @@ Text GetMLMarkers() {
 // ---------------------------------- //
 /// Update the 3D markers
 Void UpdateMarkers() {
-	return;
 	declare MarkersText = "";
 	Layers::Update("Markers", GetMLMarkers());
 	
@@ -2243,7 +2237,6 @@ Void UpdateMarkers() {
  *	@return		The manialink
  */
 Text GetMLWaitConnection() {
-	return "";
 	declare Integer TotalReqPlayers	= S_ClanNbMinPlayers*2;
 	declare Text 	ImgPlayer		= "file://Media/Manialinks/Shootmania/Common/DefendersLeft.dds";
 	declare Real	ImgSize			= 8.;
@@ -2474,8 +2467,8 @@ Void ActivateCheckpoint(CSmMapLandmark _Checkpoint) {
 Void SelectWeapons() {	
 	declare PreRoundEndTime = Now + C_WeaponSelectionDuration;
 	
-	//WeaponSelection::SetLayerPosition(<0., -40.>);
-	//WeaponSelection::Begin();
+	WeaponSelection::SetLayerPosition(<0., -40.>);
+	WeaponSelection::Begin();
 	WeaponSelection::CreateGroup("Attack", [CSmMode::EWeapon::Rocket, CSmMode::EWeapon::Laser]);
 	WeaponSelection::CreateGroup("Defense", [CSmMode::EWeapon::Rocket, CSmMode::EWeapon::Nucleus]);
 	WeaponSelection::SetEndTime(PreRoundEndTime);
@@ -2505,7 +2498,7 @@ Void SelectWeapons() {
 	}
 	
 	WeaponSelection::UnsetEndTime();
-	//WeaponSelection::End();
+	WeaponSelection::End();
 	
 	// Sleep a little to let the server receive all the selected weapon
 	MB_Sleep(1000);
@@ -2595,45 +2588,15 @@ Void DoWarmUp() {
 		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 	}
-	WarmUp2::Clean();	
 	
-	//WarmUp2();
-	//WarmUp2::Begin();
+	WarmUp2::Clean();
+	WarmUp2::Begin();
 	WarmUp2::Fill();
 	
-	StartTime = Now + 1000;
-	EndTime = -1;
-	declare TmpEndTime = EndTime;
-	declare WarmUpDuration = S_WarmUpDuration;
-	declare PrevWarmUpDuration = WarmUpDuration;
+	declare PrevWarmUpDuration = S_WarmUpDuration-1;
 	
-	while (!WarmUp2::Stop() && (EndTime <= 0 || Now < EndTime)) {
+	while (!WarmUp2::Stop()) {
 		MB_Yield();
-		
-		// Check XmlRpc events
-		declare StopWarmUp = False;
-		foreach (Event in XmlRpc.PendingEvents) {
-			if (Event.Param1 == "WarmUp_Extend") {
-				declare ExtendTime = TL::ToInteger(Event.Param2);
-				if (EndTime >= 0) {
-					EndTime += ExtendTime;
-					TmpEndTime += ExtendTime;
-				}
-				WarmUpDuration += ExtendTime;
-			} else if (Event.Param1 == "WarmUp_Stop") {
-				StopWarmUp = True;
-			}
-		}
-		if (StopWarmUp) break;
-		
-		if (PrevWarmUpDuration != S_WarmUpDuration) {
-			PrevWarmUpDuration = S_WarmUpDuration;			
-			WarmUpDuration = S_WarmUpDuration;
-			if (EndTime >= 0) {
-				EndTime = Now + (WarmUpDuration * 1000);
-				TmpEndTime = Now + (WarmUpDuration * 1000);
-			}
-		}
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
@@ -2645,6 +2608,17 @@ Void DoWarmUp() {
 				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 			}
+		}
+		
+		if (PrevWarmUpDuration != S_WarmUpDuration) {
+			PrevWarmUpDuration = S_WarmUpDuration;
+			
+			declare LongTimer = S_WarmUpDuration*1000;
+			declare ShortTimer = 5000;
+			if (LongTimer <= 0) { LongTimer = 0; ShortTimer = 0; }
+			
+			WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, S_ClanNbMinPlayers], LongTimer => [1, S_ClanNbMinPlayers]]);
+			WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, S_ClanNbMinPlayers], LongTimer => [1, S_ClanNbMinPlayers]]);
 		}
 		
 		WarmUp2::Fill();
@@ -2660,35 +2634,10 @@ Void DoWarmUp() {
 		}
 		
 		WarmUp2::ManageEvents();
-		declare PlayersNbClan1 = WarmUp2::GetPlayersNb("Clan1");
-		declare PlayersNbClan2 = WarmUp2::GetPlayersNb("Clan2");
-		declare ReadyPlayersClan1 = WarmUp2::GetReadyPlayersNb("Clan1");
-		declare ReadyPlayersClan2 = WarmUp2::GetReadyPlayersNb("Clan2");
-		
-		if (WarmUpDuration <= 0) {
-			if (PlayersNbClan1 >= S_ClanNbMinPlayers && PlayersNbClan2 >= S_ClanNbMinPlayers) EndTime = Now;
-		} else if (ReadyPlayersClan1 >= S_ClanNbMaxPlayers && ReadyPlayersClan2 >= S_ClanNbMaxPlayers) {
-			if (EndTime < 0 || EndTime > Now + 5000) EndTime = Now + 5000;
-		} else if (ReadyPlayersClan1 >= S_ClanNbMinPlayers && ReadyPlayersClan2 >= S_ClanNbMinPlayers) {
-			if (ReadyPlayersClan1 >= PlayersNbClan1 && ReadyPlayersClan2 >= PlayersNbClan2) {
-				if (EndTime < 0 || EndTime > Now + 5000) EndTime = Now + 5000;
-			} else {
-				if (EndTime < 0 || EndTime != TmpEndTime) {
-					if (TmpEndTime < 0) TmpEndTime = Now + (WarmUpDuration * 1000);
-					EndTime = TmpEndTime;
-				}
-			}
-		} else {
-			if (EndTime >= 0) {
-				TmpEndTime = -1;
-				EndTime = -1;
-			}
-		}
 	}
 	
-	//WarmUp2::End();
-	StartTime = -1;
-	EndTime = -1;
+	WarmUp2::End();
+	
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 	UIManager.UIAll.StatusMessage = "";
 	UIManager.UIAll.BigMessage = "";

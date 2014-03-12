@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2013-12-18"
+#Const Version				"2014-02-26"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -444,6 +444,10 @@ if (UseMultiClans) {
 foreach(Player in AllPlayers) {
 	UpdatePlayerScores(Player);
 }
+
+// ---------------------------------- //
+// Allow early respawn
+EarlyRespawnAllowed = S_UseEarlyRespawn;
 ***
 
 
@@ -516,6 +520,10 @@ Message::Loop();
 if(AllowBeginners != S_AllowBeginners) {
 	Beginners::ResetPlayers();
 	MB_StopMatch = True;
+}
+
+if (!S_UseEarlyRespawn && EarlyRespawnAllowed != S_UseEarlyRespawn) {
+	EarlyRespawnAllowed = False;
 }
 
 // ---------------------------------- //
@@ -889,7 +897,7 @@ foreach (Event in PendingEvents) {
 			declare Integer Royal_TotalEliminations for Event.Victim.User;
 			Royal_TotalEliminations += 1;
 			
-			if(! EarlyRespawnAllowed && PlayersAlive.count > 2) {
+			if(!EarlyRespawnAllowed && PlayersAlive.count > 2) {
 				//declare Boolean Royal_ShowReminder for Event.Victim.User = True;
 				declare UI <=> UIManager.GetUI(Event.Victim);
 				if(UI != Null) {

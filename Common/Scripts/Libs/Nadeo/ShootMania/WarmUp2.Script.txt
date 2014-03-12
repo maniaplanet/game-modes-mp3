@@ -1296,6 +1296,13 @@ Void Begin() {
 	declare netwrite Integer Net_LibWarmUp2_SynchroServer for Teams[0];
 	Net_LibWarmUp2_SynchroServer = Private_SynchroServer();
 	
+	foreach (GroupName => GroupIds in G_LibWarmUp2_GroupsIds) {
+		if (G_LibWarmUp2_GroupsCurrentTimer.existskey(GroupName)) {
+			G_LibWarmUp2_GroupsCurrentTimer[GroupName] = -1;
+		}
+	}
+	G_LibWarmUp2_CurrentTimer = -1;
+	G_LibWarmUp2_SavedTimer.clear();
 	G_LibWarmUp2_Updated = True;
 	G_LibWarmUp2_Stop = False;
 	

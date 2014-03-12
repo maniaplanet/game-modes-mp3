@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-02-07"
+#Const	ModeSportVersion	"2014-02-12"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -651,12 +651,15 @@ UIManager.UIAll.StatusMessage = TextLib::Compose(
 	TeamDefName
 );
 UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> is attacking!"), NextAtkName);
+---StartReplay---
+---StartPreTurn---
 while (Now <= PreTurnEndTime && !ServerShutdownRequested && !MatchEndRequested) {
 	MB_Yield();
 	ManageCommand();
 	UpdateSpectators();
 	ForceClublinkReload();
 }
+---EndPreTurn---
 UIManager.UIAll.StatusMessage = "";
 UIManager.UIAll.BigMessage = "";
 
@@ -1165,6 +1168,8 @@ StartTime = -1;
 EndTime = -1;
 SM::UnspawnAllPlayers();
 Message::CleanAllMessages();
+
+---EndReplay---
 
 UIManager.UIAll.GaugeMessage = "";
 UIManager.UIAll.GaugeRatio = -1000.;
@@ -1889,6 +1894,25 @@ Void UpdateSpectators(Boolean _Forced) {
 		} else {
 			UI.SpectatorForceCameraType = -1;
 			UI.SpectatorForcedClan = -1;
+		}
+		
+		declare PrevSpectatorForcedClan for UI = -1;
+		PrevSpectatorForcedClan = UI.SpectatorForcedClan;
+	}
+	
+	foreach (Spectator in Spectators) {
+		declare UI <=> UIManager.GetUI(Spectator);
+		if (UI == Null) continue;
+			
+		if (UI.SpectatorForceCameraType >= 0 || UI.SpectatorForcedClan >= 0) {
+			UI.SpectatorForceCameraType = -2;
+			UI.SpectatorForcedClan = -2;
+			
+			declare PrevSpectatorForcedClan for UI = -1;
+			if (PrevSpectatorForcedClan != UI.SpectatorForcedClan) {
+				PrevSpectatorForcedClan = UI.SpectatorForcedClan;
+				UIManager.UIAll.SendChat(TextLib::Compose("$<%1$> goes into spectator mode", Spectator.Name));
+			}
 		}
 	}
 }

@@ -218,6 +218,8 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 ***
 	+++Reinit+++
 	---ScoresTable---
+	
+	AFK::SetIdleTimeLimit(30000);
 ***
 
 ***ScoresTable***
