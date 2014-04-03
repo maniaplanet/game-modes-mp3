@@ -150,7 +150,7 @@ foreach (Event, PendingEvents) {
 	// ---------------------------------- //
 	// On hit
 	else if (Event.Type == CSmModeEvent::EType::OnHit) {
-		if (Event.Shooter == Event.Victim) {
+		if (Event.Victim == Null || Event.Shooter == Event.Victim) {
 			Discard(Event);
 		} else {
 			declare Points = Event.Damage / 100;

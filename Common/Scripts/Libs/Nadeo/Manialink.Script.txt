@@ -19,7 +19,7 @@
  *	- Bounce
  */
 
-/*
+/**
  *	Not all properties can be animated, this is the list of the available ones.
  *
  *	CMlControl :
@@ -40,7 +40,7 @@
  *	CMlGauge :
  *	- Ratio
  *	- Color
-*/
+ */
 
 /*
  *
@@ -76,7 +76,7 @@
  *
  */
 
-#Const Version		"2014-02-11"
+#Const Version		"2014-03-17"
 #Const ScriptName	"Manialink.Script.txt"
 
 // ---------------------------------- //
@@ -1325,63 +1325,254 @@ Void LibManialink_AnimLoop() {
  */
 Text Private_Tooltip() {
 	return """
+// ---------------------------------- //
+// Tooltip Start
+// ---------------------------------- //
 Void LibManialink_TooltipShow(Text _Id, CMlControl _Control, Text _Text) {
-	declare Frame_Tooltip	<=> (Page.GetFirstChild("Tooltip_"^_Id)				as CMlFrame);
-	if (Frame_Tooltip == Null) return;
-	declare Label_Tooltip	<=> (Frame_Tooltip.GetFirstChild("Label_Tooltip")	as CMlLabel);
-	declare Quad_Tooltip	<=> (Frame_Tooltip.GetFirstChild("Quad_Tooltip")	as CMlQuad);
-	if (Label_Tooltip == Null || Quad_Tooltip == Null) return;
-	
-	declare ShiftX = 0.;
-	declare ShiftY = 0.;
-	if (_Control.HorizontalAlign == CMlControl::AlignHorizontal::Left) {
-		ShiftX = (Quad_Tooltip.Size.X / 2.);
-	} else if (_Control.HorizontalAlign == CMlControl::AlignHorizontal::Right) {
-		ShiftX = (Quad_Tooltip.Size.X / -2.);
+	Page.GetClassChildren("LibManialink_Tooltip", Page.MainFrame, True);
+	foreach (Control in Page.GetClassChildren_Result) {
+		if (Control.ControlId != _Id) continue;
+		
+		declare Frame_Tooltip	<=> (Control as CMlFrame);
+		if (Frame_Tooltip == Null) return;
+		declare Tooltip_Message		<=> (Frame_Tooltip.GetFirstChild("Tooltip_Message")		as CMlLabel);
+		declare Tooltip_BoundingBox	<=> (Frame_Tooltip.GetFirstChild("Tooltip_BoundingBox")	as CMlQuad);
+		
+		declare Vec3 Pos;
+		Pos.X = (_Control.AbsolutePosition.X - Frame_Tooltip.AbsolutePosition.X) + Frame_Tooltip.RelativePosition.X;
+		Pos.Y = (_Control.AbsolutePosition.Y - Frame_Tooltip.AbsolutePosition.Y) + Frame_Tooltip.RelativePosition.Y;
+		Pos.Z = (_Control.AbsolutePosition.Z - Frame_Tooltip.AbsolutePosition.Z) + Frame_Tooltip.RelativePosition.Z + 1.;
+		
+		if (_Control.HorizontalAlign == CMlControl::AlignHorizontal::HCenter) {
+			Pos.X -= (_Control.Size.X / 2.);
+		} else if (_Control.HorizontalAlign == CMlControl::AlignHorizontal::Right) {
+			Pos.X -= (_Control.Size.X);
+		}
+		
+		if (_Control.VerticalAlign == CMlControl::AlignVertical::Top) {
+			Pos.Y -= _Control.Size.Y;
+		} else if (_Control.VerticalAlign == CMlControl::AlignVertical::VCenter || _Control.VerticalAlign == CMlControl::AlignVertical::VCenter2) {
+			Pos.Y -= _Control.Size.Y / 2.;
+		}
+		
+		if (Tooltip_BoundingBox != Null) {
+			if (Tooltip_BoundingBox.HorizontalAlign == CMlControl::AlignHorizontal::HCenter) {
+				Pos.X += (Tooltip_BoundingBox.Size.X / 2.);
+			} else if (Tooltip_BoundingBox.HorizontalAlign == CMlControl::AlignHorizontal::Right) {
+				Pos.X += (Tooltip_BoundingBox.Size.X);
+			}
+			
+			if (Tooltip_BoundingBox.VerticalAlign == CMlControl::AlignVertical::Bottom) {
+				Pos.Y -= Tooltip_BoundingBox.Size.Y;
+			} else if (Tooltip_BoundingBox.VerticalAlign == CMlControl::AlignVertical::VCenter) {
+				Pos.Y -= Tooltip_BoundingBox.Size.Y / 2.;
+			}
+		}
+		
+		if (Tooltip_BoundingBox != Null) {
+			declare PosMax = <160., 90.>;
+			declare PosMin = <-160., -90.>;
+			
+			if (Tooltip_BoundingBox.HorizontalAlign == CMlControl::AlignHorizontal::HCenter) {
+				PosMax.X = ((160. - Tooltip_BoundingBox.Size.X / 2.) - Frame_Tooltip.AbsolutePosition.X) + Frame_Tooltip.RelativePosition.X;
+				PosMin.X = ((-160. + Tooltip_BoundingBox.Size.X / 2.) - Frame_Tooltip.AbsolutePosition.X) + Frame_Tooltip.RelativePosition.X;
+			} else if (Tooltip_BoundingBox.HorizontalAlign == CMlControl::AlignHorizontal::Right) {
+				PosMin.X = ((-160. + Tooltip_BoundingBox.Size.X) - Frame_Tooltip.AbsolutePosition.X) + Frame_Tooltip.RelativePosition.X;
+			} else {
+				PosMax.X = ((160. - Tooltip_BoundingBox.Size.X) - Frame_Tooltip.AbsolutePosition.X) + Frame_Tooltip.RelativePosition.X;
+			}
+			
+			if (Tooltip_BoundingBox.VerticalAlign == CMlControl::AlignVertical::VCenter) {
+				PosMax.Y = ((90. - Tooltip_BoundingBox.Size.Y / 2.) - Frame_Tooltip.AbsolutePosition.Y) + Frame_Tooltip.RelativePosition.Y;
+				PosMin.Y = ((-90. + Tooltip_BoundingBox.Size.Y / 2.) - Frame_Tooltip.AbsolutePosition.Y) + Frame_Tooltip.RelativePosition.Y;
+			} else if (Tooltip_BoundingBox.VerticalAlign == CMlControl::AlignVertical::Bottom) {
+				PosMax.Y = ((90. - Tooltip_BoundingBox.Size.Y) - Frame_Tooltip.AbsolutePosition.Y) + Frame_Tooltip.RelativePosition.Y;
+			} else {
+				PosMin.Y = ((-90. + Tooltip_BoundingBox.Size.Y) - Frame_Tooltip.AbsolutePosition.Y) + Frame_Tooltip.RelativePosition.Y;
+			}
+			
+			if (Pos.X > PosMax.X) Pos.X = PosMax.X;
+			if (Pos.X < PosMin.X) Pos.X = PosMin.X;
+			if (Pos.Y > PosMax.Y) Pos.Y = PosMax.Y;
+			if (Pos.Y < PosMin.Y) Pos.Y = PosMin.Y;
+		}
+			
+		Frame_Tooltip.RelativePosition = Pos;
+		Frame_Tooltip.Visible = True;
+		if (Tooltip_Message != Null) Tooltip_Message.Value = _Text;
 	}
-	if (_Control.VerticalAlign == CMlControl::AlignVertical::Top) {
-		ShiftY = -_Control.Size.Y - (Quad_Tooltip.Size.Y / 2.);
-	} else if (_Control.VerticalAlign == CMlControl::AlignVertical::VCenter || _Control.VerticalAlign == CMlControl::AlignVertical::VCenter2) {
-		ShiftY = -(_Control.Size.Y / 2.) - (Quad_Tooltip.Size.Y / 2.);
-	} else if (_Control.VerticalAlign == CMlControl::AlignVertical::Bottom) {
-		ShiftY = _Control.Size.Y + (Quad_Tooltip.Size.Y / 2.);
-	}
-	
-	declare Pos = <_Control.AbsolutePosition.X + ShiftX, _Control.AbsolutePosition.Y + ShiftY, _Control.AbsolutePosition.Z+1.>;
-	if (Pos.X + (Quad_Tooltip.Size.X / 2.) > 160.) Pos.X = 160. - (Quad_Tooltip.Size.X / 2.);
-	if (Pos.X - (Quad_Tooltip.Size.X / 2.) < -160.) Pos.X = -160. + (Quad_Tooltip.Size.X / 2.);
-	if (Pos.Y + (Quad_Tooltip.Size.Y / 2.) > 90.) Pos.Y = 90. - (Quad_Tooltip.Size.Y / 2.);
-	if (Pos.Y - (Quad_Tooltip.Size.Y / 2.) < -90.) Pos.Y = -90. + (Quad_Tooltip.Size.Y / 2.);
-	
-	Frame_Tooltip.RelativePosition = Pos;
-	Frame_Tooltip.Visible = True;
-	Label_Tooltip.Value = _Text;
-}
-
-Void LibManialink_TooltipShow(Text _Id, Real _ZIndex, Text _Text) {
-	declare Frame_Tooltip	<=> (Page.GetFirstChild("Tooltip_"^_Id)				as CMlFrame);
-	if (Frame_Tooltip == Null) return;
-	declare Label_Tooltip	<=> (Frame_Tooltip.GetFirstChild("Label_Tooltip")	as CMlLabel);
-	declare Quad_Tooltip	<=> (Frame_Tooltip.GetFirstChild("Quad_Tooltip")	as CMlQuad);
-	if (Label_Tooltip == Null || Quad_Tooltip == Null) return;
-	
-	declare Pos = <MouseX, MouseY, _ZIndex>;
-	if (Pos.X + (Quad_Tooltip.Size.X / 2.) > 160.) Pos.X = 160. - (Quad_Tooltip.Size.X / 2.);
-	if (Pos.X - (Quad_Tooltip.Size.X / 2.) < -160.) Pos.X = -160. + (Quad_Tooltip.Size.X / 2.);
-	if (Pos.Y + (Quad_Tooltip.Size.Y / 2.) > 90.) Pos.Y = 90. - (Quad_Tooltip.Size.Y / 2.);
-	if (Pos.Y - (Quad_Tooltip.Size.Y / 2.) < -90.) Pos.Y = -90. + (Quad_Tooltip.Size.Y / 2.);
-	
-	Frame_Tooltip.RelativePosition = Pos;
-	Frame_Tooltip.Visible = True;
-	Label_Tooltip.Value = _Text;
 }
 
 Void LibManialink_TooltipHide(Text _Id) {
-	declare Frame_Tooltip <=> Page.GetFirstChild("Tooltip_"^_Id);
-	if (Frame_Tooltip == Null) return;
-	
-	Frame_Tooltip.Visible = False;
+	Page.GetClassChildren("LibManialink_Tooltip", Page.MainFrame, True);
+	foreach (Control in Page.GetClassChildren_Result) {
+		if (Control.ControlId != _Id) continue;
+		Control.Visible = False;
+	}
 }
+
+Void LibManialink_TooltipLoop() {
+	foreach (Event in PendingEvents) {
+		if (Event.Type == CMlEvent::Type::MouseOver) {
+			if (Event.Control.HasClass("LibManialink_TooltipShow")) {
+				declare Text LibManialink_TooltipMessage for Event.Control;
+				LibManialink_TooltipShow(Event.ControlId, Event.Control, LibManialink_TooltipMessage);
+			}
+		} else if (Event.Type == CMlEvent::Type::MouseOut) {
+			if (Event.Control.HasClass("LibManialink_TooltipShow")) {
+				LibManialink_TooltipHide(Event.ControlId);
+			}
+		}
+	}
+}
+
+Void LibManialink_SetTooltipMessage(Text _Id, Text _Message) {
+	Page.GetClassChildren("LibManialink_TooltipShow", Page.MainFrame, True);
+	foreach (Control in Page.GetClassChildren_Result) {
+		if (Control.ControlId != _Id) continue;
+		declare Text LibManialink_TooltipMessage for Control;
+		LibManialink_TooltipMessage = _Message;
+	}
+}
+// ---------------------------------- //
+// Tooltip Stop
+// ---------------------------------- //
+""";
+}
+
+// ---------------------------------- //
+/** Draggable module
+ *
+ *	@return		The draggable module
+ */
+Text Private_Draggable() {
+	return """
+// ---------------------------------- //
+// Draggable Start
+// ---------------------------------- //
+Real[] LibManialink_PrivateDraggableGetOffset(CMlControl _Control) {
+	declare Offset = [0., 0., 0., 0.];
+	if (_Control == Null) return Offset;
+					
+	if (_Control.HorizontalAlign == CMlControl::AlignHorizontal::HCenter) {
+		Offset[0] -= _Control.Size.X / 2.;
+		Offset[1] += _Control.Size.X / 2.;
+	} else if (_Control.HorizontalAlign == CMlControl::AlignHorizontal::Right) {
+		Offset[0] -= _Control.Size.X;
+	} else {
+		Offset[1] += _Control.Size.X;
+	}
+	
+	if (_Control.VerticalAlign == CMlControl::AlignVertical::VCenter) {
+		Offset[2] -= _Control.Size.Y / 2.;
+		Offset[3] += _Control.Size.Y / 2.;
+	} else if (_Control.VerticalAlign == CMlControl::AlignVertical::Bottom) {
+		Offset[3] += _Control.Size.Y;
+	} else {
+		Offset[2] -= _Control.Size.Y;
+	}
+	
+	return Offset;
+}
+
+Void LibManialink_DraggableLoop() {
+	declare Boolean LibManialink_DragMouseLeftButton for Page;
+	declare Boolean LibManialink_IsDragging for Page;
+	declare Text LibManialink_Draggable for Page;
+	declare CMlControl[Integer] LibManialink_Dragging for Page;
+	declare Real[] LibManialink_DragLimit for Page;
+	declare CMlControl LibManialink_DragBoundingBox for Page;
+	declare Real[] LibManialink_DragBoundingBoxOffset for Page;
+	
+	if (LibManialink_DragMouseLeftButton != MouseLeftButton) {
+		LibManialink_DragMouseLeftButton = MouseLeftButton;
+		
+		if (MouseLeftButton && LibManialink_Draggable != "") {
+			LibManialink_IsDragging = True;
+			LibManialink_Dragging.clear();
+			LibManialink_DragLimit = [-160., 160., -90., 90.];
+			LibManialink_DragBoundingBox = Null;
+			
+			Page.GetClassChildren("LibManialink_Draggable", Page.MainFrame, True);
+			foreach (Key => Control in Page.GetClassChildren_Result) {
+				if (Control.ControlId == LibManialink_Draggable) {
+					declare Vec2 LibManialink_DragOffset for Control;
+					LibManialink_DragOffset = <Control.RelativePosition.X - MouseX, Control.RelativePosition.Y - MouseY>;
+					LibManialink_Dragging[Key] = Control;
+				}
+			}
+			
+			Page.GetClassChildren("LibManialink_DraggableArea", Page.MainFrame, True);
+			foreach (Control in Page.GetClassChildren_Result) {
+				if (Control.ControlId == LibManialink_Draggable) {
+					LibManialink_DragLimit = [Control.AbsolutePosition.X, Control.AbsolutePosition.X, Control.AbsolutePosition.Y, Control.AbsolutePosition.Y];
+					declare Offset = LibManialink_PrivateDraggableGetOffset(Control);
+					
+					for (I, 0, 3) {
+						LibManialink_DragLimit[I] += Offset[I];
+					}
+					
+					break;
+				}
+			}
+			
+			Page.GetClassChildren("LibManialink_DraggableBoundingBox", Page.MainFrame, True);
+			foreach (Control in Page.GetClassChildren_Result) {
+				if (Control.ControlId == LibManialink_Draggable) {
+					LibManialink_DragBoundingBox = Control;
+					LibManialink_DragBoundingBoxOffset = LibManialink_PrivateDraggableGetOffset(Control);
+					
+					break;
+				}
+			}
+		} else {
+			LibManialink_IsDragging = False;
+			LibManialink_Dragging.clear();
+		}
+	}
+	
+	foreach (Event in PendingEvents) {
+		if (Event.Type == CMlEvent::Type::MouseOver) {
+			if (Event.Control.HasClass("LibManialink_DraggableHandle")) {
+				LibManialink_Draggable = Event.ControlId;
+			} else {
+				LibManialink_Draggable = "";
+			}
+		} else if (Event.Type == CMlEvent::Type::MouseOut) {
+			LibManialink_Draggable = "";
+		}
+	}
+	
+	if (LibManialink_IsDragging && LibManialink_Dragging.count > 0) {
+		foreach (Control in LibManialink_Dragging) {
+			declare Vec2 LibManialink_DragOffset for Control;
+			Control.RelativePosition.X = MouseX + LibManialink_DragOffset.X;
+			Control.RelativePosition.Y = MouseY + LibManialink_DragOffset.Y;
+		}
+		
+		if (LibManialink_DragBoundingBox != Null) {
+			declare Box = [
+				LibManialink_DragBoundingBox.AbsolutePosition.X + LibManialink_DragBoundingBoxOffset[0],
+				LibManialink_DragBoundingBox.AbsolutePosition.X + LibManialink_DragBoundingBoxOffset[1],
+				LibManialink_DragBoundingBox.AbsolutePosition.Y + LibManialink_DragBoundingBoxOffset[2],
+				LibManialink_DragBoundingBox.AbsolutePosition.Y + LibManialink_DragBoundingBoxOffset[3]
+			];
+			declare Shift = <0., 0.>;
+			if (Box[0] < LibManialink_DragLimit[0]) Shift.X += LibManialink_DragLimit[0] - Box[0];
+			if (Box[1] > LibManialink_DragLimit[1]) Shift.X += LibManialink_DragLimit[1] - Box[1];
+			if (Box[2] < LibManialink_DragLimit[2]) Shift.Y += LibManialink_DragLimit[2] - Box[2];
+			if (Box[3] > LibManialink_DragLimit[3]) Shift.Y += LibManialink_DragLimit[3] - Box[3];
+			
+			foreach (Control in LibManialink_Dragging) {
+				Control.RelativePosition.X += Shift.X;
+				Control.RelativePosition.Y += Shift.Y;
+			}
+		}
+	}
+}
+// ---------------------------------- //
+// Draggable Stop
+// ---------------------------------- //
 """;
 }
 
@@ -1475,6 +1666,7 @@ Text Function(Text _FunctionName) {
 		case "IsAnimated"		: return Private_IsAnimated();
 		case "AnimLoop"			: return Private_AnimLoop();
 		case "Tooltip"			: return Private_Tooltip();
+		case "Draggable"		: return Private_Draggable();
 	}
 	
 	return "";
@@ -1503,7 +1695,15 @@ Text Functions(Text[] _FunctionsNames) {
 Text Tweens(Text[] _Easings) {
 	declare Functions = _Easings;
 	if (!Functions.exists("EaseLinear")) Functions.add("EaseLinear");
-	return Functions(Functions)^Private_Tween(_Easings);
+	return """
+// ---------------------------------- //
+// Easing and Tweens Start
+// ---------------------------------- //
+"""^Functions(Functions)^Private_Tween(_Easings)^"""
+// ---------------------------------- //
+// Easings and Tweens Stop
+// ---------------------------------- //
+""";
 }
 
 // ---------------------------------- //
@@ -1514,7 +1714,15 @@ Text Tweens(Text[] _Easings) {
  *	@return		The animation module with the given easing functions
  */
 Text Animations(Text[] _Easings) {
-	return Function("Anim")^Tweens(_Easings)^Function("AnimLoop");
+	return """
+// ---------------------------------- //
+// Animations Start
+// ---------------------------------- //
+"""^Function("Anim")^Tweens(_Easings)^Function("AnimLoop")^"""
+// ---------------------------------- //
+// Animations Stop
+// ---------------------------------- //
+""";
 }
 
 // ---------------------------------- //
@@ -1552,9 +1760,9 @@ Text Inject(Text _In) {
 Text Tooltip(Text _Id, Vec2 _Size, Integer _LinesNb) {
 	declare Autonewline = 0;
 	return """
-<frame hidden="1" id="Tooltip_{{{_Id}}}">
-	<label posn="0 0 1" sizen="{{{_Size.X - 2.}}} {{{_Size.Y - 2.}}}" halign="center" valign="center2" autonewline="{{{Autonewline}}}" maxline="{{{_LinesNb}}}" textsize="1.5" textcolor="aaa" id="Label_Tooltip" />
-	<quad sizen="{{{_Size.X}}} {{{_Size.Y}}}" halign="center" valign="center" bgcolor="000d" id="Quad_Tooltip" />
+<frame hidden="1" class="LibManialink_Tooltip" id="{{{_Id}}}">
+	<label posn="0 0 1" sizen="{{{_Size.X - 2.}}} {{{_Size.Y - 2.}}}" halign="center" valign="center2" autonewline="{{{Autonewline}}}" maxline="{{{_LinesNb}}}" textsize="1.5" textcolor="aaa" id="Tooltip_Message" />
+	<quad sizen="{{{_Size.X}}} {{{_Size.Y}}}" halign="center" valign="center" bgcolor="000d" id="Tooltip_BoundingBox" />
 </frame>
 """;
 }
@@ -1576,5 +1784,5 @@ Text Tooltip(Text _Id) {
  *	@return		The complete library
  */
 Text DumpLib() {
-	return Includes(["MathLib" => "ML", "TextLib" => "TL"])^Functions(["AnimPause", "AnimPlay", "AnimRepeat", "IsAnimated", "Tooltip"])^Animations(["EaseLinear", "EaseInQuad", "EaseOutQuad", "EaseInOutQuad", "EaseInCubic", "EaseOutCubic", "EaseInOutCubic", "EaseInQuart", "EaseOutQuart", "EaseInOutQuart", "EaseInQuint", "EaseOutQuint", "EaseInOutQuint", "EaseInSine", "EaseOutSine", "EaseInOutSine", "EaseInExp", "EaseOutExp", "EaseInOutExp", "EaseInCirc", "EaseOutCirc", "EaseInOutCirc", "EaseInBack", "EaseOutBack", "EaseInOutBack", "EaseInElastic", "EaseOutElastic", "EaseInOutElastic", "EaseInBounce", "EaseOutBounce", "EaseInOutBounce"]);
+	return Includes(["MathLib" => "ML", "TextLib" => "TL"])^Functions(["AnimPause", "AnimPlay", "AnimRepeat", "IsAnimated", "Tooltip", "Draggable"])^Animations(["EaseLinear", "EaseInQuad", "EaseOutQuad", "EaseInOutQuad", "EaseInCubic", "EaseOutCubic", "EaseInOutCubic", "EaseInQuart", "EaseOutQuart", "EaseInOutQuart", "EaseInQuint", "EaseOutQuint", "EaseInOutQuint", "EaseInSine", "EaseOutSine", "EaseInOutSine", "EaseInExp", "EaseOutExp", "EaseInOutExp", "EaseInCirc", "EaseOutCirc", "EaseInOutCirc", "EaseInBack", "EaseOutBack", "EaseInOutBack", "EaseInElastic", "EaseOutElastic", "EaseInOutElastic", "EaseInBounce", "EaseOutBounce", "EaseInOutBounce"]);
 }

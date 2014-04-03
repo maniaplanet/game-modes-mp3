@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2014-02-04"
+#Const ModeBaseVersion		"2014-04-02"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -37,7 +37,7 @@ MB_LogVersion(ST2::GetScriptName(), ST2::GetScriptVersion());
 if (MB_UseLogging) MB_Log("MapIntro");
 Clublink::Update();
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
-while (!UIManager.UIAll.UISequenceIsCompleted) {
+while (!UIManager.UIAll.UISequenceIsCompleted && !ServerShutdownRequested && !MatchEndRequested) {
 	MB_Yield();
 }
 ***
@@ -49,7 +49,7 @@ The outro sequence doesn't exist anymore
 if (MB_UseLogging) MB_Log("MapOutro");
 Clublink::Update();
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Outro;
-while (!UIManager.UIAll.UISequenceIsCompleted) {
+while (!UIManager.UIAll.UISequenceIsCompleted && !ServerShutdownRequested && !MatchEndRequested) {
 	MB_Yield();
 }
 ***
@@ -148,7 +148,7 @@ Void MB_Yield() {
  */
 Void MB_Sleep(Integer _Duration) {
 	declare End = Now + _Duration;
-	while(Now < End) {
+	while (Now < End && !ServerShutdownRequested && !MatchEndRequested) {
 		MB_Yield();
 		+++SleepLoop+++
 	}
@@ -183,7 +183,7 @@ Void MB_SetScoresTableStyleFromXml(Text _Path) {
 	
 	declare Loaded = ST2::RequestStyleFromXml(_Path);
 	if (Loaded) {
-		while (ST2::WaitStyleFromXml()) {
+		while (ST2::WaitStyleFromXml() && !ServerShutdownRequested && !MatchEndRequested) {
 			MB_Yield();
 		}
 		Loaded = ST2::SetStyleFromXml(True);
@@ -261,6 +261,7 @@ main() {
 
 	ST2::Load();
 	AFK::Load();
+	---MatchMaking---
 	+++InitServer+++
 	+++StartServer+++
 	XmlRpc::Load();

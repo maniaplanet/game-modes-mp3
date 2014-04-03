@@ -1451,6 +1451,7 @@ if(Message != "") {
 	UpdateHeader();
 	//UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 	Elite_Sleep(MathLib::NearestInteger(3000*SleepMultiplier));
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
 	Elite_Sleep(MathLib::NearestInteger(8000*SleepMultiplier));
 }

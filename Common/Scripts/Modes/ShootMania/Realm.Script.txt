@@ -122,13 +122,13 @@ Users_SetNbFakeUsers(C_BlueBots, C_RedBots);
 
 // ---------------------------------- //
 // Init pole
-UIManager.UIAll.Hud3dMarkers = "";
+UIManager.UIAll.MarkersXML = "";
 PoleList.clear();
 foreach (LandmarkGauge in MapLandmarks_Gauge) {
 	if (LandmarkGauge.Tag == "Pole" && LandmarkGauge.Sector != Null) {
 		PoleList[LandmarkGauge.Order] <=> LandmarkGauge;
 		//Create markers
-		UIManager.UIAll.Hud3dMarkers ^= """<marker pos="{{{LandmarkGauge.Position.X}}} {{{LandmarkGauge.Position.Y+25.}}} {{{LandmarkGauge.Position.Z}}}" manialinkframeid="Marker_Pole_{{{LandmarkGauge.Order}}}" />""";
+		UIManager.UIAll.MarkersXML ^= """<marker pos="{{{LandmarkGauge.Position.X}}} {{{LandmarkGauge.Position.Y+25.}}} {{{LandmarkGauge.Position.Z}}}" manialinkframeid="Marker_Pole_{{{LandmarkGauge.Order}}}" />""";
 	}
 }
 
@@ -319,7 +319,7 @@ Message::Loop();
 // Manage events
 foreach (Event in PendingEvents) {
 	if (Event.Type == CSmModeEvent::EType::OnHit) {
-		if (Event.Shooter == Event.Victim) {
+		if (Event.Victim == Null || Event.Shooter == Event.Victim) {
 			Discard(Event);
 		} else if (Event.Shooter != Null && Event.Victim != Null && Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 			Discard(Event);

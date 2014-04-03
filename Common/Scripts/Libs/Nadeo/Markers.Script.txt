@@ -231,7 +231,7 @@ Void Add(Text _Marker, CUIConfig _UI) {
 }
 
 // ---------------------------------- //
-/** Add a marker to all players
+/** Add a marker to the global UI
  *
  *	@param	_Marker		The marker to add
  */
@@ -307,7 +307,7 @@ Void Remove(Text _Marker, CUIConfig _UI) {
 }
 
 // ---------------------------------- //
-/**	Remove a marker from all players
+/**	Remove a marker from the global UI
  *
  *	@param	_Marker		The marker to remove
  */
@@ -327,7 +327,7 @@ Void Remove(Text _Marker, CPlayer _Player) {
 }
 
 // ---------------------------------- //
-/** Remove all markers containing an attribute with the specified value
+/** Remove all markers containing an attribute with the specified value from an UI
  *
  *	@param	_Attribute		The attribute to scan
  *	@param	_Value			The value to remove
@@ -351,7 +351,7 @@ Void Remove(Text _Attribute, Text _Value, CUIConfig _UI) {
 }
 
 // ---------------------------------- //
-/** Remove all markers containing an attribute with the specified value from all players
+/** Remove all markers containing an attribute with the specified value from the global UI
  *
  *	@param	_Attribute		The attribute to scan
  *	@param	_Value			The value to remove
@@ -405,13 +405,13 @@ Void Clear(CUIConfig _UI) {
 }
 
 // ---------------------------------- //
-/// Removed all markers from all players
+/// Remove all markers from the global UI
 Void Clear() {
 	Clear(UIManager.UIAll);
 }
 
 // ---------------------------------- //
-/** Removed all markers from a player
+/** Remove all markers from a player
  *
  *	@param	_Player		The player from which the markers will be removed
  */
@@ -484,6 +484,13 @@ Text[] GetAttributes() {
 // ---------------------------------- //
 // Private
 // ---------------------------------- //
+// ---------------------------------- //
+/** Sanitive the MinimapVisibility value
+ *
+ *	@param	_MinimapVisibility		The value to sanitize
+ *
+ *	@return		The sanitized value
+ */
 Text Private_SanitizeMinimapVisibility(Text _MinimapVisibility) {
 	switch (_MinimapVisibility) {
 		case "Always"		: return "Always";
@@ -494,6 +501,13 @@ Text Private_SanitizeMinimapVisibility(Text _MinimapVisibility) {
 	return "Always";
 }
 
+// ---------------------------------- //
+/** Sanitive the Visibility value
+ *
+ *	@param	_Visibility		The value to sanitize
+ *
+ *	@return		The sanitized value
+ */
 Text Private_SanitizeVisibility(Text _Visibility) {
 	switch (_Visibility) {
 		case "None"					: return "None";
@@ -518,7 +532,7 @@ Text Private_SanitizeVisibility(Text _Visibility) {
  *	@param	_HudVisibility		Visibility of the point on the HUD
  *	@param	_MinimapVisibility	Visibility of the point on the minimap
  *	@param	_ImgUrl				URL to the point image
- *	@param	_Player				The player who'll see the point (if null, all players)
+ *	@param	_Player				The player who'll see the point (if null, global UI)
  */
 Void Minimap_Add(Text _Id, Vec3 _Pos, Text _HudVisibility, Text _MinimapVisibility, Text _ImgUrl, CPlayer _Player) {
 	declare CUIConfig UI;
@@ -533,9 +547,9 @@ Void Minimap_Add(Text _Id, Vec3 _Pos, Text _HudVisibility, Text _MinimapVisibili
 // ---------------------------------- //
 /** Display an image at a given position
  *
- *	@param	_Id					Id of this point
- *	@param	_Pos				Position of the point on the minimap
- *	@param	_Player				The player who'll see the point (if null, all players)
+ *	@param	_Id			Id of this point
+ *	@param	_Pos		Position of the point on the minimap
+ *	@param	_Player		The player who'll see the point (if null, global UI)
  */
 Void Minimap_Add(Text _Id, Vec3 _Pos, CPlayer _Player) {
 	Minimap_Add(_Id, _Pos, "Always", "Always", C_LibMarkers_MiniMapDot, _Player);
@@ -544,8 +558,8 @@ Void Minimap_Add(Text _Id, Vec3 _Pos, CPlayer _Player) {
 // ---------------------------------- //
 /** Display an image at a given position
  *
- *	@param	_Id					Id of this point
- *	@param	_Pos				Position of the point on the minimap
+ *	@param	_Id		Id of this point
+ *	@param	_Pos	Position of the point on the minimap
  */
 Void Minimap_Add(Text _Id, Vec3 _Pos) {
 	Minimap_Add(_Id, _Pos, "Always", "Always", C_LibMarkers_MiniMapDot, Null);
@@ -556,11 +570,11 @@ Void Minimap_Add(Text _Id, Vec3 _Pos) {
  *
  *	@param	_Id					Id of this point
  *	@param	_PlayerOnMinimap	The player to follow
- *	@param	_ShowDir			Showw the orientation of the player
- *	@param	_HudVisibility		Visibility of the point on the HUD
- *	@param	_MinimapVisibility	Visibility of the point on the minimap
+ *	@param	_ShowDir			Show the orientation of the player
+ *	@param	_HudVisibility		Visibility of the point on the HUD (Never, Always, WhenInFrustum, WhenVisible or WhenInMiddleOfScreen)
+ *	@param	_MinimapVisibility	Visibility of the point on the minimap (Never, Always or WhenInFrame)
  *	@param	_ImgUrl				URL to the point image
- *	@param	_Player				The player who'll see the point (if null, all players)
+ *	@param	_Player				The player who'll see the point (if null, global UI)
  */
 Void Minimap_Add(Text _Id, CPlayer _PlayerOnMinimap, Boolean _ShowDir, Text _HudVisibility, Text _MinimapVisibility, Text _ImgUrl, CPlayer _Player) {
 	if (_PlayerOnMinimap == Null) return;
@@ -582,7 +596,7 @@ Void Minimap_Add(Text _Id, CPlayer _PlayerOnMinimap, Boolean _ShowDir, Text _Hud
  *
  *	@param	_Id					Id of this point
  *	@param	_PlayerOnMinimap	The player to follow
- *	@param	_Player				The player who'll see the point (if null, all players)
+ *	@param	_Player				The player who'll see the point (if null, global UI)
  */
 Void Minimap_Add(Text _Id, CPlayer _PlayerOnMinimap, CPlayer _Player) {
 	Minimap_Add(_Id, _PlayerOnMinimap, True, "Never", "Always", C_LibMarkers_MiniMapPointer, _Player);

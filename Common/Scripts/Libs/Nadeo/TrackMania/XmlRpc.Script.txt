@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2013-10-31"
+#Const	Version		"2014-04-02"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -20,6 +20,42 @@ declare Boolean G_UseLibXmlRpc;
 // ---------------------------------- //
 // Private
 // ---------------------------------- //
+
+// ---------------------------------- //
+/** Find a player from his login
+ *	
+ *	@param	_Login	The login of the player to find
+ *
+ *	@return			The player if found, null otherwise
+ */
+CTmPlayer Private_FindPlayer(Text _Login) {
+	foreach (Player in AllPlayers) {
+		if (Player.Login == _Login) return Player;
+	}
+	return Null;
+}
+
+// ---------------------------------- //
+/**	Convert a time (Integer) to a Text
+ *
+ *	@param	_Time		The time to convert
+ *	
+ *	@return				The time converted in Text
+ */
+Text Private_TimeToText(Integer _Time) {
+	if (_Time < 0) {
+		return "???";
+	}
+	
+	declare MilliSeconds = _Time % 1000;
+	declare Seconds = (_Time / 1000) % 60;
+	declare Minutes = (_Time / 60000) % 60;
+	declare Hours = (_Time / 3600000) % 24;
+	
+	declare Time = TL::FormatInteger(Minutes, 2)^":"^TL::FormatInteger(Seconds, 2)^"."^TL::FormatInteger(MilliSeconds, 3);
+	if (Hours > 0) Time = Hours^":"^Time;
+	return Time;
+}
 
 // ---------------------------------- //
 /// Wrapper for the SendCallbackArray() method
@@ -72,6 +108,52 @@ Void Enable() {
 /// Disable the script callbacks
 Void Disable() {
 	G_UseLibXmlRpc = False;
+}
+
+// ---------------------------------- //
+/** Send the player ranking
+ *	Data:
+ *	[Rank, Login, NickName, TeamId, IsSpectator, IsAway, CurrentScore, Zone]
+ *
+ *	@param	_Login		The login of the player to get
+ */
+Void SendPlayerRanking(Text _Login) {
+	if (!G_UseLibXmlRpc) return;
+	
+	declare Text[] PlayerRanking;
+	declare CTmScore PlayerScore;
+	declare Rank = 0;
+	foreach (Score in Scores) {
+		Rank += 1;
+		if (Score.User.Login == _Login) {
+			PlayerScore <=> Score;
+			break;
+		}
+	}
+	
+	if (PlayerScore != Null) {
+		declare IsAway = False;
+		if (Private_FindPlayer(PlayerScore.User.Login) == Null) IsAway = True;
+		
+		declare BestTime = -1;
+		if (PlayerScore.BestRace != Null) BestTime = PlayerScore.BestRace.Time;
+		
+		declare TeamNum = -1;
+		if (UseClans) TeamNum = PlayerScore.TeamNum - 1;
+		
+		PlayerRanking = [
+			TL::ToText(Rank),
+			PlayerScore.User.Login,
+			PlayerScore.User.Name,
+			TL::ToText(TeamNum),
+			TL::ToText(PlayerScore.User.RequestsSpectate),
+			TL::ToText(IsAway),
+			Private_TimeToText(BestTime),
+			PlayerScore.User.ZonePath
+		];
+	}
+	
+	Private_SendCallbackArray("LibXmlRpc_PlayerRanking", PlayerRanking);
 }
 
 // ---------------------------------- //
@@ -301,13 +383,13 @@ Void PassOn(CTmModeEvent _Event) {
 Void Loop() {
 	if (!G_UseLibXmlRpc) return;
 	
-	/*foreach (Event in XmlRpc.PendingEvents) {
+	foreach (Event in XmlRpc.PendingEvents) {
 		if (Event.Type == CXmlRpcEvent::EType::Callback) {
 			switch (Event.Param1) {
-				
+				case "LibXmlRpc_GetPlayerRanking"	: SendPlayerRanking(Event.Param2);
 			}
 		}
-	}*/
+	}
 }
 
 // ---------------------------------- //

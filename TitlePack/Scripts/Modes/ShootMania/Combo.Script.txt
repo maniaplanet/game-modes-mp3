@@ -470,7 +470,7 @@ foreach (Event in PendingEvents) {
 	// ---------------------------------- //
 	// On hit
 	else if (Event.Type == CSmModeEvent::EType::OnHit) {
-		if (Event.Shooter == Event.Victim) {
+		if (Event.Victim == Null || Event.Shooter == Event.Victim) {
 			Discard(Event);
 		} else if (Event.Shooter != Null && Event.Victim != Null && Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 			Discard(Event);

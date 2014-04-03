@@ -250,7 +250,7 @@ Void Load() {
 }
 
 // ---------------------------------- //
-/** Set the position of the minimap
+/** Set the position of the minimap in the HUD
  *
  *	@param	_Pos	The new position
  */
@@ -293,6 +293,7 @@ Void Visibility(Boolean _Visible) {
 /** Set the visibility of the minimap for one player
  *	This setting will override the default one
  *
+ *	@param	_Player		The player to update
  *	@param	_Visible	True to show the minimap
  */
 Void Visibility(CPlayer _Player, Boolean _Visible) {
@@ -325,7 +326,7 @@ Void ResetVisibility(CPlayer _Player) {
 }
 
 // ---------------------------------- //
-/** Set the properties of the overlay above the minimap
+/** Set the properties of the overlay on the minimap
  *
  *	@param	_ImgPath		The path to the image
  *	@param	_Pos			The position of the overlay
