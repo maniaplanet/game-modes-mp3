@@ -2,7 +2,7 @@
  *	TM library
  */
 
-#Const Version		"2013-12-16"
+#Const Version		"2014-04-14"
 #Const ScriptName	"TM2.Script.txt"
 
 #Include "TextLib" as TL
@@ -301,6 +301,40 @@ Void Loop() {
 CTmPlayer GetPlayer(Text _Login) {
 	foreach (Player in AllPlayers) {
 		if (Player.Login == _Login) return Player;
+	}
+	
+	return Null;
+}
+
+// ---------------------------------- //
+/**	Get a user from its login
+ *
+ *	@param	_Login		Login of the user to get
+ *	
+ *	@return				The user if found, Null otherwise
+ */
+CUser GetUser(Text _Login) {
+	if (_Login == "") return Null;
+	
+	foreach (User in Users) {
+		if (User.Login == _Login) return User;
+	}
+	
+	return Null;
+}
+
+// ---------------------------------- //
+/**	Get a score from its login
+ *
+ *	@param	_Login		Login of the score to get
+ *	
+ *	@return				The score if found, Null otherwise
+ */
+CTmScore GetScore(Text _Login) {
+	if (_Login == "") return Null;
+	
+	foreach (Score in Scores) {
+		if (Score.User != Null && Score.User.Login == _Login) return Score;
 	}
 	
 	return Null;

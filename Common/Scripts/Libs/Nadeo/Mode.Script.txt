@@ -1,4 +1,4 @@
-#Const Version		"2013-11-18"
+#Const Version		"2014-04-09"
 #Const ScriptName	"Mode.Script.txt"
 
 // ---------------------------------- //
@@ -130,4 +130,27 @@ Void PlaySound(CUIConfig::EUISound _Name, Integer _Variant) {
 		CUIConfig::EAvatarVariant::Default, 
 		_Name, _Variant
 	);
+}
+
+// ---------------------------------- //
+/** Convert an echelon to an integer
+ *
+ *	@param	_Echelon		The echelong= to convert
+ *
+ *	@return		The echelon value
+ */
+Integer EchelonToInteger(CUser::EEchelon _Echelon) {
+	switch (_Echelon) {
+		case CUser::EEchelon::Bronze1	: return 1;
+		case CUser::EEchelon::Bronze2	: return 2;
+		case CUser::EEchelon::Bronze3	: return 3;
+		case CUser::EEchelon::Silver1	: return 4;
+		case CUser::EEchelon::Silver2	: return 5;
+		case CUser::EEchelon::Silver3	: return 6;
+		case CUser::EEchelon::Gold1		: return 7;
+		case CUser::EEchelon::Gold2		: return 8;
+		case CUser::EEchelon::Gold3		: return 9;
+	}
+	
+	return 0;
 }

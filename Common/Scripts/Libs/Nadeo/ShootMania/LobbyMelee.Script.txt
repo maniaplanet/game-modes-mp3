@@ -1,4 +1,4 @@
-#Const	Version				"2013-07-22"
+#Const	Version				"2014-04-04"
 #Const	ScriptName			"LobbyMelee.Script.txt"
 #Const	C_NbBots			0
 
@@ -451,7 +451,7 @@ Boolean PlayLoop()
 	foreach (Event in PendingEvents) 
 	{
 		if (Event.Type == CSmModeEvent::EType::OnHit) {
-			if((Event.Shooter != Null) && (Event.Victim != Null) && (Event.Shooter != Event.Victim)) {
+			if ((Event.Shooter != Null) && (Event.Victim != Null) && (Event.Shooter != Event.Victim)) {
 				declare Integer PointsEarned = NotifyHit(Event.Shooter);
 				Event.ShooterPoints = PointsEarned;
 				
@@ -716,6 +716,7 @@ Void StartLobbyMode(
 	G_LibKOL_MatchMakingTime 	= _MatchMakingDuration;	
 	UseAllies 					= _UseAllies;
 	G_LibKOL_LaserMode 			= _LaserMode;
+	UseProtectClanmates			= False;
 	
 	LogCallBack(Null, "Lobby Mode Params: "^
 		"G_LibKOL_RoundDuration = "^G_LibKOL_RoundDuration^

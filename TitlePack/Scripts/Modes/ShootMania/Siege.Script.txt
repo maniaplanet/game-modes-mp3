@@ -3,22 +3,20 @@
  *
  * The attacking clan must capture all the poles while the defending clan try to stop them.
  */
-#Extends "Modes/ShootMania/ModeBase.Script.txt"
+#Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeV2Arena"
-#Const Version				"2014-04-02"
+#Const Version				"2014-04-14"
 #Const ScriptName			"Siege.Script.txt"
 
 #Include "MathLib" as ML
 #Include "TextLib" as TL
-#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
-#Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Debug.Script.txt" as Debug
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
-#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
+#Include "Libs/Nadeo/ShootMania/WeaponSwitch.Script.txt" as WeaponSwitch
 #Include "Libs/Nadeo/ShootMania/WeaponSelection2.Script.txt" as WeaponSelection
 
 // ---------------------------------- //
@@ -34,10 +32,9 @@
 #Setting S_ClanNbMaxPlayers		0		as _("Maximum number of players per team (0: no max)")	///< Do not spawn players beyond this limit, 0=no limit
 #Setting S_UseSuddenDeathMode	True	as _("Do not allow a team to win on first turn")		///< Do not allow a team to win on first turn
 #Setting S_AutoBalance			True	as _("Use autobalance")									///< Use auto balance at the start of the map
+#Setting S_UseWeaponSwitch		True	as _("Allow players to switch weapons during the round")///< Allow players to change weapons while playing
 #Setting S_AutoManageAFK		True	//as _("Switch inactive players to spectators")			///< Switch inactive players to spectators
 #Setting S_DisplayRulesReminder True	as "<hidden>" 											///< Display a window with the rules when the match begins
-#Setting S_Matchmaking			False	as "<hidden>"											///< Use Elite with matchmaking
-#Setting S_MatchmakingSleep		0		as "<hidden>" 											///< Matchmaking match end duration (-1: infinite)
 // Clublinks settings
 #Setting S_UsePlayerClublinks	False	as _("Use players clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1	""		as "<hidden>"					///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
@@ -47,7 +44,8 @@
 // Constant
 // ---------------------------------- //
 #Const C_InitialCapturingClan		0		///< Clan that will start in capture first at the beginning of the match, 0 is random
-#Const C_WeaponSelectionDuration	7000	///< Duration of the weapon selection screen
+#Const C_WeaponSelectionDuration	7000	///< Duration of the weapon selection screen (C_UseWeaponSwitch == False)
+#Const C_StartTurnDuration			3000	///< Duration of the start turn screen (C_UseWeaponSwitch == True)
 #Const C_EndTurnDuration			5000	///< Duration of the end turn screen
 #Const C_EndMapDuration				10000	///< Duration of the end map screen
 #Const C_WaitConnectionTimeLimit	60000	///< Time to wait at the beginning of a map for players of the matchmaking
@@ -62,6 +60,17 @@
 #Const C_ImgSiegeDir			"file://Media/Manialinks/Shootmania/Siege/"
 #Const C_RoundsDisplayedInScore	5	///< Number of previous rounds displayed in the end round UI
 #Const C_LayerProgressionPosition	<160., 90., -20.>
+
+#Const C_AtkWeapons [
+	CSmMode::EWeapon::Rocket => 1.,
+	CSmMode::EWeapon::Laser => 0.8
+	//CSmMode::EWeapon::Arrow => 0.6
+]
+#Const C_DefWeapons [
+	CSmMode::EWeapon::Rocket => 1.,
+	CSmMode::EWeapon::Nucleus => 0.4
+	//CSmMode::EWeapon::Arrow => 0.6
+]
 
 #Const C_Debug False	///< Show debug
 
@@ -90,11 +99,14 @@ MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
 MB_LogVersion(Map::GetScriptName(), Map::GetScriptVersion());
 MB_LogVersion(Debug::GetScriptName(), Debug::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
-MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
-MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
 MB_LogVersion(WarmUp2::GetScriptName(), WarmUp2::GetScriptVersion());
-MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
+MB_LogVersion(WeaponSwitch::GetScriptName(), WeaponSwitch::GetScriptVersion());
 MB_LogVersion(WeaponSelection::GetScriptName(), WeaponSelection::GetScriptVersion());
+***
+
+***LobbyStartServer***
+***
+MM_SetFormat([S_ClanNbMinPlayers, S_ClanNbMinPlayers]);
 ***
 
 ***InitServer***
@@ -106,7 +118,12 @@ declare Integer InitialCapturingClan;	///< First clan to capture on the map
 ***
 if (C_Debug) Debug::Load();
 WarmUp2::Load();
-WeaponSelection::Load();
+if (S_UseWeaponSwitch) {
+	WeaponSwitch::Load();
+	WeaponSwitch::SetEffectOnSwitch(-1);
+} else {
+	WeaponSelection::Load();
+}
 
 // ---------------------------------- //
 // Initialize globales
@@ -137,6 +154,9 @@ UseClans = True;
 MB_UseSectionRound = True;
 MB_UseSectionTurn = True;
 MB_UsePlayerClublinks = S_UsePlayerClublinks;
+if (S_MatchmakingMode == 2) {
+	MM_Init([S_ClanNbMinPlayers, S_ClanNbMinPlayers]);
+}
 
 // ---------------------------------- //
 // Create rules
@@ -172,18 +192,18 @@ ST2::SetSize(<162., -1.>, <158., -1.>, <160., -1.>);
 ST2::SetBackgroundImage("file://Media/Manialinks/Shootmania/ScoresTable/bg-storm.dds", <0., 5.>, <197., 98.>);
 ST2::SetTeamImage(1, "file://Media/Manialinks/Shootmania/ScoresTable/teamversus-left.dds", <0., 3.8>, <98.5, 25.>);
 ST2::SetTeamImage(2, "file://Media/Manialinks/Shootmania/ScoresTable/teamversus-right.dds", <0., 3.8>, <98.4, 25.>);
-MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+MM_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
 ST2::Build("SM");
 ***
 
 ***InitMatch***
 ***
-declare Integer ClanMatchWinner;		///< Clan winner of the match
+declare Integer ClanMatchWinner; ///< Clan winner of the match
 ***
 
 ***StartMatch***
 ***
-if (S_AutoBalance) Mode::AutoTeamBalance();
+if (S_AutoBalance && S_MatchmakingMode == 0) Mode::AutoTeamBalance();
 G_ClanMatchScores = [1 => 0, 2 => 0];
 ClanMatchWinner = 0;
 ***
@@ -193,9 +213,6 @@ ClanMatchWinner = 0;
 declare Boolean SuddentDeathMode;	///< Is this map in sudden death mode
 declare Integer ClanMapWinner;		///< Clan winner of the map
 declare Text MapWinExplanation;		///< Reason of the map win
-// Matchmaking already have an intro, skip the default one
-if (S_Matchmaking) MB_UseIntro = False;
-else MB_UseIntro = True;
 ***
 
 ***StartMap***
@@ -228,11 +245,12 @@ UpdateHeader();
 
 // ---------------------------------- //
 // Wait players when using matchmaking
-if (S_Matchmaking) WaitConnection();
-
+if (S_MatchmakingMode == 2) {
+	MM_MatchWait();
+}
 // ---------------------------------- //
 // Warm Up
-if (S_WarmUpDuration > 0 && S_ClanNbMaxPlayers > 0) {
+else if (S_WarmUpDuration > 0 && S_ClanNbMaxPlayers > 0) {
 	MB_CurrentSection = "WarmUp";
 	DoWarmUp();
 	MB_CurrentSection = "StartMap";
@@ -248,7 +266,7 @@ UpdateInterludeUI();
 Layers::Hide("Interlude");
 Layers::Attach("Progression");
 Layers::Hide("Progession");
-MB_PlayersPresentationSequence();
+MM_PlayersPresentationSequence();
 ***
 
 ***StartRound***
@@ -292,7 +310,9 @@ UpdateScoresTableFooter();
 // ---------------------------------- //
 // Init players clan and spawnability
 foreach (Player in AllPlayers) {
-	SetPlayerClan(Player, Player.RequestedClan);
+	//SetPlayerClan(Player, Player.RequestedClan);
+	// @MM
+	SetPlayerClan(Player, MM_GetRequestedClan(Player));
 }
 if (SpawnIsLimited()) {
 	// Init players
@@ -315,7 +335,11 @@ UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 Mode::PlaySound(CUIConfig::EUISound::StartRound, 0);
 UpdateInterludeUI();
 Layers::Show("Interlude");
-SelectWeapons();
+if (S_UseWeaponSwitch) {
+	MM_Sleep(C_StartTurnDuration);
+} else {
+	SelectWeapons();
+}
 Layers::Hide("Interlude");
 
 // ---------------------------------- //
@@ -389,8 +413,13 @@ foreach (Event in XmlRpc.PendingEvents) {
 }
 ***
 
+
 ***PlayLoop***
 ***
+if (S_UseWeaponSwitch) {
+	WeaponSwitch::Loop();
+}
+
 // ---------------------------------- //
 // Spawn players
 foreach (Player in Players) {
@@ -408,14 +437,19 @@ foreach (Player in Players) {
 			declare SpawnDef <=> Map::GetPlayerSpawn("SpawnDefense", G_CurrentCheckpointIndex);
 			if (SpawnDef != Null) {
 				Message::SendBigMessage(Player, _("|Imperative|Defend"), 6000, 1, CUIConfig::EUISound::PhaseChange, 0);
-				switch (WeaponSelection::GetPlayerWeapon(Player)) {
-					case CSmMode::EWeapon::Nucleus: {
-						SetPlayerWeapon(Player, CSmMode::EWeapon::Nucleus, False);
-						Player.AmmoGain = C_NucleusGain;
-					}
-					default: {
-						SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, False);
-						Player.AmmoGain = C_RocketGain;
+				
+				if (S_UseWeaponSwitch) {
+					WeaponSwitch::SetAvailableWeapons(Player, C_DefWeapons);
+				} else {
+					switch (WeaponSelection::GetPlayerWeapon(Player)) {
+						case CSmMode::EWeapon::Nucleus: {
+							SetPlayerWeapon(Player, CSmMode::EWeapon::Nucleus, False);
+							Player.AmmoGain = C_NucleusGain;
+						}
+						default: {
+							SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, False);
+							Player.AmmoGain = C_RocketGain;
+						}
 					}
 				}
 				
@@ -429,16 +463,22 @@ foreach (Player in Players) {
 			declare SpawnAtk <=> GetSpawnAttack();
 			if (SpawnAtk != Null) {
 				Message::SendBigMessage(Player, _("|Imperative|Attack"), 6000, 1, CUIConfig::EUISound::PhaseChange, 0);
-				switch (WeaponSelection::GetPlayerWeapon(Player)) {
-					case CSmMode::EWeapon::Laser: {
-						SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
-						Player.AmmoGain = C_LaserGain;
-					}
-					default: {
-						SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, False);
-						Player.AmmoGain = C_RocketGain;
+				
+				if (S_UseWeaponSwitch) {
+					WeaponSwitch::SetAvailableWeapons(Player, C_AtkWeapons);
+				} else {
+					switch (WeaponSelection::GetPlayerWeapon(Player)) {
+						case CSmMode::EWeapon::Laser: {
+							SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
+							Player.AmmoGain = C_LaserGain;
+						}
+						default: {
+							SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, False);
+							Player.AmmoGain = C_RocketGain;
+						}
 					}
 				}
+				
 				SM::SpawnPlayer(Player, Player.CurrentClan, SpawnArmor, SpawnAtk.PlayerSpawn, Now);
 				SpawnTicket = 0;
 			}
@@ -741,7 +781,7 @@ if (MaxMapLandmark != Null) {
 	UIManager.UIAll.GaugeMessage = ML::FloorInteger(UIManager.UIAll.GaugeRatio*100) ^ "%";
 }
 
-MB_Sleep(2000);
+MM_Sleep(2000);
 SM::UnspawnAllPlayers();
 
 // ---------------------------------- //
@@ -831,7 +871,7 @@ if (MB_SectionTurnNb >= 2) {
 Mode::PlaySound(CUIConfig::EUISound::EndRound, 0);
 UpdateInterludeUI();
 Layers::Show("Interlude");
-MB_Sleep(C_EndTurnDuration);
+MM_Sleep(C_EndTurnDuration);
 Layers::Hide("Interlude");
 Message::CleanAllMessages();
 Score::RoundEnd();
@@ -923,6 +963,12 @@ if (S_MapsToWin > 0) {
 }
 
 // ---------------------------------- //
+// Send match result
+if (S_MatchmakingMode == 2 && MB_StopMatch) {
+	MM_MatchResult("");
+}
+
+// ---------------------------------- //
 // Display winning message
 declare EndMapStatusMessage = "";
 if (MapWinExplanation == "Capture") {
@@ -949,9 +995,10 @@ Message::SendBigMessage(EndMapBigMessage, 30000, 2, CUIConfig::EUISound::EndRoun
 // Display scores table and podium
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-MB_Sleep(C_EndMapDuration / 2);
+MM_Sleep(C_EndMapDuration / 2);
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
-MB_Sleep(C_EndMapDuration / 2);
+MM_Sleep(C_EndMapDuration / 2);
+
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 Message::CleanAllMessages();
 
@@ -959,7 +1006,12 @@ Message::CleanAllMessages();
 // Invert initial capturing clan for the next map
 InitialCapturingClan = 3 - InitialCapturingClan;
 
-MatchmakingWait();
+// ---------------------------------- //
+// Matchmaking match end
+if (S_MatchmakingMode == 2 && MB_StopMatch) {
+	MM_MatchEnd();
+}
+//MatchmakingWait();
 ***
 
 ***EndServer***
@@ -971,7 +1023,11 @@ Layers::Destroy("Interlude");
 Layers::Destroy("RulesReminder");
 
 SpawnScreen::DestroyRules();
-WeaponSelection::Unload();
+if (S_UseWeaponSwitch) {
+	WeaponSwitch::Unload();
+} else {
+	WeaponSelection::Unload();
+}
 WarmUp2::Unload();
 if (C_Debug) Debug::Unload();
 ***
@@ -1644,10 +1700,10 @@ Text GetMLProgression() {
 		declare CMlFrame Frame_AdvantageClan2 <=> (Page.GetFirstChild("Frame_AdvantageClan2") as CMlFrame);
 		declare CMlLabel Label_Role <=> (Page.GetFirstChild("Label_Role") as CMlLabel);
 				
-		declare netread Integer Net_CapturingClan 					for Teams[0];
-		declare netread Integer Net_ProgressionUpdateTime 			for Teams[0];
-		declare netread Integer Net_CurrentCheckpointIndex			for Teams[0];
-		declare netread Integer	Net_AdvantageClan					for Teams[0];
+		declare netread Integer Net_CapturingClan 			for Teams[0];
+		declare netread Integer Net_ProgressionUpdateTime 	for Teams[0];
+		declare netread Integer Net_CurrentCheckpointIndex for Teams[0];
+		declare netread Integer	Net_AdvantageClan			for Teams[0];
 		declare netread Vec3	Net_Siege_ProgressionLayerPosition	for Teams[0];
 		
 		declare Integer PrevProgressionUpdateTime = -1;
@@ -2265,7 +2321,7 @@ Void UpdateMarkers() {
  *
  *	@return		The manialink
  */
-Text GetMLWaitConnection() {
+/*Text GetMLWaitConnection() {
 	declare Integer TotalReqPlayers	= S_ClanNbMinPlayers*2;
 	declare Text 	ImgPlayer		= "file://Media/Manialinks/Shootmania/Common/DefendersLeft.dds";
 	declare Real	ImgSize			= 8.;
@@ -2385,7 +2441,9 @@ Void WaitConnection() {
 	
 	while (True) {
 		foreach (Player in AllPlayers) {
-			if (Player.CurrentClan != Player.RequestedClan) SetPlayerClan(Player, Player.RequestedClan);
+			//if (Player.CurrentClan != Player.RequestedClan) SetPlayerClan(Player, Player.RequestedClan);
+			// @MM
+			if (Player.CurrentClan != MM_GetRequestedClan(Player)) SetPlayerClan(Player, MM_GetRequestedClan(Player));
 		}
 		
 		if (Net_Siege_ClansNbPlayers[1] != ClansNbPlayers[1] || Net_Siege_ClansNbPlayers[2] != ClansNbPlayers[2]) {
@@ -2401,17 +2459,17 @@ Void WaitConnection() {
 		
 		if (ClansNbPlayers[1] >= S_ClanNbMinPlayers && ClansNbPlayers[2] >= S_ClanNbMinPlayers) break;
 		if (UIManager.UIAll.CountdownEndTime != -1 && Now >= UIManager.UIAll.CountdownEndTime) break;
-		MB_Sleep(1000);
+		MM_Sleep(1000);
 	}
 	
 	UIManager.UIAll.CountdownEndTime = Now + TimeOut;
 	while (Now < UIManager.UIAll.CountdownEndTime) {
-		MB_Yield();
+		MM_Yield();
 	}
 	
 	Layers::Detach("WaitConnection");
 	Layers::Destroy("WaitConnection");
-	MB_Sleep(500);
+	MM_Sleep(500);
 	UIManager.UIAll.StatusMessage = "";
 	UIManager.UIAll.BigMessage = "";
 	
@@ -2419,7 +2477,7 @@ Void WaitConnection() {
 	UIManager.UIAll.CountdownEndTime = -1;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 }
-
+*/
 
 // ---------------------------------- //
 /// Activate the current checkpoint
@@ -2507,13 +2565,15 @@ Void SelectWeapons() {
 	}
 	
 	while (Now < PreRoundEndTime && !ServerShutdownRequested && !MatchEndRequested) {
-		MB_Yield();
+		MM_Yield();
 		
 		foreach (Player in Players) {
 			if (!IsSpawnable(Player)) {
 				if (WeaponSelection::GetPlayerGroup(Player) != "") WeaponSelection::UnsetPlayerGroup(Player);
 			} else {
-				if (Player.CurrentClan != 1 && Player.CurrentClan != 2) SetPlayerClan(Player, Player.RequestedClan);
+				//if (Player.CurrentClan != 1 && Player.CurrentClan != 2) SetPlayerClan(Player, Player.RequestedClan);
+				// @MM
+				if (Player.CurrentClan != 1 && Player.CurrentClan != 2) SetPlayerClan(Player, MM_GetRequestedClan(Player));
 				
 				if (Player.CurrentClan == G_CapturingClan && WeaponSelection::GetPlayerGroup(Player) != "Attack") {
 					WeaponSelection::SetPlayerGroup(Player, "Attack");
@@ -2530,27 +2590,8 @@ Void SelectWeapons() {
 	WeaponSelection::End();
 	
 	// Sleep a little to let the server receive all the selected weapon
-	MB_Sleep(1000);
+	MM_Sleep(1000);
 	WeaponSelection::Loop();
-}
-
-// ---------------------------------- //
-/// End map timer for MatchMaking
-Void MatchmakingWait() {
-	declare PrevMatchmakingSleep = S_MatchmakingSleep;
-	StartTime = Now;
-	if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
-	else UIManager.UIAll.CountdownEndTime = -1;
-	while (S_MatchmakingSleep < 0 || UIManager.UIAll.CountdownEndTime > Now) {
-		if (PrevMatchmakingSleep != S_MatchmakingSleep) {
-			PrevMatchmakingSleep = S_MatchmakingSleep;
-			if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
-			else UIManager.UIAll.CountdownEndTime = -1;
-		}
-		MB_Yield();
-	}
-	StartTime = -1;
-	UIManager.UIAll.CountdownEndTime = -1;
 }
 
 // ---------------------------------- //
@@ -2566,13 +2607,15 @@ Void WaitForPlayers(Integer _MinimumNbPlayers) {
 	StartTime = Now;
 	
 	while ((ClansNbPlayers[1] < _MinimumNbPlayers || ClansNbPlayers[2] < _MinimumNbPlayers) && !ServerShutdownRequested && !MatchEndRequested) {
-		MB_Yield();
+		MM_Yield();
 		
 		SM::UnspawnPlayersChangingClan();
 		foreach(Player in Players) {
 			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
 				declare Spawn <=> Map::GetPlayerSpawn("SpawnAttack", 0);
-				if (Spawn != Null) SM::SpawnPlayer(Player, Player.RequestedClan, Spawn);
+				//if (Spawn != Null) SM::SpawnPlayer(Player, Player.RequestedClan, Spawn);
+				// @MM
+				if (Spawn != Null) SM::SpawnPlayer(Player, MM_GetRequestedClan(Player), Spawn);
 			}
 		}
 		
@@ -2613,7 +2656,9 @@ Void DoWarmUp() {
 	Mode::Synchro_DoBarrier();
 	SM::UnspawnAllPlayers();
 	foreach (Player in AllPlayers) {
-		SetPlayerClan(Player, Player.RequestedClan);
+		//SetPlayerClan(Player, Player.RequestedClan);
+		// @MM
+		SetPlayerClan(Player, MM_GetRequestedClan(Player));
 		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 	}
@@ -2625,15 +2670,20 @@ Void DoWarmUp() {
 	declare PrevWarmUpDuration = S_WarmUpDuration-1;
 	
 	while (!WarmUp2::Stop()) {
-		MB_Yield();
+		MM_Yield();
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
 		
 		foreach (Player in Players) {
-			if (Player.CurrentClan != Player.RequestedClan) {
+			//if (Player.CurrentClan != Player.RequestedClan) {
+			// @MM
+			declare RequestedClan = MM_GetRequestedClan(Player);
+			if (Player.CurrentClan != RequestedClan) {
 				UnspawnPlayer(Player);
-				SetPlayerClan(Player, Player.RequestedClan);
+				//SetPlayerClan(Player, Player.RequestedClan);
+				// @MM
+				SetPlayerClan(Player, RequestedClan);
 				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 			}

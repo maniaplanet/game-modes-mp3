@@ -1,0 +1,157 @@
+/**
+ *	Sounds Library
+ *	Allow server to player Custom sounds from an URL
+ * 	Play sounds for all players or for a specific player, specify delay and volume.
+ *	Needs to be in title pack
+ */
+
+#Const Version				"2014-04-14"
+#Const ScriptName			"Sound.Script.txt"
+
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
+
+// ---------------------------------- //
+// Functions
+// ---------------------------------- //
+
+// ---------------------------------- //
+// Private
+// ---------------------------------- //
+Void CreateSoundsLayer() {
+	
+	declare Text MLText = """
+	<script><!--
+	
+	main() {
+		
+		
+		declare netwrite Integer 	Net_SoundTriggerBackUI 	for UI;
+		
+		declare netread Integer 	Net_SoundTriggerUI 	for UI;
+		declare netread Text[] 		Net_SoundsUrlUI 	for UI;
+		declare netread Integer[] 	Net_SoundsDelayUI 	for UI;
+		declare netread Real[] 		Net_SoundsVolumeUI 	for UI;
+		
+		declare Text[] 		SoundsUrlUI;
+		declare Integer[] 	SoundsDelayUI;
+		declare Real[] 		SoundsVolumeUI;
+		declare Integer[]	SoundsKeysToRemoveUI;
+		
+		declare Integer Previous_SoundTriggerUI = Net_SoundTriggerUI;
+		
+		while(True) {
+			yield;
+			
+			if(Previous_SoundTriggerUI != Net_SoundTriggerUI) {
+				Previous_SoundTriggerUI = Net_SoundTriggerUI;
+				Net_SoundTriggerBackUI = Now;
+				for(I, 0, Net_SoundsUrlUI.count-1) {
+					SoundsUrlUI		.add(Net_SoundsUrlUI[I]);
+					SoundsDelayUI	.add(Now + Net_SoundsDelayUI[I]);
+					SoundsVolumeUI	.add(Net_SoundsVolumeUI[I]);
+				}
+			}
+			
+			if(SoundsUrlUI.count > 0) {
+				for(I, 0, SoundsUrlUI.count-1) {
+					if(Now > SoundsDelayUI[I]) {
+						Audio.PlaySoundEvent(SoundsUrlUI[I], SoundsVolumeUI[I]);
+						SoundsKeysToRemoveUI.add(I);
+					}
+				}
+			}
+			
+			while(SoundsKeysToRemoveUI.count > 0) {
+				SoundsUrlUI.removekey(SoundsKeysToRemoveUI[0]);
+				SoundsDelayUI.removekey(SoundsKeysToRemoveUI[0]);
+				SoundsVolumeUI.removekey(SoundsKeysToRemoveUI[0]);
+				SoundsKeysToRemoveUI.removekey(0);
+			}
+			
+		}
+	}
+	
+	--></script>
+	""";
+	
+	Layers::Create("LibSound_PlaySound", MLText);
+	Layers::Attach("LibSound_PlaySound");
+}
+
+// ---------------------------------- //
+// Public
+// ---------------------------------- //
+
+// ---------------------------------- //
+/** Return the version number of the script
+ *
+ *	@return		The version number of the script
+ */
+Text GetScriptVersion() {
+	return Version;
+}
+
+// ---------------------------------- //
+/** Return the name of the script
+ *
+ *	@return		The name of the script
+ */
+Text GetScriptName() {
+	return ScriptName;
+}
+
+// ---------------------------------- //
+/// Unload the library
+Void Unload() {
+	Layers::Destroy("LibSound_PlaySound");
+}
+
+// ---------------------------------- //
+/// Load the library
+Void Load() {
+	Unload();
+	CreateSoundsLayer();
+}
+
+// ---------------------------------- //
+/** Play a custom sound to a specific player
+ *	@param	_SoundUrl		Custom Sound URL
+ *	@param	_Delay			Delay before playing the sound (After the client received the event)
+ *	@param	_Volume			Volume in dB : from -oo (min) to 0. dB (max) Example : -6.
+ *	@param	_Player			The specific player
+ */
+Void PlaySoundUI(Text _SoundUrl, Integer _Delay, Real _Volume, CPlayer _Player) {
+
+	declare UI <=> UIManager.GetUI(_Player);
+	declare netread 	Integer 	Net_SoundTriggerBackUI 			for UI;
+	declare netwrite 	Integer 	Net_PreviousSoundTriggerBackUI 	for UI;
+	declare netwrite 	Integer 	Net_SoundTriggerUI 				for UI;
+	declare netwrite 	Text[] 		Net_SoundsUrlUI 				for UI;
+	declare netwrite 	Integer[] 	Net_SoundsDelayUI 				for UI;
+	declare netwrite 	Real[] 		Net_SoundsVolumeUI 				for UI;
+	
+	if(Net_PreviousSoundTriggerBackUI != Net_SoundTriggerBackUI) {
+		Net_PreviousSoundTriggerBackUI = Net_SoundTriggerBackUI;
+		Net_SoundsUrlUI.clear();
+		Net_SoundsDelayUI.clear();
+		Net_SoundsVolumeUI.clear();
+	}
+	
+	Net_SoundsUrlUI.add(_SoundUrl);
+	Net_SoundsDelayUI.add(_Delay);
+	Net_SoundsVolumeUI.add(_Volume);
+	Net_SoundTriggerUI = Now;
+}
+
+// ---------------------------------- //
+/** Play a custom sound to all the players on the server
+ *	@param	_SoundUrl		Custom Sound URL
+ *	@param	_Delay			Delay before playing the sound (After the client received the event)
+ *	@param	_Volume			Volume in dB : from -oo (min) to 0. dB (max) Example : -6.
+ */
+Void PlaySoundAll(Text _SoundUrl, Integer _Delay , Real _Volume) {
+	foreach(Player in Players)
+		PlaySoundUI(_SoundUrl, _Delay, _Volume, Player);
+}

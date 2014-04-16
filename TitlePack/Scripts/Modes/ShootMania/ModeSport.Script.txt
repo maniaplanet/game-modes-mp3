@@ -4,24 +4,26 @@
  *	Warning: This script can't be used alone and is only meant to be extended by Elite and Heroes
  */
 
-#Extends "Modes/ShootMania/ModeBase.Script.txt"
+//#Extends "Modes/ShootMania/ModeBase.Script.txt"
+// @MM
+#Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-02-12"
+#Const	ModeSportVersion	"2014-04-16"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/Json.Script.txt" as Json
-#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
-#Include "Libs/Nadeo/Message.Script.txt" as Message
+//#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
+//#Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/Interface.Script.txt" as Interface
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Toss.Script.txt" as Toss
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
-#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
+//#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
 // ---------------------------------- //
 // Settings
@@ -36,8 +38,8 @@
 #Setting S_TurnLimit		15		as _("Default map points limit")		///< Maximum number of points before next map
 #Setting S_DeciderTurnLimit	20		as _("Decider map points limit")		///< Points limit on decider map
 #Setting S_QuickMode		False	as _("Less time between rounds")		///< Mutliplier for the sleep times between rounds
-#Setting S_Matchmaking		False	as "<hidden>"							///< Use Elite with matchmaking
-#Setting S_MatchmakingSleep	0		as "<hidden>" 							///< Matchmaking match end duration (-1: infinite)
+//#Setting S_Matchmaking		False	as "<hidden>"							///< Use Elite with matchmaking
+//#Setting S_MatchmakingSleep	0		as "<hidden>" 							///< Matchmaking match end duration (-1: infinite)
 #Setting S_UseLegacyCallback True	as "<hidden>"							///< Send the old JSON callbacks
 // Clublinks settings
 #Setting S_UsePlayerClublinks		False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
@@ -186,8 +188,8 @@ MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 UsePlayerTagging = True;
 G_AtkSlot = [1 => 1, 2 => 1];
 WarmUp2::Load();
-WarmUp2::CreateGroup("Clan1", C_RequiredPlayersNb);
-WarmUp2::CreateGroup("Clan2", C_RequiredPlayersNb);
+WarmUp2::CreateGroup("Clan1", S_RequiredPlayersNb);
+WarmUp2::CreateGroup("Clan2", S_RequiredPlayersNb);
 WarmUp2::DisplayClanSelection(True);
 
 // ---------------------------------- //
@@ -264,7 +266,9 @@ declare Save_MapDefElim = G_MapDefElim;
 declare Save_TieBreakDefElim = G_TieBreakDefElim;
 
 UIManager.UIAll.MarkersXML = ""; ///< Remove the markers from the previous map for the intro
-if (S_Matchmaking) MB_UseIntro = False;
+//if (S_Matchmaking) MB_UseIntro = False;
+// @MM
+if (S_MatchmakingMode == 2) MB_UseIntro = False;
 else MB_UseIntro = True;
 ***
 
@@ -316,8 +320,8 @@ foreach (Score in Scores) {
 	LaserHit = 0;
 	LaserShot = 0;
 }
-Clan1Score = 0;
-Clan2Score = 0;
+ClanScores[1] = 0;
+ClanScores[2] = 0;
 foreach (Player in AllPlayers) {
 	declare netwrite Net_LayerST_DefPoints for Player = 0;
 	declare netwrite Net_LayerST_AtkPoints for Player = 0;
@@ -344,6 +348,11 @@ UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 UIManager.UIAll.UISequence_CanSkipIntroMT = True;
 PrevClan1Color = Teams[0].ColorText;
 PrevClan2Color = Teams[1].ColorText;
+
+// @MM
+if (S_MatchmakingMode == 2) {
+	Layers::Attach("SendToServer");
+}
 
 ---RulesReminder---
 
@@ -372,8 +381,18 @@ declare MapWinnerName = "";
 
 // ---------------------------------- //
 // Wait players when using matchmaking
+/*
 if (S_Matchmaking) {
 	WaitConnection();
+	NeedWarmUp = False;
+}
+*/
+// @MM
+// ---------------------------------- //
+// Wait players when using matchmaking
+if (S_MatchmakingMode == 2) {
+	MM_MatchWait();
+	PrepareMatch();
 	NeedWarmUp = False;
 }
 
@@ -408,7 +427,9 @@ Mode::Synchro_DoBarrier();
 
 SM::UnspawnAllPlayers();
 foreach (Player in AllPlayers) {
-	SetPlayerClan(Player, Player.RequestedClan);
+	//SetPlayerClan(Player, Player.RequestedClan);
+	// @MM
+	SetPlayerClan(Player, MM_GetRequestedClan(Player));
 	if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 	else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 }
@@ -429,21 +450,27 @@ else SleepMultiplier = 1.;
 // ---------------------------------- //
 // Manage the players order
 WarmUp2::Clean();
-if (S_Mode == 1 || S_Matchmaking) WarmUp2::Fill();
+//if (S_Mode == 1 || S_Matchmaking) WarmUp2::Fill();
+// @MM
+if (S_Mode == 1 || S_MatchmakingMode == 2) WarmUp2::Fill();
 
 // ---------------------------------- //
 // Warm Up
-if (S_Mode == 1 || S_Matchmaking) {
+//if (S_Mode == 1 || S_Matchmaking) {
+// @MM
+if (S_Mode == 1 || S_MatchmakingMode == 2) {
 	if (WarmUp2::GetPlayersNb("Clan1") < 1 || WarmUp2::GetPlayersNb("Clan2") < 1) {
 		NeedWarmUp = True;
 	}
 } else {
-	if (WarmUp2::GetPlayersNb("Clan1") < C_RequiredPlayersNb || WarmUp2::GetPlayersNb("Clan2") < C_RequiredPlayersNb) {
+	if (WarmUp2::GetPlayersNb("Clan1") < S_RequiredPlayersNb || WarmUp2::GetPlayersNb("Clan2") < S_RequiredPlayersNb) {
 		NeedWarmUp = True;
 	}
 }
 
-if ((NeedWarmUp || G_Override_NeedWarmUp) && !S_Matchmaking) {
+//if ((NeedWarmUp || G_Override_NeedWarmUp) && !S_Matchmaking) {
+// @MM
+if ((NeedWarmUp || G_Override_NeedWarmUp) && S_MatchmakingMode == 0) {
 	NeedWarmUp = False;
 	MB_CurrentSection = "WarmUp";
 	WarmUp2();
@@ -476,7 +503,7 @@ if ((NeedWarmUp || G_Override_NeedWarmUp) && !S_Matchmaking) {
 			}
 		}
 		
-		if ((G_MapScores[1] > 0 || G_MapScores[2] > 0) && Clan1Score <= 0 && Clan2Score <= 0) {
+		if ((G_MapScores[1] > 0 || G_MapScores[2] > 0) && ClanScores[1] <= 0 && ClanScores[2] <= 0) {
 			if (G_PrevMapUsersIds.count <= 0) G_PrevMapUsersIds = CurMapUsersIds;
 			
 			if (CurMapUsersIds.count != G_PrevMapUsersIds.count) {
@@ -513,7 +540,9 @@ G_Override_NeedWarmUp = False;
 
 // ---------------------------------- //
 // Toss and determine who'll attack first on the map
-if (S_Mode == 0 && !S_Matchmaking && MB_SectionTurnNb <= 1) {
+//if (S_Mode == 0 && !S_Matchmaking && MB_SectionTurnNb <= 1) {
+// @MM
+if (S_Mode == 0 && S_MatchmakingMode == 0 && MB_SectionTurnNb <= 1) {
 	declare DecisiveMap = False;
 	if (G_MapScores[1] == S_MapWin - 1 && G_MapScores[2] == S_MapWin - 1) DecisiveMap = True;
 	
@@ -588,7 +617,9 @@ if (G_Override_FirstAtkClan == 1 || G_Override_FirstAtkClan == 2) {
 // Play team presentation
 if (MB_SectionTurnNb <= 1) {
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
-	MB_PlayersPresentationSequence();
+	//MB_PlayersPresentationSequence();
+	// @MM
+	MM_PlayersPresentationSequence();
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 }
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
@@ -604,7 +635,7 @@ if (G_AtkClan == 2) Clan = "Clan2";
 declare SlotNb = WarmUp2::GetSlotsNb(Clan);
 declare I = 0;
 while (True) {
-	if (G_AtkSlot[G_AtkClan] > C_RequiredPlayersNb) G_AtkSlot[G_AtkClan] = 1;
+	if (G_AtkSlot[G_AtkClan] > S_RequiredPlayersNb) G_AtkSlot[G_AtkClan] = 1;
 	
 	declare PlayerId = WarmUp2::GetSlot(Clan, G_AtkSlot[G_AtkClan]);
 	if (PlayerId != NullId && Players.existskey(PlayerId)) {
@@ -628,10 +659,15 @@ ST2::SetFooterText(TextLib::Compose("%1 : %2", _("Attacker"), NextAtkName));
 // Attach the correct spawn screen layer and update the scores table
 UpdateLayerScoresTable(C_SequencePlaying);
 foreach (Player in Players) {
-	if (Player.RequestedClan == G_AtkClan) {
+	//if (Player.RequestedClan == G_AtkClan) {
+	// @MM
+	declare PlayerClan = MM_GetRequestedClan(Player);
+	if (PlayerClan == G_AtkClan) {
 		Layers::Attach("SpawnScreenAttack", Player);
 		Layers::Detach("SpawnScreenDefend", Player);
-	} else if (Player.RequestedClan == G_DefClan) {
+	//} else if (Player.RequestedClan == G_DefClan) {
+	// @MM
+	} else if (PlayerClan == G_DefClan) {
 		Layers::Attach("SpawnScreenDefend", Player);
 		Layers::Detach("SpawnScreenAttack", Player);
 	}
@@ -654,7 +690,9 @@ UIManager.UIAll.BigMessage = TextLib::Compose(_("$<%1$> is attacking!"), NextAtk
 ---StartReplay---
 ---StartPreTurn---
 while (Now <= PreTurnEndTime && !ServerShutdownRequested && !MatchEndRequested) {
-	MB_Yield();
+	//MB_Yield();
+	// @MM
+	MM_Yield();
 	ManageCommand();
 	UpdateSpectators();
 	ForceClublinkReload();
@@ -1062,8 +1100,8 @@ if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
 		PlayerStringify("AttackingPlayer", AtkPlayer),
 		Json::Stringify("TurnWinnerClan", WinnerTurnClan),
 		Json::Stringify("WinType", WinTypeString),
-		Json::Stringify("Clan1RoundScore", Clan1Score),
-		Json::Stringify("Clan2RoundScore", Clan2Score),
+		Json::Stringify("Clan1RoundScore", ClanScores[1]),
+		Json::Stringify("Clan2RoundScore", ClanScores[2]),
 		Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
 		Json::Stringify("Clan2MapScore", HeaderClanScores[2]),
 		PlayersStringify("ScoresTable", 0, True)
@@ -1187,35 +1225,41 @@ if (G_TieBreak) GoalAverage = GetGoalAverageBestClan();
 declare TwoTeamsPlayedAtk = (MB_SectionTurnNb % 2 == 0);
 
 if (
-	Clan1Score >= S_TurnWin && Clan1Score > Clan2Score && Clan1Score - Clan2Score >= S_TurnGap
-	|| Clan2Score >= S_TurnWin && Clan2Score > Clan1Score && Clan2Score - Clan1Score >= S_TurnGap
-	|| Clan1Score >= PointLimit && Clan1Score > Clan2Score
-	|| Clan2Score >= PointLimit && Clan2Score > Clan1Score
+	ClanScores[1] >= S_TurnWin && ClanScores[1] > ClanScores[2] && ClanScores[1] - ClanScores[2] >= S_TurnGap
+	|| ClanScores[2] >= S_TurnWin && ClanScores[2] > ClanScores[1] && ClanScores[2] - ClanScores[1] >= S_TurnGap
+	|| ClanScores[1] >= PointLimit && ClanScores[1] > ClanScores[2]
+	|| ClanScores[2] >= PointLimit && ClanScores[2] > ClanScores[1]
 	//|| (G_TieBreak && TwoTeamsPlayedAtk && GoalAverage != 3)
-	|| (S_Matchmaking && (ClansNbPlayers[1] <= 0 || ClansNbPlayers[2] <= 0))
+	//|| (S_Matchmaking && (ClansNbPlayers[1] <= 0 || ClansNbPlayers[2] <= 0))
+	// @MM
+	|| (S_MatchmakingMode == 2 && (ClansNbPlayers[1] <= 0 || ClansNbPlayers[2] <= 0))
 ) {
 	// ---------------------------------- //
 	// Find the winner of the map
 	// ---------------------------------- //
 	// Clan 1 withdraw
-	if (S_Matchmaking && ClansNbPlayers[1] <= 0) {
+	//if (S_Matchmaking && ClansNbPlayers[1] <= 0) {
+	// @MM
+	if (S_MatchmakingMode == 2 && ClansNbPlayers[1] <= 0) {
 		WinnerMapClan = 2;
 		WinByForfeit = True;
 	} 
 	// ---------------------------------- //
 	// Clan 2 withdraw
-	else if (S_Matchmaking && ClansNbPlayers[2] <= 0) {
+	//else if (S_Matchmaking && ClansNbPlayers[2] <= 0) {
+	// @MM
+	else if (S_MatchmakingMode == 2 && ClansNbPlayers[2] <= 0) {
 		WinnerMapClan = 1;
 		WinByForfeit = True;
 	}
 	// ---------------------------------- //
 	// Clan 1 wins the map with the best score
-	else if ((Clan1Score > Clan2Score)) {
+	else if ((ClanScores[1] > ClanScores[2])) {
 		WinnerMapClan = 1;
 	}
 	// ---------------------------------- //
 	// Clan 2 wins the map with the best score
-	else if ((Clan2Score > Clan1Score))  {
+	else if ((ClanScores[2] > ClanScores[1]))  {
 		WinnerMapClan = 2;
 	}
 	// ---------------------------------- //
@@ -1282,7 +1326,7 @@ UIManager.UIAll.BigMessage = "";
 // ---------------------------------- //
 // Select the next atk slot
 G_AtkSlot[G_AtkClan] += 1;
-if (G_AtkSlot[G_AtkClan] > C_RequiredPlayersNb) G_AtkSlot[G_AtkClan] = 1;
+if (G_AtkSlot[G_AtkClan] > S_RequiredPlayersNb) G_AtkSlot[G_AtkClan] = 1;
 // ---------------------------------- //
 // Team exchange role for the next turn
 G_AtkClan = G_DefClan;
@@ -1365,7 +1409,7 @@ if (WinnerMapClan != -1) {
 	UIManager.UIAll.BigMessageSoundVariant = 0;
 	UIManager.UIAll.BigMessage = Message;
 	if (UIManager.UIAll.StatusMessage == "")
-		UIManager.UIAll.StatusMessage = "$<"^Teams[0].ColorizedName^"$> "^Clan1Score^" - "^Clan2Score^" $<"^Teams[1].ColorizedName^"$>";
+		UIManager.UIAll.StatusMessage = "$<"^Teams[0].ColorizedName^"$> "^ClanScores[1]^" - "^ClanScores[2]^" $<"^Teams[1].ColorizedName^"$>";
 	UpdateHeader();
 	Elite_Sleep(MathLib::NearestInteger(500*SleepMultiplier));
 	+++EndSequenceStart+++
@@ -1392,8 +1436,8 @@ if (MatchEndRequested) {
 	G_MatchDefElim[2] -= G_MapDefElim[2];
 	G_MatchBestCaptureTime[1] -= G_MapBestCaptureTime[1];
 	G_MatchBestCaptureTime[2] -= G_MapBestCaptureTime[2];
-	G_MatchPoints[1] -= Clan1Score;
-	G_MatchPoints[2] -= Clan2Score;
+	G_MatchPoints[1] -= ClanScores[1];
+	G_MatchPoints[2] -= ClanScores[2];
 	
 	MB_SectionMapNb -= 1;
 	
@@ -1401,7 +1445,8 @@ if (MatchEndRequested) {
 	UIManager.UIAll.StatusMessage = "";
 	UIManager.UIAll.BigMessage = _("Map skipped, going to the next.");
 	Elite_Sleep(1500);
-	MatchmakingWait();
+	//MatchmakingWait();
+	// @MM
 	UIManager.UIAll.BigMessage = "";
 	Mode::UnloadMap();
 	
@@ -1441,6 +1486,12 @@ else {
 	MB_StopMatch = False;
 }
 
+// @MM
+if (S_MatchmakingMode == 2 && MB_StopMatch) {
+	// @MM
+	MM_MatchResult(MasterLogin);
+}
+
 // ---------------------------------- //
 // Display the winning message if there is one
 if(Message != "") {
@@ -1456,8 +1507,15 @@ if(Message != "") {
 	Elite_Sleep(MathLib::NearestInteger(8000*SleepMultiplier));
 }
 
-MatchmakingWait();
+//MatchmakingWait();
+// @MM
+// ---------------------------------- //
+// Matchmaking match end
+if (S_MatchmakingMode == 2 && MB_StopMatch) {
+	MM_MatchEnd();
+}
 +++EndSequenceEnd+++
+
 
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 UIManager.UIAll.StatusMessage = "";
@@ -1571,14 +1629,18 @@ Void SpawnThemAll(Integer _Phase) {
 				Player.StaminaGain = 1.;
 				
 				SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
-				SM::SpawnPlayer(Player, Player.RequestedClan, Player.ArmorMax, AtkSpawn, Now);
+				//SM::SpawnPlayer(Player, Player.RequestedClan, Player.ArmorMax, AtkSpawn, Now);
+				// @MM
+				SM::SpawnPlayer(Player, MM_GetRequestedClan(Player), Player.ArmorMax, AtkSpawn, Now);
 				SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, C_WUNucleusAmmoMax);
 			} else {
 				Player.AmmoGain	= 1. * C_WURocketAmmoGain;
 				Player.StaminaMax = 1. * C_DefStaminaMaxMultiplier;
 				Player.StaminaGain = 1. * C_DefStaminaMaxMultiplier;
 				SetPlayerWeapon(Player, CSmMode::EWeapon::Rocket, True); 
-				SM::SpawnPlayer(Player, Player.RequestedClan, Player.ArmorMax, DefSpawn, Now);
+				//SM::SpawnPlayer(Player, Player.RequestedClan, Player.ArmorMax, DefSpawn, Now);
+				// @MM
+				SM::SpawnPlayer(Player, MM_GetRequestedClan(Player), Player.ArmorMax, DefSpawn, Now);
 				SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, C_WUNucleusAmmoMax);
 			}
 			Player.IsHighlighted = True;
@@ -1587,7 +1649,7 @@ Void SpawnThemAll(Integer _Phase) {
 	} 
 	// Playing time
 	else {
-		declare MaxDef = C_RequiredPlayersNb;
+		declare MaxDef = S_RequiredPlayersNb;
 		declare MaxAtk = 1;
 		
 		declare DefSpawned = 0;
@@ -1625,7 +1687,7 @@ Void SpawnThemAll(Integer _Phase) {
  */
 Void UpgradeScore(Integer _iClan, Integer _iPlus) {
 	if (_iClan == 1) {
-		Clan1Score += _iPlus;
+		ClanScores[1] += _iPlus;
 		G_MatchPoints[1] += _iPlus;
 		if (_iClan == G_AtkClan) {
 			G_MatchAtkPoints[1] += 1;
@@ -1638,7 +1700,7 @@ Void UpgradeScore(Integer _iClan, Integer _iPlus) {
 			}
 		}
 	} else {
-		Clan2Score += _iPlus;
+		ClanScores[2] += _iPlus;
 		G_MatchPoints[2] += _iPlus;
 		if (_iClan == G_AtkClan) {
 			G_MatchAtkPoints[2] += 1;
@@ -1821,7 +1883,7 @@ Void UpdateHeader() {
 	UIManager.UIAll.OverlayScoreSummary = True;
 	if (Player1 != Null) {
 		UIManager.UIAll.ScoreSummary_Player1 = Player1.Id;
-		UIManager.UIAll.ScoreSummary_Points1 = Clan1Score;
+		UIManager.UIAll.ScoreSummary_Points1 = ClanScores[1];
 		UIManager.UIAll.ScoreSummary_MatchPoints1 = HeaderClanScores[1];
 	} else {
 		UIManager.UIAll.ScoreSummary_Player1 = NullId;
@@ -1831,7 +1893,7 @@ Void UpdateHeader() {
 
 	if (Player2 != Null) {
 		UIManager.UIAll.ScoreSummary_Player2 = Player2.Id;
-		UIManager.UIAll.ScoreSummary_Points2 = Clan2Score;
+		UIManager.UIAll.ScoreSummary_Points2 = ClanScores[2];
 		UIManager.UIAll.ScoreSummary_MatchPoints2 = HeaderClanScores[2];
 	} else {
 		UIManager.UIAll.ScoreSummary_Player2 = NullId;
@@ -1843,9 +1905,9 @@ Void UpdateHeader() {
 	declare netwrite Clan1MatchPoints for XmlRpc = 0;
 	declare netwrite Clan2MapPoints for XmlRpc = 0;
 	declare netwrite Clan2MatchPoints for XmlRpc = 0;
-	Clan1MapPoints = Clan1Score;
+	Clan1MapPoints = ClanScores[1];
 	Clan1MatchPoints = HeaderClanScores[1];
-	Clan2MapPoints = Clan2Score;
+	Clan2MapPoints = ClanScores[2];
 	Clan2MatchPoints = HeaderClanScores[2];
 }
 
@@ -1889,9 +1951,13 @@ Void UpdateSpectators(Boolean _Forced) {
 		if (Player.CurrentClan != 0) {
 			UI.SpectatorForceCameraType = 1;
 			UI.SpectatorForcedClan = Player.CurrentClan;
-		} else if (Player.RequestedClan != 0) {
+		//} else if (Player.RequestedClan != 0) {
+		// @MM
+		} else if (MM_GetRequestedClan(Player) != 0) {
 			UI.SpectatorForceCameraType = 1;
-			UI.SpectatorForcedClan = Player.RequestedClan;
+			//UI.SpectatorForcedClan = Player.RequestedClan;
+			// @MM
+			UI.SpectatorForcedClan = MM_GetRequestedClan(Player);
 		} else {
 			UI.SpectatorForceCameraType = -1;
 			UI.SpectatorForcedClan = -1;
@@ -1958,11 +2024,11 @@ Void ManageCommand() {
 				}
 				// ---------------------------------- //
 				case "Command_CurrentMapPointsClan1": {
-					G_MatchPoints[1] -= Clan1Score;
-					if (Event.CommandValueInteger < 0) Clan1Score = 0;
-					else Clan1Score = Event.CommandValueInteger;
-					G_MatchPoints[1] += Clan1Score;
-					MB_SectionTurnNb = Clan1Score + Clan2Score + 1;
+					G_MatchPoints[1] -= ClanScores[1];
+					if (Event.CommandValueInteger < 0) ClanScores[1] = 0;
+					else ClanScores[1] = Event.CommandValueInteger;
+					G_MatchPoints[1] += ClanScores[1];
+					MB_SectionTurnNb = ClanScores[1] + ClanScores[2] + 1;
 					
 					if (MB_CurrentSection == "WarmUp") UpdateLayerScoresTable(C_SequenceWarmUp);
 					else UpdateLayerScoresTable(C_SequencePlaying);
@@ -1971,11 +2037,11 @@ Void ManageCommand() {
 				}
 				// ---------------------------------- //
 				case "Command_CurrentMapPointsClan2": {
-					G_MatchPoints[2] -= Clan2Score;
-					if (Event.CommandValueInteger < 0) Clan2Score = 0;
-					else Clan2Score = Event.CommandValueInteger;
-					G_MatchPoints[2] += Clan2Score;
-					MB_SectionTurnNb = Clan1Score + Clan2Score + 1;
+					G_MatchPoints[2] -= ClanScores[2];
+					if (Event.CommandValueInteger < 0) ClanScores[2] = 0;
+					else ClanScores[2] = Event.CommandValueInteger;
+					G_MatchPoints[2] += ClanScores[2];
+					MB_SectionTurnNb = ClanScores[1] + ClanScores[2] + 1;
 					
 					if (MB_CurrentSection == "WarmUp") UpdateLayerScoresTable(C_SequenceWarmUp);
 					else UpdateLayerScoresTable(C_SequencePlaying);
@@ -1986,7 +2052,7 @@ Void ManageCommand() {
 				case "Command_PreviousMapsPointsClan1": {
 					if (Event.CommandValueInteger < 0) G_MatchPoints[1] = 0;
 					else G_MatchPoints[1] = Event.CommandValueInteger;
-					G_MatchPoints[1] += Clan1Score;
+					G_MatchPoints[1] += ClanScores[1];
 					
 					if (MB_CurrentSection == "WarmUp") UpdateLayerScoresTable(C_SequenceWarmUp);
 					else UpdateLayerScoresTable(C_SequencePlaying);
@@ -1995,7 +2061,7 @@ Void ManageCommand() {
 				case "Command_PreviousMapsPointsClan2": {
 					if (Event.CommandValueInteger < 0) G_MatchPoints[2] = 0;
 					else G_MatchPoints[2] = Event.CommandValueInteger;
-					G_MatchPoints[2] += Clan2Score;
+					G_MatchPoints[2] += ClanScores[2];
 					
 					if (MB_CurrentSection == "WarmUp") UpdateLayerScoresTable(C_SequenceWarmUp);
 					else UpdateLayerScoresTable(C_SequencePlaying);
@@ -2049,7 +2115,9 @@ Void ManageCommand() {
 Void Elite_Sleep(Integer _Duration) {
 	declare End = Now + _Duration;
 	while(Now < End) {
-		MB_Yield();
+		//MB_Yield();
+		// @MM
+		MM_Yield();
 		ManageCommand();
 		ForceClublinkReload();
 	}
@@ -2057,7 +2125,7 @@ Void Elite_Sleep(Integer _Duration) {
 
 // ---------------------------------- //
 /// End map timer for MatchMaking
-Void MatchmakingWait() {
+/*Void MatchmakingWait() {
 	declare PrevMatchmakingSleep = S_MatchmakingSleep;
 	StartTime = Now;
 	if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
@@ -2068,19 +2136,22 @@ Void MatchmakingWait() {
 			if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
 			else UIManager.UIAll.CountdownEndTime = -1;
 		}
-		MB_Yield();
+		//MB_Yield();
+		// @MM
+		MM_Yield();
 		ManageCommand();
 		ForceClublinkReload();
 	}
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
-}
+}*/
 
 // ---------------------------------- //
 /** Create the wait connection manialink
  *
  *	@return		The manialink
  */
+/*
 Text CreateLayerWaitConnection() {
 	declare Integer TotalReqPlayers	= C_RequiredPlayersNb*2;
 	declare Text 	ImgPlayer		= "file://Media/Manialinks/Shootmania/Common/DefendersLeft.dds";
@@ -2199,8 +2270,12 @@ Void WaitConnection() {
 	
 	while (True && !ServerShutdownRequested && !MatchEndRequested) {
 		foreach (Player in AllPlayers) {
-			if (Player.CurrentClan != Player.RequestedClan) {
-				SetPlayerClan(Player, Player.RequestedClan);
+			//if (Player.CurrentClan != Player.RequestedClan) {
+			// @MM
+			if (Player.CurrentClan != MM_GetRequestedClan(Player)) {
+				//SetPlayerClan(Player, Player.RequestedClan);
+				// @MM
+				SetPlayerClan(Player, MM_GetRequestedClan(Player));
 				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 			}
@@ -2232,7 +2307,9 @@ Void WaitConnection() {
 	// Sort players by ladder points
 	declare PlayersSort = [1 => Real[Ident], 2 => Real[Ident]];
 	foreach (Player in Players) {
-		SetPlayerClan(Player, Player.RequestedClan);
+		//SetPlayerClan(Player, Player.RequestedClan);
+		// @MM
+		SetPlayerClan(Player, MM_GetRequestedClan(Player));
 		if (!PlayersSort.existskey(Player.CurrentClan)) continue;
 		PlayersSort[Player.CurrentClan][Player.Id] = -Player.User.LadderPoints;
 	}
@@ -2298,7 +2375,9 @@ Void WaitConnection() {
 		WarmUp2::Attach();
 		
 		while (Now < UIManager.UIAll.CountdownEndTime && !ServerShutdownRequested && !MatchEndRequested) {
-			MB_Yield();
+			//MB_Yield();
+			// @MM
+			MM_Yield();
 			ManageCommand();
 			WarmUp2::Loop();
 			ForceClublinkReload();
@@ -2318,7 +2397,9 @@ Void WaitConnection() {
 		UIManager.UIAll.CountdownEndTime = Now + TimeOut;
 		
 		while (Now < UIManager.UIAll.CountdownEndTime && !ServerShutdownRequested && !MatchEndRequested) {
-			MB_Yield();
+			//MB_Yield();
+			// @MM
+			MM_Yield();
 			ManageCommand();
 			ForceClublinkReload();
 			
@@ -2397,6 +2478,239 @@ Void WaitConnection() {
 	
 	Layers::Update("ScoresTable", CreateLayerScoresTable());
 }
+*/
+
+// ---------------------------------- //
+/// Prepare the match
+Void PrepareMatch() {
+	WarmUp2::Begin();
+	WarmUp2::Detach();
+	
+	declare TimeOut = 5000;
+	declare PrevClansNbPlayers = [1 => 0, 2 => 0];
+	StartTime = Now;
+	UIManager.UIAll.CountdownEndTime = -1;
+	
+	/*declare netwrite Integer Net_ModeSport_PlayersNbTotal for Teams[0];
+	Layers::Create("WaitConnection", CreateLayerWaitConnection());
+	Layers::SetType("WaitConnection", CUILayer::EUILayerType::CutScene);
+	Layers::Attach("WaitConnection");
+	UIManager.UIAll.UISequence_CanSkipIntroMT = False;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
+	
+	Net_ModeSport_PlayersNbTotal = 0;
+	
+	while (True && !ServerShutdownRequested && !MatchEndRequested) {
+		foreach (Player in AllPlayers) {
+			//if (Player.CurrentClan != Player.RequestedClan) {
+			// @MM
+			if (Player.CurrentClan != MM_GetRequestedClan(Player)) {
+				//SetPlayerClan(Player, Player.RequestedClan);
+				// @MM
+				SetPlayerClan(Player, MM_GetRequestedClan(Player));
+				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
+				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+			}
+		}
+		
+		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
+			Net_ModeSport_PlayersNbTotal = PlayersNbTotal;
+		}
+		
+		if (PrevClansNbPlayers[1] != ClansNbPlayers[1] || PrevClansNbPlayers[2] != ClansNbPlayers[2]) {
+			PrevClansNbPlayers[1] = ClansNbPlayers[1];
+			PrevClansNbPlayers[2] = ClansNbPlayers[2];
+			WarmUp2::Clean();
+			WarmUp2::Fill();
+			UpdateLayerScoresTable(C_SequenceWarmUp);
+		}
+		
+		if (UIManager.UIAll.CountdownEndTime == -1 && ClansNbPlayers[1] >= 1 && ClansNbPlayers[2] >= 1) {
+			UIManager.UIAll.CountdownEndTime = Now + C_WaitConnectionTimeLimit + TimeOut;
+		}
+		
+		if (ClansNbPlayers[1] >= C_RequiredPlayersNb && ClansNbPlayers[2] >= C_RequiredPlayersNb) break;
+		if (UIManager.UIAll.CountdownEndTime != -1 && Now >= UIManager.UIAll.CountdownEndTime - TimeOut) break;
+		Elite_Sleep(1000);
+	}
+	*/
+	
+	
+	// ---------------------------------- //
+	// Sort players by ladder points
+	declare PlayersSort = [1 => Real[Ident], 2 => Real[Ident]];
+	foreach (Player in Players) {
+		//SetPlayerClan(Player, Player.RequestedClan);
+		// @MM
+		SetPlayerClan(Player, MM_GetRequestedClan(Player));
+		if (!PlayersSort.existskey(Player.CurrentClan)) continue;
+		PlayersSort[Player.CurrentClan][Player.Id] = -Player.User.LadderPoints;
+	}
+	
+	PlayersSort[1] = PlayersSort[1].sort();
+	PlayersSort[2] = PlayersSort[2].sort();
+	
+	for (I, 1, 2) {
+		declare J = 0;
+		declare Clan = "";
+		if (I == 1) Clan = "Clan1";
+		else Clan = "Clan2";
+		
+		foreach (PlayerId => Sorting in PlayersSort[I]) {
+			if (!Players.existskey(PlayerId)) continue;
+			J += 1;
+			WarmUp2::SetPlayerGroup(Players[PlayerId], Clan);
+			WarmUp2::SetPlayerSlot(Players[PlayerId], J, True);
+		}
+	}
+	
+	WarmUp2::Clean();
+	WarmUp2::Fill();
+	UpdateLayerScoresTable(C_SequenceWarmUp);
+	
+	// ---------------------------------- //
+	// Check if the players are all allies
+	declare AllPlayersAreAllies = [1 => False, 2 => False];
+	declare ClansOrders = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
+	for (I, 1, 2) {
+		declare J = 1;
+		declare AlliesNb = 0;
+		declare TestedNb = 0;
+		foreach (Slot => Id in ClansOrders[I]) {
+			if (Players.existskey(Id)) {
+				TestedNb += 1;
+				declare Player <=> Players[Id];
+				for (K, J+1, S_RequiredPlayersNb) {
+					if (ClansOrders.existskey(I) && Players.existskey(ClansOrders[I][K])) {
+						declare Player2 <=> Players[ClansOrders[I][K]];
+						if (Users_AreAllies(Player.User, Player2.User)) AlliesNb += 1;
+					}
+				}
+			}
+			J += 1;
+		}
+		declare MinimumAllies = (((TestedNb - 1) * TestedNb) / 2);
+		if (AlliesNb >= MinimumAllies) AllPlayersAreAllies[I] = True;
+	}
+	
+	declare MatchmakingSetOrderParam2 = "";
+	XmlRpc.SendCallback("MatchmakingGetOrder", "");
+	
+	// ---------------------------------- //
+	// Let the players select their orders if they are all allies
+	if (AllPlayersAreAllies[1] || AllPlayersAreAllies[2]) {
+		UIManager.UIAll.CountdownEndTime = Now + TimeOut + 5000;
+		
+		if (!AllPlayersAreAllies[1]) WarmUp2::Disable("Clan1");
+		if (!AllPlayersAreAllies[2]) WarmUp2::Disable("Clan2");
+		
+		WarmUp2::DisplayClanSelection(False);
+		WarmUp2::Attach();
+		
+		while (Now < UIManager.UIAll.CountdownEndTime && !ServerShutdownRequested && !MatchEndRequested) {
+			//MB_Yield();
+			// @MM
+			MM_Yield();
+			ManageCommand();
+			WarmUp2::Loop();
+			ForceClublinkReload();
+			
+			if (WarmUp2::Updated()) UpdateLayerScoresTable(C_SequenceWarmUp);
+			
+			foreach (Event in XmlRpc.PendingEvents) {
+				if (Event.Param1 == "MatchmakingSetOrder") MatchmakingSetOrderParam2 = Event.Param2;
+				else if (Event.Param1 == "MatchmakingSetTempAllies") G_TempAllies = TextLib::Split(",", Event.Param2);
+			}
+		}
+		
+		WarmUp2::Detach();
+		WarmUp2::Enable("Clan1");
+		WarmUp2::Enable("Clan2");
+	} else {
+		UIManager.UIAll.CountdownEndTime = Now + TimeOut;
+		
+		while (Now < UIManager.UIAll.CountdownEndTime && !ServerShutdownRequested && !MatchEndRequested) {
+			//MB_Yield();
+			// @MM
+			MM_Yield();
+			ManageCommand();
+			ForceClublinkReload();
+			
+			foreach (Event in XmlRpc.PendingEvents) {
+				if (Event.Param1 == "MatchmakingSetOrder") MatchmakingSetOrderParam2 = Event.Param2;
+				else if (Event.Param1 == "MatchmakingSetTempAllies") G_TempAllies = TextLib::Split(",", Event.Param2);
+			}
+		}
+	}
+	
+	// ---------------------------------- //
+	// Let the matchmaking server sort the players
+	if (MatchmakingSetOrderParam2 != "") {
+		UIManager.UIAll.CountdownEndTime = Now + TimeOut;
+		PlayersSort[1].clear();
+		PlayersSort[2].clear();
+		
+		declare MatchmakingOrders = TextLib::Split("|", MatchmakingSetOrderParam2);
+		for (I, 0, 1) {
+			if (!MatchmakingOrders.existskey(I)) continue;
+			
+			declare MatchmakingOrder = TextLib::Split(",", MatchmakingOrders[I]);
+			declare J = 1.;
+			foreach (Login in MatchmakingOrder) {
+				foreach (Player in Players) {
+					if (Player.Login == Login) {
+						SetPlayerClan(Player, I+1);
+						PlayersSort[I+1][Player.Id] = J;
+						J += 1.;
+						break;
+					}
+				}
+			}
+		}
+		
+		PlayersSort[1] = PlayersSort[1].sort();
+		PlayersSort[2] = PlayersSort[2].sort();
+		
+		for (I, 1, 2) {
+			declare J = 0;
+			declare Clan = "";
+			if (I == 1) Clan = "Clan1";
+			else Clan = "Clan2";
+			
+			foreach (PlayerId => Sorting in PlayersSort[I]) {
+				J += 1;
+				if (!Players.existskey(PlayerId)) continue;
+				WarmUp2::SetPlayerGroup(Players[PlayerId], Clan);
+				WarmUp2::SetPlayerSlot(Players[PlayerId], J, True);
+			}
+		}
+	}
+	
+	WarmUp2::End();
+	WarmUp2::Clean();
+	WarmUp2::Fill();
+	
+	/*Layers::Detach("WaitConnection");
+	Layers::Destroy("WaitConnection");*/
+	UpdateLayerScoresTable(C_SequenceWarmUp);
+	Elite_Sleep(500);
+	UIManager.UIAll.StatusMessage = "";
+	UIManager.UIAll.BigMessage = "";
+	
+	StartTime = -1;
+	UIManager.UIAll.CountdownEndTime = -1;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	UIManager.UIAll.UISequence_CanSkipIntroMT = True;
+	
+	// ---------------------------------- //
+	// Update the players clublinks
+	if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
+	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
+	Clublink::SyncUpdate();
+	UpdateHeader();
+	
+	Layers::Update("ScoresTable", CreateLayerScoresTable());
+}
 
 // ---------------------------------- //
 /// Warm up
@@ -2417,17 +2731,20 @@ Void WarmUp2() {
 	SM::UnspawnAllPlayers();
 	
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
-	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Silence;
 	UIManager.UIAll.BigMessageSoundVariant = 0;
 	UIManager.UIAll.StatusMessage = _("Press F6 once you're ready.");
 	if (G_Override_NeedWarmUp) UIManager.UIAll.BigMessage = TextLib::Compose("$f90%1", _("Pause"));
 	else UIManager.UIAll.BigMessage = TextLib::Compose("$f90%1", _("Warm-up"));
+	PlaySound(CUIConfig::EUISound::PhaseChange, 0);
 	
 	WarmUp2::Begin();
 	
 	// Init players
 	foreach (Player in Players) {
-		SetPlayerClan(Player, Player.RequestedClan);
+		//SetPlayerClan(Player, Player.RequestedClan);
+		// @MM
+		SetPlayerClan(Player, MM_GetRequestedClan(Player));
 		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 	}
@@ -2437,7 +2754,9 @@ Void WarmUp2() {
 	declare PrevMode = -1;
 	
 	while (!WarmUp2::Stop()) {
-		MB_Yield();
+		//MB_Yield();
+		// @MM
+		MM_Yield();
 		ManageCommand();
 		ForceClublinkReload();
 		
@@ -2445,9 +2764,13 @@ Void WarmUp2() {
 		if (PlayersNbTotal <= 0) continue;
 		
 		foreach (Player in Players) {
-			if (Player.CurrentClan != Player.RequestedClan) {
+			//if (Player.CurrentClan != Player.RequestedClan) {
+			// @MM
+			if (Player.CurrentClan != MM_GetRequestedClan(Player)) {
 				UnspawnPlayer(Player);
-				SetPlayerClan(Player, Player.RequestedClan);
+				//SetPlayerClan(Player, Player.RequestedClan);
+				// @MM
+				SetPlayerClan(Player, MM_GetRequestedClan(Player));
 				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 			}
@@ -2462,8 +2785,8 @@ Void WarmUp2() {
 			if (LongTimer <= 0) { LongTimer = 0; ShortTimer = 0; }
 			
 			if (S_Mode == 0) {
-				WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, C_RequiredPlayersNb], LongTimer => [1, C_RequiredPlayersNb]]);
-				WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, C_RequiredPlayersNb], LongTimer => [1, C_RequiredPlayersNb]]);
+				WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, S_RequiredPlayersNb], LongTimer => [1, S_RequiredPlayersNb]]);
+				WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, S_RequiredPlayersNb], LongTimer => [1, S_RequiredPlayersNb]]);
 			} else {
 				WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, 1], LongTimer => [1, 1]]);
 				WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, 1], LongTimer => [1, 1]]);
@@ -2492,6 +2815,7 @@ Void WarmUp2() {
 	if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("EndWarmup", Json::Enfold(Json::Stringify("AllReady", True)));
 	
 	PlaySound(CUIConfig::EUISound::StartMatch, 0);
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 	UIManager.UIAll.StatusMessage = "";
 	UIManager.UIAll.BigMessage = "";

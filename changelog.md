@@ -1,7 +1,70 @@
-<a id="2014-04-02">2014-04-02</a>
+<a id="2014-04-16">2014-04-16</a>
 ---------------------------------
 
+### Modes
+
+#### ShootMania/ModeBase
+* Addition of the S_AFKIdleTimeLimit setting, allow to set a minimum idle time before the game mode set a player in spectator mode.
+
+#### ShootMania/Elite
+* Matchmaking integration.
+* Removal of the UseProtectClanmates setting.
+* Display the distance of the rocket dodge instead of the number of dodge.
+
+#### ShootMania/ModeMatchmaking
+* Base for creating modes with matchmaking. It's still a work in progress so it will evolve a lot in the next few weeks.
+
+#### ShootMania/ModeSport
+* Matchmaking integration.
+* Addition of the S_RequiredPlayersNb setting, allow to set the number of player required to play an Elite match.
+* Removal of the annoying sound after hitting a player in warm up.
+
+#### ShootMania/Siege
+* If your map contained forcefields you need to revalidate it for them to work properly.
+* Matchmaking integration.
+* Addition of the S_UseWeaponSwitch setting, allow the players to change weapon freely during the round instead of choosing one at the beginning.
+
+#### TrackMania/TeamAttack
+* New mode, basically a time attack but in team.
+
+
+### Libraries
+
+#### Mode
+* Addition of the EchelonToInteger() function, allow to convert an echelon to an integer (between 0 and 9).
+
+#### ScoresTable2
+* SetPlayerColor() and UnsetPlayerColor() can now take a CScore instead of a CPlayer as argument.
+* The player overlay when eliminated is less opaque.
+
+#### Sound
+* New library, allow to play custom sounds from a game mode script.
+
+#### ShootMania/SM
+* Addition of the GetUser() and GetScore() functions to get a CUser or a CSmScore from a player login.
+
+#### ShootMania/WeaponSwitch.
+* New library, allow the players to switch weapon while playing. Currently used in the new Siege mode.
+
+#### TrackMania/TM2
+* Addition of the GetUser() and GetScore() functions to get a CUser or a CSmScore from a player login.
+
+#### TrackMania/MultiClans
+* New library, allow to manage more than two clans. Currently used in the new TeamAttack mode.
+
+
+### MapType
+
+#### SiegeV1
+* If your map contained forcefields you need to revalidate it for them to work properly. They're not consider as gates anymore in the map type.
+
+#### SiegeV2
+* If your map contained forcefields you need to revalidate it for them to work properly. They're not consider as gates anymore in the map type.
+
 [Commit on GitHub]()
+
+<a id="2014-04-02"></a>2014-04-02
+---------------------------------
 
 ### Modes
 

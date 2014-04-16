@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2014-04-02"
+#Const ModeBaseVersion		"2014-04-09"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -13,6 +13,7 @@
 #Include "Libs/Nadeo/ShootMania/AFK.Script.txt" as AFK
 
 #Setting S_AutoManageAFK		False	as _("Switch inactive players to spectators")
+#Setting S_AFKIdleTimeLimit		90000	as "<hidden>"	///< AFK default idle time limit
 #Setting S_UseScriptCallbacks	False	as "<hidden>"	///< Turn on/off the script callbacks, usefull for server manager
 #Setting S_NeutralEmblemUrl		""		as "<hidden>"	///< Replace the default neutral emblem by another one
 #Setting S_ScoresTableStylePath	""		as "<hidden>"	///< Try to load a scores table style from an XML file
@@ -261,7 +262,8 @@ main() {
 
 	ST2::Load();
 	AFK::Load();
-	---MatchMaking---
+	AFK::SetIdleTimeLimit(S_AFKIdleTimeLimit);
+	---Matchmaking---
 	+++InitServer+++
 	+++StartServer+++
 	XmlRpc::Load();

@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2013-12-13"
+#Const Version    "2014-04-11"
 #Const ScriptName "ElitePractice.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -253,7 +253,9 @@ Text Private_CreateLayerWaitConnection() {
 	declare XMargin			= 1.;
 	declare IdealPlayersNb	= 0;
 	
-	if (S_Matchmaking) IdealPlayersNb = C_LibEP_IdealPlayersNb;
+	//if (S_Matchmaking) IdealPlayersNb = C_LibEP_IdealPlayersNb;
+	// @MM
+	if (S_MatchmakingMode == 2) IdealPlayersNb = C_LibEP_IdealPlayersNb;
 	else IdealPlayersNb = C_LibEP_MinimumPlayersNb;
 		
 	declare Text	MLText = 
@@ -369,7 +371,9 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 	
 	while (True) {		
 		declare IdealPlayersNb = 0;
-		if (S_Matchmaking) IdealPlayersNb = C_LibEP_IdealPlayersNb;
+		//if (S_Matchmaking) IdealPlayersNb = C_LibEP_IdealPlayersNb;
+		// @MM 
+		if (S_MatchmakingMode == 2) IdealPlayersNb = C_LibEP_IdealPlayersNb;
 		else IdealPlayersNb = C_LibEP_MinimumPlayersNb;
 		
 		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
@@ -454,7 +458,7 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 
 // ---------------------------------- //
 /// End map timer for MatchMaking
-Void Private_MatchmakingWait() {
+/*Void Private_MatchmakingWait() {
 	declare PrevMatchmakingSleep = S_MatchmakingSleep;
 	StartTime = Now;
 	if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
@@ -471,7 +475,7 @@ Void Private_MatchmakingWait() {
 	
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
-}
+}*/
 
 // ---------------------------------- //
 /** Play a sound
@@ -1269,10 +1273,15 @@ Void Run() {
 				LibEP_HasHit = 0;
 				LibEP_IsHit = 0;
 			}
+			ST2::ClearScores();
 			
 			// ---------------------------------- //
 			// Wait for players connections
-			Private_WaitConnection(!S_Matchmaking);
+			//Private_WaitConnection(!S_Matchmaking);
+			// @MM
+			declare MatchmakingActivated = False;
+			if (S_MatchmakingMode == 2) MatchmakingActivated = True;
+			Private_WaitConnection(!MatchmakingActivated);
 			
 			// ---------------------------------- //
 			// Demo mode
@@ -1873,9 +1882,10 @@ Void Run() {
 												PassOn(Event);
 											}
 										} else {
-											Private_UpdateCustomScore(Event.Shooter, 1, 0);
+											/*Private_UpdateCustomScore(Event.Shooter, 1, 0);
 											Private_UpdateCustomScore(Event.Victim, 0, 1);
-											PassOn(Event);
+											PassOn(Event);*/
+											Discard(Event);
 										}
 									}
 									// ---------------------------------- //
@@ -2236,7 +2246,12 @@ Void Run() {
 			
 			// ---------------------------------- //
 			// Wait for matchmaking to receive the result
-			Private_MatchmakingWait();
+			//Private_MatchmakingWait();
+			// @MM
+			// ---------------------------------- //
+			// Matchmaking match end
+			//MM_MatchEnd();
+			
 			// ---------------------------------- //
 			// <<< +++EndMap+++
 			// ---------------------------------- //
