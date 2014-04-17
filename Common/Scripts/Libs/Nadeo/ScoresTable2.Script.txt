@@ -1465,7 +1465,7 @@ Void Build(Text _Game) {
 			<quad posn="{{{LineRectanglePosX}}} {{{-ItemSizeY/2.}}} 0" sizen="{{{ItemSizeX-PlayerCardLeftShift+1.}}} {{{ItemSizeY}}}" halign="{{{Private_GetRevert("left", Side)}}}" valign="center" image="{{{PlayerLineRectangleImage}}}" colorize="777" opacity="0.7" id="Quad_PlayerDarkening" />
 		</frame>
 		<frame posn="{{{LineSquarePosX}}} {{{-ItemSizeY/2.}}} 1">
-			<label posn="{{{(ItemSizeY/2.)*Revert}}} 0" sizen="{{{ItemSizeY/G_LibST_TextScale}}} {{{ItemSizeY-1.}}}" scale="{{{0.8*G_LibST_TextScale}}}" halign="center" valign="center2" textsize="5" text="0" id="Label_LocalRank" />
+			<label posn="{{{(ItemSizeY/2.)*Revert}}} 0" sizen="{{{ItemSizeY/G_LibST_TextScale}}} {{{ItemSizeY-1.}}}" scale="{{{0.8*G_LibST_TextScale}}}" halign="center" valign="center2" textsize="5" opacity="0.4" textemboss="0" text="0" id="Label_LocalRank" />
 		</frame>
 		<frame posn="{{{(PlayerCardLeftShift+PlayerCardLeftMargin)*Revert}}} {{{-PlayerCardTopMargin}}} 1">""";
 	

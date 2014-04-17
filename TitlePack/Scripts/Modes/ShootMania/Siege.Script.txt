@@ -47,7 +47,7 @@
 #Const C_WeaponSelectionDuration	7000	///< Duration of the weapon selection screen (C_UseWeaponSwitch == False)
 #Const C_StartTurnDuration			3000	///< Duration of the start turn screen (C_UseWeaponSwitch == True)
 #Const C_EndTurnDuration			5000	///< Duration of the end turn screen
-#Const C_EndMapDuration				10000	///< Duration of the end map screen
+#Const C_EndMapDuration				25000	///< Duration of the end map screen
 #Const C_WaitConnectionTimeLimit	60000	///< Time to wait at the beginning of a map for players of the matchmaking
 #Const C_StartingArmor				100		///< Default number of armor at the start of the round
 #Const C_RocketGain					1.		///< Rocket ammo regen speed
@@ -508,8 +508,7 @@ if (
 	foreach (CapturableId in Capturables) {
 		if (!MapLandmarks.existskey(CapturableId)) continue;
 		declare MapLandmark <=> MapLandmarks[CapturableId];
-		if (MapLandmark == Null) continue;
-		if (MapLandmark.Gauge == Null || MapLandmark.Sector == Null) continue;
+		if (MapLandmark == Null || MapLandmark.Gauge == Null || MapLandmark.Sector == Null) continue;
 		
 		declare FirstOnSector for MapLandmark = NullId;
 		declare CapturersNb = 0;
@@ -995,11 +994,11 @@ Message::SendBigMessage(EndMapBigMessage, 30000, 2, CUIConfig::EUISound::EndRoun
 // Display scores table and podium
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-MM_Sleep(C_EndMapDuration / 2);
-UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
-MM_Sleep(C_EndMapDuration / 2);
-
+MM_Sleep(ML::NearestInteger(C_EndMapDuration * 0.6));
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
+MM_Sleep(ML::NearestInteger(C_EndMapDuration * 0.4));
+
 Message::CleanAllMessages();
 
 // ---------------------------------- //

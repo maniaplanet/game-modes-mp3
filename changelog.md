@@ -23,6 +23,8 @@
 * If your map contained forcefields you need to revalidate it for them to work properly.
 * Matchmaking integration.
 * Addition of the S_UseWeaponSwitch setting, allow the players to change weapon freely during the round instead of choosing one at the beginning.
+* The map end duration is now of 25 seconds instead of 10 seconds. 
+* The scores table is hidden when the podium is shown to see the players winning and loosing poses.
 
 #### TrackMania/TeamAttack
 * New mode, basically a time attack but in team.
@@ -36,6 +38,7 @@
 #### ScoresTable2
 * SetPlayerColor() and UnsetPlayerColor() can now take a CScore instead of a CPlayer as argument.
 * The player overlay when eliminated is less opaque.
+* The player map ranking is better integrated in the player card background.
 
 #### Sound
 * New library, allow to play custom sounds from a game mode script.
@@ -43,8 +46,12 @@
 #### ShootMania/SM
 * Addition of the GetUser() and GetScore() functions to get a CUser or a CSmScore from a player login.
 
-#### ShootMania/WeaponSwitch.
+#### ShootMania/WeaponSelection
+* The keys to select your weapon will always be 1 or 2 and not 1 or 3 for the nucleus by example.
+
+#### ShootMania/WeaponSwitch
 * New library, allow the players to switch weapon while playing. Currently used in the new Siege mode.
+* Fixed the Runtime error: [Libs/Nadeo/ShootMania/WeaponSwitch.Script.txt : 176, 33]
 
 #### TrackMania/TM2
 * Addition of the GetUser() and GetScore() functions to get a CUser or a CSmScore from a player login.
@@ -61,7 +68,8 @@
 #### SiegeV2
 * If your map contained forcefields you need to revalidate it for them to work properly. They're not consider as gates anymore in the map type.
 
-[Commit on GitHub]()
+---------------------------------
+
 
 <a id="2014-04-02"></a>2014-04-02
 ---------------------------------
@@ -98,7 +106,7 @@
 
 #### ScoresTable2
 * Functions to hide/show the scores table individually for each player
-* Functions to apply a ratio to the scores table width and height. I's now easier to change the size of the content and background together.
+* Functions to apply a ratio to the scores table width and height. It's now easier to change the size of the content and background together.
 * Functions to change the background color of a player card.
 * The customizable footer text is now top aligned instead of bottom aligned, allowing to add line breaks in the text.
 * Compatibility with old user mode scripts. The library hides the default scores table in the Build() function instead of the Load() function.
@@ -110,6 +118,9 @@
 #### TrackMania/XmlRpc
 * New method "LibXmlRpc_GetPlayerRanking"
 * New callback "LibXmlRpc_PlayerRanking"
+
+---------------------------------
+
 
 <a id="2014-03-25"></a>2014-03-25
 ---------------------------------

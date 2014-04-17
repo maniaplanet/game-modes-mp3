@@ -3,7 +3,7 @@
  *	Allow players to dynamically switch weapon while playing
  *	Needs to be in title pack
  */
-#Const	Version		"2014-04-08"
+#Const	Version		"2014-04-16"
 #Const	ScriptName	"WeaponSwitch.Script.txt"
 
 // ---------------------------------- //
@@ -172,9 +172,11 @@ Void SetWeapon(CSmPlayer _Player, CSmMode::EWeapon _Weapon, Boolean _AutoSwitch)
 	declare ReloadRate = AvailableWeapons[_Weapon];
 	_Player.AmmoGain = ReloadRate;
 	SetPlayerWeapon(_Player, _Weapon, _AutoSwitch);
-	switch (G_LibWeaponSwitch_EffectOnSwitch) {
-		case -1: SetPlayerAmmo(_Player, _Weapon, 0);
-		case 1: SetPlayerAmmo(_Player, _Weapon, _Player.CurAmmoMax);
+	if (_Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
+		switch (G_LibWeaponSwitch_EffectOnSwitch) {
+			case -1: SetPlayerAmmo(_Player, _Weapon, 0);
+			case 1: SetPlayerAmmo(_Player, _Weapon, _Player.CurAmmoMax);
+		}
 	}
 }
 
