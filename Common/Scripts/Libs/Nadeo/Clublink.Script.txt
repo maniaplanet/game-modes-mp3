@@ -4,7 +4,7 @@
  *	on the server from Club xml files
  */
 
-#Const Version		"2013-12-10"
+#Const Version		"2014-04-22"
 #Const ScriptName	"Clublink.Script.txt"
 
 #Include "TextLib" as TL
@@ -485,10 +485,12 @@ Void Update() {
 		} 
 		// Send the request
 		else if (G_LibClubLink_SourcePlayerId[I] != NullId && G_LibClubLink_SourcePlayerId[I] != G_LibClubLink_LoadedPlayerId[I]) {
-			declare Req <=> Http.CreateGet(Players[G_LibClubLink_SourcePlayerId[I]].User.ClubLink);
-			G_LibClubLink_LoadingPlayerId[I] = G_LibClubLink_SourcePlayerId[I];
-			G_LibClubLink_RequestStartTime[I] = Now;
-			G_LibClubLink_Request[I] = Req;
+			if (Http.SlotsAvailable > 0) {
+				declare Req <=> Http.CreateGet(Players[G_LibClubLink_SourcePlayerId[I]].User.ClubLink);
+				G_LibClubLink_LoadingPlayerId[I] = G_LibClubLink_SourcePlayerId[I];
+				G_LibClubLink_RequestStartTime[I] = Now;
+				G_LibClubLink_Request[I] = Req;
+			}
 		}
 	}
 }
@@ -523,10 +525,12 @@ Void SyncUpdate() {
 		
 		// Send the request
 		if (G_LibClubLink_SourcePlayerId[I] != NullId && G_LibClubLink_SourcePlayerId[I] != G_LibClubLink_LoadedPlayerId[I]) {
-			declare Req <=> Http.CreateGet(Players[G_LibClubLink_SourcePlayerId[I]].User.ClubLink);
-			G_LibClubLink_LoadingPlayerId[I] = G_LibClubLink_SourcePlayerId[I];
-			G_LibClubLink_RequestStartTime[I] = Now;
-			G_LibClubLink_Request[I] = Req;
+			if (Http.SlotsAvailable > 0) {
+				declare Req <=> Http.CreateGet(Players[G_LibClubLink_SourcePlayerId[I]].User.ClubLink);
+				G_LibClubLink_LoadingPlayerId[I] = G_LibClubLink_SourcePlayerId[I];
+				G_LibClubLink_RequestStartTime[I] = Now;
+				G_LibClubLink_Request[I] = Req;
+			}
 		}
 		
 		// Receive the request
@@ -590,7 +594,7 @@ Void DefineTeamFromUrl(Text _Url1, Text _Url2) {
 	declare ClubLinkUrl = [_Url1, _Url2];
 	for(I, 0, 1) {
 		declare Url = ClubLinkUrl[I];
-		if (!Http.IsValidUrl(Url)) continue;
+		if (!Http.IsValidUrl(Url) || Http.SlotsAvailable <= 0) continue;
 		declare Req <=> Http.CreateGet(Url);
 		declare RequestTimeout = Now + C_LibClubLink_RequestTimeout;
 		

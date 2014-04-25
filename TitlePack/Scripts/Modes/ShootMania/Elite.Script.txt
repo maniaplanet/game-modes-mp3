@@ -220,7 +220,7 @@ if (S_UseDraft) {
 	
 	// ---------------------------------- //
 	// Initialize UI
-	UIManager.ResetAll();
+	//UIManager.ResetAll();
 	InitUi();
 	SpawnScreen::AttachRules();
 	Layers::Attach("ScoresTable");
@@ -487,7 +487,7 @@ if (Now >= PoleTime) {
 			Goal.Gauge.Clan = G_AtkClan;
 			// Set the Max value depending on the number of checkpoints in the map
 			if (Checkpoints.count <= 0) {
-				Goal.Gauge.Max = MathLib::NearestInteger(S_TimeCapture * 1000) * MapLandmarks_Gauge.count;
+				Goal.Gauge.Max = MathLib::NearestInteger(S_TimeCapture * 1000) * Goals.count;
 			} else {
 				// + 1 in order to see the gauge filled (With a Max of 0 the gauge can't be filled)
 				Goal.Gauge.Max = ((Checkpoints.count - G_CheckpointsCapturedNb) * 1000) + 500;

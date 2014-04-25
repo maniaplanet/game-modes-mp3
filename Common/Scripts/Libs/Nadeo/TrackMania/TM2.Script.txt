@@ -2,7 +2,7 @@
  *	TM library
  */
 
-#Const Version		"2014-04-14"
+#Const Version		"2014-04-18"
 #Const ScriptName	"TM2.Script.txt"
 
 #Include "TextLib" as TL
@@ -134,6 +134,12 @@ Void StartRace(CTmPlayer _Player, Integer _StartTime, Boolean _RegisterOnLadder)
 	if(_RegisterOnLadder && _Player.Score != Null && !_Player.Score.IsRegisteredForLadderMatch) {
 		Ladder_AddPlayer(_Player.Score);
 	}
+	
+	// Undo forced visible scores table when starting race
+	declare UI <=> UIManager.GetUI(_Player);
+	if (UI != Null && UI.ScoreTableVisibility == CUIConfig::EVisibility::ForcedVisible) {
+		UI.ScoreTableVisibility = CUIConfig::EVisibility::None;
+	}
 }
 
 // ---------------------------------- //
@@ -210,8 +216,7 @@ Boolean IsRacing(CTmPlayer _Player) {
 	
 	declare LibTM2_SpawnStatus for _Player = C_SpawnStatus_Waiting;
 	
-	if (LibTM2_SpawnStatus == C_SpawnStatus_Racing) return True;
-	return False;
+	return (LibTM2_SpawnStatus == C_SpawnStatus_Racing);
 }
 
 // ---------------------------------- //
@@ -226,8 +231,7 @@ Boolean IsWaiting(CTmPlayer _Player) {
 	
 	declare LibTM2_SpawnStatus for _Player = C_SpawnStatus_Waiting;
 	
-	if (LibTM2_SpawnStatus == C_SpawnStatus_Waiting) return True;
-	return False;
+	return (LibTM2_SpawnStatus == C_SpawnStatus_Waiting);
 }
 
 // ---------------------------------- //
@@ -242,8 +246,7 @@ Boolean IsWatchingOutro(CTmPlayer _Player) {
 	
 	declare LibTM2_SpawnStatus for _Player = C_SpawnStatus_Waiting;
 	
-	if (LibTM2_SpawnStatus == C_SpawnStatus_Outro) return True;
-	return False;
+	return (LibTM2_SpawnStatus == C_SpawnStatus_Outro);
 }
 
 // ---------------------------------- //

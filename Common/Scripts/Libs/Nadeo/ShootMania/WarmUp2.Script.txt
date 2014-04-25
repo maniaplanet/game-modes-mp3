@@ -1,7 +1,7 @@
 /**
  *	WarmUp lib
  */
-#Const	Version		"2014-02-04"
+#Const	Version		"2014-04-23"
 #Const	ScriptName	"WarmUp2.Script.txt"
 
 #Include "TextLib" as TL
@@ -67,7 +67,7 @@ Text Private_CreateLayerWarmUp() {
 	declare Clan2Color = TL::ColorToText(Teams[1].ColorPrimary);
 	
 	return """
-<frame posn="{{{C_LibWarmUp2_LayerPosition.X}}} {{{C_LibWarmUp2_LayerPosition.Y}}} 25" id="Frame_WarmUp">
+<frame posn="{{{C_LibWarmUp2_LayerPosition.X}}} {{{C_LibWarmUp2_LayerPosition.Y}}} 25" hidden="1" id="Frame_WarmUp">
 	<format textemboss="1" />
 	<frame posn="0 0" id="Frame_Pager">
 		<quad posn="-126.5 0" sizen="8 6" halign="center" valign="center" image="{{{ImgPath2}}}pagerLeftOff.dds" imagefocus="{{{ImgPath2}}}pagerLeftOn.dds" scriptevents="1" id="Button_PagerPrev" />

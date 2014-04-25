@@ -5,11 +5,11 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-04-16"
+#Const ModeMatchmakingVersion		"2014-04-22"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
-#Include "TextLib" as MM_TL
-#Include "MathLib" as MM_ML
+#Include "TextLib" as TL
+#Include "MathLib" as ML
 #Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
@@ -26,7 +26,8 @@
 #Setting S_LobbyMatchmakerTime		10			as "<hidden>"	///< Time allocated to the matchmaking (seconds)
 #Setting S_LobbyInstagib  			False		as "<hidden>"	///< Laser mode in lobby
 #Setting S_LobbyDisplayMasters		True		as "<hidden>"	///< Display the masters list
-#Setting S_LogAPIError				False		as "<hidden>"	///< Log the API request errors
+#Setting S_LogAPIError				False		as "<hidden>"	///< Log the API requests errors
+#Setting S_LogAPIDebug				False		as "<hidden>"	///< Log all the api requests and responses
 
 // ---------------------------------- //
 // Constant
@@ -59,7 +60,7 @@
 #Const C_AllyStatus_Sent			1	///< Ally request sent to this player
 #Const C_AllyStatus_Disconnected	2	///< Ally disconnected
 
-#Const C_Request_GetPlayers		0	///< /player?login=somelogin
+#Const C_Request_GetPlayers		0	///< /player?login=somelogin&lobbylogin=anotherlogin
 #Const C_Request_PostPlayers	1	///< /players
 #Const C_Request_GetMatches		2	///< /match?serverlogin=somelogin
 #Const C_Request_PostStatus		3	///< /status
@@ -69,8 +70,6 @@
 #Const C_Master_Name		1	///< Name of the master
 #Const C_Master_Country		2	///< Country of the master
 #Const C_Master_Echelon		3	///< Echelon of the master
-
-#Const C_Matchmaking_Debug	False	///< Enable debug info
 
 // ---------------------------------- //
 // Globales
@@ -91,6 +90,7 @@ declare Integer		G_Match_Id;					///< Id of the match
 declare Text		G_Match_LobbyLogin;			///< Login of the lobby server where to send back the players
 declare Integer		G_Match_NextPing;			///< Time of the next ping of the match server to the API
 declare Real[Text]	G_Match_MissingPlayers;		///< List of missing players login
+declare Boolean		G_Match_NewMissingPlayers;	///< True if there's some new missing players not already sent to the API
 
 // ---------------------------------- //
 // Extend
@@ -419,7 +419,7 @@ declare ModeName = _("Lobby");
 SpawnScreen::ResetRulesSection();
 SpawnScreen::AddSubsection(
 	_("Objectives"),
-	MM_TL::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as many hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated.")),
+	TL::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as many hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated.")),
 	0.
 );
 SpawnScreen::AddSubsection(_("Type"), _("Free for all"), 60.);
@@ -522,7 +522,7 @@ switch (G_Lobby_Phase) {
 			// Announce the winner
 			if (G_Lobby_WinnerId != NullId && Users.existskey(G_Lobby_WinnerId)) {
 				Message::SendBigMessage(
-					MM_TL::Compose(_("$<%1$> is King of the Lobby!"), Users[G_Lobby_WinnerId].Name),
+					TL::Compose(_("$<%1$> is King of the Lobby!"), Users[G_Lobby_WinnerId].Name),
 					5000,
 					3
 				);
@@ -626,13 +626,13 @@ if (Http.SlotsAvailable > 0) {
 			
 			if (FirstAlly) FirstAlly = False;
 			else AlliesList ^= ",";
-			AlliesList ^= "\""^AllPlayers[AllyId].Login^"\"";
+			AlliesList ^= "\""^TL::MLEncode(AllPlayers[AllyId].Login)^"\"";
 		}
 		
 		PlayersList ^= """
 {
-	"login": "{{{MM_TL::MLEncode(Player.Login)}}}",
-	"ladderpoints": {{{MM_ML::NearestInteger(Player.User.LadderPoints)}}},
+	"login": "{{{TL::MLEncode(Player.Login)}}}",
+	"ladderpoints": {{{ML::NearestInteger(Player.User.LadderPoints)}}},
 	"readytime": {{{Now - Lobby_ReadySince}}},
 	"allies": [{{{AlliesList}}}]
 }""";
@@ -640,9 +640,9 @@ if (Http.SlotsAvailable > 0) {
 	
 	declare PostData = """
 {
-	"lobby": "{{{MM_TL::MLEncode(ServerLogin)}}}",
-	"gamemode": "{{{MM_TL::MLEncode(ServerModeName)}}}",
-	"titleid": "{{{MM_TL::MLEncode(LoadedTitle.TitleId)}}}",
+	"lobby": "{{{TL::MLEncode(ServerLogin)}}}",
+	"gamemode": "{{{TL::MLEncode(ServerModeName)}}}",
+	"titleid": "{{{TL::MLEncode(LoadedTitle.TitleId)}}}",
 	"format": {{{G_Matchmaking_Format}}},
 	"players": [
 		{{{PlayersList}}}
@@ -651,7 +651,7 @@ if (Http.SlotsAvailable > 0) {
 	declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/players"), PostData);
 	if (Request != Null) Lobby_MatchMakerRequestId = Request.Id;
 	
-	if (C_Matchmaking_Debug) MB_Log("[API] Request: POST /players\n"^PostData);
+	if (S_LogAPIDebug) MB_Log("[API] Request: POST /players\n"^PostData);
 }
 ***
 
@@ -816,7 +816,7 @@ Void MM_SendToServer(CPlayer _Player, Text _ServerLogin) {
  *	@param	_MatchesXML			The XML containing the matches
  */
 Void MM_GetMatches(Text _MatchesXML) {
-	if (C_Matchmaking_Debug) MB_Log("[API] Response: POST /players\n"^_MatchesXML);
+	if (S_LogAPIDebug) MB_Log("[API] Response: POST /players\n"^_MatchesXML);
 	// Get matches info from XML
 	declare MatchesPlayers = Integer[CSmPlayer][Text];
 	declare MatchesLogins = Integer[Text][Text];
@@ -831,6 +831,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 			Net_Lobby_WaitingTime = NodeStatus.GetAttributeInteger("waitingtime", -1);
 			Net_Lobby_ServersAvailable = NodeStatus.GetAttributeInteger("availableservers", 0);
 			
+			declare TotalPlayers = Net_Lobby_PlayersNb + AllPlayers.count;
 			Admin_SetLobbyInfo(True, Net_Lobby_PlayersNb, 255, 0.);
 			
 			// No match server available
@@ -1018,12 +1019,12 @@ Void Private_MM_PostMatchStatus() {
 				if (NotFirst) MissingPlayers ^= ",";
 				else NotFirst = True;
 				
-				MissingPlayers ^= """{"login":"{{{Login}}}","ladderpoints":{{{MM_ML::NearestInteger(LadderPoints)}}}}""";
+				MissingPlayers ^= """{"login":"{{{TL::MLEncode(Login)}}}"}""";
 			}
 		}
 		declare PostData = """
 {
-	"serverlogin": "{{{ServerLogin}}}",
+	"serverlogin": "{{{TL::MLEncode(ServerLogin)}}}",
 	"status": {{{G_Match_Status}}},
 	"matchid": {{{G_Match_Id}}},
 	"missingplayers": [{{{MissingPlayers}}}]
@@ -1033,7 +1034,7 @@ Void Private_MM_PostMatchStatus() {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_PostStatus;
 		}
 		
-		if (C_Matchmaking_Debug) MB_Log("[API] Request: POST /status\n"^PostData);
+		if (S_LogAPIDebug) MB_Log("[API] Request: POST /status\n"^PostData);
 	}
 }
 
@@ -1068,7 +1069,7 @@ Void Private_MM_GetMatch() {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_GetMatches;
 		}
 		
-		if (C_Matchmaking_Debug) MB_Log("[API] Request: Get /match?serverlogin="^ServerLogin);
+		if (S_LogAPIDebug) MB_Log("[API] Request: Get /match?serverlogin="^ServerLogin);
 	}
 }
 
@@ -1091,6 +1092,7 @@ Void Private_MM_ManagePlayers() {
 			// Waiting substitute
 			else if (G_Match_Status == C_MatchStatus_Substitute) {
 				Private_MM_GetMatch();
+				SetPlayerClan(Player, 0);
 			}
 			// Match running normally
 			else {
@@ -1113,6 +1115,13 @@ Void Private_MM_ManagePlayers() {
 					UI.ForceSpectator = True;
 				}
 			}
+		} 
+		// Remove valid players from the missing list
+		else if (Matchmaking_PlayerStatus == C_PlayerStatus_Valid) {
+			if (G_Match_MissingPlayers.existskey(Player.Login)) {
+				declare Removed = G_Match_MissingPlayers.removekey(Player.Login);
+				G_Match_NewMissingPlayers = True;
+			}
 		}
 		
 		// Count players in each clan
@@ -1125,20 +1134,27 @@ Void Private_MM_ManagePlayers() {
 		Admin_KickUser(User, "You're not authorized on this match server.");
 	}
 	
-	declare NewMissingPlayers = False;
 	foreach (Login => Clan in G_Match_Players) {
 		// Missing
 		if (!PresentPlayers.existskey(Login)) {
 			// New
 			if (!G_Match_MissingPlayers.existskey(Login)) {
 				G_Match_MissingPlayers[Login] = 0.;
-				NewMissingPlayers = True;
+				G_Match_NewMissingPlayers = True;
 			}
 		}
 	}
 	
 	// Inform the API of the missing players
-	if (NewMissingPlayers) {
+	if (G_Match_NewMissingPlayers && (G_Match_Status == C_MatchStatus_Playing || G_Match_Status == C_MatchStatus_Substitute)) {
+		Private_MM_Ping(True);
+		G_Match_NewMissingPlayers = False;
+	}
+	
+	// Change match status
+	if (G_Match_MissingPlayers.count <= 0 && G_Match_Status == C_MatchStatus_Substitute) {
+		Private_MM_SetMatchStatus(C_MatchStatus_Playing);
+	} else if (G_Match_MissingPlayers.count > 0 && G_Match_Status == C_MatchStatus_Playing) {
 		Private_MM_SetMatchStatus(C_MatchStatus_Substitute);
 	}
 }
@@ -1183,7 +1199,7 @@ Void Private_MM_AddMaster(CSmPlayer _Player, Integer _Timestamp) {
 		if (_Player.Login != Login) continue;
 			
 		if (Net_Lobby_Masters.existskey(Key)) {
-			if (Net_Lobby_Masters[Key][C_Master_Timestamp] == MM_TL::ToText(_Timestamp)) {
+			if (Net_Lobby_Masters[Key][C_Master_Timestamp] == TL::ToText(_Timestamp)) {
 				CanBeAdded = False;
 				break;
 			}
@@ -1194,10 +1210,10 @@ Void Private_MM_AddMaster(CSmPlayer _Player, Integer _Timestamp) {
 	if (CanBeAdded) {
 		G_Lobby_MastersLogins.add(_Player.Login);
 		Net_Lobby_Masters.add([
-			C_Master_Timestamp	=> MM_TL::ToText(_Timestamp),
+			C_Master_Timestamp	=> TL::ToText(_Timestamp),
 			C_Master_Name		=> _Player.Name,
 			C_Master_Country	=> _Player.User.CountryFlagUrl,
-			C_Master_Echelon	=> MM_TL::ToText(ToInteger(_Player.User.Echelon))
+			C_Master_Echelon	=> TL::ToText(ToInteger(_Player.User.Echelon))
 		]);
 		Net_Lobby_MastersUpdate = Now;
 	}
@@ -1217,7 +1233,7 @@ Void Private_MM_AddMaster(CSmPlayer _Player, Integer _Timestamp) {
  *	@param	_MatchXml	Xml containing the match settings
  */
 Void Private_MM_SetupMatch(Text _MatchXml) {
-	if (C_Matchmaking_Debug) MB_Log("[API] Response: GET /match?serverlogin="^ServerLogin^"\n"^_MatchXml);
+	if (S_LogAPIDebug) MB_Log("[API] Response: GET /match?serverlogin="^ServerLogin^"\n"^_MatchXml);
 	if (_MatchXml != "") {
 		declare XmlDoc <=> Xml.Create(_MatchXml);
 		if (XmlDoc != Null && XmlDoc.Root != Null) {
@@ -1280,7 +1296,7 @@ Void Private_MM_SetupMatch(Text _MatchXml) {
  *	@param	_MatchXml	Xml containing the match settings
  */
 Void Private_MM_SetupSubstitute(Text _MatchXml) {
-	if (C_Matchmaking_Debug) MB_Log("[API] Response: GET /match?serverlogin="^ServerLogin^"\n"^_MatchXml);
+	if (S_LogAPIDebug) MB_Log("[API] Response: GET /match?serverlogin="^ServerLogin^"\n"^_MatchXml);
 	if (_MatchXml != "") {
 		declare XmlDoc <=> Xml.Create(_MatchXml);
 		if (XmlDoc != Null && XmlDoc.Root != Null) {
@@ -1312,11 +1328,6 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
 					}
 					
 					G_Match_Players = MatchPlayers;
-					if (G_Match_MissingPlayers.count <= 0) {
-						Private_MM_SetMatchStatus(C_MatchStatus_Playing);
-					} else {
-						Private_MM_SetMatchStatus(C_MatchStatus_Substitute);
-					}
 				}
 			}
 		}
@@ -1325,10 +1336,10 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
 	// Set invalid players
 	foreach (Player in AllPlayers) {
 		declare Matchmaking_PlayerStatus for Player = C_PlayerStatus_Waiting;
-		if (!G_Match_Players.existskey(Player.Login)) {
-			Matchmaking_PlayerStatus = C_PlayerStatus_Invalid;
-		} else {
+		if (G_Match_Players.existskey(Player.Login)) {
 			Matchmaking_PlayerStatus = C_PlayerStatus_Valid;
+		} else {
+			Matchmaking_PlayerStatus = C_PlayerStatus_Invalid;
 		}
 	}
 }
@@ -1340,7 +1351,7 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
  *	@param	_PlayerXml	Xml containing the player info
  */
 Void Private_MM_SetupPlayer(Text _PlayerXml) {
-	if (C_Matchmaking_Debug) MB_Log("[API] Response: GET /player?login=xxx\n"^_PlayerXml);
+	if (S_LogAPIDebug) MB_Log("[API] Response: GET /player?login=xxx&lobbylogin=yyy\n"^_PlayerXml);
 	if (_PlayerXml != "") {
 		declare XmlDoc <=> Xml.Create(_PlayerXml);
 		if (XmlDoc != Null && XmlDoc.Root != Null) {
@@ -1463,10 +1474,10 @@ Void Private_MM_AlliesAreReady(CSmPlayer _Player) {
 Void Private_Lobby_GetPlayerInfo(CSmPlayer _Player) {
 	if (_Player == Null || Http.SlotsAvailable <= 0) return;
 	// Send the request to the API
-	declare Request <=> Http.CreateGet(Private_MM_BuildAPIUrl("/player?login="^MM_TL::URLEncode(_Player.Login)), False);
+	declare Request <=> Http.CreateGet(Private_MM_BuildAPIUrl("/player?login="^TL::URLEncode(_Player.Login))^"&lobbylogin="^TL::URLEncode(ServerLogin), False);
 	if (Request != Null) G_Matchmaking_RequestsIds[Request.Id] = C_Request_GetPlayers;
 	
-	if (C_Matchmaking_Debug) MB_Log("[API] Request: GET /player?login="^_Player.Login);
+	if (S_LogAPIDebug) MB_Log("[API] Request: GET /player?login="^TL::URLEncode(_Player.Login)^"&lobbylogin="^TL::URLEncode(ServerLogin));
 }
 
 // ---------------------------------- //
@@ -1856,6 +1867,7 @@ Void MM_MatchWait() {
 	G_Match_Id = -1;
 	G_Match_LobbyLogin = "";
 	G_Match_MissingPlayers.clear();
+	G_Match_NewMissingPlayers = False;
 	
 	Private_MM_SetMatchStatus(C_MatchStatus_Waiting);
 	
@@ -1881,14 +1893,14 @@ Void MM_MatchResult(Text _MasterLogin) {
 		declare PostData = """
 {
 	"matchid": {{{G_Match_Id}}},
-	"master": "{{{_MasterLogin}}}"
+	"master": "{{{TL::MLEncode(_MasterLogin)}}}"
 }""";
 		declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/result"), PostData);
 		if (Request != Null) {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_PostResults;
 		}
 		
-		if (C_Matchmaking_Debug) MB_Log("[API] Request: POST /result\n"^PostData);
+		if (S_LogAPIDebug) MB_Log("[API] Request: POST /result\n"^PostData);
 	}
 }
 
@@ -1916,6 +1928,7 @@ Void MM_MatchEnd() {
 	G_Match_Id = -1;
 	G_Match_LobbyLogin = "";
 	G_Match_MissingPlayers.clear();
+	G_Match_NewMissingPlayers = False;
 }
 
 // ---------------------------------- //
@@ -2009,7 +2022,7 @@ Void Private_Lobby_SpawnPlayers() {
 				if (S_LobbyInstagib) {
 					SetPlayerWeapon(Player, CSmMode::EWeapon::Laser, False);
 				}
-				SM::SpawnPlayer(Player, 0, MapLandmarks_PlayerSpawn[MM_ML::Rand(0, MapLandmarks_PlayerSpawn.count - 1)].PlayerSpawn, Now);
+				SM::SpawnPlayer(Player, 0, MapLandmarks_PlayerSpawn[ML::Rand(0, MapLandmarks_PlayerSpawn.count - 1)].PlayerSpawn, Now);
 				Private_Lobby_ResetPlayer(Player);
 			}
 		}
@@ -2026,9 +2039,9 @@ Void Private_Lobby_ShowScore(CSmPlayer _Player) {
 
 	declare Message = "";
 	if (_Player.Score.Points <= 1) {
-		Message = MM_TL::Compose( _("%1 point (Best score: %2)"), MM_TL::ToText(_Player.Score.Points), ""^G_Lobby_BestCombo);
+		Message = TL::Compose( _("%1 point (Best score: %2)"), TL::ToText(_Player.Score.Points), ""^G_Lobby_BestCombo);
 	} else {
-		Message = MM_TL::Compose( _("%1 points (Best score: %2)"), MM_TL::ToText(_Player.Score.Points), ""^G_Lobby_BestCombo);
+		Message = TL::Compose( _("%1 points (Best score: %2)"), TL::ToText(_Player.Score.Points), ""^G_Lobby_BestCombo);
 	}
 	
 	Message::SendStatusMessage(_Player, Message, 3000, 2);
@@ -2157,7 +2170,7 @@ Text Private_Lobby_GetMLRulesReminder() {
 	declare Text TitleText			= _("Waiting for your match to start");
 	declare Text ModeName			= _("Lobby");
 			
-	declare Text RulesReminder		= MM_TL::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as many hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated."));
+	declare Text RulesReminder		= TL::Compose("$<%1%2$>\n\n%3\n$<%11. $>%4\n$<%12. $>%5", "$"^SpawnScreen::GetModeColor(), _("You will soon be redirected to a match server."), _("While waiting, try to become the King Of The Lobby!"), _("Perform as many hits as possible: the points you earn for each one will increase."), _("Your combo falls back to 1 when you are eliminated."));
 	
 	declare Text DoNotShowAgain		= _("Do Not Show Again");
 	declare Text Close				= _("Close");
@@ -2186,6 +2199,7 @@ main() {
 	
 	declare netwrite Boolean Net_Lobby_RollingIntro for UI;
 	declare netread Boolean Net_Lobby_ShowRules for UI;
+	declare netread Boolean Net_Lobby_ShowVersusML for UI;
 	
 	if (!NadeoKoL_PersistentShowRulesReminder) {
 		Net_Lobby_RollingIntro = False;
@@ -2200,7 +2214,7 @@ main() {
 	while (True) {
 		yield;
 		
-		if (Net_Lobby_ShowRules) {
+		if (Net_Lobby_ShowRules && !Net_Lobby_ShowVersusML) {
 			RulesReminderMainFrame.Show();
 		} else {
 			RulesReminderMainFrame.Hide();

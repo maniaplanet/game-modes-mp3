@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2014-02-26"
+#Const Version				"2014-04-24"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -961,106 +961,109 @@ foreach (Event in PendingEvents) {
 	} 
 	// ---------------------------------- //
 	// On capture
-	else if(Event.Type == CSmModeEvent::EType::OnCapture) {		
-		Message::CleanAllMessages();
-		XmlRpc::OnCapture(Event);
-		
-		declare OffZoneTimeLimit = S_OffZoneTimeLimit  * 1000;
-		if (OffZoneTimeLimit <= 0) OffZoneTimeLimit = 10;
-					
-		// ---------------------------------- //
-		// Update Pole score
-		if (Event.Landmark.Sector != Null && Event.Landmark.Sector.PlayersIds.count > 0) {
-			declare Points = PlayersSpawnedNb / Event.Landmark.Sector.PlayersIds.count;
-			foreach (PlayerId in Event.Landmark.Sector.PlayersIds) {
-				if (Players.existskey(PlayerId) && Players[PlayerId].Score != Null) {
-					declare Player <=> Players[PlayerId];
-					UpdatePlayerScores(Player, C_ScorePole, Points);
-					//Top::IncrementPlayerPoints("Pole", Player, Points);
-					
-					// Use notices to display several messages one after the other
-					UIManager.UIAll.SendNotice(
-						TextLib::Compose(_("$<%1$> captured the pole."), Player.Name), 
-						CUIConfig::ENoticeLevel::MatchInfo, Null, 
-						CUIConfig::EAvatarVariant::Default, 
-						CUIConfig::EUISound::StartRound, 0
+	else if(Event.Type == CSmModeEvent::EType::OnCapture) {
+		if (Event.Landmark.Tag == "Goal") {
+			Message::CleanAllMessages();
+			XmlRpc::OnCapture(Event);
+			
+			declare OffZoneTimeLimit = S_OffZoneTimeLimit  * 1000;
+			if (OffZoneTimeLimit <= 0) OffZoneTimeLimit = 10;
+						
+			// ---------------------------------- //
+			// Update Pole score
+			if (Event.Landmark.Sector != Null && Event.Landmark.Sector.PlayersIds.count > 0) {
+				declare Points = PlayersSpawnedNb / Event.Landmark.Sector.PlayersIds.count;
+				foreach (PlayerId in Event.Landmark.Sector.PlayersIds) {
+					if (Players.existskey(PlayerId) && Players[PlayerId].Score != Null) {
+						declare Player <=> Players[PlayerId];
+						UpdatePlayerScores(Player, C_ScorePole, Points);
+						//Top::IncrementPlayerPoints("Pole", Player, Points);
+						
+						// Use notices to display several messages one after the other
+						UIManager.UIAll.SendNotice(
+							TextLib::Compose(_("$<%1$> captured the pole."), Player.Name), 
+							CUIConfig::ENoticeLevel::MatchInfo, Null, 
+							CUIConfig::EAvatarVariant::Default, 
+							CUIConfig::EUISound::StartRound, 0
+						);
+					}
+				}
+				declare Message = "";
+				if (GameplaySequence == 2) {
+					Message = _("Tornado activated.");
+					if (AllowDoubleCapture) {
+						Message::SendStatusMessage(
+							_("Stay near the pole to speed up the tornado"), 2000, 1, CUIConfig::EUISound::StartRound, 0
+						);
+					}
+				}
+				else if (GameplaySequence == 3) {
+					UIManager.UIAll.StatusMessage = "";
+					Message = TextLib::Compose(
+						_("Tornado speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
 					);
 				}
-			}
-			declare Message = "";
-			if (GameplaySequence == 2) {
-				Message = _("Tornado activated.");
-				if (AllowDoubleCapture) {
-					Message::SendStatusMessage(
-						_("Stay near the pole to speed up the tornado"), 2000, 1, CUIConfig::EUISound::StartRound, 0
+				UIManager.UIAll.SendNotice(
+					Message, 
+					CUIConfig::ENoticeLevel::MatchInfo, Null, 
+					CUIConfig::EAvatarVariant::Default, 
+					CUIConfig::EUISound::StartRound, 0
+				);
+			} else {
+				declare Message = "";
+				if (GameplaySequence == 2) {
+					if(PoleCapturedByAPlayer) {
+						Message = _("Pole captured and tornado activated.");
+					} else {
+						Message = _("Tornado auto-activated.");
+					}
+					if (AllowDoubleCapture) {
+						Message::SendStatusMessage(
+							_("The pole can be captured again."), OffZoneTimeLimit, 1, CUIConfig::EUISound::StartRound, 0
+						);
+					}
+				}
+				else if (GameplaySequence == 3) {
+					Message = TextLib::Compose(
+						_("Tornado speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
 					);
 				}
-			}
-			else if (GameplaySequence == 3) {
-				UIManager.UIAll.StatusMessage = "";
-				Message = TextLib::Compose(
-					_("Tornado speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
+				Message::SendBigMessage(
+					Message, 3000, 2, CUIConfig::EUISound::StartRound, 0
 				);
 			}
-			UIManager.UIAll.SendNotice(
-				Message, 
-				CUIConfig::ENoticeLevel::MatchInfo, Null, 
-				CUIConfig::EAvatarVariant::Default, 
-				CUIConfig::EUISound::StartRound, 0
-			);
-		} else {
-			declare Message = "";
-			if (GameplaySequence == 2) {
-				if(PoleCapturedByAPlayer) {
-					Message = _("Pole captured and tornado activated.");
-				} else {
-					Message = _("Tornado auto-activated.");
-				}
-				if (AllowDoubleCapture) {
-					Message::SendStatusMessage(
-						_("The pole can be captured again."), OffZoneTimeLimit, 1, CUIConfig::EUISound::StartRound, 0
-					);
-				}
-			}
-			else if (GameplaySequence == 3) {
-				Message = TextLib::Compose(
-					_("Tornado speed: %1%%"), TextLib::ToText(MathLib::NearestInteger(S_OffZoneMaxSpeed * 100))
-				);
-			}
-			Message::SendBigMessage(
-				Message, 3000, 2, CUIConfig::EUISound::StartRound, 0
-			);
-		}
-		
-		// ---------------------------------- //
-		// Active OffZone
-		if (GameplaySequence == 2) {			
-			OffZoneRadius = C_OffZoneDefaultRadius;
-			OffZoneStartingRadiusSpeed = (C_OffZoneDefaultRadius - C_OffZoneMinRadius) / (OffZoneTimeLimit/1000);
-			OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed;
-			Event.Landmark.Gauge.Speed = 0; 
-			
-			if (AllowDoubleCapture) {
-				declare Local_OffZoneMaxSpeedTime = (OffZoneMaxSpeedTime * 1000);
-				if (OffZoneMaxSpeedTime <= 0) Local_OffZoneMaxSpeedTime = 10;
-				Event.Landmark.Gauge.Max = (Local_OffZoneMaxSpeedTime * C_GaugeMultiplier);
-				Event.Landmark.Gauge.Value = 0;
-			}
-			
-			UIManager.UIAll.CountdownEndTime = -1;
-			GameplaySequence = 3;
 			
 			// ---------------------------------- //
-			// Disable early respawn for all players
-			EarlyRespawnAllowed = False;
-		}
-		// ---------------------------------- //
-		// Speed up OffZone
-		else if (GameplaySequence == 3) {
-			OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed * S_OffZoneMaxSpeed;
+			// Active OffZone
+			if (GameplaySequence == 2) {			
+				OffZoneRadius = C_OffZoneDefaultRadius;
+				OffZoneStartingRadiusSpeed = (C_OffZoneDefaultRadius - C_OffZoneMinRadius) / (OffZoneTimeLimit/1000);
+				OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed;
+				Event.Landmark.Gauge.Speed = 0; 
+				
+				if (AllowDoubleCapture) {
+					declare Local_OffZoneMaxSpeedTime = (OffZoneMaxSpeedTime * 1000);
+					if (OffZoneMaxSpeedTime <= 0) Local_OffZoneMaxSpeedTime = 10;
+					Event.Landmark.Gauge.Max = (Local_OffZoneMaxSpeedTime * C_GaugeMultiplier);
+					Event.Landmark.Gauge.Value = 0;
+				}
+				
+				UIManager.UIAll.CountdownEndTime = -1;
+				GameplaySequence = 3;
+				
+				// ---------------------------------- //
+				// Disable early respawn for all players
+				EarlyRespawnAllowed = False;
+			}
+			// ---------------------------------- //
+			// Speed up OffZone
+			else if (GameplaySequence == 3) {
+				OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed * S_OffZoneMaxSpeed;
+			}
+			
+			UpdateMarkers = True;
 		}
 		
-		UpdateMarkers = True;
 		PassOn(Event);
 	} 
 	// ---------------------------------- //

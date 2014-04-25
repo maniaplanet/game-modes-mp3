@@ -9,21 +9,18 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-04-16"
+#Const	ModeSportVersion	"2014-04-18"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/Json.Script.txt" as Json
-//#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
-//#Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/Interface.Script.txt" as Interface
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Toss.Script.txt" as Toss
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
-//#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
 // ---------------------------------- //
 // Settings
@@ -211,6 +208,7 @@ Layers::SetType("SpawnScreenDefend", CUILayer::EUILayerType::ScreenIn3d);
 Layers::Update("SpawnScreenAttack", UpdateLayerSpawnScreen("Attack"));
 Layers::Update("SpawnScreenDefend", UpdateLayerSpawnScreen("Defend"));
 
+UIManager.UIAll.ScoreTableOnlyManialink = True;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
 ***
 
@@ -337,7 +335,7 @@ Clublink::SyncUpdate();
 
 // ---------------------------------- //
 // Initialize UI
-UIManager.ResetAll();
+//UIManager.ResetAll();
 InitUi();
 SpawnScreen::AttachRules();
 Clublink::Attach();
@@ -1919,7 +1917,6 @@ Void InitUi() {
 	UIManager.UIAll.TeamLabelsShowGauges = CUIConfig::EVisibility::ForcedHidden;
 	UIManager.UIAll.TeamLabelsShowNames = CUIConfig::EVisibility::ForcedHidden;
 	UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::Never;
-	UIManager.UIAll.ScoreTableOnlyManialink = True;
 	UpdateHeader();
 }
 
@@ -2590,7 +2587,7 @@ Void PrepareMatch() {
 			J += 1;
 		}
 		declare MinimumAllies = (((TestedNb - 1) * TestedNb) / 2);
-		if (AlliesNb >= MinimumAllies) AllPlayersAreAllies[I] = True;
+		if (TestedNb > 1 && AlliesNb >= MinimumAllies) AllPlayersAreAllies[I] = True;
 	}
 	
 	declare MatchmakingSetOrderParam2 = "";
