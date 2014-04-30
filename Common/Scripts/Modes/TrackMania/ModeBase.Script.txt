@@ -4,7 +4,7 @@
 
 #RequireContext CTmMode
 
-#Const	ModeBaseVersion		"2014-01-23"
+#Const	ModeBaseVersion		"2014-04-29"
 #Const	ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -21,6 +21,7 @@
 #Setting S_AllowRespawn			True	as _("Allow respawn :")				///< Allow the players to respawn or not
 #Setting S_WarmUpDuration		-1		as _("Warm-up phase duration :")	///< Duration of the warm up phase
 #Setting S_UseScriptCallbacks	False	as "<hidden>"						///< Turn on/off the script callbacks, usefull for server manager
+#Setting S_UseLegacyCallbacks	True	as "<hidden>"						///< Turn on/off the legacy callbacks
 #Setting S_ScoresTableStylePath	""		as "<hidden>"						///< Try to load a scores table style from an XML file
 
 // ---------------------------------- //
@@ -125,6 +126,7 @@ while (Now < CutOffTimeLimit) {
 	}
 }
 CutOffTimeLimit = -1;
+MB_VictoryMessage = "";
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 ***
 
@@ -148,6 +150,7 @@ declare Boolean MB_StopRound;
 declare Boolean MB_StopTurn;
 // Options for XmlRpc
 declare Boolean MB_UseScriptCallbacks;
+declare Boolean MB_UseLegacyCallbacks;
 // Respawn mode
 declare CTmMode::ETMRespawnBehaviour MB_DefaultRespawnMode;
 declare Boolean MB_AllowRespawn;
@@ -185,6 +188,16 @@ Void MB_XmlRpcCheck() {
 		} else {
 			XmlRpc::Disable();
 			MB_Log("Disable script callbacks");
+		}
+	}
+	
+	if (MB_UseLegacyCallbacks != S_UseLegacyCallbacks) {
+		MB_UseLegacyCallbacks = S_UseLegacyCallbacks;
+		EnableLegacyXmlRpcCallbacks = S_UseLegacyCallbacks;
+		if (MB_UseLegacyCallbacks) {
+			MB_Log("Enable legacy XmlRpc callbacks");
+		} else {
+			MB_Log("Disable legacy XmlRpc callbacks");
 		}
 	}
 }
@@ -442,7 +455,11 @@ main() {
 			}
 			
 			+++InitMap+++
-			XmlRpc::BeginMap(MB_SectionMapNb);
+			
+			// Check for map restart
+			declare persistent MB_MapRestarted = False;
+			XmlRpc::BeginMap(MB_SectionMapNb, MB_MapRestarted);
+			MB_MapRestarted = True;
 			
 			// Play mediatracker intro
 			if (MB_UseIntro) {
@@ -537,6 +554,7 @@ main() {
 						}
 						
 						MB_CurrentSection = "PlayLoop";
+						XmlRpc::BeginPlaying();
 						
 // ---------------------------------- //
 // Play loop
@@ -575,6 +593,8 @@ main() {
 // Turn end
 // ---------------------------------- //
 						MB_CurrentSection = "EndTurn";
+						XmlRpc::EndPlaying();
+						
 						MB_XmlRpcCheck();
 						MB_AllowRespawnCheck();
 						
@@ -627,10 +647,14 @@ main() {
 			+++EndMap+++
 			
 			// Play mediatracker podium
+			XmlRpc::BeginPodium();
 			if (MB_UsePodium) {
 				---SequencePodium---
 			}
+			XmlRpc::EndPodium();
 			
+			XmlRpc::UnloadingMap(MB_SectionMapNb);
+			MB_MapRestarted = False;
 			Mode::UnloadMap();
 			
 			+++AfterUnloadMap+++

@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2014-04-09"
+#Const ModeBaseVersion		"2014-04-29"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -317,7 +317,11 @@ main() {
 	
 			+++InitMap+++
 			
-			XmlRpc::BeginMap(MB_SectionMapNb);
+			// Check for map restart
+			declare persistent MB_MapRestarted = False;
+			XmlRpc::BeginMap(MB_SectionMapNb, MB_MapRestarted);
+			MB_MapRestarted = True;
+			
 			Mode::Synchro_DoBarrier();
 			
 			// Play mediatracker intro
@@ -420,6 +424,8 @@ main() {
 						}
 						
 						MB_CurrentSection = "PlayLoop";
+						XmlRpc::BeginPlaying();
+						
 // ---------------------------------- //
 // Play loop
 // ---------------------------------- //
@@ -480,6 +486,8 @@ main() {
 // Turn end
 // ---------------------------------- //
 						MB_CurrentSection = "EndTurn";
+						XmlRpc::EndPlaying();
+						
 						MB_XmlRpcCheck();
 						MB_NeutralEmblemUpdate();
 						if (MB_UseSectionTurn) {
@@ -535,6 +543,8 @@ main() {
 			
 			+++EndMap+++
 			XmlRpc::SendScores();
+			XmlRpc::UnloadingMap(MB_SectionMapNb);
+			MB_MapRestarted = False;
 			Mode::UnloadMap();
 			
 			+++AfterUnloadMap+++

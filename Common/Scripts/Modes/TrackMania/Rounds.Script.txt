@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/RoundsBase.Script.txt"
 
 #Const  CompatibleMapTypes  "Race"
-#Const	RoundsVersion		"2013-10-31"
+#Const	RoundsVersion		"2014-04-28"
 #Const	RoundsScriptName	"Rounds.Script.txt"
 
 #Include "TextLib" as TL
@@ -127,20 +127,24 @@ if (PrevPointsLimit != S_PointsLimit) {
 TM2::WaitRaceAll();
 CutOffTimeLimit = -1;
 
-// Get the last round points
-ComputeLatestRaceScores();
-Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
-UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
-MB_Sleep(3000);
-// Add them to the total scores
-ComputeScores();
-Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
-MB_Sleep(3000);
-UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
-UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
-
-if (MapIsOver()) MB_StopMap = True;
+if (ForceEndRound) {
+	ForcedEndRoundSequence();
+} else {
+	// Get the last round points
+	ComputeLatestRaceScores();
+	Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	MB_Sleep(3000);
+	// Add them to the total scores
+	ComputeScores();
+	Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
+	MB_Sleep(3000);
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	
+	if (MapIsOver()) MB_StopMap = True;
+}
 ***
 
 ***EndMap***

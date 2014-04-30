@@ -4,7 +4,7 @@
 
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
-#Const	RoundsBaseVersion		"2013-10-24"
+#Const	RoundsBaseVersion		"2014-04-29"
 #Const	RoundsBaseScriptName	"RoundsBase.Script.txt"
 
 #Include "Libs/Nadeo/TrackMania/UI.Script.txt" as UI
@@ -45,7 +45,7 @@ UiRounds = True;
 MB_UseSectionRound = True;
 G_PointsRepartition = C_PointsRepartition;
 
-UI::Load(["TimeGap", "SmallScoresTable"]);
+UI::Load(["TimeGap", "SmallScoresTable", "Chrono", "CheckpointTime", "PrevBestTime"]);
 ***
 
 ***InitMap***
@@ -69,6 +69,11 @@ foreach (Score in Scores) {
 }
 ***
 
+***InitRound***
+***
+declare ForceEndRound = False;
+***
+
 ***StartRound***
 ***
 // ---------------------------------- //
@@ -78,6 +83,7 @@ G_RoundStartTime = Now + 3000;
 if (S_UseAlternateRules) CutOffTimeLimit = GetFinishTimeout();
 else CutOffTimeLimit = -1;
 MB_SetLapsNb(S_ForceLapsNb);
+ForceEndRound = False;
 
 // ---------------------------------- //
 // Initialize scores
@@ -120,6 +126,11 @@ foreach (Player in Players) {
 }
 ***
 
+***Yield***
+***
+UI::XmlRpcLoop();
+***
+
 ***PlayLoop***
 ***
 // ---------------------------------- //
@@ -141,6 +152,8 @@ foreach (Event in XmlRpc.PendingEvents) {
 			PointsRepartition.add(TL::ToText(Point));
 		}
 		XmlRpc.SendCallbackArray("Rounds_PointsRepartition", PointsRepartition);
+	} else if (Event.Param1 == "Rounds_ForceEndRound") {
+		ForceEndRound = True;
 	}
 }
 
@@ -150,6 +163,8 @@ foreach (Event in XmlRpc.PendingEvents) {
 if (Players.count > 0 && PlayersRacing.count <= 0) MB_StopRound = True;
 // If time limit is reached
 if (CutOffTimeLimit > 0 && Now >= CutOffTimeLimit) MB_StopRound = True;
+// If forced end round
+if (ForceEndRound) MB_StopRound = True;
 ***
 
 ***EndServer***
@@ -157,4 +172,12 @@ if (CutOffTimeLimit > 0 && Now >= CutOffTimeLimit) MB_StopRound = True;
 UI::Unload();
 ***
 
-Void CompileThisScript() {}
+// ---------------------------------- //
+// Display a message if the round was skipped
+Void ForcedEndRoundSequence() {
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	UIManager.UIAll.BigMessage = _("Round skipped");
+	MB_Sleep(3000);
+	UIManager.UIAll.BigMessage = "";
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+}

@@ -1,17 +1,17 @@
 /**
  *	MapType for Siege
  *
- *	Only one SpawnAttack. 
- *	Only one Goal. 
- *	Between 1 and 9 SpawnDefense. 
- *	Each SpawnDefense has a unique order number. 
- *	The last SpawnDefense is linked to the Goal. 
- *	The other SpawnDefense are linked to at least one Gate.
+ *	Only one SpawnAttack.
+ *	Only one Goal.
+ *	Between 1 and 9 SpawnDefense.
+ *	Each SpawnDefense has a unique order number.
+ *	The last SpawnDefense is linked to the Goal.
+ *	The other SpawnDefense are linked to exactly two Gate.
  */
 
 #RequireContext CSmMapType
-#Const Version			"2014-03-19"
-#Const MapTypeVersion	3
+#Const Version			"2014-04-23"
+#Const MapTypeVersion	4
 #Const ScriptName		"SiegeArena.Script.txt"
 
 #Include "TextLib" as TL
@@ -22,6 +22,7 @@
 // Constants
 // ---------------------------------- //
 #Const C_MaxSpawnDef 9
+#Const C_GatesNbByCheckpoint 2
 
 // ---------------------------------- //
 // Functions
@@ -70,7 +71,7 @@ Void NormalizeAnchors() {
 					NeedRenormalize = True;
 					Anchor.Order = 1;
 					for (I, 1, C_MaxSpawnDef) {
-						if (Anchor::GetCount(Anchor.Tag, I) <= 0) {
+						if (Anchor::GetCount(Anchor.Tag, I) < C_GatesNbByCheckpoint) {
 							Anchor.Order = I;
 							break;
 						}
@@ -114,7 +115,7 @@ Void UpdateValidability() {
 		
 		// At least one Gate for each SpawnDefense
 		if (I < SpawnDefenseCount) {
-			if (!Anchor::HasAtLeastOneAnchor("Gate", I, TL::Compose(_("You must place at least one Gate #%1."), TL::ToText(I)))) return;
+			if (!Anchor::HasExactlyXAnchor("Gate", I, C_GatesNbByCheckpoint, TL::Compose(_("You must place exactly two Gate #%1."), TL::ToText(I)))) return;
 		}
 		//
 		else if (I == SpawnDefenseCount) {
@@ -186,7 +187,7 @@ Text EditAnchorManialink() {
 			<label posn="0 -10" sizen="60 5" text="{{{_("Between 1 and 9 SpawnDefense.")}}}" />
 			<label posn="0 -15" sizen="60 5" text="{{{_("Each SpawnDefense has a unique order number.")}}}" autonewline="1" maxline="3" />
 			<label posn="0 -25" sizen="60 5" text="{{{_("The last SpawnDefense is linked to the Goal.")}}}" />
-			<label posn="0 -30" sizen="60 5" text="{{{_("The other SpawnDefense are linked to at least one Gate.")}}}" autonewline="1" maxline="3" />
+			<label posn="0 -30" sizen="60 5" text="{{{_("The other SpawnDefense are linked to exactly two Gate.")}}}" autonewline="1" maxline="3" />
 		</frame>
 	</frame>
 </frame>

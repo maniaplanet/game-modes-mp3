@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/RoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"Race"
-#Const	Version				"2013-10-31"
+#Const	Version				"2014-04-28"
 #Const	ScriptName			"Cup.Script.txt"
 
 #Include "TextLib" as TL
@@ -155,29 +155,33 @@ TM2::WaitRaceAll();
 CutOffTimeLimit = -1;
 SetUiScoresPointsLimit(S_PointsLimit);
 
-// Get the last round points
-ComputeLatestRaceScores();
-Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
-UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
-MB_Sleep(3000);
-// Add them to the total scores
-ComputeScores();
-Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
-MB_Sleep(3000);
-UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
-UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
-UIManager.UIAll.BigMessage = "";
-
-// ---------------------------------- //
-// Match is over, we have all the winners
-if (MatchIsOver()) {
-	MB_StopMatch = True;
-}
-// ---------------------------------- //
-// Map is over, we played all the rounds
-else if (MapIsOver()) {
-	MB_StopMap = True;
+if (ForceEndRound) {
+	ForcedEndRoundSequence();
+} else {
+	// Get the last round points
+	ComputeLatestRaceScores();
+	Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	MB_Sleep(3000);
+	// Add them to the total scores
+	ComputeScores();
+	Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
+	MB_Sleep(3000);
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	UIManager.UIAll.BigMessage = "";
+	
+	// ---------------------------------- //
+	// Match is over, we have all the winners
+	if (MatchIsOver()) {
+		MB_StopMatch = True;
+	}
+	// ---------------------------------- //
+	// Map is over, we played all the rounds
+	else if (MapIsOver()) {
+		MB_StopMap = True;
+	}
 }
 ***
 

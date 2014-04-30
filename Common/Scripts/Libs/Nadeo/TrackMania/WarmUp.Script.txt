@@ -1,7 +1,7 @@
 /**
  *	WarmUp lib
  */
-#Const	Version		"2013-10-01"
+#Const	Version		"2014-04-29"
 #Const	ScriptName	"WarmUp2.Script.txt"
 
 #Include "Libs/Nadeo/TrackMania/TM2.Script.txt" as TM2
@@ -181,7 +181,6 @@ Void Begin() {
 		declare LibWU2_CanSpawn for Score = True;
 		LibWU2_CanSpawn = True;
 	}
-	Scores_Clear();
 	
 	// ---------------------------------- //
 	// Spawn players for the race
@@ -207,7 +206,6 @@ Void End() {
 	G_LibWU2_RoundStartTime		= -1;
 	G_LibWU2_StopWarmUp			= False;
 	CutOffTimeLimit				= -1;
-	Scores_Clear();
 }
 
 // ---------------------------------- //

@@ -1,7 +1,7 @@
 /**
  * Interface library
  */
-#Const Version		"2014-04-01"
+#Const Version		"2014-04-29"
 #Const ScriptName	"Interface.Script.txt"
 
 // ---------------------------------- //
@@ -128,7 +128,7 @@ return """
 		<frame hidden="{{{HeadersHidden}}}">
 			<quad posn="0.25 0" sizen="39.45 3.5" halign="left" valign="center" bgcolor="fff8" />
 			<quad posn="0.5 2.9 1" sizen="10.8 10.5" halign="left" valign="center" style="Emblems" substyle="#1" /> 
-			<label posn="12.5 0.4 1" sizen="39.5 3.5" halign="left" valign="center" textsize="2.3" textemboss="1" text="Blue" id="Label_Team1Name" />
+			<label posn="12.5 0.4 1" sizen="26 3.5" halign="left" valign="center" textsize="2.3" textemboss="1" text="Blue" id="Label_Team1Name" />
 		</frame>
 		<playerlist posn="0 -2" scale="{{{_Scale}}}" halign="left" substyle="{{{_Style}}}" lines="{{{_Lines}}}" columns="{{{_Columns}}}" team="1" status="Playing"/>
 	</frame>
@@ -136,7 +136,7 @@ return """
 		<frame hidden="{{{HeadersHidden}}}">
 			<quad posn="-0.25 0" sizen="39.45 3.5" halign="right" valign="center" bgcolor="fff8" />
 			<quad posn="-0.5 2.9 1" sizen="10.8 10.5" halign="right" valign="center" style="Emblems" substyle="#2" /> 
-			<label posn="-12.5 0.4 1" sizen="39.5 3.5" halign="right" valign="center" textsize="2.3" textemboss="1" text="Red" id="Label_Team2Name" />
+			<label posn="-12.5 0.4 1" sizen="26 3.5" halign="right" valign="center" textsize="2.3" textemboss="1" text="Red" id="Label_Team2Name" />
 		</frame>
 		<playerlist posn="0 -2" scale="{{{_Scale}}}" halign="right" substyle="{{{_Style}}}" lines="{{{_Lines}}}" columns="{{{_Columns}}}" team="2" status="Playing"/>
 	</frame>

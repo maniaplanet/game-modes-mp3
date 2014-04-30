@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2014-04-11"
+#Const Version    "2014-04-29"
 #Const ScriptName "ElitePractice.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -1212,7 +1212,11 @@ Void Run() {
 			// <<< +++InitMap+++
 			// ---------------------------------- //
 			
-			XmlRpc::BeginMap(MB_LibEP_SectionMapNb);
+			// Check for map restart
+			declare persistent MB_LibEP_MapRestarted = False;
+			XmlRpc::BeginMap(MB_LibEP_SectionMapNb, MB_LibEP_MapRestarted);
+			MB_LibEP_MapRestarted = True;
+			
 			Mode::Synchro_DoBarrier();
 			
 			// ---------------------------------- //
@@ -2256,6 +2260,7 @@ Void Run() {
 			// <<< +++EndMap+++
 			// ---------------------------------- //
 			XmlRpc::SendScores();
+			MB_LibEP_MapRestarted = False;
 			Mode::UnloadMap();
 		}
 // ---------------------------------- //

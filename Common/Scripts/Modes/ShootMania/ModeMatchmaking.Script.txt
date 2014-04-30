@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-04-22"
+#Const ModeMatchmakingVersion		"2014-04-29"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -17,9 +17,7 @@
 // ---------------------------------- //
 // Settings
 // ---------------------------------- //
-#Setting S_MatchmakingAPIUrl		"matchmaking.maniaplanet.com/v2"	as "<hidden>"	///< URL of the matchmaking API | matchmaking.maniaplanet.com/v2
-#Setting S_MatchmakingAPILogin		"Login"		as "<hidden>"	///< API username
-#Setting S_MatchmakingAPIPassword	"Password"	as "<hidden>"	///< API password
+#Setting S_MatchmakingAPIUrl		"matchmaking.maniaplanet.com/v3"	as "<hidden>"	///< URL of the matchmaking API | matchmaking.maniaplanet.com/v2
 #Setting S_MatchmakingMode			0			as "<hidden>"	///< 0 = Off, 1 = Lobby, 2 = Match
 #Setting S_LobbyTimePerRound		60			as "<hidden>"	///< Time limit per round in lobby mode (seconds, 0: no limit)
 #Setting S_LobbyRoundPerMap  		30			as "<hidden>"	///< "Nb of rounds per map in lobby mode")
@@ -60,11 +58,11 @@
 #Const C_AllyStatus_Sent			1	///< Ally request sent to this player
 #Const C_AllyStatus_Disconnected	2	///< Ally disconnected
 
-#Const C_Request_GetPlayers		0	///< /player?login=somelogin&lobbylogin=anotherlogin
-#Const C_Request_PostPlayers	1	///< /players
-#Const C_Request_GetMatches		2	///< /match?serverlogin=somelogin
-#Const C_Request_PostStatus		3	///< /status
-#Const C_Request_PostResults	4	///< /result
+#Const C_Request_GetPlayers		0	///< /lobby-server/player-connection?login=somelogin&lobbylogin=anotherlogin
+#Const C_Request_PostPlayers	1	///< /lobby-server/matchmaking-live
+#Const C_Request_GetMatches		2	///< /match-server/match?serverlogin=somelogin
+#Const C_Request_PostStatus		3	///< /match-server/live
+#Const C_Request_PostResults	4	///< /match-server/result
 
 #Const C_Master_Timestamp	0	///< Timestamp of the master match
 #Const C_Master_Name		1	///< Name of the master
@@ -205,7 +203,11 @@ while (
 
 		+++LobbyInitMap+++
 		
-		XmlRpc::BeginMap(MB_SectionMapNb);
+		// Check for map restart
+		declare persistent MB_MapRestarted = False;
+		XmlRpc::BeginMap(MB_SectionMapNb, MB_MapRestarted);
+		MB_MapRestarted = True;
+			
 		Mode::Synchro_DoBarrier();
 		
 		// Play mediatracker intro
@@ -288,6 +290,7 @@ while (
 		
 		+++LobbyEndMap+++
 		XmlRpc::SendScores();
+		MB_MapRestarted = False;
 		Mode::UnloadMap();
 		
 		+++LobbyAfterUnloadMap+++
@@ -316,12 +319,6 @@ Clublink::Unload();
 // Check settings
 if (S_MatchmakingAPIUrl == "") MB_Log("[ERROR] You must set a matchmaking API URL in your settings.");
 assert(S_MatchmakingAPIUrl != "", "You must set a matchmaking API URL in your settings.");
-
-if (S_MatchmakingAPILogin == "") MB_Log("[ERROR] You must set a matchmaking API login in your settings.");
-assert(S_MatchmakingAPILogin != "", "You must set a matchmaking API login in your settings.");
-
-if (S_MatchmakingAPIPassword == "") MB_Log("[ERROR] You must set a matchmaking API password in your settings.");
-assert(S_MatchmakingAPIPassword != "", "You must set a matchmaking API password in your settings.");
 
 // ---------------------------------- //
 // Config lobby
@@ -648,10 +645,10 @@ if (Http.SlotsAvailable > 0) {
 		{{{PlayersList}}}
 	]
 }""";
-	declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/players"), PostData);
+	declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/lobby-server/matchmaking-live"), PostData);
 	if (Request != Null) Lobby_MatchMakerRequestId = Request.Id;
 	
-	if (S_LogAPIDebug) MB_Log("[API] Request: POST /players\n"^PostData);
+	if (S_LogAPIDebug) MB_Log("[API] Request: POST /lobby-server/matchmaking-live\n"^PostData);
 }
 ***
 
@@ -723,7 +720,7 @@ else MB_UseIntro = True;
  *	@param	_Path		The endpoint to call
  */
 Text Private_MM_BuildAPIUrl(Text _Path) {
-	return "http://"^S_MatchmakingAPILogin^":"^S_MatchmakingAPIPassword^"@"^S_MatchmakingAPIUrl^_Path;
+	return "http://"^S_MatchmakingAPIUrl^_Path;
 	//return S_MatchmakingAPIUrl^_Path;
 }
 
@@ -816,7 +813,7 @@ Void MM_SendToServer(CPlayer _Player, Text _ServerLogin) {
  *	@param	_MatchesXML			The XML containing the matches
  */
 Void MM_GetMatches(Text _MatchesXML) {
-	if (S_LogAPIDebug) MB_Log("[API] Response: POST /players\n"^_MatchesXML);
+	if (S_LogAPIDebug) MB_Log("[API] Response: POST /lobby-server/matchmaking-live\n"^_MatchesXML);
 	// Get matches info from XML
 	declare MatchesPlayers = Integer[CSmPlayer][Text];
 	declare MatchesLogins = Integer[Text][Text];
@@ -831,8 +828,8 @@ Void MM_GetMatches(Text _MatchesXML) {
 			Net_Lobby_WaitingTime = NodeStatus.GetAttributeInteger("waitingtime", -1);
 			Net_Lobby_ServersAvailable = NodeStatus.GetAttributeInteger("availableservers", 0);
 			
-			declare TotalPlayers = Net_Lobby_PlayersNb + AllPlayers.count;
-			Admin_SetLobbyInfo(True, Net_Lobby_PlayersNb, 255, 0.);
+			declare MatchPlayersNb = 0;
+			declare SubstitutePlayersNb = 0;
 			
 			// No match server available
 			if (Net_Lobby_ServersAvailable <= 0) {
@@ -876,6 +873,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 											Lobby_IsSubstitute = False;
 											MatchesPlayers[MatchId][Player] = Clan;
 											MatchesLogins[MatchId][Player.Login] = Clan;
+											MatchPlayersNb += 1;
 										}
 									}
 								}
@@ -892,17 +890,26 @@ Void MM_GetMatches(Text _MatchesXML) {
 					declare MatchServerLogin = NodePlayer.GetAttributeText("server", "");
 					if (Login != "" && MatchServerLogin != "") {
 						declare Player <=> SM::GetPlayer(Login);
-						declare Lobby_MatchId for Player.User = "";
-						declare Lobby_MatchServer for Player.User = "";
-						declare Lobby_IsSubstitute for Player.User = False;
-						Lobby_MatchId = "";
-						Lobby_MatchServer = MatchServerLogin;
-						Lobby_IsSubstitute = True;
-						
-						Private_MM_ShowVersusML(Player);
+						if (Player != Null) {
+							declare Lobby_MatchId for Player.User = "";
+							declare Lobby_MatchServer for Player.User = "";
+							declare Lobby_IsSubstitute for Player.User = False;
+							Lobby_MatchId = "";
+							Lobby_MatchServer = MatchServerLogin;
+							Lobby_IsSubstitute = True;
+							SubstitutePlayersNb += 1;
+							
+							Private_MM_ShowVersusML(Player);
+						}
 					}
 				}
 			}
+			
+			// Update the number of players on the lobby
+			declare TotalPlayers = Net_Lobby_PlayersNb + AllPlayers.count;
+			Admin_SetLobbyInfo(True, TotalPlayers, 255, 0.);
+			// Pre-add the selected players in the "in match" count
+			Net_Lobby_PlayersNb += MatchPlayersNb + SubstitutePlayersNb;
 		}
 	}
 	
@@ -1029,12 +1036,12 @@ Void Private_MM_PostMatchStatus() {
 	"matchid": {{{G_Match_Id}}},
 	"missingplayers": [{{{MissingPlayers}}}]
 }""";
-		declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/status"), PostData);
+		declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/match-server/live"), PostData);
 		if (Request != Null) {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_PostStatus;
 		}
 		
-		if (S_LogAPIDebug) MB_Log("[API] Request: POST /status\n"^PostData);
+		if (S_LogAPIDebug) MB_Log("[API] Request: POST /match-server/live\n"^PostData);
 	}
 }
 
@@ -1064,12 +1071,12 @@ Void Private_MM_SetMatchStatus(Integer _MatchStatus) {
 /// Send the get match request to the API
 Void Private_MM_GetMatch() {
 	if (!G_Matchmaking_RequestsIds.exists(C_Request_GetMatches)) {
-		declare Request <=> Http.CreateGet(Private_MM_BuildAPIUrl("/match?serverlogin="^ServerLogin), False);
+		declare Request <=> Http.CreateGet(Private_MM_BuildAPIUrl("/match-server/match?serverlogin="^ServerLogin), False);
 		if (Request != Null) {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_GetMatches;
 		}
 		
-		if (S_LogAPIDebug) MB_Log("[API] Request: Get /match?serverlogin="^ServerLogin);
+		if (S_LogAPIDebug) MB_Log("[API] Request: Get /match-server/match?serverlogin="^ServerLogin);
 	}
 }
 
@@ -1351,7 +1358,7 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
  *	@param	_PlayerXml	Xml containing the player info
  */
 Void Private_MM_SetupPlayer(Text _PlayerXml) {
-	if (S_LogAPIDebug) MB_Log("[API] Response: GET /player?login=xxx&lobbylogin=yyy\n"^_PlayerXml);
+	if (S_LogAPIDebug) MB_Log("[API] Response: GET /lobby-server/player-connection?login=xxx&lobbylogin=yyy\n"^_PlayerXml);
 	if (_PlayerXml != "") {
 		declare XmlDoc <=> Xml.Create(_PlayerXml);
 		if (XmlDoc != Null && XmlDoc.Root != Null) {
@@ -1474,10 +1481,10 @@ Void Private_MM_AlliesAreReady(CSmPlayer _Player) {
 Void Private_Lobby_GetPlayerInfo(CSmPlayer _Player) {
 	if (_Player == Null || Http.SlotsAvailable <= 0) return;
 	// Send the request to the API
-	declare Request <=> Http.CreateGet(Private_MM_BuildAPIUrl("/player?login="^TL::URLEncode(_Player.Login))^"&lobbylogin="^TL::URLEncode(ServerLogin), False);
+	declare Request <=> Http.CreateGet(Private_MM_BuildAPIUrl("/lobby-server/player-connection?login="^TL::URLEncode(_Player.Login))^"&lobbylogin="^TL::URLEncode(ServerLogin), False);
 	if (Request != Null) G_Matchmaking_RequestsIds[Request.Id] = C_Request_GetPlayers;
 	
-	if (S_LogAPIDebug) MB_Log("[API] Request: GET /player?login="^TL::URLEncode(_Player.Login)^"&lobbylogin="^TL::URLEncode(ServerLogin));
+	if (S_LogAPIDebug) MB_Log("[API] Request: GET /lobby-server/player-connection?login="^TL::URLEncode(_Player.Login)^"&lobbylogin="^TL::URLEncode(ServerLogin));
 }
 
 // ---------------------------------- //
@@ -1895,12 +1902,12 @@ Void MM_MatchResult(Text _MasterLogin) {
 	"matchid": {{{G_Match_Id}}},
 	"master": "{{{TL::MLEncode(_MasterLogin)}}}"
 }""";
-		declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/result"), PostData);
+		declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/match-server/result"), PostData);
 		if (Request != Null) {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_PostResults;
 		}
 		
-		if (S_LogAPIDebug) MB_Log("[API] Request: POST /result\n"^PostData);
+		if (S_LogAPIDebug) MB_Log("[API] Request: POST /match-server/result\n"^PostData);
 	}
 }
 

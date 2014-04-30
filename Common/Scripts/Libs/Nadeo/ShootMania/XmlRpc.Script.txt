@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2014-04-02"
+#Const	Version		"2014-04-29"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -205,6 +205,17 @@ Void LoadingMap(Integer _Number) {
 }
 
 // ---------------------------------- //
+/** Callback sent when starting to unload the map
+ *	Data:
+ *	[Number of the map]
+ */
+Void UnloadingMap(Integer _Number) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_UnloadingMap", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
 /** Callback sent at the beginning of the match
  *	Data:
  *	[Number of the match]
@@ -218,12 +229,16 @@ Void BeginMatch(Integer _Number) {
 // ---------------------------------- //
 /** Callback sent at the beginning of the map
  *	Data:
- *	[Number of the map]
+ *	[Number of the map, Map UID, Map restarted]
  */
-Void BeginMap(Integer _Number) {
+Void BeginMap(Integer _Number, Boolean _Restarted) {
 	if (!G_UseLibXmlRpc) return;
 	
-	Private_SendCallbackArray("LibXmlRpc_BeginMap", [TL::ToText(_Number)]);
+	declare MapUID = "";
+	if (Map != Null && Map.MapInfo != Null) MapUID = ""^Map.MapInfo.Id;
+	declare Restarted = "False";
+	if (_Restarted) Restarted = "True";
+	Private_SendCallbackArray("LibXmlRpc_BeginMap", [TL::ToText(_Number), MapUID, Restarted]);
 }
 
 // ---------------------------------- //
@@ -257,6 +272,28 @@ Void BeginTurn(Integer _Number) {
 	if (!G_UseLibXmlRpc) return;
 	
 	Private_SendCallbackArray("LibXmlRpc_BeginTurn", [TL::ToText(_Number)]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the beginning of the play loop
+ *	Data:
+ *	[]
+ */
+Void BeginPlaying() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginPlaying", Text[]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the end of the play loop
+ *	Data:
+ *	[]
+ */
+Void EndPlaying() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndPlaying", Text[]);
 }
 
 // ---------------------------------- //
@@ -298,13 +335,15 @@ Void EndSubmatch(Integer _Number) {
 // ---------------------------------- //
 /** Callback sent at the end of the map
  *	Data:
- *	[Number of the map]
+ *	[Number of the map, Map UID]
  */
 Void EndMap(Integer _Number) {
 	if (!G_UseLibXmlRpc) return;
 	
 	SendRankings();
-	Private_SendCallbackArray("LibXmlRpc_EndMap", [TL::ToText(_Number)]);
+	declare MapUID = "";
+	if (Map != Null && Map.MapInfo != Null) MapUID = ""^Map.MapInfo.Id;
+	Private_SendCallbackArray("LibXmlRpc_EndMap", [TL::ToText(_Number), MapUID]);
 }
 
 // ---------------------------------- //
@@ -320,11 +359,27 @@ Void EndMatch(Integer _Number) {
 }
 
 // ---------------------------------- //
+/// Callback sent at the beginning of the podium sequence
+Void BeginPodium() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_BeginPodium", Text[]);
+}
+
+// ---------------------------------- //
+/// Callback sent at the end of the podium
+Void EndPodium() {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_EndPodium", Text[]);
+}
+
+// ---------------------------------- //
 /// Callback sent at the beginning of the warmup
 Void BeginWarmUp() {
 	if (!G_UseLibXmlRpc) return;
 	
-	Private_SendCallbackArray("LibXmlRpc_BeginWarmUp", [""]);
+	Private_SendCallbackArray("LibXmlRpc_BeginWarmUp", Text[]);
 }
 
 // ---------------------------------- //
@@ -332,7 +387,7 @@ Void BeginWarmUp() {
 Void EndWarmUp() {
 	if (!G_UseLibXmlRpc) return;
 	
-	Private_SendCallbackArray("LibXmlRpc_EndWarmUp", [""]);
+	Private_SendCallbackArray("LibXmlRpc_EndWarmUp", Text[]);
 }
 
 // ---------------------------------- //

@@ -3,7 +3,7 @@
  *	Allow players to dynamically switch weapon while playing
  *	Needs to be in title pack
  */
-#Const	Version		"2014-04-16"
+#Const	Version		"2014-04-25"
 #Const	ScriptName	"WeaponSwitch.Script.txt"
 
 // ---------------------------------- //
@@ -12,10 +12,10 @@
 #Const C_LibWeaponSwitch_AutoSwitch False
 #Const C_LibWeaponSwitch_EffectOnSwitch 0
 #Const C_LibWeaponSwitch_AvailableWeapons [
-	CSmMode::EWeapon::Rocket => 1.,
 	CSmMode::EWeapon::Laser => 1.,
 	CSmMode::EWeapon::Nucleus => 1.,
-	CSmMode::EWeapon::Arrow => 1.
+	CSmMode::EWeapon::Arrow => 1.,
+	CSmMode::EWeapon::Rocket => 1.
 ]
 
 // ---------------------------------- //
@@ -299,7 +299,9 @@ Void SwitchWeapon(CSmPlayer _Player, CSmModeEvent::EActionInput _ActionInput) {
 	declare I = 0;
 	declare AvailableWeapons = GetAvailableWeapons(_Player);
 	foreach (Weapon => ReloadRates in AvailableWeapons) {
-		if (I == Key) SetWeapon(_Player, Weapon);
+		if (I == Key && GetWeaponNum(Weapon) != _Player.CurWeapon) {
+			SetWeapon(_Player, Weapon);
+		}
 		I += 1;
 	}
 }
@@ -343,7 +345,9 @@ Void CycleWeapon(CSmPlayer _Player, Integer _ActionChange) {
 	
 	declare I = 0;
 	foreach (Weapon => ReloadRates in AvailableWeapons) {
-		if (I == Key) SetWeapon(_Player, Weapon);
+		if (I == Key && GetWeaponNum(Weapon) != _Player.CurWeapon) {
+			SetWeapon(_Player, Weapon);
+		}
 		I += 1;
 	}
 }
