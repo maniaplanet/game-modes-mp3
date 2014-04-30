@@ -1,5 +1,129 @@
+<a id="2014-04-30">2014-04-30</a>
+---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/7ee8d63487adb32da0279a1a3c9f61a6e00853bf)
+
+### Modes
+
+#### ShootMania/ModeBase
+* Detect map restart with the MB_MapRestarted variable.
+* Added the new BeginPlaying, EndPlaying and UnloadingMap callbacks.
+
+#### ShootMania/ModeMatchmaking
+* API updated from v2 to v3.
+
+#### TrackMania/Cup
+* Support of the ForceEndRound XmlRpc script method.
+
+#### TrackMania/Laps
+* Integration of the new UI modules (chrono, checkpoint time, best and previous times).
+
+#### TrackMania/ModeBase
+* Clean the victory message at the beginning of the map. Fixed the bug where the latest winner was displayed as the winner if nobody finished the map.
+* Detect map restart with the MB_MapRestarted variable.
+* Added the new BeginPlaying, EndPlaying, BeginPodium, EndPodium and UnloadingMap callbacks.
+
+#### TrackMania/Rounds
+* Support of the ForceEndRound XmlRpc script method.
+
+#### TrackMania/RoundsBase
+* Integration of the new UI modules (chrono, checkpoint time, best and previous times).
+* New XmlRpc script method "Rounds_ForceEndRound" to force a round to end.
+
+#### TrackMania/Team
+* Support of the ForceEndRound XmlRpc script method.
+
+#### TrackMania/TeamAttack
+* Integration of the new UI modules (chrono, checkpoint time, best and previous times).
+
+#### TrackMania/TimeAttack
+* Integration of the new UI modules (chrono, checkpoint time, best and previous times).
+* Can set an infinite duration for the map.
+
+
+### Libraries
+
+#### Interface
+* Clamp the team names at the correct size in the header of the players lists.
+
+#### ShootMania/WeaponSwitch
+* Don't change the weapon (and loose ammo) if the next weapon is the same as the previous one.
+
+#### ShootMania/XmlRpc
+* LibXmlRpc_BeginMap now returns the map UID and is it's a map restart or not.
+* LibXmlRpc_EndMap now returns the map UID.
+* New callbacks : LibXmlRpc_UnloadingMap, LibXmlRpc_BeginPlaying, LibXmlRpc_EndPlaying, LibXmlRpc_BeginPodium, LibXmlRpc_EndPodium.
+
+#### TrackMania/UI
+* Chrono module to display the timer at the bottom of the screen.
+* CheckpointTime module to display the checkpoint times (with milliseconds).
+* PrevBestTime module to display the previous and best time (with milliseconds).
+
+#### TrackMania/WarmUp
+* The library doesn't clear the scores anymore at the beginning and the end of the warm up.
+
+#### TrackMania/XmlRpc
+* LibXmlRpc_PlayerRanking now returns the player score and best checkpoints times.
+* LibXmlRpc_BeginMap now returns the map UID and is it's a map restart or not.
+* LibXmlRpc_EndMap now returns the map UID.
+* New callbacks : LibXmlRpc_PlayersRanking, LibXmlRpc_PlayersScores, LibXmlRpc_PlayersTimes, LibXmlRpc_TeamsScores, LibXmlRpc_WarmUp, LibXmlRpc_TeamsMode, LibXmlRpc_UnloadingMap, LibXmlRpc_BeginPlaying, LibXmlRpc_EndPlaying, LibXmlRpc_BeginPodium, LibXmlRpc_EndPodium.
+* New methods : LibXmlRpc_GetPlayersScores, LibXmlRpc_GetPlayersTimes, LibXmlRpc_GetTeamsScores, LibXmlRpc_GetTeamsMode, LibXmlRpc_GetWarmUp, LibXmlRpc_GetPlayersRanking, LibXmlRpc_SetPlayersScores, LibXmlRpc_SetTeamsScores.
+
+
+### MapType
+
+#### ShootMania/SiegeV2
+* Force 2 gates per checkpoints.
+
+---------------------------------
+
+
+<a id="2014-04-24">2014-04-24</a>
+---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/f2618e779bd5303dc6de9272b1653990c7e351e7)
+
+### Modes
+
+#### ShootMania/Battle
+* Check that the captured landmark is a pole in the OnCapture event.
+
+#### ShootMania/ModeMatchmaking
+* Addition of the S_LogAPIDebug setting to display the content of the API requests and responses.
+* Better handling of missing players.
+
+#### ShootMania/Elite
+* The number of ForceField on the map doesn't change the capture duration of the pole anymore.
+* Don't use UIManager.ResetAll() anymore.
+
+#### ShootMania/ModeSport
+* Don't use UIManager.ResetAll() anymore.
+
+#### ShootMania/Royal
+* Using a gate doesn't activate the tornado anymore.
+
+
+### Libraries
+
+#### Clublink
+* Check that there's enough http slots available before creating a new request.
+
+#### ShootMania/WarmUp2
+* The UI is now hidden by default, so it's not displayed until it's initialized.
+
+#### ShootMania/WeaponSwitch
+* A lot of new functions to better control audio playback and volume.
+
+#### TrackMania/TM2
+* Force the scores table to it's default display state when using the StartRace() function.
+
+---------------------------------
+
+
 <a id="2014-04-16">2014-04-16</a>
 ---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/1a93441022a00a68f792fc7f662113c5026b69b8)
 
 ### Modes
 
@@ -74,6 +198,8 @@
 <a id="2014-04-02"></a>2014-04-02
 ---------------------------------
 
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/b7686e32921f7a536607783d4c3a9b4bed5ebbc7)
+
 ### Modes
 
 #### ShootMania/Elite
@@ -124,6 +250,8 @@
 
 <a id="2014-03-25"></a>2014-03-25
 ---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/1de5f8b9ec19ebc97c61e666ade4eb82d0bcc09c)
 
 ### Major features
 
