@@ -1,23 +1,17 @@
 /**
  *	Mode Combo
  */
-#Extends "Modes/ShootMania/ModeBase.Script.txt"
+#Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-02-24"
+#Const	Version				"2014-05-19"
 #Const	ScriptName			"Combo.Script.txt"
 
-#Include "TextLib" as TL
-#Include "MathLib" as ML
-#Include "Libs/Nadeo/Layers2.Script.txt" as Layers
-#Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
-#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
-#Include "Libs/Nadeo/ShootMania/KingOfTheLobby.Script.txt" as Lobby
 
 // ---------------------------------- //
 // Settings
@@ -28,10 +22,6 @@
 #Setting S_WarmUpDuration		90		as _("Warmup duration (0: disabled)")
 #Setting S_AllowUnbalancedTeams	False	as _("Allow a game to begin without the same number of players in each team")
 #Setting S_UseArmorReduction	False	as _("Reduce the armor of players above two armor points")
-#Setting S_UseLobby				False	as "<hidden>" 	///< _("Launch server in lobby mode")
-#Setting S_LobbyTimePerMap		86400	as "<hidden>" 	///< _("Time limit in lobby mode (sec., 0: no limit)")
-#Setting S_Matchmaking			False	as "<hidden>"	///< Use Elite with matchmaking
-#Setting S_MatchmakingSleep		0		as "<hidden>" 	///< _("Matchmaking match end duration (-1: infinite)")
 // Clublinks settings
 #Setting S_UsePlayerClublinks	False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1	""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
@@ -87,6 +77,7 @@
 #Const C_ImgBaseDir 			"file://Media/Manialinks/Shootmania/Common/"
 #Const C_WaitConnectionTimeLimit	60000
 #Const C_SleepEndMap				15000
+#Const C_LayerTimersPosition		<151.5, -76., 0.>
 
 #Const Description _("TYPE: 2 vs 2\nOBJECTIVE:\n- Eliminate the two opponents within a short period of time (Combo Time).\n- Your Combo Time starts when you eliminate one opponent: eliminate the second one before it ends to win the round.\n- Each time you eliminate an opponent, your Combo Time increases.\n- Use '1', '2', '3' and '4' on your keyboard to switch weapon. Collecting a weapon item grants your team with the ability to use it this round, or with 1 extra ammo max if you already own it.")
 
@@ -123,7 +114,11 @@ MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(WarmUp2::GetScriptName(), WarmUp2::GetScriptVersion());
 MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
-MB_LogVersion(Lobby::GetScriptName(), Lobby::GetScriptVersion());
+***
+
+***LobbyStartServer***
+***
+MM_SetFormat([S_NbPlayersPerTeam, S_NbPlayersPerTeam]);
 ***
 
 ***Rules***
@@ -154,8 +149,10 @@ MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 ***StartServer***
 ***
 // ---------------------------------- //
-// Lobby mode
-if (S_UseLobby) Lobby::StartLobbyMode(S_LobbyTimePerMap, True);
+// Matchmaking mode
+if (S_MatchmakingMode == 2) {
+	MM_Init([S_NbPlayersPerTeam, S_NbPlayersPerTeam]);
+}
 
 // ---------------------------------- //
 // Set mode options
@@ -187,7 +184,7 @@ ST2::SetColTextAlign("HitsPerWeapon", CMlControl::AlignHorizontal::Right);
 ST2::SetColLegend("LibST_SMRoundPoints", _("Hits"));
 ST2::SetColLegend("LibST_SMPoints", _("Score"));
 ST2::SetColWidth("LibST_Name", 15.);
-MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+MM_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
 ST2::Build("SM");
 
 // ---------------------------------- //
@@ -213,7 +210,7 @@ Markers::Load();
 ***
 declare Integer MapWinnerClan;
 declare CSmMapPlayerSpawn[Integer] Spawns;
-if (S_Matchmaking) MB_UseIntro = False;
+if (S_MatchmakingMode == 2) MB_UseIntro = False;
 else MB_UseIntro = True;
 ***
 
@@ -239,7 +236,7 @@ UpdateBasesColors();
 // ---------------------------------- //
 // Initialize players
 foreach (Player in AllPlayers) {
-	SetPlayerClan(Player, Player.RequestedClan);
+	SetPlayerClan(Player, MM_GetRequestedClan(Player));
 	
 	declare UI <=> UIManager.GetUI(Player);
 	if (UI != Null) {
@@ -292,9 +289,15 @@ if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
 }
 
 // ---------------------------------- //
+// Wait players when using matchmaking
+if (S_MatchmakingMode == 2) {
+	MM_MatchWait();
+	PrepareMatch();
+}
+// ---------------------------------- //
 // Do warm up
-if (S_Matchmaking) WaitConnection();
 else WarmUp();
+
 declare ClansOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 foreach (Clan => ClanOrder in ClansOrder) {
 	if (!G_ClansPlayers.existskey(Clan)) continue;
@@ -319,6 +322,10 @@ UIManager.UIAll.SendNotice("", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConf
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 Layers::Attach("Info");
 Layers::Update("Info", UpdateLayerInfo());
+
+// ---------------------------------- //
+// Matchmaking : allow substitutes
+MM_AllowSubstitutes(True);
 ***
 
 ***InitRound***
@@ -445,6 +452,28 @@ declare UI <=> UIManager.GetUI(Spectator);
 if (UI != Null) {
 	UI.SpectatorForceCameraType = -1;
 	UI.SpectatorForcedClan = -1;
+}
+***
+
+***Yield***
+***
+foreach (Event in XmlRpc.PendingEvents) {
+	if (Event.Type == CXmlRpcEvent::EType::CallbackArray) {
+		switch (Event.ParamArray1) {
+			case "Combo_SetTimersLayerPosition": {
+				declare netwrite Net_Combo_TimersLayerPosition for Teams[0] = C_LayerTimersPosition;
+				if (Event.ParamArray2.existskey(0)) {
+					Net_Combo_TimersLayerPosition.X = TL::ToReal(Event.ParamArray2[0]);
+				}
+				if (Event.ParamArray2.existskey(1)) {
+					Net_Combo_TimersLayerPosition.Y = TL::ToReal(Event.ParamArray2[1]);
+				}
+				if (Event.ParamArray2.existskey(2)) {
+					Net_Combo_TimersLayerPosition.Z = TL::ToReal(Event.ParamArray2[2]);
+				}
+			}
+		}
+	}
 }
 ***
 
@@ -595,7 +624,7 @@ if (G_ComboTime > 0) {
 foreach (Player in Players) {
 	if (G_ComboTime <= 0 && !G_OffZoneIsActivated) {
 		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !Player.RequestsSpectate) {
-			SetPlayerClan(Player, Player.RequestedClan);
+			SetPlayerClan(Player, MM_GetRequestedClan(Player));
 			if (!G_ClansPlayers.existskey(Player.CurrentClan)) continue;
 			if (!G_ClansPlayers[Player.CurrentClan].exists(Player.Id)) continue;
 			
@@ -741,16 +770,16 @@ if (S_Script_PointsLimit > 0) {
 if (EndMap) {
 	MB_StopMap = True;
 } else {
-	MB_Sleep(500);
+	MM_Sleep(500);
 	SM::UnspawnAllPlayers();
 	StartTime = -1;
-	MB_Sleep(2500);
+	MM_Sleep(2500);
 }
 ***
 
 ***EndMap***
 ***
-MB_Sleep(500);
+MM_Sleep(500);
 StartTime = -1;
 EndTime = -1;
 ObjectDestroyAll();
@@ -762,10 +791,19 @@ UIManager.UIAll.CountdownEndTime = -1;
 Message::CleanAllMessages();
 Layers::Detach("Info");
 
+declare MasterLogin = "";
+declare MasterPoints = 0;
+
 foreach (Score in Scores) {
 	Score.LadderMatchScoreValue = ML::ToReal(Score.Points);
 	declare PrevPoints for Score = 0;
 	PrevPoints = Score.Points;
+	
+	if (Score.Points > MasterPoints) {
+		MasterPoints = Score.Points;
+		MasterLogin = Score.User.Login;
+	}
+	
 	if (Score.LadderClan == MapWinnerClan) {
 		Score.Points = 3;
 		Score.LadderMatchScoreValue *= 2.;
@@ -785,6 +823,12 @@ foreach (Score in Scores) {
 }
 
 // ---------------------------------- //
+// Send match result
+if (S_MatchmakingMode == 2) {
+	MM_MatchEnd(MasterLogin);
+}
+
+// ---------------------------------- //
 // Winning sequence
 UIManager.UIAll.UISequence				= CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.BigMessageSound			= CUIConfig::EUISound::EndMatch;
@@ -794,13 +838,17 @@ if (MapWinnerClan == 1 || MapWinnerClan == 2) {
 } else {
 	UIManager.UIAll.BigMessage = _("|Match|Draw");
 }
-MB_Sleep(C_SleepEndMap/2);
+MM_Sleep(C_SleepEndMap/2);
 UIManager.UIAll.UISequence				= CUIConfig::EUISequence::Podium;
-MB_Sleep(C_SleepEndMap/2);
 UIManager.UIAll.ScoreTableVisibility	= CUIConfig::EVisibility::Normal;
+MM_Sleep(C_SleepEndMap/2);
 UIManager.UIAll.BigMessage				= "";
 
-MatchmakingWait();
+// ---------------------------------- //
+// Transfert players back to the lobby
+if (S_MatchmakingMode == 2) {
+	MM_MatchToLobby();
+}
 ***
 
 ***EndServer***
@@ -824,27 +872,8 @@ Void UpdateModeStatusMessage() {
 	ModeStatusMessage = TL::Compose("%1\nRounds to win: %2 \\ Current Score: %3", BaseRules, RoundsToWinSetting, MatchScore);
 }
 
-// ---------------------------------- //
-/// End map timer for MatchMaking
-Void MatchmakingWait() {
-	declare PrevMatchmakingSleep = S_MatchmakingSleep;
-	StartTime = Now;
-	if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
-	else UIManager.UIAll.CountdownEndTime = -1;
-	while (S_MatchmakingSleep < 0 || UIManager.UIAll.CountdownEndTime > Now) {
-		if (PrevMatchmakingSleep != S_MatchmakingSleep) {
-			PrevMatchmakingSleep = S_MatchmakingSleep;
-			if (S_MatchmakingSleep > 0) UIManager.UIAll.CountdownEndTime = Now + (S_MatchmakingSleep * 1000);
-			else UIManager.UIAll.CountdownEndTime = -1;
-		}
-		MB_Yield();
-	}
-	StartTime = -1;
-	UIManager.UIAll.CountdownEndTime = -1;
-}
-
 Void InitializePlayer(CSmPlayer _Player) {
-	SetPlayerClan(_Player, _Player.RequestedClan);
+	SetPlayerClan(_Player, MM_GetRequestedClan(_Player));
 	
 	declare NextArmorReduction for _Player = -1;
 	NextArmorReduction = -1;
@@ -1052,12 +1081,12 @@ Void CreateMarkers() {
 		declare Marker = """<marker pos="{{{Pos}}}" manialinkframeid="{{{ManialinkFrameId}}}" />""";
 		declare Manialink = """
 <frame scale="0.75" class="MarkerObject" id="{{{ManialinkFrameId}}}">
-	<quad posn="0 0 -1" sizen="18 10" halign="center" valign="bottom" style="Bgs1InRace" substyle="BgList" modulatecolor="f00" id="Quad_Timer" />
+	<quad posn="0 0 -1" sizen="12 10" halign="center" valign="bottom" style="Bgs1InRace" substyle="BgList" modulatecolor="f00" id="Quad_Timer" />
 	<frame posn="0 5 0">
 		<format textemboss="1" />
-		<label posn="-3.5 0" sizen="5 5" textsize="2" halign="right" valign="center2" text="#{{{TypeCount[MapLandmark.Tag]}}}" />
-		<quad posn="2 0" sizen="{{{ImageSize}}}" halign="right" valign="center" image="{{{ImagePath}}}" />
-		<label posn="5.5 0" sizen="5 5" textsize="3" halign="center" valign="center2" id="Label_Timer" />
+		<!--<label posn="-3.5 0" sizen="5 5" textsize="2" halign="right" valign="center2" text="#{{{TypeCount[MapLandmark.Tag]}}}" />-->
+		<quad posn="-1 0" sizen="{{{ImageSize}}}" halign="right" valign="center" image="{{{ImagePath}}}" />
+		<label posn="2.5 0" sizen="5 5" textsize="3" halign="center" valign="center2" id="Label_Timer" />
 	</frame>
 </frame>""";
 		Markers::Add(Marker, Manialink);
@@ -1117,18 +1146,18 @@ Text UpdateLayerInfo() {
 	}
 	
 	return """
-<frame>
-	<quad posn="-160 72" sizen="41 4" halign="left" bgcolor="0007" />
-	<quad posn="-159 77 1" sizen="10 10" halign="left" style="Emblems" substyle="#1" /> 
-	<label id="team1name" posn="-149 72 1" sizen="40 4" halign="left" textprefix="$s" text="Blue" />
+<frame posn="-160 68">
+	<quad sizen="41 4" halign="left" bgcolor="0007" />
+	<quad posn="1 5 1" sizen="10 10" halign="left" style="Emblems" substyle="#1" /> 
+	<label id="team1name" posn="11 0 1" sizen="40 4" halign="left" textprefix="$s" text="Blue" />
+	<playerlist posn="0 -5" scale="0.75" halign="left" substyle="Medium" lines="{{{S_Script_NbPlayersPerTeam}}}" columns="1" team="1" status="Playing" logins="{{{LoginsTeam[1]}}}" />
 </frame>
-<frame>
-	<quad posn="160 72" sizen="41 4" halign="right" bgcolor="0007" />
-	<quad posn="159 77 1" sizen="10 10" halign="right" style="Emblems" substyle="#2" /> 
-	<label id="team2name" posn="149 72 1" sizen="40 4" halign="right" textprefix="$s" text="Red" />
+<frame posn="160 68">
+	<quad sizen="41 4" halign="right" bgcolor="0007" />
+	<quad posn="-1 5 1" sizen="10 10" halign="right" style="Emblems" substyle="#2" /> 
+	<label id="team2name" posn="-11 0 1" sizen="40 4" halign="right" textprefix="$s" text="Red" />
+	<playerlist posn="0 -5" scale="0.75" halign="right" substyle="Medium" lines="{{{S_Script_NbPlayersPerTeam}}}" columns="1" team="2" status="Playing" logins="{{{LoginsTeam[2]}}}"/>
 </frame>
-<playerlist posn="-160 67" scale="0.75" halign="left"  substyle="Medium" lines="{{{S_Script_NbPlayersPerTeam}}}" columns="1" team="1" status="Playing" logins="{{{LoginsTeam[1]}}}" />
-<playerlist posn=" 160 67" scale="0.75" halign="right" substyle="Medium" lines="{{{S_Script_NbPlayersPerTeam}}}" columns="1" team="2" status="Playing" logins="{{{LoginsTeam[2]}}}"/>
 <frame posn="0 71 5" id="Frame_ScoreInfo">
 	<label posn="-25 0.5 6" sizen="15 5" textsize="4" halign="right" valign="center" textemboss="1" text="0" id="Label_ComboClan1" />
 	<quad posn="-22 0 6" sizen="5 5" halign="center" valign="center" style="Icons64x64_1" substyle="GenericButton" />
@@ -1147,11 +1176,14 @@ Text UpdateLayerInfo() {
 		<label posn="36 0" sizen="6 6" halign="left" valign="center" textemboss="1" text="0" id="Label_AmmoRocket" />
 	</frame>
 </frame>
-<frame posn="151.5 -82" id="Frame_Timers">
-	{{{Timers}}}
-</frame>
-<frame posn="159 -83">
-	<label halign="right" style="CardButtonSmallS" text="Show markers" scriptevents="1" id="Button_DisplayMarkers" />
+<frame id="Frame_Spec">
+	<frame posn="{{{C_LayerTimersPosition.X}}} {{{C_LayerTimersPosition.Y}}} {{{C_LayerTimersPosition.Z}}}" id="Frame_Timers">
+		{{{Timers}}}
+	</frame>
+	<frame posn="159 -83">
+		<label halign="right" style="CardButtonSmallS" text="Show markers" scriptevents="1" id="Button_DisplayMarkers" />
+		<label posn="0 6" halign="right" style="CardButtonSmallS" text="Show list" scriptevents="1" id="Button_DisplayList" />
+	</frame>
 </frame>
 <script><!--
 #Include "TextLib" as TL
@@ -1252,6 +1284,8 @@ main() {
 	Quad_IconArrow				<=> (Page.GetFirstChild("Quad_IconArrow")		as CMlQuad);
 	Quad_IconRocket				<=> (Page.GetFirstChild("Quad_IconRocket")		as CMlQuad);
 	declare Frame_Timers		<=> (Page.GetFirstChild("Frame_Timers")			as CMlFrame);
+	declare Frame_Spec			<=> (Page.GetFirstChild("Frame_Spec")			as CMlFrame);
+	declare Button_DisplayList	<=> (Page.GetFirstChild("Button_DisplayList")	as CMlLabel);
 	declare Button_DisplayMarkers <=> (Page.GetFirstChild("Button_DisplayMarkers") as CMlLabel);
 	
 	Page.GetClassChildren("FrameTimer", Frame_Timers, False);
@@ -1269,13 +1303,19 @@ main() {
 	}
 	
 	declare MarkersVisible for UI = False;
+	declare ListVisible = True;
 	
 	if (MarkersVisible) Button_DisplayMarkers.Value = "{{{_("Hide markers")}}}";
 	else Button_DisplayMarkers.Value = "{{{_("Show markers")}}}";
 	
+	if (ListVisible) Button_DisplayList.Value = "{{{_("Hide list")}}}";
+	else Button_DisplayList.Value = "{{{_("Show list")}}}";
+	
 	declare netread Integer Net_Combo_ComboClan1 for Teams[0];
 	declare netread Integer Net_Combo_ComboClan2 for Teams[0];
+	declare netread Vec3 Net_Combo_TimersLayerPosition for Teams[0];
 	
+	declare Vec3 PrevTimersLayerPosition;
 	declare PrevTeam1Name		= "";
 	declare PrevTeam2Name		= "";
 	declare PrevComboClan1		= 0;
@@ -1295,6 +1335,15 @@ main() {
 					MarkersVisible = !MarkersVisible;
 					if (MarkersVisible) Button_DisplayMarkers.Value = "{{{_("Hide markers")}}}";
 					else Button_DisplayMarkers.Value = "{{{_("Show markers")}}}";
+				} else if (Event.ControlId == "Button_DisplayList") {
+					ListVisible = !ListVisible;
+					if (ListVisible) {
+						Frame_Timers.Visible = True;
+						Button_DisplayList.Value = "{{{_("Hide list")}}}";
+					} else {
+						Frame_Timers.Visible = False;
+						Button_DisplayList.Value = "{{{_("Show list")}}}";
+					}
 				}
 			}
 		}
@@ -1321,6 +1370,11 @@ main() {
 			Label_ComboClan2.SetText(TL::ToText(PrevComboClan2/1000));
 		}
 		
+		if (PrevTimersLayerPosition != Net_Combo_TimersLayerPosition) {
+			PrevTimersLayerPosition = Net_Combo_TimersLayerPosition;
+			Frame_Timers.RelativePosition = Net_Combo_TimersLayerPosition;
+		}
+		
 		if (Now >= NextUpdateTimers) {
 			NextUpdateTimers = Now + 1000;
 			UpdateTimers();
@@ -1342,15 +1396,13 @@ main() {
 			}
 			
 			if (!Frame_WeaponInfo.Visible) Frame_WeaponInfo.Visible = True;
-			if (!Frame_Timers.Visible) {
-				Frame_Timers.Visible = True;
-				Button_DisplayMarkers.Visible = True;
+			if (!Frame_Spec.Visible) {
+				Frame_Spec.Visible = True;
 			}
 		} else if (IsSpectatorMode) {
 			if (Frame_WeaponInfo.Visible) Frame_WeaponInfo.Visible = False;
-			if (!Frame_Timers.Visible) {
-				Frame_Timers.Visible = True;
-				Button_DisplayMarkers.Visible = True;
+			if (!Frame_Spec.Visible) {
+				Frame_Spec.Visible = True;
 			}
 		} else {
 			declare netread Text			Net_Combo_AmmoUpdate	for InputPlayer;
@@ -1368,9 +1420,8 @@ main() {
 			}
 			
 			if (!Frame_WeaponInfo.Visible) Frame_WeaponInfo.Visible = True;
-			if (Frame_Timers.Visible) {
-				Frame_Timers.Visible = False;
-				Button_DisplayMarkers.Visible = False;
+			if (Frame_Spec.Visible) {
+				Frame_Spec.Visible = False;
 			}
 		}
 	}
@@ -1405,7 +1456,7 @@ Void UpdateClansPlayers() {
 			if (ClansNbPlayers[Clan] > ClansNbPlayersAlive[Clan]) {
 				foreach (Player in Players) {
 					if (AllowedPlayers.exists(Player.Id)) continue;
-					SetPlayerClan(Player, Player.RequestedClan);
+					SetPlayerClan(Player, MM_GetRequestedClan(Player));
 					if (Player.CurrentClan == Clan) {
 						G_ClansPlayers[Clan].add(Player.Id);
 						PlayersListNeedUpdate = True;
@@ -1658,174 +1709,16 @@ Void CycleWeapon(CSmPlayer _Player, Integer _Step) {
 }
 
 // ---------------------------------- //
-/** Create the wait connection manialink
- *
- *	@return		The manialink
- */
-Text CreateLayerWaitConnection() {
-	declare Integer TotalReqPlayers	= S_Script_NbPlayersPerTeam*2;
-	declare Text 	ImgPlayer		= "file://Media/Manialinks/Shootmania/Common/DefendersLeft.dds";
-	declare Real	ImgSize			= 8.;
-	declare Real	XMargin			= 1.;
-	declare Text	MLText = 
-"""
-<frame posn="155 -79" id="Frame_Waiting">
-	<label halign="right" valign="bottom" textsize="3" textemboss="1" id="Label_Waiting" />
-	<frame>
-	""";
-	
-	for(I, 0, TotalReqPlayers-1) {
-		MLText ^= """ 
-		<quad id="Quad_Player{{{I}}}" halign="center" valign="center" posn="{{{(-I*(ImgSize + XMargin)) - (ImgSize/2.)}}} {{{-ImgSize/2.}}}" image="{{{ImgPlayer}}}" sizen="{{{ImgSize}}} {{{ImgSize}}}"  colorize="777" scale="0.5" />""";
-	}
-	
-	MLText ^= """
-	</frame>
-</frame>
-<frame posn="155 -86" hidden="1" id="Frame_Ready">
-	<label halign="right" valign="bottom" textsize="3" textemboss="1" text="{{{_("The match will begin shortly ...")}}}" />
-</frame>
-<script><!--
-#Include "TextLib" as TL
-
-main() {
-	declare Label_Waiting <=> (Page.GetFirstChild("Label_Waiting") as CMlLabel);
-	declare Frame_Waiting <=> (Page.GetFirstChild("Frame_Waiting") as CMlFrame);
-	declare Frame_Ready <=> (Page.GetFirstChild("Frame_Ready") as CMlFrame);
-	
-	declare CMlQuad[] PlayersQuad;
-	declare Boolean GetAQuad = True;
-	declare Integer I = 0;
-	while(GetAQuad) {
-		declare Quad_Player <=> (Page.GetFirstChild("Quad_Player"^I) as CMlQuad);
-		if(Quad_Player != Null) {
-			PlayersQuad.add(Quad_Player);
-			I += 1;
-		} else {
-			GetAQuad = False;
-		}
-	}
-	
-	Label_Waiting.SetText(_("Waiting for players"));
-	
-	declare netread Integer Net_ModeSport_PlayersNbTotal for Teams[0];
-	declare PrevPlayersNbTotal = -1;
-	
-	while (True) {
-		yield;
-		if (InputPlayer == Null) continue;
-		if (!PageIsVisible) continue;
-		
-		if (PrevPlayersNbTotal != Net_ModeSport_PlayersNbTotal) {
-			PrevPlayersNbTotal = Net_ModeSport_PlayersNbTotal;
-			//Label_Waiting.SetText(TL::Compose("%1: %2/{{{TotalReqPlayers}}}", _("Waiting for players"), TL::ToText(Net_ModeSport_PlayersNbTotal)));
-			
-			for(IQuad, 0, PlayersQuad.count - 1) {
-				if(IQuad < Net_ModeSport_PlayersNbTotal) {
-					declare PlayerQuad = PlayersQuad[PlayersQuad.count - IQuad - 1];
-					if(PlayerQuad != Null) {
-						PlayerQuad.Colorize = <1., 1., 1.>;
-						PlayerQuad.RelativeScale = 1.;
-					}
-				} else {
-					declare PlayerQuad = PlayersQuad[PlayersQuad.count - IQuad - 1];
-					if(PlayerQuad != Null) {
-						PlayerQuad.Colorize = <0.5, 0.5, 0.5>;
-						PlayerQuad.RelativeScale = 0.5;
-					}
-				}
-			}
-			
-			if (Net_ModeSport_PlayersNbTotal > 0 && Net_ModeSport_PlayersNbTotal >= {{{TotalReqPlayers}}}) {
-				PlayUiSound(::EUISound::Custom4, 1, 0.75);
-			} else {
-				PlayUiSound(::EUISound::Custom4, 0, 0.75);
-			}
-		}
-		
-		if (!Frame_Waiting.Visible && PrevPlayersNbTotal < {{{TotalReqPlayers}}}) {
-			Frame_Waiting.Show();
-			Frame_Ready.Hide();
-		} else if (!Frame_Ready.Visible &&  PrevPlayersNbTotal >= {{{TotalReqPlayers}}}) {
-			Frame_Waiting.Hide();
-			Frame_Ready.Show();
-		}
-	}
-}
---></script>
-""";
-
-	return MLText;
-}
-
-// ---------------------------------- //
-/// Wait player connection
-Void WaitConnection() {
-	WarmUp2::Begin();
-	WarmUp2::Detach();
-	
-	declare TimeOut = 5000;
-	declare PrevClansNbPlayers = [1 => 0, 2 => 0];
-	StartTime = Now;
-	UIManager.UIAll.CountdownEndTime = -1;
-	
-	declare netwrite Integer Net_ModeSport_PlayersNbTotal for Teams[0];
-	Layers::Create("WaitConnection", CreateLayerWaitConnection());
-	Layers::SetType("WaitConnection", CUILayer::EUILayerType::CutScene);
-	Layers::Attach("WaitConnection");
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
-	
-	Net_ModeSport_PlayersNbTotal = 0;
-	
-	while (True) {
-		foreach (Player in AllPlayers) {
-			if (Player.CurrentClan != Player.RequestedClan) SetPlayerClan(Player, Player.RequestedClan);
-		}
-		
-		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
-			Net_ModeSport_PlayersNbTotal = PlayersNbTotal;
-		}
-		
-		if (PrevClansNbPlayers[1] != ClansNbPlayers[1] || PrevClansNbPlayers[2] != ClansNbPlayers[2]) {
-			PrevClansNbPlayers[1] = ClansNbPlayers[1];
-			PrevClansNbPlayers[2] = ClansNbPlayers[2];
-			WarmUp2::Clean();
-			WarmUp2::Fill();
-		}
-		
-		if (UIManager.UIAll.CountdownEndTime == -1 && ClansNbPlayers[1] >= 1 && ClansNbPlayers[2] >= 1) {
-			UIManager.UIAll.CountdownEndTime = Now + C_WaitConnectionTimeLimit + TimeOut;
-		}
-		
-		if (ClansNbPlayers[1] >= S_Script_NbPlayersPerTeam && ClansNbPlayers[2] >= S_Script_NbPlayersPerTeam) break;
-		if (UIManager.UIAll.CountdownEndTime != -1 && Now >= UIManager.UIAll.CountdownEndTime) break;
-		MB_Sleep(1000);
-	}
-	
-	WarmUp2::End();
-	UIManager.UIAll.CountdownEndTime = Now + TimeOut;	
-	while (Now < UIManager.UIAll.CountdownEndTime) {
-		MB_Yield();
-	}
-	
+/// Prepare match for matchmaking
+Void PrepareMatch() {
 	foreach (Player in AllPlayers) {
-		SetPlayerClan(Player, Player.RequestedClan);
+		SetPlayerClan(Player, MM_GetRequestedClan(Player));
 		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 	}
 	
 	WarmUp2::Clean();
 	WarmUp2::Fill();
-	
-	Layers::Detach("WaitConnection");
-	Layers::Destroy("WaitConnection");
-	MB_Sleep(500);
-	UIManager.UIAll.StatusMessage = "";
-	UIManager.UIAll.BigMessage = "";
-	
-	StartTime = -1;
-	UIManager.UIAll.CountdownEndTime = -1;
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 }
 
 // ---------------------------------- //
@@ -1862,7 +1755,7 @@ Void WarmUp() {
 	// ---------------------------------- //
 	// Init players
 	foreach (Player in Players) {
-		SetPlayerClan(Player, Player.RequestedClan);
+		SetPlayerClan(Player, MM_GetRequestedClan(Player));
 		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 	}
@@ -1873,16 +1766,16 @@ Void WarmUp() {
 	declare PrevAllowUnbalancedTeams = !S_AllowUnbalancedTeams;
 	
 	while (!WarmUp2::Stop()) {
-		MB_Yield();
+		MM_Yield();
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
 		
 		// Manage players
 		foreach (Player in Players) {
-			if (Player.CurrentClan != Player.RequestedClan) {
+			if (Player.CurrentClan != MM_GetRequestedClan(Player)) {
 				UnspawnPlayer(Player);
-				SetPlayerClan(Player, Player.RequestedClan);
+				SetPlayerClan(Player, MM_GetRequestedClan(Player));
 				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 			}
@@ -1938,7 +1831,7 @@ Void WarmUp() {
 	}
 	
 	SM::UnspawnAllPlayers();
-	MB_Sleep(3000);
+	MM_Sleep(3000);
 	ObjectDestroyAll();
 	UIManager.UIAll.BigMessage = "";
 	UIManager.UIAll.StatusMessage = "";

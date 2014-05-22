@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2013-12-13"
+#Const Version		"2014-04-30"
 #Const ScriptName	"Heroes.Script.txt"
 
 #Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
@@ -27,6 +27,7 @@
 #Const C_AtkEliminationPoints	1	///< Points for eliminating the attacker
 
 #Const C_RequiredPlayersNb		5	///< Required number of players in each team
+#Const S_RequiredPlayersNb		5
 
 #Const Description _("TYPE: Team versus Team (5 vs 5)\nOBJECTIVE:\nOne team is in attack with four players with the Laser and one player with the Nucleus. The other team is in defense with five players with the Rocket.\nThe attackers must capture the pole but only the Nucleus can do it. The defenders must eliminate the Nucleus or prevent the capture.\nThe first team to reach the points limit wins the map.")
 
@@ -863,6 +864,11 @@ WarmUp2::SetSlotIcon("Clan2", G_AtkSlot[2], "file://Media/Manialinks/ShootMania/
 Interface::DestroyPlayersLists();
 ***
 
+***FindMaster***
+***
+declare MasterLogin = "";
+***
+
 ***LadderPoints***
 ***
 foreach (Score in Scores) {
@@ -898,7 +904,7 @@ foreach (Score in Scores) {
 /// Update the Hud3dMarkers.
 Void UpdateMarkers() {
 	// Set the marker above the goal
-	UIManager.UIAll.Hud3dMarkers = "";
+	UIManager.UIAll.MarkersXML = "";
 	
 	declare AtkPlayerLogin = "";
 	if (Players.existskey(G_AtkPlayerId)) AtkPlayerLogin = Players[G_AtkPlayerId].Login;
@@ -927,14 +933,14 @@ Void UpdateMarkers() {
 		if (UI == Null) continue;
 		
 		if (Player.CurrentClan == G_AtkClan && Player.Login != AtkPlayerLogin) {
-			UI.Hud3dMarkers = NucleusMarker ^ PolesMarker;
+			UI.MarkersXML = NucleusMarker ^ PolesMarker;
 		} else {
-			UI.Hud3dMarkers = PolesMarker;
+			UI.MarkersXML = PolesMarker;
 		}
 	}
 	foreach (Spectator in Spectators) {
 		declare UI <=> UIManager.GetUI(Spectator);
 		if (UI == Null) continue;
-		UI.Hud3dMarkers = PolesMarker ^ NucleusMarker;
+		UI.MarkersXML = PolesMarker ^ NucleusMarker;
 	}
 }

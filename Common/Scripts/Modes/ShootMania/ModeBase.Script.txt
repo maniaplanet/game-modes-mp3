@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2014-04-29"
+#Const ModeBaseVersion		"2014-05-16"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -78,6 +78,8 @@ declare Boolean MB_StopTurn;
 declare Boolean MB_UseScriptCallbacks;
 // Default neutral emblem
 declare Text MB_NeutralEmblemUrl;
+// Previous idle time limit value
+declare Integer MB_PrevAFKIdleTimeLimit;
 
 // ---------------------------------- //
 // Functions
@@ -136,6 +138,10 @@ Void MB_Yield() {
 	Clublink::Update();
 	ST2::XmlRpcLoop();
 	if (S_AutoManageAFK) {
+		if (MB_PrevAFKIdleTimeLimit != S_AFKIdleTimeLimit) {
+			MB_PrevAFKIdleTimeLimit = S_AFKIdleTimeLimit;
+			AFK::SetIdleTimeLimit(S_AFKIdleTimeLimit);
+		}
 		AFK::XmlRpcLoop();
 		AFK::AutoManageAFKPlayers();
 	}
@@ -263,6 +269,8 @@ main() {
 	ST2::Load();
 	AFK::Load();
 	AFK::SetIdleTimeLimit(S_AFKIdleTimeLimit);
+	MB_PrevAFKIdleTimeLimit = S_AFKIdleTimeLimit;
+	
 	---Matchmaking---
 	+++InitServer+++
 	+++StartServer+++

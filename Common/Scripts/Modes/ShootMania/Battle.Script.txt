@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-04-24"
+#Const	Version				"2014-05-15"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -35,7 +35,7 @@
 #Setting	S_CaptureMaxValue	30000	as _("Capture time (milliseconds)") ///< Pole capture time (milliseconds)
 #Setting	S_AlternativePoints	False	as _("Use atk and def points as score")
 #Setting 	S_AllowBeginners	False	as _("Is a Beginners Welcome server")
-#Setting 	S_AutoManageAFK		True	//as _("Switch inactive players to spectators")
+//#Setting 	S_AutoManageAFK		True	//as _("Switch inactive players to spectators")
 #Setting	S_ArmorPoints		2		as _("Armor points")
 
 // Clublinks settings
@@ -357,6 +357,8 @@ Void ComputeCaptureMaxValue()
 	// build Markers list
 	declare Text PoleMarkers = "";
 	foreach(Pole in MapLandmarks_Gauge) {
+		if (Pole.Tag != "Goal" && Pole.Tag != "Checkpoint") continue;
+		
 		declare Vec3 Pos = Pole.Position + <0., 25., 0.>;
 		if(Pole.Gauge.Clan == 0) {
 			Pos.Y = Pole.Position.Y + 5.; // only 5 meters for the engage checkpoint
@@ -564,6 +566,8 @@ foreach (Event in PendingEvents) {
 				// 2. Check if the victim or the shooter is in a hot spot
 				if (! BonusGranted) {
 					foreach(Pole in MapLandmarks_Gauge) {
+						if (Pole.Tag != "Goal" && Pole.Tag != "Checkpoint") continue;
+						
 						declare Boolean IsPoleActive = ! Pole.Gauge.Captured;
 						
 						---IsPoleActive---
@@ -1565,6 +1569,8 @@ Void CreateRoundInfoUI(CUILayer LayerRoundInfo, CSmMapLandmark[][Integer] ClanPo
 			declare Clan1PoleIndex = -1;
 			declare Clan2PoleIndex = -1;
 			foreach(Pole in MapLandmarks_Gauge) {
+				if (Pole.Tag != "Goal" && Pole.Tag != "Checkpoint") continue;
+				
 				declare Integer PoleClan = Pole.Gauge.Clan;
 				declare Integer PoleIndex = -1;
 				
@@ -1649,6 +1655,8 @@ Void CreateRoundInfoUI(CUILayer LayerRoundInfo, CSmMapLandmark[][Integer] ClanPo
 				declare Clan1PoleIndex = -1;
 				declare Clan2PoleIndex = -1;
 				foreach(Pole in MapLandmarks_Gauge) {
+					if (Pole.Tag != "Goal" && Pole.Tag != "Checkpoint") continue;
+					
 					declare Integer PoleClan = Pole.Gauge.Clan;
 					if(PoleClan == 0) continue; // inconsistent data.
 					if(CurrentClanPoles[PoleClan].count <= 0) continue; // inconsistent data.
@@ -1916,7 +1924,6 @@ if(S_BattleWaves) {
 ***
 if(S_BattleWaves) {
 	MLPage ^= """
-
 		if(CurrentStateOfAckClanVariable != BattleWaves_AtkClan) {
 			CurrentStateOfAckClanVariable = BattleWaves_AtkClan;
 			if(BattleWaves_AtkClan > 0) {""";
@@ -2027,7 +2034,14 @@ Text CreateMarkersManialinkPage(CSmMapLandmark[][Integer] ClanPoles)
 				
 				declare Real[Integer][Integer] CurrentClanPoles;
 				declare Integer[Integer][Integer] HighlightTimer;
-				declare Integer PolesByClan = MapLandmarks_Gauge.count / 2;
+				
+				declare Integer PolesByClan = 0;
+				foreach (Pole in MapLandmarks_Gauge) {
+					if (Pole.Tag != "Goal") continue;
+					PolesByClan += 1;
+				}
+				PolesByClan /= 2;
+				
 								
 				// Wait data on map change.
 				declare Boolean WaitData = True;
@@ -2069,6 +2083,8 @@ Text CreateMarkersManialinkPage(CSmMapLandmark[][Integer] ClanPoles)
 					declare Clan1PoleIndex = -1;
 					declare Clan2PoleIndex = -1;
 					foreach(Pole in MapLandmarks_Gauge) {
+						if (Pole.Tag != "Goal" && Pole.Tag != "Checkpoint") continue;
+						
 						declare Integer PoleClan = Pole.Gauge.Clan;
 						declare Integer PoleIndex = -1;
 						if(PoleClan == 1) {
@@ -2186,90 +2202,79 @@ Text BuildTimeLeftManialink(Integer _WavesDuration) {
 	//log(ColorClan1);
 	//log(ColorClan2);
 	
-	declare MLText = """"
-	<script><!--
-		#Include "MathLib" as MathLib
-		#Include "TextLib" as TextLib
+	declare MLText = """
+<frame posn="0 57 40" halign="center" valign="center" hidden="1" id="FrameTimeLeft">
+	<frame posn="0 4">
+		<label posn="0 4" halign="center" valign="center" textsize="8" id="LabelAttack" />
+		<label posn="0 -2" halign="center" valign="center" textsize="4" textemboss="true" id="Label_AdditionalRules" />
+		<label posn="0 -8" halign="center" valign="center" textsize="8" id="LabelTimeLeft" />
+	</frame>
+</frame>
+<script><!--
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+
+main() {
+	declare netread Integer BattleWaves_TimeLeft 	for UI;
+	declare netread Integer BattleWaves_AtkClan 	for UI;
+	declare netread Integer BattleWaves_PlayerClan	for UI;
+	declare netread Boolean Battle_IsBeginner		for UI;
+	
+	declare CMlFrame FrameTimeLeft 	<=> (Page.GetFirstChild("FrameTimeLeft") as CMlFrame);
+	declare CMlLabel LabelTimeLeft 	<=> (Page.GetFirstChild("LabelTimeLeft") as CMlLabel);
+	declare CMlLabel LabelAttack 	<=> (Page.GetFirstChild("LabelAttack") as CMlLabel);
+	declare CMlLabel Label_AdditionalRules 	<=> (Page.GetFirstChild("Label_AdditionalRules") as CMlLabel);
+	
+	declare Clan1Color = Teams[0].ColorText;
+	declare Clan2Color = Teams[1].ColorText;
+	
+	declare CurrentAttkClan = -1;
+	declare CurrentPlayerClan = -1;
+	
+	while(True) {
+		sleep(100);
 		
-		main() {
-			declare netread Integer BattleWaves_TimeLeft 	for UI;
-			declare netread Integer BattleWaves_AtkClan 	for UI;
-			declare netread Integer BattleWaves_PlayerClan	for UI;
-			declare netread Boolean Battle_IsBeginner		for UI;
+		if((CurrentAttkClan != BattleWaves_AtkClan) || (BattleWaves_PlayerClan != CurrentPlayerClan))
+		{
+			CurrentAttkClan 	= BattleWaves_AtkClan;
+			CurrentPlayerClan 	= BattleWaves_PlayerClan;
 			
-			declare CMlFrame FrameTimeLeft 	<=> (Page.GetFirstChild("FrameTimeLeft") as CMlFrame);
-			declare CMlLabel LabelTimeLeft 	<=> (Page.GetFirstChild("LabelTimeLeft") as CMlLabel);
-			declare CMlLabel LabelAttack 	<=> (Page.GetFirstChild("LabelAttack") as CMlLabel);
-			declare CMlLabel Label_AdditionalRules 	<=> (Page.GetFirstChild("Label_AdditionalRules") as CMlLabel);			
-			//declare CMlQuad QuadAttackLeft 	<=> (Page.GetFirstChild("QuadAttackLeft") as CMlQuad);
-			//declare CMlQuad QuadAttackRight	<=> (Page.GetFirstChild("QuadAttackRight") as CMlQuad);
-			
-			declare Clan1Color = Teams[0].ColorText;
-			declare Clan2Color = Teams[1].ColorText;
-			
-			declare CurrentAttkClan = -1;
-			declare CurrentPlayerClan = -1;
-			
-			while(True) {
-				sleep(100);
-				
-				if((CurrentAttkClan != BattleWaves_AtkClan) || (BattleWaves_PlayerClan != CurrentPlayerClan))
-				{
-					CurrentAttkClan 	= BattleWaves_AtkClan;
-					CurrentPlayerClan 	= BattleWaves_PlayerClan;
-					
-					if(BattleWaves_AtkClan <= 0) {
-						FrameTimeLeft.Hide();
+			if(BattleWaves_AtkClan <= 0) {
+				FrameTimeLeft.Hide();
+			}
+			else {
+				FrameTimeLeft.Show();
+										
+				if(BattleWaves_PlayerClan == BattleWaves_AtkClan) {
+					LabelAttack.SetText(TextLib::Compose("$s%1", _("|Imperative|Attack")));
+					if(Battle_IsBeginner) {
+						Label_AdditionalRules.SetText(_("Capture the poles of the opposing team!"));
+						LabelTimeLeft.PosnY = -8.;
+					} else {
+						Label_AdditionalRules.SetText("");
+						LabelTimeLeft.PosnY = -4.;
 					}
-					else {
-						FrameTimeLeft.Show();
-												
-						if(BattleWaves_PlayerClan == BattleWaves_AtkClan) {
-							LabelAttack.SetText(TextLib::Compose("$s%1", _("|Imperative|Attack")));
-							if(Battle_IsBeginner) {
-								Label_AdditionalRules.SetText(_("Capture the poles of the opposing team!"));
-								LabelTimeLeft.PosnY = -8.;
-							} else {
-								Label_AdditionalRules.SetText("");
-								LabelTimeLeft.PosnY = -4.;
-							}
-						} else {
-							LabelAttack.SetText(TextLib::Compose("$s%1", _("|Imperative|Defend")));
-							if(Battle_IsBeginner) {
-								Label_AdditionalRules.SetText(_("Prevent your poles from being captured!"));
-								LabelTimeLeft.PosnY = -8.;
-							} else {
-								Label_AdditionalRules.SetText("");
-								LabelTimeLeft.PosnY = -4.;
-							}
-						}
-					}
-				}
-				
-				if(BattleWaves_TimeLeft < {{{_WavesDuration}}}) {
-					LabelTimeLeft.SetText("$s"^BattleWaves_TimeLeft);
 				} else {
-					LabelTimeLeft.SetText("");
+					LabelAttack.SetText(TextLib::Compose("$s%1", _("|Imperative|Defend")));
+					if(Battle_IsBeginner) {
+						Label_AdditionalRules.SetText(_("Prevent your poles from being captured!"));
+						LabelTimeLeft.PosnY = -8.;
+					} else {
+						Label_AdditionalRules.SetText("");
+						LabelTimeLeft.PosnY = -4.;
+					}
 				}
 			}
-			
 		}
-	--></script>
-	<!--<frame posn="0 71 256" halign="center" valign="center" id="FrameTimeLeft" hidden="1">-->
-	<frame posn="0 57 50" halign="center" valign="center" id="FrameTimeLeft" hidden="1">
-		<frame posn="0 4">
-			<!--
-				<quad id="QuadAttackLeft"  sizen="{{{2*ArrowsHeight}}} {{{ArrowsHeight}}}" halign="center" valign="center" colorize="{{{
-					ColorClan1.X}}} {{{ColorClan1.Y}}} {{{ColorClan1.Z}}}" image="{{{ImgActionLeft}}}" />
-				<quad id="QuadAttackRight" sizen="{{{2*ArrowsHeight}}} {{{ArrowsHeight}}}" halign="center" valign="center" colorize="{{{
-					ColorClan2.X}}} {{{ColorClan2.Y}}} {{{ColorClan2.Z}}}" image="{{{ImgActionRight}}}"/>
-			-->
-			<label posn="  0 4" id="LabelAttack" textsize="8" halign="center" valign="center"/>
-			<label posn="  0 -2" id="Label_AdditionalRules" textsize="4" halign="center" valign="center" textemboss="true" />
-			<label posn="  0 -8" id="LabelTimeLeft" textsize="8" halign="center" valign="center"/>
-		</frame>
-	</frame>
-	""";
+		
+		if(BattleWaves_TimeLeft < {{{_WavesDuration}}}) {
+			LabelTimeLeft.SetText("$s"^BattleWaves_TimeLeft);
+		} else {
+			LabelTimeLeft.SetText("");
+		}
+	}
+}
+--></script>""";
 	
 	
 	return MLText;

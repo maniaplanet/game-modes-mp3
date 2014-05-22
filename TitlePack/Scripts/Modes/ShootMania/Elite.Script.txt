@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-04-14"
+#Const Version		"2014-05-16"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -21,13 +21,6 @@
 #Setting S_DraftBanNb			4		as _("Number of map to ban during draft (-1: ban all)")	///< Number of map to ban during draft
 #Setting S_DraftPickNb			3		as _("Number of map to pick during draft")				///< Number of map to pick during draft
 #Setting S_RequiredPlayersNb	3		as _("Number of players per team")						///< Required number of players in each team
-/*
-#Setting S_UseLobby				False	as "<hidden>" // _("Launch server in lobby mode")
-#Setting S_LobbyTimePerRound 	60  	as "<hidden>" // _("Time limit per round in lobby mode (sec., 0: no limit)")
-#Setting S_LobbyRoundPerMap  	30  	as "<hidden>" // _("Nb of rounds per map in lobby mode")
-#Setting S_LobbyMatchmakerTime	10000  	as "<hidden>" // _("in milliseconds, time allocated to the matchmaking")
-#Setting S_LobbyInstagib  		False  	as "<hidden>" // _("Laser mode in lobby")
-*/
 #Setting S_DisplayRulesReminder True	as "<hidden>" // _("Display a window with the rules when the match begins")
 
 #Const S_UseEliteB2				False	//as _("Elite Beta 2 gameplay")							///< Use the beta 2 gameplay settings
@@ -109,6 +102,7 @@ ManialinkRules = """
   <label posn="-103.25 -86 2" sizen="50 40" halign="center" text="$sProtect the Pole" textsize="1" style="TextRaceMessage"/>
   <quad posn="-40.75 18 1.56" sizen="91.42 51.42" style="BgsPlayerCard" substyle="BgCard" />
   <video posn="4.75 17.5 1.75" sizen="89.75 50.25" halign="center" data="{{{ImageUrl}}}/elite_rules.bik" looping="1" stop="1" play="1" />
+  <!-- preload --><quad posn="0 0 -20" sizen="1 1" image="{{{ImageUrl}}}/elite_rules.bik" />
   <label posn="5 30.5 2" sizen="60 40" halign="center" text="$s$fffELITE RULES" textsize="4" style="TextButtonBig"/>
   <label posn="5 -42 2" sizen="120 40" halign="center" text="$sThe game is divided in rounds of two turns each." textsize="1" style="TextRaceMessage"/>
   <label posn="5 -49.5 2" sizen="100 40" halign="center" text="$s During a round each team plays one turn in attack and one turn in defense." textsize="1" style="TextRaceMessage"/>
@@ -152,14 +146,11 @@ ModeStatusMessage = _("TYPE: Team versus Team (1 vs 3)\nOBJECTIVE: Capture the p
 
 ***StartServer***
 ***
-// ---------------------------------- //
-// Lobby mode
-//if (S_UseLobby) Lobby::StartLobbyMode(S_LobbyTimePerRound, S_LobbyRoundPerMap, S_LobbyMatchmakerTime, True, S_LobbyInstagib);
+assert(S_RequiredPlayersNb > 0, _("You cannot set the minimum number of players below 1."));
 // ---------------------------------- //
 // Practice mode
 if (S_Practice) ElitePractice::Run();
 
-// @MM
 UseForcedClans = False;
 if (S_MatchmakingMode == 2) {
 	MM_Init([S_RequiredPlayersNb, S_RequiredPlayersNb]);
@@ -176,13 +167,14 @@ Layers::Create("PreTurn");
 Draft::StartServer();
 Settings::Load();
 EliteEndSequence::Load();
-//EliteStats::Load();
+EliteStats::Load();
 
 CustomUI::Load();
 CustomUI::Add("Elite_Checkpoints", <156., -80.>, <15., 10.>, "bottom", "right");
 CustomUI::Add("Elite_AtkArmor", <156., -88.>, <15., 10.>, "bottom", "right");
+CustomUI::Add("Elite_AtkWinProbability", <140., -88.>, <15., 10.>, "bottom", "right");
 CustomUI::Add("Elite_GaugeCapture", <0., -40.>, <145., 16.>, "center", "center");
-CustomUI::Add("Elite_Sponsors", <90., -88.>, <40., 20.>, "bottom", "left");
+CustomUI::Add("Elite_Sponsors", <80., -88.>, <40., 20.>, "bottom", "left");
 CustomUI::Add("Elite_PlayersList_1", <-160., 74.>, <60., 18.>, "top", "left");
 CustomUI::Add("Elite_PlayersList_2", <160., 74.>, <60., 18.>, "top", "right");
 CustomUI::Build();
@@ -258,8 +250,6 @@ if (S_UseDraft) {
 
 ***RulesReminder***
 ***
-//if (S_Matchmaking) CreateRulesReminderLayer();
-// @MM
 if (S_MatchmakingMode == 2) CreateRulesReminderLayer();
 ***
 
@@ -267,7 +257,6 @@ if (S_MatchmakingMode == 2) CreateRulesReminderLayer();
 ***
 UseLaserVsBullets = True;
 EliteEndSequence::InitPlayersList();
-//EliteStats::StartMap();
 CustomUI::Attach();
 
 declare netwrite Integer Net_Elite_BestDodgeTotal for Teams[0];
@@ -304,13 +293,15 @@ UpdateLayerInfo();
 UpdateLayerPlayers();
 
 Replay_Start();
-//MB_Sleep(1);
-// @MM
 MM_Sleep(1);
 Layers::Update("PreTurn", CreateLayerPreTurn(TeamAtkName, TeamDefName, NextAtkName));
 Layers::DetachReplay("Replay");
 Layers::AttachReplay("PreTurn");
 Replay_SaveInterface();
+
+EliteStats::CheckSettings(S_TimeLimit, S_TimePole, S_TimeCapture, S_RequiredPlayersNb);
+EliteStats::WinProbabilityVisibility(True);
+EliteStats::StartTurn();
 ***
 
 ***PlayLoop***
@@ -323,6 +314,13 @@ if (StartReplay && Now > StartTime) {
 	Replay_SaveInterface();
 	StartReplay = False;
 }
+
+// Monitor atk player
+declare DefNb = 0;
+declare AtkArmorNb = 0;
+if (ClansNbPlayersAlive.existskey(G_DefClan)) DefNb = ClansNbPlayersAlive[G_DefClan];
+if (Players.existskey(G_AtkPlayerId)) AtkArmorNb = Players[G_AtkPlayerId].Armor / 100;
+EliteStats::Monitor(AtkArmorNb, DefNb, G_AtkPlayerId);
 ***
 
 ***EndReplay***
@@ -332,6 +330,8 @@ Replay_Stop();
 
 ***EndTurnBegin***
 ***
+EliteStats::WinProbabilityVisibility(False);
+
 foreach(Player in Players) {
 	declare NbHit for Player.Score = 0;
 	Replay_SaveAttackScore(Player, Player.Score.Points);
@@ -374,12 +374,7 @@ EliteEndSequence::Attach();
 ***
 EliteEndSequence::Detach();
 ***
-/*
-***EndMap***
-***
-EliteStats::EndMap();
-***
-*/
+
 ***EndServer***
 ***
 Layers::Destroy("Info");
@@ -387,7 +382,7 @@ Layers::Destroy("Players");
 Draft::EndServer();
 Settings::Unload();
 EliteEndSequence::Unload();
-//EliteStats::Unload();
+EliteStats::Unload();
 CustomUI::Unload();
 ***
 
@@ -451,8 +446,6 @@ Player.AmmoGain		= Settings::GetReal(C_OAtkLaserAmmoGain, C_AtkLaserAmmoGain);
 Player.StaminaMax	= Settings::GetReal(C_OAtkStaminaMaxMultiplier, C_AtkStaminaMaxMultiplier);
 Player.StaminaGain	= Settings::GetReal(C_OAtkStaminaMaxMultiplier, C_AtkStaminaMaxMultiplier);
 
-//if (S_Mode == 1 || S_Matchmaking) Player.ArmorMax = DefSpawned * 100;
-// @MM
 if (S_Mode == 1 || S_MatchmakingMode == 2) Player.ArmorMax = DefSpawned * 100;
 else Player.ArmorMax = C_AtkArmorMax;
 if (Player.ArmorMax < 100) Player.ArmorMax = 100;
@@ -1928,19 +1921,22 @@ foreach (Player in AllPlayers) {
 }
 ***
 
+***BeforeWarmUp***
+***
+CreatePlayersLists("Medium", 0.67, 10, 1);
+***
+
 ***StartWarmUp***
 ***
-Interface::CreatePlayersLists("Medium", 0.67, 10, 1);
-
 WarmUp2::SetAllSlotsIcons("Clan1", "file://Media/Manialinks/ShootMania/Common/Rocket.dds");
 WarmUp2::SetAllSlotsIcons("Clan2", "file://Media/Manialinks/ShootMania/Common/Rocket.dds");
 WarmUp2::SetSlotIcon("Clan1", G_AtkSlot[1], "file://Media/Manialinks/ShootMania/Common/Laser.dds");
 WarmUp2::SetSlotIcon("Clan2", G_AtkSlot[2], "file://Media/Manialinks/ShootMania/Common/Laser.dds");
 ***
 
-***EndWarmUp***
+***AfterWarmUp***
 ***
-Interface::DestroyPlayersLists();
+DestroyPlayersLists();
 ***
 
 ***LadderPoints***
@@ -2038,7 +2034,7 @@ if (ClansNbPlayersAlive.existskey(G_DefClan)) DefNb = ClansNbPlayersAlive[G_DefC
 if (WinType == C_WinAttackEliminated) AtkArmorNb = 0;
 else if (Players.existskey(G_AtkPlayerId)) AtkArmorNb = Players[G_AtkPlayerId].Armor / 100;
 
-//if (Players.existskey(G_AtkPlayerId)) EliteStats::RegisterRound(Players[G_AtkPlayerId], AtkVictory, AtkArmorNb, DefNb);
+if (Players.existskey(G_AtkPlayerId)) EliteStats::EndTurn(Players[G_AtkPlayerId], AtkArmorNb, DefNb, AtkVictory);
 ***
 
 // ---------------------------------- //
@@ -2079,7 +2075,7 @@ Text CreateLayerInfo() {
 		</frame>
 	</frame>
 	<frame class="LibCustomUI_Module" id="Elite_Sponsors">
-		<frame posn="90 -88" hidden="1" id="Frame_Sponsors">
+		<frame posn="80 -88" hidden="1" id="Frame_Sponsors">
 			<quad sizen="40 20" valign="bottom" id="Quad_Sponsor" />
 		</frame>
 	</frame>
@@ -2930,4 +2926,94 @@ Void CreateRulesReminderLayer() {
 	Layers::Create("RulesReminder", MLText);
 	Layers::SetType("RulesReminder", CUILayer::EUILayerType::CutScene);
 	Layers::Attach("RulesReminder");
+}
+
+// ---------------------------------- //
+/** Create the PlayersLists manialink
+ *
+ *	@param	_Style				Can either be "Small", "Medium" or "Big"
+ *	@param	_Scale				Scale the lists
+ *	@param	_Lines				Number or lines in the lists
+ *	@param	_Columns			Number of columns in the lists
+ *
+ *	@return		The manialink string
+ */
+Text Private_CreateLayerPlayersLists(Text _Style, Real _Scale, Integer _Lines, Integer _Columns) {
+	return """
+<frame id="Frame_PlayersLists">
+	<frame class="LibCustomUI_Module" id="Elite_PlayersList_1">
+		<frame posn="-160 68" id="Frame_PlayersList_1">
+			<frame id="Frame_TeamName_1" hidden="0">
+				<quad posn="0.25 0" sizen="39.45 3.5" halign="left" valign="center" bgcolor="fff8" />
+				<quad posn="0.5 2.9 1" sizen="10.8 10.5" halign="left" valign="center" style="Emblems" substyle="#1" /> 
+				<label posn="12.5 0.4 1" sizen="26 3.5" halign="left" valign="center" textsize="2.3" textemboss="1" text="Blue" id="Label_Team1Name" />
+			</frame>
+			<playerlist posn="0 -2" scale="{{{_Scale}}}" halign="left" substyle="{{{_Style}}}" lines="{{{_Lines}}}" columns="{{{_Columns}}}" team="1" status="Playing"/>
+		</frame>
+	</frame>
+	<frame class="LibCustomUI_Module" id="Elite_PlayersList_2">
+		<frame posn="160 68" id="Frame_PlayersList_2">
+			<frame id="Frame_TeamName_2" hidden="0">
+				<quad posn="-0.25 0" sizen="39.45 3.5" halign="right" valign="center" bgcolor="fff8" />
+				<quad posn="-0.5 2.9 1" sizen="10.8 10.5" halign="right" valign="center" style="Emblems" substyle="#2" /> 
+				<label posn="-12.5 0.4 1" sizen="26 3.5" halign="right" valign="center" textsize="2.3" textemboss="1" text="Red" id="Label_Team2Name" />
+			</frame>
+			<playerlist posn="0 -2" scale="{{{_Scale}}}" halign="right" substyle="{{{_Style}}}" lines="{{{_Lines}}}" columns="{{{_Columns}}}" team="2" status="Playing"/>
+		</frame>
+	</frame>
+</frame>
+<script><!--
+main() {
+	declare Frame_PlayersLists <=> (Page.GetFirstChild("Frame_PlayersLists") as CMlFrame);
+	declare Label_Team1Name <=> (Frame_PlayersLists.GetFirstChild("Label_Team1Name") as CMlLabel);
+	declare Label_Team2Name <=> (Frame_PlayersLists.GetFirstChild("Label_Team2Name") as CMlLabel);
+	
+	declare PrevTeam1Name = "";
+	declare PrevTeam2Name = "";
+	
+	{{{CustomUI::InjectMLInit()}}}
+	
+	while (True) {
+		yield;
+		
+		{{{CustomUI::InjectMLLoop()}}}
+		
+		if (InputPlayer == Null) continue;
+		if (!PageIsVisible) continue;
+		
+		if (PrevTeam1Name != Teams[0].ColorizedName) {
+			PrevTeam1Name = Teams[0].ColorizedName;
+			Label_Team1Name.SetText(Teams[0].ColorizedName);
+		}
+		if (PrevTeam2Name != Teams[1].ColorizedName) {
+			PrevTeam2Name = Teams[1].ColorizedName;
+			Label_Team2Name.SetText(Teams[1].ColorizedName);
+		}
+	}
+}
+--></script>
+""";
+}
+
+// ---------------------------------- //
+/// Destroy the PlayersLists UI
+Void DestroyPlayersLists() {
+	Layers::Destroy("PlayersListWarmUp");
+}
+
+// ---------------------------------- //
+/** Create the PlayersLists UI
+ *
+ *	@param	_Style				Can either be "Small", "Medium" or "Big"
+ *	@param	_Scale				Scale the lists
+ *	@param	_Lines				Number or lines in the lists
+ *	@param	_Columns			Number of columns in the lists
+ */
+Void CreatePlayersLists(Text _Style, Real _Scale, Integer _Lines, Integer _Columns) {
+	// Check if a PlayersLists layer was already created and destroy it if it's the case
+	DestroyPlayersLists();
+	
+	// Create and assign the layer
+	Layers::Create("PlayersListWarmUp", Private_CreateLayerPlayersLists(_Style, _Scale, _Lines, _Columns));
+	Layers::Attach("PlayersListWarmUp");
 }

@@ -1,22 +1,41 @@
 /**
  *	EliteStats Lib
  */
-#Const	Version		"2013-11-27"
+#Const	Version		"2014-05-22"
 #Const	ScriptName	"EliteStats.Script.txt"
+
+#Include "Libs/Nadeo/CustomUI.Script.txt" as CustomUI
 
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
+#Const C_LibEliteStats_RecordTimes [0, 15000, 25000, 35000, 45000, 50000, 55000, 60000]
 
+#Const C_LibEliteStats_AtkArmorNb	0
+#Const C_LibEliteStats_DefNb		1
+
+#Const C_LibEliteStats_Count		0
+#Const C_LibEliteStats_Average		1
+
+#Const C_LibEliteStats_Smoothing		0.10
+#Const C_LibEliteStats_InitialAverage	0
+#Const C_LibEliteStats_MaxAverage		10000
+
+#Const C_LibEliteStats_MaxAtkArmorNb	3
+#Const C_LibEliteStats_MaxDefNb			3
 
 // ---------------------------------- //
 // Globales
 // ---------------------------------- //
-declare Ident	G_LibEliteStats_LayerSaveId;					///< Save layer id
-declare Ident	G_LibEliteStats_LayerVictoryConditionId; 		///< Victory condition layer id
-declare Integer[Integer][Integer] G_LibEliteStats_AtkVictory;	///< NbOfVictory[NbOfDef][NbOfAtkArmor]
-declare Integer[Integer][Integer] G_LibEliteStats_AtkDefeat;	///< NbOfDefeat[NbOfDef][NbOfAtkArmor]
-declare Integer G_LibEliteStats_RegisterRoundNb;				///< Number of rounds registred in the stats
+declare Ident				G_LibEliteStats_LayerSaveId;			///< Save layer id
+declare Ident				G_LibEliteStats_LayerWinProbabilityId;	///< Win probability layer id
+declare Boolean				G_LibEliteStats_CanMonitor;				///< Allow the monitoring of player
+declare Integer[][Integer]	G_LibEliteStats_TurnStats;				///< Stats for the current turn
+declare Integer				G_LibEliteStats_TurnRecordTime;			///< Time to save during the turn
+declare Integer				G_LibELiteStats_CurrentTime;			///< Current time used for stats
+declare Integer				G_LibEliteStats_PrevAtkArmorNb;			///< Previous number of armors for the attacker
+declare Integer				G_LibEliteStats_PrevDefNb;				///< Previous number of defenders
+declare Ident				G_LibEliteStats_PrevAtkPlayerLogin;		///< Previous id of the attacker
 
 // ---------------------------------- //
 // Functions
@@ -26,100 +45,147 @@ declare Integer G_LibEliteStats_RegisterRoundNb;				///< Number of rounds regist
 // Private
 // ---------------------------------- //
 // ---------------------------------- //
-/** Create the victory condition manialink
+/** Create the win probability manialink
  *
  *	@return		The manialink text
  */
-Text Private_CreateMLVictoryCondition() {
-	declare MaxX = 0;
-	declare MaxY = 0;
-	declare SizeX = 60.;
-	declare SizeY = 60.;
-	declare PointsVictory = Vec3[];
-	declare PointsDefeat = Vec3[];
-	declare MaxTotal = 0;
-	
-	foreach (NbOfAtkArmor => A in G_LibEliteStats_AtkVictory) {
-		if (NbOfAtkArmor > MaxX) MaxX = NbOfAtkArmor;
-		foreach (NbOfDef => Total in A) {
-			if (NbOfDef > MaxY) MaxY = NbOfDef;
-			PointsVictory.add(<NbOfAtkArmor*1., NbOfDef*1., Total*1.>);
-			if (Total > MaxTotal) MaxTotal = Total;
-		}
-	}
-	
-	foreach (NbOfAtkArmor => A in G_LibEliteStats_AtkDefeat) {
-		if (NbOfAtkArmor > MaxX) MaxX = NbOfAtkArmor;
-		foreach (NbOfDef => Total in A) {
-			if (NbOfDef > MaxY) MaxY = NbOfDef;
-			PointsDefeat.add(<NbOfAtkArmor*1., NbOfDef*1., Total*1.>);
-			if (Total > MaxTotal) MaxTotal = Total;
-		}
-	}
-	
-	declare UnitSizeX = SizeX;
-	declare UnitSizeY = SizeY;
-	if (MaxX > 0) UnitSizeX = SizeX / (MaxX * 1.);
-	if (MaxY > 0) UnitSizeY = SizeY / (MaxY * 1.);
-	
-	declare LegendX = "";
-	declare LegendY = "";
-	for (I, 1, MaxX) {
-		LegendX ^= """<label posn="{{{I*UnitSizeX}}} 0" sizen="4 4" halign="center" valign="top" text="{{{I}}}" />""";
-	}
-	for (I, 1, MaxY) {
-		LegendY ^= """<label posn="0 {{{I*UnitSizeY}}}" sizen="4 4" halign="right" valign="center" text="{{{I}}}" />""";
-	}
-	
-	declare Values = "";
-	foreach (Point in PointsVictory) {
-		declare Ratio = (Point.Z / (MaxTotal*1.));
-		declare PointSize = <Ratio * UnitSizeX, Ratio * UnitSizeY>;
-		if (PointSize.X > PointSize.Y) PointSize.X = PointSize.Y;
-		if (PointSize.Y > PointSize.X) PointSize.Y = PointSize.X;
-		Values ^= """<quad posn="{{{Point.X*UnitSizeX}}} {{{Point.Y*UnitSizeY}}}" sizen="{{{PointSize.X}}} {{{PointSize.Y}}}" halign="center" valign="center" bgcolor="0707" />""";
-	}
-	foreach (Point in PointsDefeat) {
-		declare Ratio = (Point.Z / (MaxTotal*1.));
-		declare PointSize = <Ratio * UnitSizeX, Ratio * UnitSizeY>;
-		if (PointSize.X > PointSize.Y) PointSize.X = PointSize.Y;
-		if (PointSize.Y > PointSize.X) PointSize.Y = PointSize.X;
-		Values ^= """<quad posn="{{{Point.X*UnitSizeX}}} {{{Point.Y*UnitSizeY}}}" sizen="{{{PointSize.X}}} {{{PointSize.Y}}}" halign="center" valign="center" bgcolor="7007" />""";
-	}
-	
+Text Private_CreateMLWinProbability() {
 	return """
-<frame posn="-150 -60" id="Frame_VictoryCondition">
-	<format textsize="1" textemboss="1" />
-	<frame posn="0 0">
-		<quad sizen="{{{SizeX}}} 1" bgcolor="000" />
-		<quad sizen="1 {{{SizeY}}}" halign="right" valign="bottom" bgcolor="000" />
-		<quad sizen="1 1" halign="right" valign="top" bgcolor="000" />
-	</frame>
-	<frame posn="-1.5 -1.5 1">
-		<label sizen="4 4" halign="right" valign="top" text="0" />
-		<frame posn="1.5 0">{{{LegendX}}}</frame>
-		<frame posn="0 1.5">{{{LegendY}}}</frame>
-	</frame>
-	<frame posn="0 0 2">
-		<label posn="{{{SizeX+1}}} 0" valign="center2" text="Atk" />
-		<label posn="0 {{{SizeY + 1}}}" halign="center" valign="bottom" text="Def" />
-	</frame>
-	<frame posn="0 0 3">
-		{{{Values}}}
+<frame class="LibCustomUI_Module" id="Elite_AtkWinProbability">
+	<frame posn="140 -88" scale="0.7" hidden="1" id="Frame_Global">
+		<!--<quad sizen="8 8" halign="right" valign="bottom" style="Icons64x64_1" substyle="OfficialRace" colorize="777" />-->
+		<label posn="0 4.5" textsize="5" halign="right" valign="center" textemboss="1" textcolor="ddd" id="Label_WinProbability" />
 	</frame>
 </frame>
 <script><!--
+#Include "MathLib" as ML
+
+#Const C_AnimDuration 500
+#Const C_Count		{{{C_LibEliteStats_Count}}}
+#Const C_Average	{{{C_LibEliteStats_Average}}}
+
+declare Integer G_AnimStartTime;
+declare Integer G_AnimEndTime;
+declare Real G_AnimStartValue;
+declare Real G_AnimChangeValue;
+declare Integer G_CurrentWinProbability;
+
+Real EaseLinear(Integer _T, Real _B, Real _C, Integer _D) {
+  declare X = _T / (_D*1.);
+  return (_C * X) + _B;
+}
+
+Void UpdateWinProbability() {
+	declare Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
+	
+	declare netread Integer[][Integer][Integer][Integer] Net_LibEliteStats_AtkWinProbability for Teams[0];
+	declare netread Text Net_LibEliteStats_AtkWinProbabibilityLogin for Teams[0];
+	declare netread Text Net_LibEliteStats_AtkPlayerLogin for Teams[0];
+	declare netread Boolean Net_LibEliteStats_AtkWinProbabilityVisible for Teams[0];
+	declare netread Integer Net_LibEliteStats_CurrentTime for Teams[0];
+	declare netread Integer Net_LibEliteStats_AtkArmorNb for Teams[0];
+	declare netread Integer Net_LibEliteStats_DefNb for Teams[0];
+	
+	if (Net_LibEliteStats_AtkPlayerLogin != "" && Net_LibEliteStats_AtkPlayerLogin == Net_LibEliteStats_AtkWinProbabibilityLogin) {
+		if (Net_LibEliteStats_AtkWinProbabilityVisible && !Frame_Global.Visible) Frame_Global.Visible = True;
+		else if (!Net_LibEliteStats_AtkWinProbabilityVisible && Frame_Global.Visible) Frame_Global.Visible = False;
+		
+		if (Frame_Global.Visible) {
+			declare Label_WinProbability <=> (Page.GetFirstChild("Label_WinProbability") as CMlLabel);
+			
+			declare Count = 0;
+			G_AnimStartValue = G_CurrentWinProbability * 1.;
+			G_CurrentWinProbability = {{{C_LibEliteStats_InitialAverage}}};
+			
+			if (Net_LibEliteStats_AtkWinProbability.existskey(Net_LibEliteStats_CurrentTime)) {
+				if (Net_LibEliteStats_AtkWinProbability[Net_LibEliteStats_CurrentTime].existskey(Net_LibEliteStats_AtkArmorNb)) {
+					if (Net_LibEliteStats_AtkWinProbability[Net_LibEliteStats_CurrentTime][Net_LibEliteStats_AtkArmorNb].existskey(Net_LibEliteStats_DefNb)) {
+						if (Net_LibEliteStats_AtkWinProbability[Net_LibEliteStats_CurrentTime][Net_LibEliteStats_AtkArmorNb][Net_LibEliteStats_DefNb].existskey(C_Average)) {
+							G_CurrentWinProbability = Net_LibEliteStats_AtkWinProbability[Net_LibEliteStats_CurrentTime][Net_LibEliteStats_AtkArmorNb][Net_LibEliteStats_DefNb][C_Average];
+						}
+						if (Net_LibEliteStats_AtkWinProbability[Net_LibEliteStats_CurrentTime][Net_LibEliteStats_AtkArmorNb][Net_LibEliteStats_DefNb].existskey(C_Count)) {
+							Count = Net_LibEliteStats_AtkWinProbability[Net_LibEliteStats_CurrentTime][Net_LibEliteStats_AtkArmorNb][Net_LibEliteStats_DefNb][C_Count];
+						}
+					}
+				}
+			}
+			
+			if (Count > 0) {
+				G_AnimStartTime = Now;
+				G_AnimEndTime = Now + C_AnimDuration;
+				G_AnimChangeValue = (G_CurrentWinProbability - G_AnimStartValue) * 1.;
+			} else {
+				Label_WinProbability.Value = "AR : -";
+			}
+		}
+	} else if (Frame_Global.Visible) {
+		Frame_Global.Visible = False;
+	}
+}
+
 main() {
-	declare Frame_VictoryCondition <=> (Page.GetFirstChild("Frame_VictoryCondition") as CMlFrame);
-	declare netread Boolean Net_LibEliteStats_VictoryConditionVisible for Teams[0];
-	declare PrevVictoryConditionVisible = False;
+	declare Label_WinProbability <=> (Page.GetFirstChild("Label_WinProbability") as CMlLabel);
+	
+	declare netread Boolean Net_LibEliteStats_AtkWinProbabilityVisible for Teams[0];
+	declare netread Integer Net_LibEliteStats_AtkWinProbabilityUpdate for Teams[0];
+	declare netread Text Net_LibEliteStats_AtkWinProbabibilityLogin for Teams[0];
+	
+	declare PrevAtkWinProbabilityVisible = True;
+	declare PrevAtkWinProbabilityUpdate = -1;
+	declare PrevAtkWinProbabibilityLogin = "";
+	
+	G_AnimStartTime = -1;
+	G_AnimEndTime = -1;
+	G_AnimStartValue = 0.;
+	G_AnimChangeValue = 0.;
+	G_CurrentWinProbability = 0;
+	
+	declare NeedUpdate = False;
+	
+	{{{CustomUI::InjectMLInit()}}}
 	
 	while (True) {
-		sleep(250);
+		yield;
+		if (!PageIsVisible) continue;
 		
-		if (PrevVictoryConditionVisible != Net_LibEliteStats_VictoryConditionVisible) {
-			PrevVictoryConditionVisible = Net_LibEliteStats_VictoryConditionVisible;
-			Frame_VictoryCondition.Visible = Net_LibEliteStats_VictoryConditionVisible;
+		{{{CustomUI::InjectMLLoop()}}}
+		
+		NeedUpdate = False;
+	
+		if (PrevAtkWinProbabilityVisible != Net_LibEliteStats_AtkWinProbabilityVisible) {
+			PrevAtkWinProbabilityVisible = Net_LibEliteStats_AtkWinProbabilityVisible;
+			NeedUpdate = True;
+		}
+		
+		if (PrevAtkWinProbabilityUpdate != Net_LibEliteStats_AtkWinProbabilityUpdate) {
+			PrevAtkWinProbabilityUpdate = Net_LibEliteStats_AtkWinProbabilityUpdate;
+			NeedUpdate = True;
+		}
+		
+		if (PrevAtkWinProbabibilityLogin != Net_LibEliteStats_AtkWinProbabibilityLogin) {
+			PrevAtkWinProbabibilityLogin = Net_LibEliteStats_AtkWinProbabibilityLogin;
+			NeedUpdate = True;
+		}
+		
+		if (NeedUpdate) {
+			UpdateWinProbability();
+		}
+		
+		if (G_AnimStartTime >= 0 && G_AnimEndTime >= 0) {
+			declare WinProbability = 0;
+			
+			if (Now < G_AnimEndTime) {
+				declare Time = Now - G_AnimStartTime;
+				WinProbability =  ML::NearestInteger(EaseLinear(Time, G_AnimStartValue, G_AnimChangeValue, C_AnimDuration));
+			} else {
+				G_AnimStartTime = -1;
+				G_AnimEndTime = -1;
+				G_AnimStartValue = 0.;
+				G_AnimChangeValue = 0.;
+				WinProbability = G_CurrentWinProbability;
+			}
+			
+			Label_WinProbability.Value = "AR : "^(WinProbability/100)^"%";
 		}
 	}
 }
@@ -134,37 +200,86 @@ main() {
 Text Private_CreateMLSave() {
 	return """
 <script><!--
+#Include "MathLib" as ML
+
+#Const C_Smoothing	{{{C_LibEliteStats_Smoothing}}}
+#Const C_Count		{{{C_LibEliteStats_Count}}}
+#Const C_Average	{{{C_LibEliteStats_Average}}}
+
+Integer GetEWMA(Integer _NewValue, Integer _CurrentCount, Integer _CurrentAverage) {
+	declare Ratio = 1. / ((_CurrentCount * 1.) + 1.);
+	
+	if (Ratio < C_Smoothing) Ratio = C_Smoothing;
+	
+	return ML::NearestInteger((Ratio * _NewValue) + ((1 - Ratio) * _CurrentAverage));
+}
+
+Integer[] GetStats(Integer _Time, Integer _AtkArmorNb, Integer _DefNb) {
+	declare persistent Integer[][Integer][Integer][Integer] LibEliteStats_AtkWinProbability3 for This;
+	
+	if (LibEliteStats_AtkWinProbability3.existskey(_Time)) {
+		if (LibEliteStats_AtkWinProbability3[_Time].existskey(_AtkArmorNb)) {
+			if (LibEliteStats_AtkWinProbability3[_Time][_AtkArmorNb].existskey(_DefNb)) {
+				return LibEliteStats_AtkWinProbability3[_Time][_AtkArmorNb][_DefNb];
+			}
+		}
+	}
+	
+	return [0, {{{C_LibEliteStats_InitialAverage}}}];
+}
+
+Void SetAverage(Integer _Time, Integer _AtkArmorNb, Integer _DefNb, Integer _Average) {
+	declare persistent Integer[][Integer][Integer][Integer] LibEliteStats_AtkWinProbability3 for This;
+	
+	if (!LibEliteStats_AtkWinProbability3.existskey(_Time)) LibEliteStats_AtkWinProbability3[_Time] = Integer[][Integer][Integer];
+	if (!LibEliteStats_AtkWinProbability3[_Time].existskey(_AtkArmorNb)) LibEliteStats_AtkWinProbability3[_Time][_AtkArmorNb] = Integer[][Integer];
+	if (!LibEliteStats_AtkWinProbability3[_Time][_AtkArmorNb].existskey(_DefNb)) LibEliteStats_AtkWinProbability3[_Time][_AtkArmorNb][_DefNb] = [0, {{{C_LibEliteStats_InitialAverage}}}];
+	
+	LibEliteStats_AtkWinProbability3[_Time][_AtkArmorNb][_DefNb][C_Count] += 1;
+	LibEliteStats_AtkWinProbability3[_Time][_AtkArmorNb][_DefNb][C_Average] = _Average;
+	
+	declare netwrite Net_LibEliteStats_AtkWinProbability for UI = LibEliteStats_AtkWinProbability3;
+	Net_LibEliteStats_AtkWinProbability = LibEliteStats_AtkWinProbability3;
+}
+
 main() {
 	declare netread Integer Net_LibEliteStats_SaveTime for UI;
-	declare persistent Integer[Integer][Integer] LibEliteStats_AtkVictory;
-	declare persistent Integer[Integer][Integer] LibEliteStats_AtkDefeat;
+	declare netread Text Net_LibEliteStats_AtkPlayerLogin for Teams[0];
 	
 	declare PrevSaveTime = Net_LibEliteStats_SaveTime;
+	declare PrevAtkPlayerLogin = "";
 	
 	while (True) {
 		yield;
 		
 		if (InputPlayer == Null) continue;
 		
-		if (PrevSaveTime != Net_LibEliteStats_SaveTime && PrevSaveTime > 0) {
-			PrevSaveTime = Net_LibEliteStats_SaveTime;
+		if (PrevAtkPlayerLogin != Net_LibEliteStats_AtkPlayerLogin) {
+			PrevAtkPlayerLogin = Net_LibEliteStats_AtkPlayerLogin;
 			
-			declare netread Integer[Integer][Integer] Net_LibEliteStats_AtkVictory for InputPlayer;
-			declare netread Integer[Integer][Integer] Net_LibEliteStats_AtkDefeat for InputPlayer;
-			
-			foreach (NbOfAtkArmor => A in Net_LibEliteStats_AtkVictory) {
-				foreach (NbOfDef => Total in A) {
-					if (!LibEliteStats_AtkVictory.existskey(NbOfAtkArmor)) LibEliteStats_AtkVictory[NbOfAtkArmor] = Integer[Integer];
-					if (!LibEliteStats_AtkVictory[NbOfAtkArmor].existskey(NbOfDef)) LibEliteStats_AtkVictory[NbOfAtkArmor][NbOfDef] = 0;
-					LibEliteStats_AtkVictory[NbOfAtkArmor][NbOfDef] += Total;
-				}
+			if (InputPlayer.Login == Net_LibEliteStats_AtkPlayerLogin) {
+				declare persistent Integer[][Integer][Integer][Integer] LibEliteStats_AtkWinProbability3 for This;
+				declare netwrite Net_LibEliteStats_AtkWinProbability for UI = LibEliteStats_AtkWinProbability3;
+				Net_LibEliteStats_AtkWinProbability = LibEliteStats_AtkWinProbability3;
 			}
-			
-			foreach (NbOfAtkArmor => A in Net_LibEliteStats_AtkDefeat) {
-				foreach (NbOfDef => Total in A) {
-					if (!LibEliteStats_AtkDefeat.existskey(NbOfAtkArmor)) LibEliteStats_AtkDefeat[NbOfAtkArmor] = Integer[Integer];
-					if (!LibEliteStats_AtkDefeat[NbOfAtkArmor].existskey(NbOfDef)) LibEliteStats_AtkDefeat[NbOfAtkArmor][NbOfDef] = 0;
-					LibEliteStats_AtkDefeat[NbOfAtkArmor][NbOfDef] += Total;
+		}
+		
+		if (PrevSaveTime != Net_LibEliteStats_SaveTime) {
+			PrevSaveTime = Net_LibEliteStats_SaveTime;
+				
+			if (Net_LibEliteStats_SaveTime > 0) {
+				declare netread Integer[][Integer] Net_LibEliteStats_AtkRun for UI;
+				declare netread Boolean Net_LibEliteStats_AtkWin for UI;
+				
+				declare NewValue = 0;
+				if (Net_LibEliteStats_AtkWin) NewValue = {{{C_LibEliteStats_MaxAverage}}};
+				
+				foreach (Time => Stats in Net_LibEliteStats_AtkRun) {
+					declare AtkArmorNb = Stats[{{{C_LibEliteStats_AtkArmorNb}}}];
+					declare DefNb = Stats[{{{C_LibEliteStats_DefNb}}}];
+					declare CurrentStats = GetStats(Time, AtkArmorNb, DefNb);
+					
+					SetAverage(Time, AtkArmorNb, DefNb, GetEWMA(NewValue, CurrentStats[C_Count], CurrentStats[C_Average]));
 				}
 			}
 		}
@@ -174,40 +289,53 @@ main() {
 }
 
 // ---------------------------------- //
-/// Debug function 
-Void Private_GenerateDummyStats() {
-	for (AtkArmorNb, 0, 3) {
-		for (DefNb, 0, 3) {
-			if (!G_LibEliteStats_AtkVictory.existskey(AtkArmorNb)) G_LibEliteStats_AtkVictory[AtkArmorNb] = Integer[Integer];
-			if (!G_LibEliteStats_AtkVictory[AtkArmorNb].existskey(DefNb)) G_LibEliteStats_AtkVictory[AtkArmorNb][DefNb] = 0;
-			G_LibEliteStats_AtkVictory[AtkArmorNb][DefNb] = AtkArmorNb * (AtkArmorNb - DefNb);
-			
-			if (!G_LibEliteStats_AtkDefeat.existskey(AtkArmorNb)) G_LibEliteStats_AtkDefeat[AtkArmorNb] = Integer[Integer];
-			if (!G_LibEliteStats_AtkDefeat[AtkArmorNb].existskey(DefNb)) G_LibEliteStats_AtkDefeat[AtkArmorNb][DefNb] = 0;
-			G_LibEliteStats_AtkDefeat[AtkArmorNb][DefNb] = DefNb * (DefNb - AtkArmorNb);
-		}
-	}
+/**	Check if the given stats are valid and can be saved
+ *
+ *	@return		The name of the script
+ */
+Boolean Private_StatsAreValid(Integer _AtkArmorNb, Integer _DefNb, Integer _RecordTime) {
+	if (_AtkArmorNb <= 0 || _AtkArmorNb > C_LibEliteStats_MaxAtkArmorNb) return False;
+	if (_DefNb <= 0 || _DefNb > C_LibEliteStats_MaxDefNb) return False;
+	if (!C_LibEliteStats_RecordTimes.exists(_RecordTime)) return False;
+	
+	return True;
 }
 
 // ---------------------------------- //
-/// Debug function 
-Void Private_ClearLocalStats() {
-	foreach (User in Users) {
-		declare persistent LibEliteStats_AtkVictory for User = Integer[Integer][Integer];
-		declare persistent LibEliteStats_AtkDefeat for User = Integer[Integer][Integer];
-		LibEliteStats_AtkVictory.clear();
-		LibEliteStats_AtkDefeat.clear();
-	}
-}
-
-Integer[Integer][Integer] Private_UpdateStatsVictoryCondition(Integer[Integer][Integer] _PreviousStats, Integer _AtkArmorNb, Integer _DefNb) {
-	declare TmpStats = _PreviousStats;
+/**	Send the info to get the win probablity to the UI
+ *
+ *	@param	_AtkArmorNb		The number of armors left to the attacker
+ *	@param	_DefNb			The number of defenders remaining
+ *	@param	_AtkPlayerId	THe id of the attacker
+ */
+Void Private_UpdateAtkWinProbability(Integer _AtkArmorNb, Integer _DefNb, Ident _AtkPlayerId, Integer _Time) {
+	declare Text Login;
+	declare netwrite Integer[][Integer][Integer][Integer] Net_LibEliteStats_AtkWinProbability for Teams[0];
+	declare netwrite Text Net_LibEliteStats_AtkWinProbabibilityLogin for Teams[0];
 	
-	if (!TmpStats.existskey(_AtkArmorNb)) TmpStats[_AtkArmorNb] = Integer[Integer];
-	if (!TmpStats[_AtkArmorNb].existskey(_DefNb)) TmpStats[_AtkArmorNb][_DefNb] = 0;
-	TmpStats[_AtkArmorNb][_DefNb] += 1;
-		
-	return TmpStats;
+	if (Players.existskey(_AtkPlayerId)) {
+		declare Player <=> Players[_AtkPlayerId];
+		Login = Player.Login;
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI != Null) {
+			declare netread Integer[][Integer][Integer][Integer] Net_LibEliteStats_AtkWinProbability as AtkWinProbability for UI;
+			Net_LibEliteStats_AtkWinProbability = AtkWinProbability;
+			Net_LibEliteStats_AtkWinProbabibilityLogin = Login;
+		} else {
+			Net_LibEliteStats_AtkWinProbability.clear();
+		}
+	}
+	
+	declare netwrite Net_LibEliteStats_AtkWinProbabilityUpdate for Teams[0] = 0;
+	declare netwrite Net_LibEliteStats_AtkArmorNb for Teams[0] = 0;
+	declare netwrite Net_LibEliteStats_DefNb for Teams[0] = 0;
+	declare netwrite Net_LibEliteStats_AtkPlayerLogin for Teams[0] = "";
+	declare netwrite Net_LibEliteStats_CurrentTime for Teams[0] = 0;
+	Net_LibEliteStats_AtkPlayerLogin = Login;
+	Net_LibEliteStats_AtkArmorNb = _AtkArmorNb;
+	Net_LibEliteStats_DefNb = _DefNb;
+	Net_LibEliteStats_CurrentTime = _Time;
+	Net_LibEliteStats_AtkWinProbabilityUpdate = Now;
 }
 
 // ---------------------------------- //
@@ -232,13 +360,23 @@ Text GetScriptName() {
 }
 
 // ---------------------------------- //
+/** Hide/Show the win probability layer
+ *
+ *	@param	_Visible	True to show, false to hide
+ */
+Void WinProbabilityVisibility(Boolean _Visible) {
+	declare netwrite Net_LibEliteStats_AtkWinProbabilityVisible for Teams[0] = False;
+	Net_LibEliteStats_AtkWinProbabilityVisible = _Visible;
+}
+
+// ---------------------------------- //
 /// Unload the library
 Void Unload() {
-	// Destroy the victory condition layer
-	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerVictoryConditionId)) {
-		declare LayerVictoryCondition = UIManager.UILayers[G_LibEliteStats_LayerVictoryConditionId];
-		declare Removed = UIManager.UIAll.UILayers.remove(LayerVictoryCondition);
-		UIManager.UILayerDestroy(LayerVictoryCondition);
+	// Destroy the win probability layer
+	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerWinProbabilityId)) {
+		declare LayerWinProbability = UIManager.UILayers[G_LibEliteStats_LayerWinProbabilityId];
+		declare Removed = UIManager.UIAll.UILayers.remove(LayerWinProbability);
+		UIManager.UILayerDestroy(LayerWinProbability);
 	}
 	// Destroy the save layer
 	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerSaveId)) {
@@ -247,12 +385,18 @@ Void Unload() {
 		UIManager.UILayerDestroy(LayerSave);
 	}
 	
-	declare netwrite Net_LibEliteStats_VictoryConditionVisible for Teams[0] = True;
-	Net_LibEliteStats_VictoryConditionVisible = True;
-		
-	G_LibEliteStats_AtkVictory.clear();
-	G_LibEliteStats_AtkDefeat.clear();
-	G_LibEliteStats_RegisterRoundNb = 0;
+	WinProbabilityVisibility(False);
+	
+	G_LibEliteStats_CanMonitor = False;
+	G_LibEliteStats_TurnStats.clear();
+	G_LibELiteStats_CurrentTime = -1;
+	G_LibEliteStats_TurnRecordTime = -1;
+	G_LibEliteStats_PrevAtkArmorNb = -1;
+	G_LibEliteStats_PrevDefNb = -1;
+	G_LibEliteStats_PrevAtkPlayerLogin = NullId;
+	
+	declare netwrite Integer[][Integer][Integer][Integer] Net_LibEliteStats_AtkWinProbability for Teams[0];
+	Net_LibEliteStats_AtkWinProbability.clear();
 }
 
 // ---------------------------------- //
@@ -260,97 +404,135 @@ Void Unload() {
 Void Load() {
 	Unload();
 	
-	// Create the victory condition layer
-	declare LayerVictoryCondition			= UIManager.UILayerCreate();
-	G_LibEliteStats_LayerVictoryConditionId	= LayerVictoryCondition.Id;
-	LayerVictoryCondition.ManialinkPage		= Private_CreateMLVictoryCondition();
+	// Create the win probability layer
+	declare LayerWinProbability				= UIManager.UILayerCreate();
+	G_LibEliteStats_LayerWinProbabilityId	= LayerWinProbability.Id;
+	LayerWinProbability.ManialinkPage		= Private_CreateMLWinProbability();
+	UIManager.UIAll.UILayers.add(LayerWinProbability);
 	// Create the save layer
 	declare LayerSave			= UIManager.UILayerCreate();
 	G_LibEliteStats_LayerSaveId	= LayerSave.Id;
 	LayerSave.ManialinkPage		= Private_CreateMLSave();
 	UIManager.UIAll.UILayers.add(LayerSave);
-}
-
-// ---------------------------------- //
-/// Start map
-Void StartMap() {
-	G_LibEliteStats_AtkVictory.clear();
-	G_LibEliteStats_AtkDefeat.clear();
-	G_LibEliteStats_RegisterRoundNb = 0;
-}
-
-// ---------------------------------- //
-/// End map
-Void EndMap() {
 	
+	G_LibEliteStats_CanMonitor = True;
 }
 
 // ---------------------------------- //
-/** Register the round stats
+/**	Check that the settings are correct for stats tracking
  *
- *	@param	_AtkVictory		Is that round won by the attack or not
+ *	@param	_TimeLimit			S_TimeLimit
+ *	@param	_TimePole			S_TimePole
+ *	@param	_TimeCapture		S_TimeCapture
+ *	@param	_RequiredPlayersNb	S_RequiredPlayersNb
+ */
+Void CheckSettings(Integer _TimeLimit, Integer _TimePole, Real _TimeCapture, Integer _RequiredPlayersNb) {
+	if (_TimeLimit == 60 && _TimePole == 15 && _TimeCapture == 1.5 && _RequiredPlayersNb == 3) {
+		G_LibEliteStats_CanMonitor = True;
+	} else {
+		G_LibEliteStats_CanMonitor = False;
+	}
+}
+
+// ---------------------------------- //
+/// Initialize the turn stats
+Void StartTurn() {
+	G_LibEliteStats_TurnStats.clear();
+	G_LibELiteStats_CurrentTime = C_LibEliteStats_RecordTimes[0];
+	G_LibEliteStats_TurnRecordTime = StartTime + G_LibELiteStats_CurrentTime;
+	
+	G_LibEliteStats_PrevAtkArmorNb = -1;
+	G_LibEliteStats_PrevDefNb = -1;
+}
+
+// ---------------------------------- //
+/**	Monitor the turn stats
+ *
+ *	@param	_AtkArmorNb		The number of armors left to the attacker
+ *	@param	_DefNb			The number of defenders remaining
+ *	@param	_AtkPlayerId	The id of the attacker
+ */
+Void Monitor(Integer _AtkArmorNb, Integer _DefNb, Ident _AtkPlayerId) {
+	if (!G_LibEliteStats_CanMonitor || G_LibEliteStats_TurnRecordTime < 0 || _AtkArmorNb <= 0 || _DefNb <= 0) return;
+	
+	declare UpdateWinProbability = False;
+	
+	if (Now >= G_LibEliteStats_TurnRecordTime) {
+		// Record current time
+		declare SaveTime = G_LibEliteStats_TurnRecordTime - StartTime;
+		if (SaveTime >= 0) G_LibEliteStats_TurnStats[SaveTime] = [_AtkArmorNb, _DefNb];
+		G_LibELiteStats_CurrentTime = SaveTime;
+		
+		// Set next record time
+		declare NextRecordTime = -1;
+		foreach (RecordTime in C_LibEliteStats_RecordTimes) {
+			if (RecordTime > Now - StartTime) {
+				NextRecordTime = StartTime + RecordTime;
+				break;
+			}
+		}
+		G_LibEliteStats_TurnRecordTime = NextRecordTime;
+		
+		UpdateWinProbability = True;
+	}
+	
+	if (
+		G_LibEliteStats_PrevAtkArmorNb != _AtkArmorNb 
+		|| G_LibEliteStats_PrevDefNb != _DefNb
+		|| G_LibEliteStats_PrevAtkPlayerLogin != _AtkPlayerId
+	) {
+		G_LibEliteStats_PrevAtkArmorNb = _AtkArmorNb;
+		G_LibEliteStats_PrevDefNb = _DefNb;
+		G_LibEliteStats_PrevAtkPlayerLogin = _AtkPlayerId;
+		UpdateWinProbability = True;
+	}
+	
+	if (UpdateWinProbability) {
+		Private_UpdateAtkWinProbability(_AtkArmorNb, _DefNb, _AtkPlayerId, G_LibELiteStats_CurrentTime);
+	}
+}
+
+// ---------------------------------- //
+/** Register the turn stats
+ *
+ *	@param	_Player			The atk player
  *	@param	_AtkArmorNb		The number of armors left to the attacker
  *	@param	_DefNb			The number of defenders alive
+ *	@param	_AtkVictory		Is that round won by the attack or not
  */
-Void RegisterRound(CPlayer _Player, Boolean _AtkVictory, Integer _AtkArmorNb, Integer _DefNb) {
-	G_LibEliteStats_RegisterRoundNb += 1;
+Void EndTurn(CSmPlayer _Player, Integer _AtkArmorNb, Integer _DefNb, Boolean _AtkVictory) {
+	if (!G_LibEliteStats_CanMonitor) return;
 	
-	if (_AtkVictory) {
-		G_LibEliteStats_AtkVictory = Private_UpdateStatsVictoryCondition(G_LibEliteStats_AtkVictory, _AtkArmorNb, _DefNb);
-	} else {
-		G_LibEliteStats_AtkDefeat = Private_UpdateStatsVictoryCondition(G_LibEliteStats_AtkDefeat, _AtkArmorNb, _DefNb);
+	declare LastRecordTime = -1;
+	declare CurrentTime = Now - StartTime;
+	foreach (RecordTime in C_LibEliteStats_RecordTimes) {
+		LastRecordTime = RecordTime;
+		if (RecordTime > CurrentTime) break;
+	}
+	G_LibEliteStats_TurnStats[LastRecordTime] = [_AtkArmorNb, _DefNb];
+	
+	declare ValidatedStats = Integer[][Integer];
+	foreach (RecordTime => Stats in G_LibEliteStats_TurnStats) {
+		declare AtkArmorNb = Stats[C_LibEliteStats_AtkArmorNb];
+		declare DefNb = Stats[C_LibEliteStats_DefNb];
+		
+		if (Private_StatsAreValid(AtkArmorNb, DefNb, RecordTime)) {
+			ValidatedStats[RecordTime] = [AtkArmorNb, DefNb];
+		}
 	}
 	
 	if (_Player != Null) {
 		declare UI <=> UIManager.GetUI(_Player);
 		if (UI != Null) {
 			declare netwrite Integer Net_LibEliteStats_SaveTime for UI;
-			declare netwrite Integer[Integer][Integer] Net_LibEliteStats_AtkVictory for _Player;
-			declare netwrite Integer[Integer][Integer] Net_LibEliteStats_AtkDefeat for _Player;
-			if (_AtkVictory) {
-				Net_LibEliteStats_AtkVictory = [_AtkArmorNb => [_DefNb => 1]];
-				Net_LibEliteStats_AtkDefeat.clear();
-			} else {
-				Net_LibEliteStats_AtkDefeat = [_AtkArmorNb => [_DefNb => 1]];
-				Net_LibEliteStats_AtkVictory.clear();
-			}
+			declare netwrite Integer[][Integer] Net_LibEliteStats_AtkRun for UI;
+			declare netwrite Boolean Net_LibEliteStats_AtkWin for UI;
+			Net_LibEliteStats_AtkRun = ValidatedStats;
+			Net_LibEliteStats_AtkWin = _AtkVictory;
 			Net_LibEliteStats_SaveTime = Now;
 		}
 	}
 	
-	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerVictoryConditionId)) {
-		UIManager.UILayers[G_LibEliteStats_LayerVictoryConditionId].ManialinkPage = Private_CreateMLVictoryCondition();
-	}
-}
-
-// ---------------------------------- //
-/// Attach the layers
-Void Attach() {
-	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerVictoryConditionId)) {
-		UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibEliteStats_LayerVictoryConditionId]);
-	}
-	/*if (UIManager.UILayers.existskey(G_LibEliteStats_LayerSaveId)) {
-		UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibEliteStats_LayerSaveId]);
-	}*/
-}
-
-// ---------------------------------- //
-/// Detach the layers
-Void Detach() {
-	if (UIManager.UILayers.existskey(G_LibEliteStats_LayerVictoryConditionId)) {
-		declare Removed = UIManager.UIAll.UILayers.removekey(G_LibEliteStats_LayerVictoryConditionId);
-	}
-	/*if (UIManager.UILayers.existskey(G_LibEliteStats_LayerSaveId)) {
-		declare Removed = UIManager.UIAll.UILayers.removekey(G_LibEliteStats_LayerSaveId);
-	}*/
-}
-
-// ---------------------------------- //
-/** Hide/Show the victory condition stats
- *
- *	@param	_Visible	True to show, false to hide
- */
-Void VictoryConditionVisibility(Boolean _Visible) {
-	declare netwrite Net_LibEliteStats_VictoryConditionVisible for Teams[0] = False;
-	Net_LibEliteStats_VictoryConditionVisible = _Visible;
+	G_LibELiteStats_CurrentTime = -1;
+	G_LibEliteStats_TurnRecordTime = -1;
 }

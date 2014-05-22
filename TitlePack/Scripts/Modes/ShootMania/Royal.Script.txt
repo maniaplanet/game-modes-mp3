@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2014-04-24"
+#Const Version				"2014-05-15"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -38,7 +38,7 @@
 #Setting S_MultiClans				True	as _("Allow multi clans mode")
 #Setting S_MinPlayersNbPerClan		3		as _("Minimum number of players per clan")
 #Setting S_AllowBeginners			False	as _("Is a Beginners Welcome server")
-#Setting S_AutoManageAFK			True	//as _("Switch inactive players to spectators")
+//#Setting S_AutoManageAFK			True	//as _("Switch inactive players to spectators")
 
 #Const C_OffZoneMinRadius		16.		///< Minimum size of the OffZone at the end
 #Const C_OffZoneDefaultRadius	300.	///< Starting radius of the OffZone

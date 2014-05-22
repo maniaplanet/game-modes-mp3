@@ -2,7 +2,7 @@
  * Markers library
  */
 
-#Const Version		"2014-02-14"
+#Const Version		"2014-05-05"
 #Const ScriptName	"Markers.Script.txt"
 
 #Include "TextLib" as TL
@@ -10,7 +10,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_LibMarkers_ValidAttributes ["label", "pos", "playerlogin", "box", "gauge", "imageurl", "distmax", "isturning", "visibility", "minimapvisibility", "objectid", "color", "manialinkframeid", "minimapid", "minimapclass"]
+#Const C_LibMarkers_ValidAttributes ["label", "pos", "playerlogin", "box", "gauge", "imageurl", "distmax", "isturning", "visibility", "minimapvisibility", "objectid", "color", "manialinkframeid", "class", "id", "minimapid", "minimapclass"]
 #Const C_LibMarkers_MiniMapDot		"file://Media/Manialinks/Common/SmallDisc.dds"
 #Const C_LibMarkers_MiniMapPointer	"file://Media/Manialinks/Common/Pointer.dds"
 
@@ -485,14 +485,14 @@ Text[] GetAttributes() {
 // Private
 // ---------------------------------- //
 // ---------------------------------- //
-/** Sanitive the MinimapVisibility value
+/** Sanitize the MiniMapVisibility value
  *
- *	@param	_MinimapVisibility		The value to sanitize
+ *	@param	_MiniMapVisibility		The value to sanitize
  *
  *	@return		The sanitized value
  */
-Text Private_SanitizeMinimapVisibility(Text _MinimapVisibility) {
-	switch (_MinimapVisibility) {
+Text Private_SanitizeMiniMapVisibility(Text _MiniMapVisibility) {
+	switch (_MiniMapVisibility) {
 		case "Always"		: return "Always";
 		case "Never"		: return "Never";
 		case "WhenInFrame"	: return "WhenInFrame";
@@ -502,7 +502,7 @@ Text Private_SanitizeMinimapVisibility(Text _MinimapVisibility) {
 }
 
 // ---------------------------------- //
-/** Sanitive the Visibility value
+/** Sanitize the Visibility value
  *
  *	@param	_Visibility		The value to sanitize
  *
@@ -530,18 +530,18 @@ Text Private_SanitizeVisibility(Text _Visibility) {
  *	@param	_Id					Id of this point
  *	@param	_Pos				Position of the point on the minimap
  *	@param	_HudVisibility		Visibility of the point on the HUD
- *	@param	_MinimapVisibility	Visibility of the point on the minimap
+ *	@param	_MiniMapVisibility	Visibility of the point on the minimap
  *	@param	_ImgUrl				URL to the point image
  *	@param	_Player				The player who'll see the point (if null, global UI)
  */
-Void Minimap_Add(Text _Id, Vec3 _Pos, Text _HudVisibility, Text _MinimapVisibility, Text _ImgUrl, CPlayer _Player) {
+Void MiniMap_Add(Text _Id, Vec3 _Pos, Text _HudVisibility, Text _MiniMapVisibility, Text _ImgUrl, CPlayer _Player) {
 	declare CUIConfig UI;
 	if (_Player == Null) UI <=> UIManager.UIAll;
 	else UI <=> UIManager.GetUI(_Player);
 	
 	declare Visibility = Private_SanitizeVisibility(_HudVisibility);
-	declare MinimapVisibility = Private_SanitizeMinimapVisibility(_MinimapVisibility);
-	Add("""<marker pos="{{{_Pos.X}}} {{{_Pos.Y}}} {{{_Pos.Z}}}" imageurl="{{{_ImgUrl}}}" visibility="{{{Visibility}}}" minimapvisibility="{{{MinimapVisibility}}}" minimapclass="true" minimapid="{{{_Id}}}" />""", UI);
+	declare MiniMapVisibility = Private_SanitizeMiniMapVisibility(_MiniMapVisibility);
+	Add("""<marker pos="{{{_Pos.X}}} {{{_Pos.Y}}} {{{_Pos.Z}}}" imageurl="{{{_ImgUrl}}}" visibility="{{{Visibility}}}" minimapvisibility="{{{MiniMapVisibility}}}" minimapclass="true" minimapid="{{{_Id}}}" />""", UI);
 }
 
 // ---------------------------------- //
@@ -551,8 +551,8 @@ Void Minimap_Add(Text _Id, Vec3 _Pos, Text _HudVisibility, Text _MinimapVisibili
  *	@param	_Pos		Position of the point on the minimap
  *	@param	_Player		The player who'll see the point (if null, global UI)
  */
-Void Minimap_Add(Text _Id, Vec3 _Pos, CPlayer _Player) {
-	Minimap_Add(_Id, _Pos, "Always", "Always", C_LibMarkers_MiniMapDot, _Player);
+Void MiniMap_Add(Text _Id, Vec3 _Pos, CPlayer _Player) {
+	MiniMap_Add(_Id, _Pos, "Always", "Always", C_LibMarkers_MiniMapDot, _Player);
 }
 
 // ---------------------------------- //
@@ -561,23 +561,23 @@ Void Minimap_Add(Text _Id, Vec3 _Pos, CPlayer _Player) {
  *	@param	_Id		Id of this point
  *	@param	_Pos	Position of the point on the minimap
  */
-Void Minimap_Add(Text _Id, Vec3 _Pos) {
-	Minimap_Add(_Id, _Pos, "Always", "Always", C_LibMarkers_MiniMapDot, Null);
+Void MiniMap_Add(Text _Id, Vec3 _Pos) {
+	MiniMap_Add(_Id, _Pos, "Always", "Always", C_LibMarkers_MiniMapDot, Null);
 }
 
 // ---------------------------------- //
 /** Display an image following a player
  *
  *	@param	_Id					Id of this point
- *	@param	_PlayerOnMinimap	The player to follow
+ *	@param	_PlayerOnMiniMap	The player to follow
  *	@param	_ShowDir			Show the orientation of the player
  *	@param	_HudVisibility		Visibility of the point on the HUD (Never, Always, WhenInFrustum, WhenVisible or WhenInMiddleOfScreen)
- *	@param	_MinimapVisibility	Visibility of the point on the minimap (Never, Always or WhenInFrame)
+ *	@param	_MiniMapVisibility	Visibility of the point on the minimap (Never, Always or WhenInFrame)
  *	@param	_ImgUrl				URL to the point image
  *	@param	_Player				The player who'll see the point (if null, global UI)
  */
-Void Minimap_Add(Text _Id, CPlayer _PlayerOnMinimap, Boolean _ShowDir, Text _HudVisibility, Text _MinimapVisibility, Text _ImgUrl, CPlayer _Player) {
-	if (_PlayerOnMinimap == Null) return;
+Void MiniMap_Add(Text _Id, CPlayer _PlayerOnMiniMap, Boolean _ShowDir, Text _HudVisibility, Text _MiniMapVisibility, Text _ImgUrl, CPlayer _Player) {
+	if (_PlayerOnMiniMap == Null) return;
 	
 	declare CUIConfig UI;
 	if (_Player == Null) UI <=> UIManager.UIAll;
@@ -586,30 +586,30 @@ Void Minimap_Add(Text _Id, CPlayer _PlayerOnMinimap, Boolean _ShowDir, Text _Hud
 	declare IsTurning = 0;
 	if (_ShowDir) IsTurning = 1;
 	declare Visibility = Private_SanitizeVisibility(_HudVisibility);
-	declare MinimapVisibility = Private_SanitizeMinimapVisibility(_MinimapVisibility);
+	declare MiniMapVisibility = Private_SanitizeMiniMapVisibility(_MiniMapVisibility);
 	
-	Add("""<marker playerlogin="{{{_PlayerOnMinimap.Login}}}" imageurl="{{{_ImgUrl}}}" isturning="{{{IsTurning}}}" visibility="{{{Visibility}}}" minimapvisibility="{{{MinimapVisibility}}}" minimapclass="true" minimapid="{{{_Id}}}" />""", UI);
+	Add("""<marker playerlogin="{{{_PlayerOnMiniMap.Login}}}" imageurl="{{{_ImgUrl}}}" isturning="{{{IsTurning}}}" visibility="{{{Visibility}}}" minimapvisibility="{{{MiniMapVisibility}}}" minimapclass="true" minimapid="{{{_Id}}}" />""", UI);
 }
 
 // ---------------------------------- //
 /** Display an image following a player
  *
  *	@param	_Id					Id of this point
- *	@param	_PlayerOnMinimap	The player to follow
+ *	@param	_PlayerOnMiniMap	The player to follow
  *	@param	_Player				The player who'll see the point (if null, global UI)
  */
-Void Minimap_Add(Text _Id, CPlayer _PlayerOnMinimap, CPlayer _Player) {
-	Minimap_Add(_Id, _PlayerOnMinimap, True, "Never", "Always", C_LibMarkers_MiniMapPointer, _Player);
+Void MiniMap_Add(Text _Id, CPlayer _PlayerOnMiniMap, CPlayer _Player) {
+	MiniMap_Add(_Id, _PlayerOnMiniMap, True, "Never", "Always", C_LibMarkers_MiniMapPointer, _Player);
 }
 
 // ---------------------------------- //
 /** Display an image following a player
  *
  *	@param	_Id					Id of this point
- *	@param	_PlayerOnMinimap	The player to follow
+ *	@param	_PlayerOnMiniMap	The player to follow
  */
-Void Minimap_Add(Text _Id, CPlayer _PlayerOnMinimap) {
-	Minimap_Add(_Id, _PlayerOnMinimap, True, "Never", "Always", C_LibMarkers_MiniMapPointer, Null);
+Void MiniMap_Add(Text _Id, CPlayer _PlayerOnMiniMap) {
+	MiniMap_Add(_Id, _PlayerOnMiniMap, True, "Never", "Always", C_LibMarkers_MiniMapPointer, Null);
 }
 
 // ---------------------------------- //
@@ -617,7 +617,7 @@ Void Minimap_Add(Text _Id, CPlayer _PlayerOnMinimap) {
  *
  *	@param	_Id		Id of the point to remove
  */
-Void Minimap_Remove(Text _Id) {
+Void MiniMap_Remove(Text _Id) {
 	Remove("minimapid", _Id);
 }
 
@@ -627,13 +627,13 @@ Void Minimap_Remove(Text _Id) {
  *	@param	_Id			Id of the point to remove
  *	@param	_Player		The player who'll loose the point
  */
-Void Minimap_Remove(Text _Id, CPlayer _Player) {
+Void MiniMap_Remove(Text _Id, CPlayer _Player) {
 	Remove("minimapid", _Id, _Player);
 }
 
 // ---------------------------------- //
 /// Remove all minimap points
-Void Minimap_Clear() {
+Void MiniMap_Clear() {
 	Remove("minimapclass", "true");
 }
 
@@ -642,6 +642,6 @@ Void Minimap_Clear() {
  *
  *	@param	_Player		The player who'll loose the points
  */
-Void Minimap_Clear(CPlayer _Player) {
+Void MiniMap_Clear(CPlayer _Player) {
 	Remove("minimapclass", "true", _Player);
 }

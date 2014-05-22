@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-04-29"
+#Const ModeMatchmakingVersion		"2014-05-21"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -17,15 +17,19 @@
 // ---------------------------------- //
 // Settings
 // ---------------------------------- //
-#Setting S_MatchmakingAPIUrl		"matchmaking.maniaplanet.com/v3"	as "<hidden>"	///< URL of the matchmaking API | matchmaking.maniaplanet.com/v2
+#Setting S_MatchmakingAPIUrl		"https://matchmaking.maniaplanet.com/v4"	as "<hidden>"	///< URL of the matchmaking API
 #Setting S_MatchmakingMode			0			as "<hidden>"	///< 0 = Off, 1 = Lobby, 2 = Match
-#Setting S_LobbyTimePerRound		60			as "<hidden>"	///< Time limit per round in lobby mode (seconds, 0: no limit)
-#Setting S_LobbyRoundPerMap  		30			as "<hidden>"	///< "Nb of rounds per map in lobby mode")
+#Setting S_LobbyTimePerRound		30			as "<hidden>"	///< Time limit per round in lobby mode (seconds, 0: no limit)
+#Setting S_LobbyRoundPerMap  		60			as "<hidden>"	///< "Nb of rounds per map in lobby mode")
 #Setting S_LobbyMatchmakerTime		10			as "<hidden>"	///< Time allocated to the matchmaking (seconds)
 #Setting S_LobbyInstagib  			False		as "<hidden>"	///< Laser mode in lobby
 #Setting S_LobbyDisplayMasters		True		as "<hidden>"	///< Display the masters list
-#Setting S_LogAPIError				False		as "<hidden>"	///< Log the API requests errors
-#Setting S_LogAPIDebug				False		as "<hidden>"	///< Log all the api requests and responses
+#Setting S_LobbyAllowMatchCancel	True		as "<hidden>"	///< Allow match cancel
+#Setting S_LobbyLimitMatchCancel	0			as "<hidden>"	///< -1: infinite cancel, 0 or more: number of cancellations allowed
+#Setting S_MatchmakingErrorMessage	_("An error occured in the matchmaking API. If the problem persist please try to contact this server administrator.") as "<hidden>" ///< Send a message in the chat if an error occured
+#Setting S_MatchmakingLogAPIError	False		as "<hidden>"	///< Log the API requests errors
+#Setting S_MatchmakingLogAPIDebug	False		as "<hidden>"	///< Log all the api requests and responses
+#Setting S_MatchmakingLogMiscDebug	False		as "<hidden>"	///< Log different kinds of debug info
 
 // ---------------------------------- //
 // Constant
@@ -37,8 +41,11 @@
 #Const C_Lobby_Playing		0	///< Playing phase
 #Const C_Lobby_Matchmaking	1	///< Matchmaking phase
 
-#Const C_Lobby_MastersNb	20	///< Number of masters displayed
-#Const C_Lobby_BotsNb		0	///< Number of bots in the lobby
+#Const C_LobbyTimePerRoundMin	15	///< Minumum value of the Lobby time per round setting
+
+#Const C_Lobby_ReconnectDuration	5000	///< Duration before sending back a player to the match he left
+#Const C_Lobby_MastersNb			20		///< Number of masters displayed
+#Const C_Lobby_BotsNb				0		///< Number of bots in the lobby
 
 #Const C_MatchStatus_Waiting	0	///< Waiting for a match to start
 #Const C_MatchStatus_Starting	1	///< Match starting
@@ -48,6 +55,7 @@
 
 #Const C_Match_PingInterval			60000	///< Time interval between each ping
 #Const C_Match_PreparationDuration	60000	///< Maximum duration of the match preparation once there's at least one player
+#Const C_Match_DelayBeforeTransfert	3000	///< Delay before sending back the player to the lobby at the end of the match
 #Const C_Match_EndingDuration		15000	///< Maximum duration of the match ending
 
 #Const C_PlayerStatus_Waiting	0	///< Player waiting approval
@@ -64,31 +72,41 @@
 #Const C_Request_PostStatus		3	///< /match-server/live
 #Const C_Request_PostResults	4	///< /match-server/result
 
-#Const C_Master_Timestamp	0	///< Timestamp of the master match
-#Const C_Master_Name		1	///< Name of the master
-#Const C_Master_Country		2	///< Country of the master
-#Const C_Master_Echelon		3	///< Echelon of the master
+#Const C_RequestRandomDeviation	3500	///< Random time margin applied to the live request of the match and lobby server
+
+#Const C_Master_Name		0	///< Name of the master
+#Const C_Master_Country		1	///< Country of the master
+#Const C_Master_Echelon		2	///< Echelon of the master
+
+#Const C_MessagePreffix		"$000Â»$09f"	///< Prefix used before the messages sent in the chat by the matchmaking
+
+#Const C_RoundsNbBeforeForgiveness	30	///< Number of rounds before reducing by 1 the number of match cancellation of a player
+
+#Const C_Penalty_MatchCancelMultiplier	30000	///< Number of milliseconds mutliplied by the number of match cancellations added to the base match cancel penalty
+
+#Const C_Penalty_MatchCancel	90000	///< Penalty for cancelling a match
+#Const C_Penalty_MatchLeaver	180000	///< Penalty for leaving a match
 
 // ---------------------------------- //
 // Globales
 // ---------------------------------- //
-declare Integer		G_Matchmaking_Mode;			///< Current matchmaking mode, see S_MatchmakingMode
-declare Integer[]	G_Matchmaking_Format;		///< Format of the match making [NbPlayersTeam1, NbPlayersTeam2, ..., NbPlayersTeamN]
-declare Integer		G_Matchmaking_MaxPlayers;	///< Maximum number of players in the biggest clan
+declare Integer		G_Matchmaking_Mode;				///< Current matchmaking mode, see S_MatchmakingMode
+declare Integer[]	G_Matchmaking_Format;			///< Format of the match making [NbPlayersTeam1, NbPlayersTeam2, ..., NbPlayersTeamN]
+declare Integer		G_Matchmaking_MaxPlayers;		///< Maximum number of players in the biggest clan
 declare Integer[Ident] G_Matchmaking_RequestsIds;	///< Ident and type of the requests sent by the match making
-declare Integer		G_Lobby_BestCombo;			///< Current best combo in lobby
-declare Ident		G_Lobby_WinnerId;			///< Current round winner
-declare Integer		G_Lobby_StartTime;			///< Lobby start time
-declare Integer		G_Lobby_EndTime;			///< Lobby end time
-declare Integer		G_Lobby_Phase;				///< Current lobby phase : playing/matchmaking
-declare Text[]		G_Lobby_MastersLogins;		///< List of masters logins
-declare Integer		G_Match_Status;				///< Current match status
-declare Integer[Text] G_Match_Players;			///< Logins and clans of the allowed players in the match
-declare Integer		G_Match_Id;					///< Id of the match
-declare Text		G_Match_LobbyLogin;			///< Login of the lobby server where to send back the players
-declare Integer		G_Match_NextPing;			///< Time of the next ping of the match server to the API
-declare Real[Text]	G_Match_MissingPlayers;		///< List of missing players login
-declare Boolean		G_Match_NewMissingPlayers;	///< True if there's some new missing players not already sent to the API
+declare Integer		G_Lobby_BestCombo;				///< Current best combo in lobby
+declare Ident		G_Lobby_WinnerId;				///< Current round winner
+declare Integer		G_Lobby_StartTime;				///< Lobby start time
+declare Integer		G_Lobby_EndTime;				///< Lobby end time
+declare Integer		G_Lobby_Phase;					///< Current lobby phase : playing/matchmaking
+declare Integer		G_Match_Status;					///< Current match status
+declare Integer[Text] G_Match_Players;				///< Logins and clans of the allowed players in the match
+declare Integer		G_Match_Id;						///< Id of the match
+declare Text		G_Match_LobbyLogin;				///< Login of the lobby server where to send back the players
+declare Integer		G_Match_NextPing;				///< Time of the next ping of the match server to the API
+declare Boolean 	G_Match_AllowSubstitutes;		///< Allow the matchmaking to search substitutes to missing players
+declare Real[Text]	G_Match_MissingPlayers;			///< List of missing players login
+declare Boolean		G_Match_NewMissingPlayers;		///< True if there's some new missing players not already sent to the API
 
 // ---------------------------------- //
 // Extend
@@ -331,25 +349,12 @@ declare PrevLobbyDisplayMasters = True;
 
 // ---------------------------------- //
 // Clean the masters list
-G_Lobby_MastersLogins.clear();
-declare netwrite Integer Net_Lobby_MastersUpdate for Teams[0];
-declare netwrite Text[Integer][] Net_Lobby_Masters for Teams[0];
-Net_Lobby_Masters.clear();
-Net_Lobby_MastersUpdate = -1;
-
-// ---------------------------------- //
-// Initialize UI
-UIManager.UIAll.AlliesLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
-UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
-UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
-UIManager.UIAll.OverlayHideCountdown = True;
-UIManager.UIAll.AltMenuNoCustomScores = True;
-UIManager.UIAll.AltMenuNoDefaultScores = True;
+Private_MM_ClearMasters();
 
 declare netwrite Integer Net_Lobby_PlayersNb for Teams[0];
-declare netwrite Integer Net_Lobby_WaitingTime for Teams[0];
+declare netwrite Integer Net_Lobby_AverageWaitingTime for Teams[0];
 Net_Lobby_PlayersNb = 0;
-Net_Lobby_WaitingTime = -1;
+Net_Lobby_AverageWaitingTime = -1;
 
 // ---------------------------------- //
 // Load rules manialink
@@ -367,6 +372,7 @@ Layers::Create("SendToServer", Private_Lobby_GetMLSendToServer());
 Layers::Create("Rules", Private_Lobby_GetMLRules());
 Layers::Create("Versus", Private_Lobby_GetMLVersus());
 Layers::Create("Substitute", Private_Lobby_GetMLSubstitute());
+Layers::Create("Reconnect", Private_Lobby_GetMLReconnect());
 Layers::Attach("RulesReminder");
 Layers::Attach("GaugeTimer");
 Layers::Attach("WaitingScreen");
@@ -377,6 +383,7 @@ Layers::Attach("SendToServer");
 Layers::Attach("Rules");
 Layers::Attach("Versus");
 Layers::Attach("Substitute");
+Layers::Attach("Reconnect");
 Layers::SetType("RulesReminder", CUILayer::EUILayerType::CutScene);
 Layers::SetType("GaugeTimer", CUILayer::EUILayerType::CutScene);
 Layers::SetType("WaitingScreen", CUILayer::EUILayerType::CutScene);
@@ -386,17 +393,12 @@ Layers::SetType("Header", CUILayer::EUILayerType::CutScene);
 Layers::SetType("Rules", CUILayer::EUILayerType::CutScene);
 Layers::SetType("Versus", CUILayer::EUILayerType::CutScene);
 Layers::SetType("Substitute", CUILayer::EUILayerType::CutScene);
+Layers::SetType("Reconnect", CUILayer::EUILayerType::CutScene);
 
 foreach (Player in AllPlayers) {
 	declare Lobby_IsNew for Player = True;
 	Lobby_IsNew = True;
 }
-/*foreach (User in Users) {
-	declare Lobby_LastUpdate for User = -1;
-	declare Lobby_Disconnected for User = True;
-	Lobby_LastUpdate = -1;
-	Lobby_Disconnected = True;
-}*/
 ***
 
 ***LobbyStartMap***
@@ -404,7 +406,12 @@ foreach (Player in AllPlayers) {
 // ---------------------------------- //
 // Initialize UI
 Message::CleanBigMessages();
-//UIManager.UIAll.UISequence = CUIConfig::EUISequence::UIInteraction;
+UIManager.UIAll.AlliesLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
+UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
+UIManager.UIAll.OverlayHideCountdown = True;
+UIManager.UIAll.AltMenuNoCustomScores = True;
+UIManager.UIAll.AltMenuNoDefaultScores = True;
 
 // ---------------------------------- //
 // Initialize bots
@@ -438,7 +445,11 @@ G_Lobby_Phase = C_Lobby_Playing;
 // Initialize timers
 G_Lobby_StartTime = Now;
 if (S_LobbyTimePerRound > 0) {
-	G_Lobby_EndTime = G_Lobby_StartTime + (S_LobbyTimePerRound * 1000);
+	if (S_LobbyTimePerRound < C_LobbyTimePerRoundMin) {
+		G_Lobby_EndTime = G_Lobby_StartTime + (C_LobbyTimePerRoundMin * 1000) + ML::Rand(-C_RequestRandomDeviation, C_RequestRandomDeviation);
+	} else {
+		G_Lobby_EndTime = G_Lobby_StartTime + (S_LobbyTimePerRound * 1000) + ML::Rand(-C_RequestRandomDeviation, C_RequestRandomDeviation);
+	}
 } else {
 	G_Lobby_EndTime = -1;
 }
@@ -450,6 +461,26 @@ foreach (Score in Scores) {
 	Score.Points = 0;
 	Score.RoundPoints = 0;
 }
+
+// ---------------------------------- //
+// Manage match cancellations
+foreach (User in Users) {
+	declare Lobby_MatchCancellation for User = 0;
+	declare Lobby_RoundsNbBeforeForgiveness for User = C_RoundsNbBeforeForgiveness;
+	if (Lobby_MatchCancellation > 0) {
+		if (Lobby_RoundsNbBeforeForgiveness > 0) {
+			Lobby_RoundsNbBeforeForgiveness -= 1;
+		} else {
+			Lobby_MatchCancellation -= 1;
+			Lobby_RoundsNbBeforeForgiveness = C_RoundsNbBeforeForgiveness;
+		}
+	}
+}
+
+declare netwrite Net_Lobby_AllowMatchCancel for Teams[0] = S_LobbyAllowMatchCancel;
+declare netwrite Net_Lobby_LobbyLimitMatchCancel for Teams[0] = S_LobbyLimitMatchCancel;
+Net_Lobby_AllowMatchCancel = S_LobbyAllowMatchCancel;
+Net_Lobby_LobbyLimitMatchCancel = S_LobbyLimitMatchCancel;
 ***
 
 ***LobbyPlayLoop***
@@ -589,6 +620,7 @@ Layers::Destroy("SendToServer");
 Layers::Destroy("Rules");
 Layers::Destroy("Versus");
 Layers::Destroy("Substitute");
+Layers::Destroy("Reconnect");
 ***
 
 ***MatchMakerStart***
@@ -601,17 +633,29 @@ if (Lobby_MatchMakerRequestId != NullId) {
 	}
 }
 
+declare AverageWaitingTimeTotal = 0;
+declare AverageWaitingTimeCount = 0;
+
 // Send the request to the API
 if (Http.SlotsAvailable > 0) {
 	declare PlayersList = "";
 	declare FirstPlayer = True;
 	foreach (Player in Players) {
-		declare Integer Lobby_ReadySince for Player;
+		declare Integer Lobby_ReadySince for Player = -1;
 		declare Integer[Ident] Lobby_Allies for Player;
 		declare Lobby_AlliesAreReady for Player = False;
 		
+		// Only ready players
+		if (Player.RequestsSpectate) continue;
+		
 		// If one of the player ally is not ready don't send him in a match
 		if (Lobby_Allies.count > 0 && !Lobby_AlliesAreReady) continue;
+		
+		// Update averate waiting time on the lobby
+		if (Lobby_ReadySince > 0) {
+			AverageWaitingTimeTotal += Now - Lobby_ReadySince;
+			AverageWaitingTimeCount += 1;
+		}
 		
 		if (FirstPlayer) FirstPlayer = False;
 		else PlayersList ^= ",";
@@ -619,6 +663,7 @@ if (Http.SlotsAvailable > 0) {
 		declare AlliesList = "";
 		declare FirstAlly = True;
 		foreach (AllyId => AllyStatus in Lobby_Allies) {
+			if (AllyStatus != C_AllyStatus_Validated) continue;
 			if (!AllPlayers.existskey(AllyId)) continue;
 			
 			if (FirstAlly) FirstAlly = False;
@@ -648,7 +693,14 @@ if (Http.SlotsAvailable > 0) {
 	declare Request <=> Http.CreatePost(Private_MM_BuildAPIUrl("/lobby-server/matchmaking-live"), PostData);
 	if (Request != Null) Lobby_MatchMakerRequestId = Request.Id;
 	
-	if (S_LogAPIDebug) MB_Log("[API] Request: POST /lobby-server/matchmaking-live\n"^PostData);
+	if (S_MatchmakingLogAPIDebug) MB_Log("[API] Request: POST /lobby-server/matchmaking-live\n<!--\n"^PostData^"\n-->");
+}
+
+declare netwrite Integer Net_Lobby_AverageWaitingTime for Teams[0];
+if (AverageWaitingTimeTotal > 0 && AverageWaitingTimeCount > 0) {
+	Net_Lobby_AverageWaitingTime = AverageWaitingTimeTotal / AverageWaitingTimeCount;
+} else {
+	Net_Lobby_AverageWaitingTime = -1;
 }
 ***
 
@@ -666,7 +718,7 @@ foreach (Request in Http.Requests) {
 		}
 		// Fail
 		else {
-			if (S_LogAPIError) {
+			if (S_MatchmakingLogAPIError) {
 				if (Request.StatusCode == 401) {
 					MB_Log("[ERROR] Matchmaking HTTP API Error 401. Maybe the login or password in the setting is wrong.");
 				} else if (Request.StatusCode == 404) {
@@ -675,6 +727,7 @@ foreach (Request in Http.Requests) {
 					MB_Log("[ERROR] Matchmaking HTTP Error "^Request.StatusCode^".");
 				}
 			}
+			if (S_MatchmakingErrorMessage != "") UIManager.UIAll.SendChat(TL::Compose("%1 %2", C_MessagePreffix, S_MatchmakingErrorMessage));
 		}
 		ToRemove = Request.Id;
 	}
@@ -691,7 +744,8 @@ if (ToRemove != NullId) {
 declare Ident Lobby_MatchMakerRequestId for This;
 if (Lobby_MatchMakerRequestId != NullId) {
 	if (Http.Requests.existskey(Lobby_MatchMakerRequestId)) {
-		if (S_LogAPIError) MB_Log("[ERROR] Matchmaking HTTP Error XXX. API timeout.");
+		if (S_MatchmakingLogAPIError) MB_Log("[ERROR] Matchmaking HTTP Error XXX. API timeout.");
+		if (S_MatchmakingErrorMessage != "") UIManager.UIAll.SendChat(TL::Compose("%1 %2", C_MessagePreffix, S_MatchmakingErrorMessage));
 		Http.Destroy(Http.Requests[Lobby_MatchMakerRequestId]);
 	}
 }
@@ -702,6 +756,11 @@ foreach (Player in AllPlayers) {
 
 // Send players to their match
 MM_SendToMatches();
+***
+
+***StartServer***
+***
+G_Match_AllowSubstitutes = True;
 ***
 
 ***InitMap***
@@ -715,13 +774,42 @@ else MB_UseIntro = True;
 // Functions
 // ---------------------------------- //
 // ---------------------------------- //
+/** Convert an echelon to an integer
+ *
+ *	@param	_Echelon	The echelon to convert
+ *
+ *	@return		The echelon converted to an Integer
+ */
+Integer ToInteger(CUser::EEchelon _Echelon) {
+	switch (_Echelon) {
+		case CUser::EEchelon::Bronze1	: return 1;
+		case CUser::EEchelon::Bronze2	: return 2;
+		case CUser::EEchelon::Bronze3	: return 3;
+		case CUser::EEchelon::Silver1	: return 4;
+		case CUser::EEchelon::Silver2	: return 5;
+		case CUser::EEchelon::Silver3	: return 6;
+		case CUser::EEchelon::Gold1		: return 7;
+		case CUser::EEchelon::Gold2		: return 8;
+		case CUser::EEchelon::Gold3		: return 9;
+	}
+	
+	return 0;
+}
+
+// ---------------------------------- //
 /** Build the url to call the API
  *
  *	@param	_Path		The endpoint to call
  */
 Text Private_MM_BuildAPIUrl(Text _Path) {
-	return "http://"^S_MatchmakingAPIUrl^_Path;
-	//return S_MatchmakingAPIUrl^_Path;
+	return S_MatchmakingAPIUrl^_Path;
+}
+
+// ---------------------------------- //
+/// Update the lobby players list
+Void Private_Lobby_UpdatePlayersList() {
+	declare netwrite Integer Net_Lobby_PlayersListUpdate for Teams[0];
+	Net_Lobby_PlayersListUpdate = Now;
 }
 
 // ---------------------------------- //
@@ -745,8 +833,13 @@ Void Private_MM_ShowVersusML(CSmPlayer _Player) {
 		Net_Lobby_ShowVersusML = True;
 	}
 	
+	declare netwrite Net_Lobby_SelectedForMatch for _Player = False;
+	Net_Lobby_SelectedForMatch = True;
+	
 	declare Lobby_OnVersusScreen for _Player = False;
 	Lobby_OnVersusScreen = True;
+	
+	Private_Lobby_UpdatePlayersList();
 }
 
 // ---------------------------------- //
@@ -764,8 +857,53 @@ Void Private_MM_HideVersusML(CSmPlayer _Player) {
 	Net_Lobby_ShowSubstituteML = False;
 	Net_Lobby_ShowVersusML = False;
 	
+	declare netwrite Net_Lobby_SelectedForMatch for _Player = False;
+	Net_Lobby_SelectedForMatch = False;
+	
 	declare Lobby_OnVersusScreen for _Player = False;
 	Lobby_OnVersusScreen = False;
+	
+	Private_Lobby_UpdatePlayersList();
+}
+
+// ---------------------------------- //
+/// Empty the masters list
+Void Private_MM_ClearMasters() {
+	declare netwrite Integer Net_Lobby_MastersUpdate for Teams[0];
+	declare netwrite Text[Integer][] Net_Lobby_Masters for Teams[0];
+	Net_Lobby_Masters.clear();
+	Net_Lobby_MastersUpdate = Now;
+}
+
+// ---------------------------------- //
+/** Add several players to the masters list
+ *
+ *	@param	_Player		The player to add
+ *	@param	_Timestamp	The last time this player was a master
+ */
+Void Private_MM_AddMasters(Text[] _Logins) {
+	declare netwrite Integer Net_Lobby_MastersUpdate for Teams[0];
+	declare netwrite Text[Integer][] Net_Lobby_Masters for Teams[0];
+	
+	foreach (Login in _Logins) {
+		declare User <=> SM::GetUser(Login);
+		if (User == Null) continue;
+		Net_Lobby_Masters.add([
+			C_Master_Name		=> User.Name,
+			C_Master_Country	=> User.CountryFlagUrl,
+			C_Master_Echelon	=> TL::ToText(ToInteger(User.Echelon))
+		]);
+	}
+	
+	if (Net_Lobby_Masters.count > C_Lobby_MastersNb) {
+		declare RemoveNb = Net_Lobby_Masters.count - C_Lobby_MastersNb;
+		while (RemoveNb > 0) {
+			declare Removed = Net_Lobby_Masters.removekey(0);
+			RemoveNb -= 1;
+		}
+	}
+	
+	Net_Lobby_MastersUpdate = Now;
 }
 
 // ---------------------------------- //
@@ -787,7 +925,103 @@ Void MM_SetMode(Integer _NewMode) {
  *	@param	_ServerLogin	The login of the server to join
  */
 Text MM_GetServerJoinLink(Text _ServerLogin) {
-	return "#qjoin="^_ServerLogin^"@"^LoadedTitle.TitleId;
+	return "maniaplanet://#qjoin="^_ServerLogin^"@"^LoadedTitle.TitleId;
+}
+
+// ---------------------------------- //
+/** Update the karma of an user (manage penalties)
+ *
+ *	@param	_User	The user to update
+ */
+Void MM_UpdateKarma(CUser _User) {
+	declare Lobby_Penalty for _User = -1;
+	declare Lobby_IsBlocked for _User = False;
+	declare Lobby_MatchCancellation for _User = 0;
+	
+	if (Lobby_IsBlocked) {
+		// Unblock player
+		if (Lobby_Penalty <= 0 || Now >= Lobby_Penalty) {
+			Lobby_IsBlocked = False;
+			Lobby_Penalty = -1;
+		} else {
+			// Check that players is forced into spectator
+			if (!_User.RequestsSpectate) {
+				Users_RequestSwitchToSpectator(_User);
+			}
+		}
+	} else {
+		// Block player
+		if (Lobby_Penalty > 0) Lobby_IsBlocked = True;
+	}
+	
+	declare UI <=> UIManager.GetUI(_User);
+	if (UI != Null) {
+		declare netwrite Net_Lobby_Penalty for UI = -1;
+		declare netwrite Net_Lobby_ImBlocked for UI = False;
+		declare netwrite Net_Lobby_MatchCancellation for UI = 0;
+		
+		Net_Lobby_MatchCancellation = Lobby_MatchCancellation;
+		
+		if (Net_Lobby_Penalty != Lobby_Penalty || Net_Lobby_ImBlocked != Lobby_IsBlocked) {
+			Net_Lobby_Penalty = Lobby_Penalty;
+			Net_Lobby_ImBlocked = Lobby_IsBlocked;
+			
+			if (Lobby_IsBlocked) {
+				UI.ForceSpectator = True;
+			} else {
+				UI.ForceSpectator = False;
+			}
+			
+			declare Player <=> SM::GetPlayer(_User.Login);
+			if (Player != Null) {
+				declare netwrite Net_Lobby_IsBlocked for Player = False;
+				Net_Lobby_IsBlocked = Lobby_IsBlocked;
+			}
+			
+			Private_Lobby_UpdatePlayersList();
+		}
+	}
+}
+
+// ---------------------------------- //
+/** Update an user penalty
+ *
+ *	@param	_User	The user to update
+ *	@param	_By		The value to apply to the penalty
+ */
+Void MM_UpdatePlayerPenalty(CUser _User, Integer _By) {
+	if (_User == Null) return;
+	
+	declare Lobby_Penalty for _User = -1;
+	if (_By > 0) {
+		if (Lobby_Penalty <= 0) Lobby_Penalty = Now + _By;
+		else Lobby_Penalty += _By;
+	} else {
+		Lobby_Penalty -= _By;
+		if (Lobby_Penalty <= 0) Lobby_Penalty = -1;
+	}
+}
+
+// ---------------------------------- //
+/** Get an user penalty
+ *
+ *	@param	_User	The user to get
+ */
+Integer MM_GetPlayerPenalty(CUser _User) {
+	if (_User == Null) return -1;
+	declare Lobby_Penalty for _User = -1;
+	return Lobby_Penalty;
+}
+
+// ---------------------------------- //
+/** Reset an user penalty
+ *
+ *	@param	_User	The user to reset
+ */
+Void MM_CancelPlayerPenalty(CUser _User) {
+	if (_User == Null) return;
+	declare Lobby_Penalty for _User = -1;
+	Lobby_Penalty = -1;
 }
 
 // ---------------------------------- //
@@ -808,28 +1042,88 @@ Void MM_SendToServer(CPlayer _Player, Text _ServerLogin) {
 }
 
 // ---------------------------------- //
+/** Manage player reconnection after a leave
+ *
+ *	@param	_Player		The player to reconnect
+ */
+Void MM_ReconnectToServer(CPlayer _Player) {
+	if (_Player == Null) return;
+	
+	declare Lobby_ReconnectToServer for _Player = "";
+	declare UI <=> UIManager.GetUI(_Player);
+		
+	if (Lobby_ReconnectToServer != "") {
+		if (UI != Null) {
+			declare netwrite Net_Lobby_ReconnectToServer for UI = "";
+			
+			if (Net_Lobby_ReconnectToServer == "") {
+				Net_Lobby_ReconnectToServer = Lobby_ReconnectToServer;
+				Users_RequestSwitchToSpectator(_Player.User);
+				UI.ForceSpectator = True;
+				UI.CountdownEndTime = Now + C_Lobby_ReconnectDuration;
+			}
+		} else {
+			Lobby_ReconnectToServer = "";
+		}
+		
+		// Check that players is forced into spectator
+		if (!_Player.User.RequestsSpectate) {
+			Users_RequestSwitchToSpectator(_Player.User);
+			
+			// Cancel send back to match server
+			if (UI != Null) {
+				if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^_Player.Login^" > Cancel reconnection to match on server : \""^Lobby_ReconnectToServer^"\"");
+				
+				declare netwrite Net_Lobby_ReconnectToServer for UI = "";
+				Net_Lobby_ReconnectToServer = "";
+				UI.ForceSpectator = False;
+				UI.CountdownEndTime = -1;
+				Lobby_ReconnectToServer = "";
+				
+				MM_UpdatePlayerPenalty(_Player.User, C_Penalty_MatchLeaver);
+			}
+		}
+		
+		// Send back player to server at the end of the countdown
+		if (UI != Null) {
+			if (UI.CountdownEndTime > 0 && Now >= UI.CountdownEndTime) {
+				MM_SendToServer(_Player, Lobby_ReconnectToServer);
+				
+				if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^_Player.Login^" > Reconnected back to match on server : \""^Lobby_ReconnectToServer^"\"");
+				
+				declare netwrite Net_Lobby_ReconnectToServer for UI = "";
+				Net_Lobby_ReconnectToServer = "";
+				UI.ForceSpectator = False;
+				UI.CountdownEndTime = -1;
+				Lobby_ReconnectToServer = "";
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
 /** Parse the matches XML and send player to their match server
  *
  *	@param	_MatchesXML			The XML containing the matches
  */
 Void MM_GetMatches(Text _MatchesXML) {
-	if (S_LogAPIDebug) MB_Log("[API] Response: POST /lobby-server/matchmaking-live\n"^_MatchesXML);
+	if (S_MatchmakingLogAPIDebug) MB_Log("[API] Response: POST /lobby-server/matchmaking-live\n<!--\n"^_MatchesXML^"\n-->");
 	// Get matches info from XML
 	declare MatchesPlayers = Integer[CSmPlayer][Text];
 	declare MatchesLogins = Integer[Text][Text];
+	declare MatchesPlayersIds = Ident[][Integer][Text];
 	declare XmlDoc <=> Xml.Create(_MatchesXML);
 	if (XmlDoc != Null && XmlDoc.Root != Null) {
 		declare NodeStatus <=> XmlDoc.Root.GetFirstChild("status");
 		if (NodeStatus != Null) {
 			declare netwrite Integer Net_Lobby_PlayersNb for Teams[0];
-			declare netwrite Integer Net_Lobby_WaitingTime for Teams[0];
 			declare netwrite Integer Net_Lobby_ServersAvailable for Teams[0];
 			Net_Lobby_PlayersNb = NodeStatus.GetAttributeInteger("playersnb", 0);
-			Net_Lobby_WaitingTime = NodeStatus.GetAttributeInteger("waitingtime", -1);
 			Net_Lobby_ServersAvailable = NodeStatus.GetAttributeInteger("availableservers", 0);
 			
 			declare MatchPlayersNb = 0;
 			declare SubstitutePlayersNb = 0;
+			declare CantBeSubstitute = Ident[];
 			
 			// No match server available
 			if (Net_Lobby_ServersAvailable <= 0) {
@@ -847,6 +1141,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 					if (MatchId == "") continue;
 					MatchesPlayers[MatchId] = Integer[CSmPlayer];
 					MatchesLogins[MatchId] = Integer[Text];
+					MatchesPlayersIds[MatchId] = Ident[][Integer];
 					// Match
 					if (NodeMatch.Name == "match") {
 						declare MatchServerLogin = "";
@@ -864,7 +1159,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 									if (G_Matchmaking_Format.count > 1) Clan += 1;
 									if (Login != "" && Clan >= 0) {
 										declare Player <=> SM::GetPlayer(Login);
-										if (Player != Null) {
+										if (Player != Null && !Player.RequestsSpectate) {
 											declare Lobby_MatchId for Player.User = "";
 											declare Lobby_MatchServer for Player.User = "";
 											declare Lobby_IsSubstitute for Player.User = False;
@@ -873,7 +1168,10 @@ Void MM_GetMatches(Text _MatchesXML) {
 											Lobby_IsSubstitute = False;
 											MatchesPlayers[MatchId][Player] = Clan;
 											MatchesLogins[MatchId][Player.Login] = Clan;
+											if (!MatchesPlayersIds[MatchId].existskey(Clan)) MatchesPlayersIds[MatchId][Clan] = Ident[];
+											MatchesPlayersIds[MatchId][Clan].add(Player.Id);
 											MatchPlayersNb += 1;
+											CantBeSubstitute.add(Player.Id);
 										}
 									}
 								}
@@ -890,7 +1188,8 @@ Void MM_GetMatches(Text _MatchesXML) {
 					declare MatchServerLogin = NodePlayer.GetAttributeText("server", "");
 					if (Login != "" && MatchServerLogin != "") {
 						declare Player <=> SM::GetPlayer(Login);
-						if (Player != Null) {
+						
+						if (Player != Null && !Player.RequestsSpectate && !CantBeSubstitute.exists(Player.Id)) {
 							declare Lobby_MatchId for Player.User = "";
 							declare Lobby_MatchServer for Player.User = "";
 							declare Lobby_IsSubstitute for Player.User = False;
@@ -905,19 +1204,54 @@ Void MM_GetMatches(Text _MatchesXML) {
 				}
 			}
 			
+			// Determine average LP amount on the lobby
+			declare AverageLP = 0.;
+			declare AverageLPTotal = 0.;
+			declare AverageLPCount = 0.;
+			foreach (Player in AllPlayers) {
+				if (Player.User == Null) continue;
+				AverageLPTotal += Player.User.LadderPoints;
+				AverageLPCount += 1.;
+			}
+			if (AverageLPCount > 0.) AverageLP = AverageLPTotal / AverageLPCount;
+			
+			
 			// Update the number of players on the lobby
 			declare TotalPlayers = Net_Lobby_PlayersNb + AllPlayers.count;
-			Admin_SetLobbyInfo(True, TotalPlayers, 255, 0.);
+			Admin_SetLobbyInfo(True, TotalPlayers, 255, AverageLP);
 			// Pre-add the selected players in the "in match" count
 			Net_Lobby_PlayersNb += MatchPlayersNb + SubstitutePlayersNb;
+			
+			declare NodeMasters <=> XmlDoc.Root.GetFirstChild("masters");
+			if (NodeMasters != Null) {
+				declare Masters = Text[];
+				foreach (NodeMaster in NodeMasters.Children) {
+					declare Login = NodeMaster.GetAttributeText("login", "");
+					if (Login != "") Masters.add(Login);
+				}
+				Private_MM_ClearMasters();
+				Private_MM_AddMasters(Masters);
+			}
 		}
 	}
 	
+	if (S_MatchmakingLogAPIDebug) MB_Log("[API] Match to execute: "^MatchesLogins);
+	
 	// Send match to player UI
+	declare netwrite Boolean[Text] Net_Lobby_VersusAllied for Teams[0];
+	Net_Lobby_VersusAllied.clear();
 	foreach (MatchId => MatchPlayers in MatchesPlayers) {
 		foreach (Player => Clan in MatchPlayers) {
 			declare UI <=> UIManager.GetUI(Player);
 			if (UI == Null) continue;
+			
+			if (Player != Null) {
+				declare Integer[Ident] Lobby_Allies for Player;
+				foreach (AllyId => AllyStatus in Lobby_Allies) {
+					if (AllyStatus != C_AllyStatus_Validated) continue;
+					if (MatchesPlayersIds[MatchId][Clan].exists(AllyId)) Net_Lobby_VersusAllied[Player.Login] = True;
+				}
+			}
 			
 			declare netwrite Integer Net_Lobby_VersusPlayersUpdate for UI;
 			declare netwrite Integer[Text] Net_Lobby_VersusPlayers for UI;
@@ -934,9 +1268,11 @@ Void MM_GetMatches(Text _MatchesXML) {
 Void MM_SendToMatches() {
 	foreach (Player in AllPlayers) {
 		declare Lobby_MatchServer for Player.User = "";
+		declare Lobby_MatchId for Player.User = "";
 		if (Lobby_MatchServer != "") {
 			MM_SendToServer(Player, Lobby_MatchServer);
 		}
+		if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^Player.Login^" > Sent to match ("^Lobby_MatchId^") on server : \""^Lobby_MatchServer^"\"");
 	}
 	foreach (User in Users) {
 		declare Lobby_MatchId for User = "";
@@ -956,14 +1292,38 @@ Void MM_SendToMatches() {
 Void MM_CancelMatch(CUser _User) {
 	if (_User == Null) return;
 	
-	declare Lobby_MatchId as CancelMatchId for _User = "";
+	declare Lobby_MatchId as Lobby_CancelMatchId for _User = "";
+	declare Lobby_MatchServer as Lobby_CancelMatchServer for _User = "";
+
+	declare CancelMatchId = Lobby_CancelMatchId;
+	declare CancelMatchServer = Lobby_CancelMatchServer;
+
+	if (CancelMatchServer != "") {
+		// Penalize canceler
+		declare Lobby_MatchCancellation for _User = 0;
+		Lobby_MatchCancellation += 1;
+		
+		if (S_LobbyLimitMatchCancel >= 0 && Lobby_MatchCancellation > S_LobbyLimitMatchCancel) {
+			declare Penalty = C_Penalty_MatchCancel + C_Penalty_MatchCancelMultiplier * (Lobby_MatchCancellation - S_LobbyLimitMatchCancel - 1);
+			if (Penalty <= 0) Penalty = 0;
+			MM_UpdatePlayerPenalty(_User, Penalty);
+		}
+		
+		if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^_User.Login^" > Cancel match ("^CancelMatchId^") on server: "^CancelMatchServer);
+	}
+	
+	// Normal match
 	if (CancelMatchId != "") {
 		foreach (User in Users) {
 			declare Lobby_MatchId for User = "";
 			declare Lobby_MatchServer for User = "";
 			declare Lobby_IsSubstitute for User = False;
+
+			if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^User.Login^" > My match id : "^Lobby_MatchId^" | The match to cancel : "^CancelMatchId);
 			
 			if (CancelMatchId != Lobby_MatchId) continue;
+			
+			if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^User.Login^" > Match cancelled ("^Lobby_MatchId^")");
 			
 			Lobby_MatchId = "";
 			Lobby_MatchServer = "";
@@ -971,8 +1331,15 @@ Void MM_CancelMatch(CUser _User) {
 			
 			declare Player <=> SM::GetPlayer(User.Login);
 			Private_MM_HideVersusML(Player);
+			
+			declare UI <=> UIManager.GetUI(User);
+			if (UI != Null) {
+				UI.SendChat(TL::Compose(_("%1$<%2$> cancelled match start."), C_MessagePreffix, _User.Name));
+			}
 		}
-	} else {
+	} 
+	// Substitute or player join the lobby
+	else {
 		declare Lobby_MatchServer for _User = "";
 		declare Lobby_IsSubstitute for _User = False;
 		CancelMatchId = "";
@@ -1041,7 +1408,7 @@ Void Private_MM_PostMatchStatus() {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_PostStatus;
 		}
 		
-		if (S_LogAPIDebug) MB_Log("[API] Request: POST /match-server/live\n"^PostData);
+		if (S_MatchmakingLogAPIDebug) MB_Log("[API] Request: POST /match-server/live\n<!--\n"^PostData^"\n-->");
 	}
 }
 
@@ -1052,7 +1419,7 @@ Void Private_MM_PostMatchStatus() {
  */
 Void Private_MM_Ping(Boolean _Forced) {
 	if (Now >= G_Match_NextPing || _Forced) {
-		G_Match_NextPing = Now + C_Match_PingInterval;
+		G_Match_NextPing = Now + C_Match_PingInterval + ML::Rand(-C_RequestRandomDeviation, C_RequestRandomDeviation);
 		Private_MM_PostMatchStatus();
 	}
 }
@@ -1076,7 +1443,24 @@ Void Private_MM_GetMatch() {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_GetMatches;
 		}
 		
-		if (S_LogAPIDebug) MB_Log("[API] Request: Get /match-server/match?serverlogin="^ServerLogin);
+		if (S_MatchmakingLogAPIDebug) MB_Log("[API] Request: Get /match-server/match?serverlogin="^ServerLogin);
+	}
+}
+
+// ---------------------------------- //
+/** Allow or not the mode to request substitutes
+ *
+ *	@param	_AllowSubstitutes		True to allow, false otherwise
+ */
+Void MM_AllowSubstitutes(Boolean _AllowSubstitutes) {
+	if (G_Match_AllowSubstitutes == _AllowSubstitutes) return;
+	
+	G_Match_AllowSubstitutes = _AllowSubstitutes;
+	
+	if (!G_Match_AllowSubstitutes && G_Match_Status == C_MatchStatus_Substitute) {
+		G_Match_MissingPlayers.clear();
+		G_Match_NewMissingPlayers = False;
+		Private_MM_SetMatchStatus(C_MatchStatus_Playing);
 	}
 }
 
@@ -1121,6 +1505,7 @@ Void Private_MM_ManagePlayers() {
 				if (UI != Null && !UI.ForceSpectator) {
 					UI.ForceSpectator = True;
 				}
+				Users_RequestSwitchToSpectator(Player.User);
 			}
 		} 
 		// Remove valid players from the missing list
@@ -1138,16 +1523,19 @@ Void Private_MM_ManagePlayers() {
 	}
 	
 	foreach (User in ToKick) {
-		Admin_KickUser(User, "You're not authorized on this match server.");
+		Admin_KickUser(User, "This matchmaking server is hosting a match. You can't join at the moment.");
 	}
 	
-	foreach (Login => Clan in G_Match_Players) {
-		// Missing
-		if (!PresentPlayers.existskey(Login)) {
-			// New
-			if (!G_Match_MissingPlayers.existskey(Login)) {
-				G_Match_MissingPlayers[Login] = 0.;
-				G_Match_NewMissingPlayers = True;
+	// Search missing players only if substitutes are allowed
+	if (G_Match_AllowSubstitutes) {
+		foreach (Login => Clan in G_Match_Players) {
+			// Missing
+			if (!PresentPlayers.existskey(Login)) {
+				// New
+				if (!G_Match_MissingPlayers.existskey(Login)) {
+					G_Match_MissingPlayers[Login] = 0.;
+					G_Match_NewMissingPlayers = True;
+				}
 			}
 		}
 	}
@@ -1167,80 +1555,13 @@ Void Private_MM_ManagePlayers() {
 }
 
 // ---------------------------------- //
-/** Convert an echelon to an integer
- *
- *	@param	_Echelon	The echelon to convert
- *
- *	@return		The echelon converted to an Integer
- */
-Integer ToInteger(CUser::EEchelon _Echelon) {
-	switch (_Echelon) {
-		case CUser::EEchelon::Bronze1	: return 1;
-		case CUser::EEchelon::Bronze2	: return 2;
-		case CUser::EEchelon::Bronze3	: return 3;
-		case CUser::EEchelon::Silver1	: return 4;
-		case CUser::EEchelon::Silver2	: return 5;
-		case CUser::EEchelon::Silver3	: return 6;
-		case CUser::EEchelon::Gold1		: return 7;
-		case CUser::EEchelon::Gold2		: return 8;
-		case CUser::EEchelon::Gold3		: return 9;
-	}
-	
-	return 0;
-}
-
-// ---------------------------------- //
-/** Add a player to the masters list
- *
- *	@param	_Player		The player to add
- *	@param	_Timestamp	The last time this player was a master
- */
-Void Private_MM_AddMaster(CSmPlayer _Player, Integer _Timestamp) {
-	if (_Player == Null || _Timestamp <= 0) return;
-	
-	// Check if the player is already in the masters list for the same match
-	declare netwrite Integer Net_Lobby_MastersUpdate for Teams[0];
-	declare netwrite Text[Integer][] Net_Lobby_Masters for Teams[0];
-	declare CanBeAdded = True;
-	foreach (Key => Login in G_Lobby_MastersLogins) {
-		if (_Player.Login != Login) continue;
-			
-		if (Net_Lobby_Masters.existskey(Key)) {
-			if (Net_Lobby_Masters[Key][C_Master_Timestamp] == TL::ToText(_Timestamp)) {
-				CanBeAdded = False;
-				break;
-			}
-		} 
-	}
-	
-	// Add the player to the masters
-	if (CanBeAdded) {
-		G_Lobby_MastersLogins.add(_Player.Login);
-		Net_Lobby_Masters.add([
-			C_Master_Timestamp	=> TL::ToText(_Timestamp),
-			C_Master_Name		=> _Player.Name,
-			C_Master_Country	=> _Player.User.CountryFlagUrl,
-			C_Master_Echelon	=> TL::ToText(ToInteger(_Player.User.Echelon))
-		]);
-		Net_Lobby_MastersUpdate = Now;
-	}
-	
-	// Remove masters when they are too much
-	declare Key = C_Lobby_MastersNb;
-	while (G_Lobby_MastersLogins.count > C_Lobby_MastersNb || Net_Lobby_Masters.count > C_Lobby_MastersNb) {
-		declare Removed = G_Lobby_MastersLogins.removekey(0);
-		Removed = Net_Lobby_Masters.removekey(0);
-	}
-}
-
-// ---------------------------------- //
 /** Parse the match request response and
  *	setup a match when necessary
  *
  *	@param	_MatchXml	Xml containing the match settings
  */
 Void Private_MM_SetupMatch(Text _MatchXml) {
-	if (S_LogAPIDebug) MB_Log("[API] Response: GET /match?serverlogin="^ServerLogin^"\n"^_MatchXml);
+	if (S_MatchmakingLogAPIDebug) MB_Log("[API] Response: GET /match-server/match?serverlogin="^ServerLogin^"\n<!--\n"^_MatchXml^"\n-->");
 	if (_MatchXml != "") {
 		declare XmlDoc <=> Xml.Create(_MatchXml);
 		if (XmlDoc != Null && XmlDoc.Root != Null) {
@@ -1303,7 +1624,7 @@ Void Private_MM_SetupMatch(Text _MatchXml) {
  *	@param	_MatchXml	Xml containing the match settings
  */
 Void Private_MM_SetupSubstitute(Text _MatchXml) {
-	if (S_LogAPIDebug) MB_Log("[API] Response: GET /match?serverlogin="^ServerLogin^"\n"^_MatchXml);
+	if (S_MatchmakingLogAPIDebug) MB_Log("[API] Response: GET /match-server/match?serverlogin="^ServerLogin^"\n<!--\n"^_MatchXml^"\n-->");
 	if (_MatchXml != "") {
 		declare XmlDoc <=> Xml.Create(_MatchXml);
 		if (XmlDoc != Null && XmlDoc.Root != Null) {
@@ -1358,7 +1679,7 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
  *	@param	_PlayerXml	Xml containing the player info
  */
 Void Private_MM_SetupPlayer(Text _PlayerXml) {
-	if (S_LogAPIDebug) MB_Log("[API] Response: GET /lobby-server/player-connection?login=xxx&lobbylogin=yyy\n"^_PlayerXml);
+	declare LogPlayerLogin = "xxx";
 	if (_PlayerXml != "") {
 		declare XmlDoc <=> Xml.Create(_PlayerXml);
 		if (XmlDoc != Null && XmlDoc.Root != Null) {
@@ -1366,23 +1687,34 @@ Void Private_MM_SetupPlayer(Text _PlayerXml) {
 			if (NodePlayer != Null) {
 				declare Login = NodePlayer.GetAttributeText("login", "");
 				declare Player <=> SM::GetPlayer(Login);
+				LogPlayerLogin = Login;
 				
 				// If the player was in match, send in back to his server
 				declare NodeServer <=> NodePlayer.GetFirstChild("server");
 				if (NodeServer != Null) {
 					declare MatchServerLogin = NodeServer.GetAttributeText("match", "");
-					if (Player != Null && MatchServerLogin != "") MM_SendToServer(Player, MatchServerLogin);
-				}
-				
-				// If the player was a master add him to the list
-				declare NodeMaster <=> NodePlayer.GetFirstChild("master");
-				if (NodeMaster != Null) {
-					declare Timestamp = NodeMaster.GetAttributeInteger("timestamp", -1);
-					if (Player != Null && Timestamp > 0) Private_MM_AddMaster(Player, Timestamp);
+					declare Replaced = NodeServer.GetAttributeBoolean("replaced", False);
+					declare MatchId = NodeServer.GetAttributeText("matchid", "");
+					if (Player != Null) {
+						if (Replaced) {
+							declare Lobby_LastPenaltyMatchId for Player.User = "";
+							if (MatchId != Lobby_LastPenaltyMatchId && MM_GetPlayerPenalty(Player.User) < 0) {
+								MM_UpdatePlayerPenalty(Player.User, C_Penalty_MatchLeaver);
+								Lobby_LastPenaltyMatchId = MatchId;
+							}
+						} else {
+							declare Lobby_LastPenaltyMatchId for Player.User = "";
+							if (MatchId != Lobby_LastPenaltyMatchId && MM_GetPlayerPenalty(Player.User) < 0 && MatchServerLogin != "") {
+								declare Lobby_ReconnectToServer for Player = "";
+								Lobby_ReconnectToServer = MatchServerLogin;
+							}
+						}
+					}
 				}
 			}
 		}
 	}
+	if (S_MatchmakingLogAPIDebug) MB_Log("[API] Response: GET /lobby-server/player-connection?login="^TL::URLEncode(LogPlayerLogin)^"&lobbylogin="^TL::URLEncode(ServerLogin)^"\n<!--\n"^_PlayerXml^"\n-->");
 }
 
 // ---------------------------------- //
@@ -1420,7 +1752,7 @@ Void Private_MM_ManageHttpResponses() {
 		}
 		// Fail
 		else {
-			if (S_LogAPIError) {
+			if (S_MatchmakingLogAPIError) {
 				if (Request.StatusCode == 401) {
 					MB_Log("[ERROR] Matchmaking HTTP API Error 401. Maybe the login or password in the setting is wrong.");
 				} else if (Request.StatusCode == 404) {
@@ -1429,6 +1761,7 @@ Void Private_MM_ManageHttpResponses() {
 					MB_Log("[ERROR] Matchmaking HTTP Error "^Request.StatusCode^".");
 				}
 			}
+			if (S_MatchmakingErrorMessage != "") UIManager.UIAll.SendChat(TL::Compose("%1 %2", C_MessagePreffix, S_MatchmakingErrorMessage));
 		}
 			
 		declare Removed = G_Matchmaking_RequestsIds.removekey(RequestId);
@@ -1484,124 +1817,12 @@ Void Private_Lobby_GetPlayerInfo(CSmPlayer _Player) {
 	declare Request <=> Http.CreateGet(Private_MM_BuildAPIUrl("/lobby-server/player-connection?login="^TL::URLEncode(_Player.Login))^"&lobbylogin="^TL::URLEncode(ServerLogin), False);
 	if (Request != Null) G_Matchmaking_RequestsIds[Request.Id] = C_Request_GetPlayers;
 	
-	if (S_LogAPIDebug) MB_Log("[API] Request: GET /lobby-server/player-connection?login="^TL::URLEncode(_Player.Login)^"&lobbylogin="^TL::URLEncode(ServerLogin));
-}
-
-// ---------------------------------- //
-/// Update the lobby players list
-Void Private_Lobby_UpdatePlayersList() {
-	declare netwrite Integer Net_Lobby_PlayersListUpdate for Teams[0];
-	Net_Lobby_PlayersListUpdate = Now;
+	if (S_MatchmakingLogAPIDebug) MB_Log("[API] Request: GET /lobby-server/player-connection?login="^TL::URLEncode(_Player.Login)^"&lobbylogin="^TL::URLEncode(ServerLogin));
 }
 
 // ---------------------------------- //
 /// Find the allies of each player
 Void Private_MM_ComputeAllies() {
-	/*declare Ident[] Connected;
-	declare Ident[] Disconnected;
-	foreach (User in Users) {
-		declare Lobby_LastUpdate for User = -1;
-		declare Lobby_Disconnected for User = True;
-		// Disconnection
-		if (Lobby_LastUpdate < Now && !Lobby_Disconnected) {
-			declare Integer[Ident] Lobby_Allies as MyAllies for User;
-			Lobby_Disconnected = True;
-			Disconnected.add(User.Id);
-			foreach (AllyId => AllyStatus in MyAllies) {
-				if (Users.existskey(AllyId)) {
-					declare Integer[Ident] Lobby_Allies as HisAllies for Users[AllyId];
-					if (HisAllies.existskey(User.Id)) {
-						if (HisAllies[User.Id] == C_AllyStatus_Validated) {
-							HisAllies[User.Id] = C_AllyStatus_Disconnected;
-						} else {
-							declare Removed HisAllies.removekey([User.Id);
-						}
-					}
-				}
-			}
-		}
-		// Connection
-		else if (Lobby_LastUpdate >= Now && Lobby_Disconnected) {
-			declare Integer[Ident] Lobby_Allies as MyAllies for User;
-			Lobby_Disconnected = False;
-			Connected.add(User.Id);
-		}
-	}
-	
-	foreach (User in Users) {
-		declare Integer[Ident] Lobby_Allies as MyAllies for User;
-		declare Lobby_Disconnected for User = True;
-		
-		// Add global allies to the local allies array
-		foreach (AllyLogin in User.AlliesConnected) {
-			declare Ally <=> SM::GetPlayer(AllyLogin);
-			if (Ally != Null) {
-				MyAllies[Ally.User.Id] = C_AllyStatus_Validated;
-			}
-		}
-		
-		// Sort allies, Validated and Sent first
-		MyAllies = MyAllies.sort();
-		
-		// Count the number of valid allies
-		declare Boolean Lobby_AlliesFull for User;
-		declare AlliesCount = 0;
-		declare MaxAllies = G_Matchmaking_MaxPlayers - 1;
-		declare ToRemove = Ident[];
-		declare NewStatus = Integer[Ident];
-		foreach (AllyId => AllyStatus in MyAllies) {
-			declare UpdatedStatus = AllyStatus;
-			// Reconnect
-			if (Connected.exists(AllyId)) {
-				if (AllyStatus == C_AllyStatus_Disconnected) UpdatedStatus = C_AllyStatus_Validated;
-				NewStatus[AllyId] = UpdatedStatus;
-			}
-			// Disconnect
-			if (Disconnected.exists(AllyId)) {
-				
-			}
-			if (UpdatedStatus == C_AllyStatus_Validated || UpdatedStatus == C_AllyStatus_Sent) {
-				AlliesCount += 1;
-				if (AlliesCount > MaxAllies) ToRemove.add(AllyId);
-			}
-		}
-		if (AlliesCount >= MaxAllies) Lobby_AlliesFull = True;
-		else Lobby_AlliesFull = False;
-		
-		// Remove allies
-		foreach (AllyId in ToRemove) {
-			declare Removed = MyAllies.removekey(AllyId);
-		}
-		
-		// Update status
-		foreach (AllyId => AllyStatus in NewStatus) {
-			MyAllies[AllyId] = AllyStatus;
-		}
-		
-		// Send allies to the UI
-		declare Count = 0;
-		if (!Lobby_Disconnected) {
-			declare Player <=> SM::GetPlayer(User.Login);
-			declare UI <=> UIManager.GetUI(Player);
-			if (UI != Null) {
-				declare netwrite Integer[Text] Net_Lobby_AlliesLogins for UI;
-				declare netwrite Integer Net_Lobby_AlliesLoginsUpdate for UI;
-				Net_Lobby_AlliesLogins.clear();
-				foreach (AllyId => AllyStatus in MyAllies) {
-					if (
-						(AllyStatus == C_AllyStatus_Validated || AllyStatus == C_AllyStatus_Sent)
-						&& Users.existskey(AllyId)
-					) {
-						Net_Lobby_AlliesLogins[Users[AllyId].Login] = AllyStatus;
-						Count += 1;
-						if (Count >= MaxAllies) break;
-					}
-				}
-				Net_Lobby_AlliesLoginsUpdate = Now;
-			}
-		}
-	}*/
-	
 	foreach (Player in AllPlayers) {
 		if (Player == Null) return;
 		
@@ -1723,8 +1944,6 @@ Void Private_MM_PlayLoop() {
 			foreach (Player in AllPlayers) {
 				declare Lobby_IsNew for Player = True;
 				declare Lobby_PrevRequestsSpectate for Player = False;
-				/*declare Lobby_LastUpdate for Player.User = -1;
-				Lobby_LastUpdate = Now;*/
 				
 				// ---------------------------------- //
 				// New player on the lobby
@@ -1746,14 +1965,24 @@ Void Private_MM_PlayLoop() {
 					Lobby_PrevRequestsSpectate = Player.RequestsSpectate;
 					//Private_Lobby_UpdatePlayersList();
 					Private_MM_AlliesAreReady(Player);
-					declare Integer Lobby_ReadySince for Player;
-					Lobby_ReadySince = Now;
+					declare Integer Lobby_ReadySince for Player = -1;
 					
 					// See if we need to cancel a match
 					if (Player.RequestsSpectate) {
 						MM_CancelMatch(Player.User);
+						Lobby_ReadySince = -1;
+					} else {
+						Lobby_ReadySince = Now;
 					}
 				}
+				
+				// ---------------------------------- //
+				// Update the karma of the player
+				MM_UpdateKarma(Player.User);
+				
+				// ---------------------------------- //
+				// Try to reconnect to the match server after a leave
+				MM_ReconnectToServer(Player);
 			}
 			
 			foreach (Event in PendingEvents) {
@@ -1828,7 +2057,7 @@ Integer MM_GetPlayerStatus(CSmPlayer _Player) {
 
 // ---------------------------------- //
 /// Prepare a new match
-Void Private_MM_PrepareMatch() {
+Void Private_MM_MatchPrepare() {
 	StartTime = Now;
 	UIManager.UIAll.CountdownEndTime = StartTime + C_Match_PreparationDuration;
 	
@@ -1886,16 +2115,22 @@ Void MM_MatchWait() {
 	}
 	
 	// Got a match, now prepare it
-	Private_MM_PrepareMatch();
+	Private_MM_MatchPrepare();
 	
 }
 
 // ---------------------------------- //
-/** Send the match result to the API
+/** Send the result to the API
  *
  *	@param	_Master		The master of the match
  */
-Void MM_MatchResult(Text _MasterLogin) {
+Void MM_MatchEnd(Text _MasterLogin) {
+	G_Match_MissingPlayers.clear();
+	G_Match_Players.clear();
+	G_Match_NewMissingPlayers = False;
+	
+	Private_MM_SetMatchStatus(C_MatchStatus_Ending);
+	
 	if (Http.SlotsAvailable > 0) {
 		declare PostData = """
 {
@@ -1907,35 +2142,37 @@ Void MM_MatchResult(Text _MasterLogin) {
 			G_Matchmaking_RequestsIds[Request.Id] = C_Request_PostResults;
 		}
 		
-		if (S_LogAPIDebug) MB_Log("[API] Request: POST /match-server/result\n"^PostData);
+		if (S_MatchmakingLogAPIDebug) MB_Log("[API] Request: POST /match-server/result\n<!--\n"^PostData^"\n-->");
 	}
+	
+	G_Match_Id = -1;
 }
 
 // ---------------------------------- //
 /// End a match
-Void MM_MatchEnd() {
-	Private_MM_SetMatchStatus(C_MatchStatus_Ending);
-	
-	foreach (Player in AllPlayers) {
-		declare Matchmaking_PlayerStatus for Player = C_PlayerStatus_Waiting;
-		if (Matchmaking_PlayerStatus == C_PlayerStatus_Valid) {
-			MM_SendToServer(Player, G_Match_LobbyLogin);
-		}
-	}
+Void MM_MatchToLobby() {
+	UIManager.UIAll.SendChat(TL::Compose("%1 %2", C_MessagePreffix, _("Match over. You will be transferred back.")));
 	
 	StartTime = Now;
+	declare Transfered = False;
+	declare TransfertTime = Now + C_Match_DelayBeforeTransfert;
 	UIManager.UIAll.CountdownEndTime = StartTime + C_Match_EndingDuration;
 	while (UIManager.UIAll.CountdownEndTime > Now) {
 		MM_Yield();
+		if (!Transfered && Now >= TransfertTime) {
+			foreach (Player in AllPlayers) {
+				declare Matchmaking_PlayerStatus for Player = C_PlayerStatus_Waiting;
+				if (Matchmaking_PlayerStatus == C_PlayerStatus_Valid) {
+					MM_SendToServer(Player, G_Match_LobbyLogin);
+				}
+			}
+			Transfered = True;
+		}
 	}
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
 	
-	G_Match_Players.clear();
-	G_Match_Id = -1;
 	G_Match_LobbyLogin = "";
-	G_Match_MissingPlayers.clear();
-	G_Match_NewMissingPlayers = False;
 }
 
 // ---------------------------------- //
@@ -2012,6 +2249,8 @@ Void Private_Lobby_ReinitPlayers() {
 // ---------------------------------- //
 /// Spawn the players
 Void Private_Lobby_SpawnPlayers() {
+	if (MapLandmarks_PlayerSpawn.count <= 0) return;
+	
 	foreach (Player in Players) {
 		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
 			declare Boolean SpawnThePlayer = True;
@@ -2326,8 +2565,6 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 	declare ButtonRulesOff = "file://Media/Manialinks/Common/Lobbies/small-button-YELLOW.dds";
 	declare ButtonReadyOn = "file://Media/Manialinks/Common/Lobbies/ready-button-GREEN-ON.dds";
 	declare ButtonReadyOff = "file://Media/Manialinks/Common/Lobbies/ready-button-GREEN.dds";
-	declare ButtonInviteOn = "file://Media/Manialinks/Common/Lobbies/small-button-BLUE-ON.dds";
-	declare ButtonInviteOff = "file://Media/Manialinks/Common/Lobbies/small-button-BLUE.dds";
 	
 	declare ButtonRules = "";
 	if (_DisplayRules) {
@@ -2374,7 +2611,7 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 </framemodel>
 <frame posn="0 0 10" id="Frame_Global">
 	<quad sizen="{{{SizeX}}} {{{SizeY}}} -1" halign="center" valign="center" image="{{{Background_Global}}}" />
-	<label posn="0 38" sizen="{{{SizeX}}} 4" scale="0.9" halign="center" valign="top" textsize="2.5" autonewline="1" opacity="0.9" id="Label_Title" />
+	<label posn="0 38" sizen="{{{SizeX}}} 4" scale="0.9" halign="center" valign="top" textsize="5" textemboss="1" autonewline="1" maxline="2" opacity="0.9" id="Label_Title" />
 	<frame posn="0 18 1" scale="0.6" id="Frame_PlayerList">
 		{{{PlayersList}}}
 	</frame>
@@ -2390,10 +2627,6 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 	<frame posn="0 -36 1" id="Frame_Ready">
 		<quad sizen="48 12" halign="center" valign="center" image="{{{ButtonReadyOff}}}" imagefocus="{{{ButtonReadyOn}}}" action="maniaplanet:togglespec" />
 		<label sizen="48 12" halign="center" valign="center2" style="TextRaceMessageBig" opacity="0.8" textsize="2.5" text="{{{_("Ready (F6)")}}}" />
-	</frame>
-	<frame posn="47 -36 1" id="Frame_Invite">
-		<quad sizen="35 10" halign="center" valign="center" image="{{{ButtonInviteOff}}}" imagefocus="{{{ButtonInviteOn}}}" manialink="elite-invite" />
-		<label sizen="35 10" scale="0.95" halign="center" valign="center2" style="TextRaceMessageBig" opacity="0.8" textsize="2" text="{{{_("Invite")}}}" />
 	</frame>
 	<quad posn="0 -90" sizen="80 20" halign="center" valign="bottom" id="Quad_Logo" />
 </frame>
@@ -2566,11 +2799,21 @@ Void UpdateFormat(Integer[] _Format) {
 }
 
 main() {
-	declare Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
+	declare Frame_Global	<=> (Page.GetFirstChild("Frame_Global")			as CMlFrame);
+	declare Frame_Ready		<=> (Frame_Global.GetFirstChild("Frame_Ready")	as CMlFrame);
+	declare Label_Title		<=> (Frame_Global.GetFirstChild("Label_Title")	as CMlLabel);
 	
 	declare netread Integer Net_Matchmaking_FormatUpdate for Teams[0];
 	declare netread Integer[] Net_Matchmaking_Format for Teams[0];
 	declare netread Integer Net_Lobby_AlliesLoginsUpdate for UI;
+	declare netread Boolean Net_Lobby_ImBlocked for UI;
+	declare netread Integer Net_Lobby_Penalty for UI;
+	declare netread Integer Net_Lobby_MatchCancellation for UI;
+	declare netread Boolean Net_Lobby_AllowMatchCancel for Teams[0];
+	declare netread Integer Net_Lobby_LobbyLimitMatchCancel for Teams[0];
+	declare netread Boolean Net_Lobby_ShowSubstituteML for UI;
+	declare netread Boolean Net_Lobby_ShowVersusML for UI;
+	declare netread Text Net_Lobby_ReconnectToServer for UI;
 	
 	declare netwrite Integer Net_Lobby_RequestAllyUpdate for UI;
 	declare netwrite Text Net_Lobby_RequestAlly for UI;
@@ -2584,6 +2827,8 @@ main() {
 	declare PrevIsSpectatorMode = True;
 	declare PrevFormatUpdate = -1;
 	declare PrevAlliesLoginUpdate = -1;
+	declare PrevIsBlocked = False;
+	declare PrevReconnectToServer = "";
 		
 	HideResumePlayingButton = True;
 	
@@ -2591,10 +2836,11 @@ main() {
 		yield;
 		if (InputPlayer == Null || !PageIsVisible) continue;
 		
-		if (PrevIsSpectatorMode != IsSpectatorMode) {
+		if (PrevIsSpectatorMode != IsSpectatorMode || PrevReconnectToServer != Net_Lobby_ReconnectToServer) {
 			PrevIsSpectatorMode = IsSpectatorMode;
+			PrevReconnectToServer = Net_Lobby_ReconnectToServer;
 			
-			if (IsSpectatorMode) {
+			if (IsSpectatorMode && Net_Lobby_ReconnectToServer == "") {
 				Frame_Global.Visible = True;
 			} else {
 				Frame_Global.Visible = False;
@@ -2611,6 +2857,34 @@ main() {
 			UpdatePager(0);
 		}
 		
+		if (Frame_Global.Visible && PrevIsBlocked != Net_Lobby_ImBlocked) {
+			PrevIsBlocked = Net_Lobby_ImBlocked;
+			
+			if (Net_Lobby_ImBlocked) {
+				Frame_Ready.Visible = False;
+			} else {
+				Frame_Ready.Visible = True;
+			}
+		}
+		
+		if (Net_Lobby_Penalty >= 0) {
+			declare Duration = Net_Lobby_Penalty - ArenaNow + 1000;
+			Label_Title.Value = TL::Compose("%1 - %2", "{{{_("You are suspended")}}}", TL::TimeToText(Duration, False));
+		} else if (Net_Lobby_Penalty < 0) {
+			if (Net_Lobby_AllowMatchCancel && Net_Lobby_LobbyLimitMatchCancel >= 0) {
+				declare CancellationRemaing = Net_Lobby_LobbyLimitMatchCancel - Net_Lobby_MatchCancellation;
+				if (CancellationRemaing <= 0) {
+					Label_Title.Value = _("You will be suspended if you cancel your next match.");
+				} else if (CancellationRemaing == 1) {
+					Label_Title.Value = TL::Compose(_("You can cancel 1 match."), TL::ToText(CancellationRemaing));
+				} else {
+					Label_Title.Value = TL::Compose(_("|%1 is the number of matches|You can cancel %1 matches."), TL::ToText(CancellationRemaing));
+				}
+			} else if (Label_Title.Value != "") {
+				Label_Title.Value = "";
+			}
+		}
+		
 		foreach (Event in PendingEvents) {
 			if (Event.Type == CMlEvent::Type::MouseClick) {
 				switch (Event.ControlId) {
@@ -2618,7 +2892,7 @@ main() {
 						Lobby_RulesAreVisible = True;
 					}
 					case "Button_Ready": {
-						IsSpectatorMode = False;
+						if (!Net_Lobby_ImBlocked) IsSpectatorMode = False;
 					}
 					case "Button_Player": {
 						declare Text Lobby_PlayerLogin for Event.Control;
@@ -2634,9 +2908,70 @@ main() {
 				}
 			} else if (Event.Type == CMlEvent::Type::KeyPress) {
 				if (Event.KeyName == "F6") {
-					IsSpectatorMode = !IsSpectatorMode;
+					if (
+						(Net_Lobby_ShowSubstituteML || Net_Lobby_ShowVersusML)
+						&& !Net_Lobby_AllowMatchCancel && !IsSpectatorMode
+					) {
+					
+					} else if (!Net_Lobby_ImBlocked) {
+						IsSpectatorMode = !IsSpectatorMode;
+					}
 				}
 			}
+		}
+	}
+}
+--></script>""";
+}
+
+// ---------------------------------- //
+/** Create the reconnect manialink
+ *
+ *	@return		The manialink
+ */
+Text Private_Lobby_GetMLReconnect() {
+	declare ButtonQuitOn = "file://Media/Manialinks/Common/Lobbies/small-button-RED-ON.dds";
+	declare ButtonQuitOff = "file://Media/Manialinks/Common/Lobbies/small-button-RED.dds";
+	
+	return """
+<frame posn="0 10" hidden="1" id="Frame_Global">
+	<label posn="0 59" sizen="90 7" halign="center" valign="center" style="TextRaceChrono" textsize="6" textcolor="f90d" id="Label_Countdown" />
+	<label halign="center" valign="center" style="TextRaceMessageBig" textsize="6" text="{{{_("We are sending you back to the match you left.")}}}" />
+	<label posn="0 -8" halign="center" valign="center" style="TextRaceMessageBig" textsize="4" text="{{{_("Please wait.")}}}" />
+	<frame posn="0 -18" hidden="0" id="Frame_Cancel">
+		<quad sizen="35 8" scale="1.3" halign="center" valign="center" image="{{{ButtonQuitOff}}}" imagefocus="{{{ButtonQuitOn}}}" action="maniaplanet:togglespec" />
+		<label sizen="35 8" scale="0.95" halign="center" valign="center2" style="TextRaceMessageBig" opacity="0.8" textsize="2" text="{{{_("F6 to cancel")}}}" id="Label_Quit" />
+	</frame>
+</frame>
+<script><!--
+#Include "TextLib" as TL
+
+main() {
+	declare Frame_Global	<=> (Page.GetFirstChild("Frame_Global")		as CMlFrame);
+	declare Frame_Cancel	<=> (Page.GetFirstChild("Frame_Cancel")		as CMlFrame);
+	declare Label_Countdown	<=> (Page.GetFirstChild("Label_Countdown")	as CMlLabel);
+	
+	declare netread Text Net_Lobby_ReconnectToServer for UI;
+	
+	declare PrevReconnectToServer = "";
+	
+	while (True) {
+		sleep(100);
+		
+		if (!PageIsVisible || InputPlayer == Null) continue;
+		
+		if (PrevReconnectToServer != Net_Lobby_ReconnectToServer) {
+			PrevReconnectToServer = Net_Lobby_ReconnectToServer;
+			
+			if (Net_Lobby_ReconnectToServer != "") {
+				Frame_Global.Visible = True;
+			} else {
+				Frame_Global.Visible = False;
+			}
+		}
+		
+		if (UI.CountdownEndTime > ArenaNow) {
+			Label_Countdown.Value = TL::TimeToText(UI.CountdownEndTime - ArenaNow + 1000);
 		}
 	}
 }
@@ -2693,6 +3028,7 @@ Text Private_Lobby_GetMLPlayersList() {
 </frame>
 <script><!--
 #Include "TextLib" as TL
+#Include "MathLib" as ML
 
 declare Integer G_PageStart;
 
@@ -2730,13 +3066,13 @@ Void UpdatePlayerCard(CMlFrame _Frame, CPlayer _Player) {
 		declare netread Integer[Text] Net_Lobby_AlliesLogins for UI;
 		if (Net_Lobby_AlliesLogins.count > 0 && _Player.Login == InputPlayer.Login) {
 			Button_Player.BgColor = <0.15, 0.3, 0.15>;
-			Button_Player.Opacity = 0.4;
+			Button_Player.Opacity = 0.7;
 		} else if (Net_Lobby_AlliesLogins.existskey(_Player.Login) && Net_Lobby_AlliesLogins[_Player.Login] == {{{C_AllyStatus_Validated}}}) {
 			Button_Player.BgColor = <0.15, 0.3, 0.15>;
-			Button_Player.Opacity = 0.4;
+			Button_Player.Opacity = 0.7;
 		} else if (Net_Lobby_AlliesLogins.existskey(_Player.Login) && Net_Lobby_AlliesLogins[_Player.Login] == {{{C_AllyStatus_Sent}}}) {
 			Button_Player.BgColor = <0.3, 0.15, 0.>;
-			Button_Player.Opacity = 0.4;
+			Button_Player.Opacity = 0.7;
 		} else {
 			Button_Player.BgColor = <0.2, 0.2, 0.2>;
 			Button_Player.Opacity = 0.5;
@@ -2747,8 +3083,13 @@ Void UpdatePlayerCard(CMlFrame _Frame, CPlayer _Player) {
 	}
 	if (Quad_Status != Null) {
 		declare netread Boolean Net_Lobby_AlliesAreReady for _Player;
-		if (_Player.User.RequestsSpectate) Quad_Status.BgColor = <0.8, 0., 0.>;
-		else if (!Net_Lobby_AlliesAreReady) Quad_Status.BgColor = <1., 0.5, 0.>;
+		declare netread Boolean Net_Lobby_IsBlocked for _Player;
+		declare netread Boolean Net_Lobby_SelectedForMatch for _Player;
+		
+		if (Net_Lobby_IsBlocked) Quad_Status.BgColor = <0., 0., 0.>;
+		else if (_Player.User.RequestsSpectate) Quad_Status.BgColor = <0.8, 0., 0.>;
+		else if (Net_Lobby_SelectedForMatch) Quad_Status.BgColor = <1., 0.9, 0.>;
+		else if (!Net_Lobby_AlliesAreReady) Quad_Status.BgColor = <0.8, 0.3, 0.>;
 		else Quad_Status.BgColor = <0., 0.8, 0.>;
 	}
 	if (Quad_CountryFlag != Null) Quad_CountryFlag.ImageUrl = _Player.User.CountryFlagUrl;
@@ -2763,6 +3104,8 @@ Void UpdatePlayersList() {
 	Lobby_ReadyNb = 0;
 	foreach (Player in Players) {
 		declare netread Boolean Net_Lobby_AlliesAreReady for Player;
+		declare netread Boolean Net_Lobby_IsBlocked for Player;
+		declare netread Boolean Net_Lobby_SelectedForMatch for Player;
 		declare netread Integer[Text] Net_Lobby_AlliesLogins for UI;
 		
 		if (Player.Login == InputPlayer.Login) {
@@ -2771,11 +3114,21 @@ Void UpdatePlayersList() {
 			if (Net_Lobby_AlliesLogins[Player.Login] == {{{C_AllyStatus_Validated}}}) ToSort[Player] = 1;
 			else ToSort[Player] = 2;
 		} else if (Player.User.RequestsSpectate) {
-			ToSort[Player] = 5;
+			ToSort[Player] = 6;
 		} else if (!Net_Lobby_AlliesAreReady) {
-			ToSort[Player] = 4;
-		} else {
+			ToSort[Player] = 5;
+		} else if (Net_Lobby_IsBlocked) {
+			ToSort[Player] = 7;
+		} else if (Net_Lobby_SelectedForMatch) {
 			ToSort[Player] = 3;
+		} else {
+			ToSort[Player] = 4;
+		}
+		
+		if (Player.User.IsFakeUser) {
+			ToSort[Player] = ToSort[Player] * 1000000 - GetEchelon(Player.User.Echelon) * 10000;
+		} else {
+			ToSort[Player] = ToSort[Player] * 1000000 - ML::NearestInteger(Player.User.LadderPoints);
 		}
 		
 		if (!Player.User.RequestsSpectate && Net_Lobby_AlliesAreReady) {
@@ -2939,17 +3292,18 @@ Text GetEchelonPath(Text _Echelon) {
 Void UpdatePlayerCard(Integer _Slot, CMlFrame _Frame) {
 	declare netread Text[Integer][] Net_Lobby_Masters for Teams[0];
 	
-	if (_Frame == Null || !Net_Lobby_Masters.existskey(_Slot)) return;
+	declare Key = Net_Lobby_Masters.count - _Slot - 1;
+	if (_Frame == Null || !Net_Lobby_Masters.existskey(Key)) return;
 	
 	declare Quad_CountryFlag<=> (_Frame.GetFirstChild("Quad_CountryFlag")	as CMlQuad);
 	declare Label_Name		<=> (_Frame.GetFirstChild("Label_Name")			as CMlLabel);
 	declare Quad_Echelon	<=> (_Frame.GetFirstChild("Quad_Echelon")		as CMlQuad);
 	declare Label_Echelon	<=> (_Frame.GetFirstChild("Label_Echelon")		as CMlLabel);
 	
-	if (Quad_CountryFlag != Null) Quad_CountryFlag.ImageUrl = Net_Lobby_Masters[_Slot][{{{C_Master_Country}}}];
-	if (Label_Name != Null) Label_Name.Value = Net_Lobby_Masters[_Slot][{{{C_Master_Name}}}];
-	if (Quad_Echelon != Null) Quad_Echelon.ImageUrl = GetEchelonPath(Net_Lobby_Masters[_Slot][{{{C_Master_Echelon}}}]);
-	if (Label_Echelon != Null) Label_Echelon.Value = Net_Lobby_Masters[_Slot][{{{C_Master_Echelon}}}];
+	if (Quad_CountryFlag != Null) Quad_CountryFlag.ImageUrl = Net_Lobby_Masters[Key][{{{C_Master_Country}}}];
+	if (Label_Name != Null) Label_Name.Value = Net_Lobby_Masters[Key][{{{C_Master_Name}}}];
+	if (Quad_Echelon != Null) Quad_Echelon.ImageUrl = GetEchelonPath(Net_Lobby_Masters[Key][{{{C_Master_Echelon}}}]);
+	if (Label_Echelon != Null) Label_Echelon.Value = Net_Lobby_Masters[Key][{{{C_Master_Echelon}}}];
 	
 	_Frame.Visible = True;
 }
@@ -3013,14 +3367,14 @@ main() {
 	declare Label_Message		<=> (Page.GetFirstChild("Label_Message")		as CMlLabel);
 	
 	declare netread Integer Net_Lobby_PlayersNb for Teams[0];
-	declare netread Integer Net_Lobby_WaitingTime for Teams[0];
+	declare netread Integer Net_Lobby_AverageWaitingTime for Teams[0];
 	
 	declare Lobby_ReadyNb for UI = 0;
 	
 	declare PrevServerName = "";
 	declare PrevPlayersNb = -1;
 	declare PrevReadyNb = -1;
-	declare PrevWaitingTime = -2;
+	declare PrevAverageWaitingTime = -2;
 	declare PrevAlliesAreReady = True;
 	declare PrevMessage = "";
 	declare PrevIsSpectatorMode = False;
@@ -3044,10 +3398,11 @@ main() {
 			Label_ReadyNb.Value = TL::Compose("%1 ready", TL::ToText(Lobby_ReadyNb));
 		}
 		
-		if (PrevWaitingTime != Net_Lobby_WaitingTime) {
-			PrevWaitingTime = Net_Lobby_WaitingTime;
-			if (Net_Lobby_WaitingTime < 0) Label_WaitingTime.Value = "- min";
-			else Label_WaitingTime.Value = TL::Compose("%1 min", TL::ToText(Net_Lobby_WaitingTime));
+		if (PrevAverageWaitingTime != Net_Lobby_AverageWaitingTime) {
+			PrevAverageWaitingTime = Net_Lobby_AverageWaitingTime;
+			if (Net_Lobby_AverageWaitingTime <= 0) Label_WaitingTime.Value = "- min";
+			else if (Net_Lobby_AverageWaitingTime < 60000) Label_WaitingTime.Value = TL::Compose("%1 sec", TL::ToText(Net_Lobby_AverageWaitingTime/1000+1));
+			else Label_WaitingTime.Value = TL::Compose("%1 min", TL::ToText(Net_Lobby_AverageWaitingTime/60000));
 		}
 		
 		if (PrevMessage != UI.StatusMessage || PrevIsSpectatorMode != IsSpectatorMode) {
@@ -3087,6 +3442,10 @@ while (True) {
 	
 	if (PrevUpdate != Net_Lobby_JoinLinkUpdate) {
 		PrevUpdate = Net_Lobby_JoinLinkUpdate;
+		
+		if ({{{S_MatchmakingLogMiscDebug}}}) {
+			log(Now^"> [CLIENT] "^InputPlayer.Login^" > OpenLink: "^Net_Lobby_JoinLink);
+		}
 		
 		if (Net_Lobby_JoinLink != "") {
 			OpenLink(Net_Lobby_JoinLink, CMlScript::LinkType::ManialinkBrowser);
@@ -3245,6 +3604,7 @@ Text Private_Lobby_GetMLVersus() {
 	declare ButtonQuitOn = "file://Media/Manialinks/Common/Lobbies/small-button-RED-ON.dds";
 	declare ButtonQuitOff = "file://Media/Manialinks/Common/Lobbies/small-button-RED.dds";
 	declare Echelon0 = "file://Media/Manialinks/Common/Echelons/echelon0.dds";
+	declare IsAlly = "file://Media/Manialinks/Common/AllyYes.dds";
 	
 	declare SlotsNb = 3;
 	declare PlayersList = "";
@@ -3259,6 +3619,10 @@ Text Private_Lobby_GetMLVersus() {
 		<quad sizen="80 20 -1" image="{{{Background_PlayerCard}}}" />
 		<quad posn="0.75 -10 1" sizen="18.5 18.5" valign="center" bgcolor="aaa" id="Quad_Avatar" />
 		<label posn="22 -4" sizen="38 4" style="TextRaceMessage" textsize="3.5" id="Label_Name" />
+		<frame posn="22 -10.6 1" hidden="1" id="Frame_Ally">
+			<label posn="5 0" sizen="30 4" valign="center2" style="TextRaceMessage" textsize="1" text="{{{_("Ally")}}}" />
+			<quad sizen="4 4" valign="center" image="{{{IsAlly}}}" />
+		</frame>
 		<label posn="27 -15" sizen="30 4" valign="center2" style="TextRaceMessage" textsize="1" id="Label_Rank" />
 		<quad posn="22 -15" sizen="4 4" valign="center" id="Quad_CountryFlag" />
 		<frame posn="72 0 1" scale="1.13">
@@ -3286,7 +3650,7 @@ Text Private_Lobby_GetMLVersus() {
 			<quad posn="1 0" sizen="9 9" valign="center" style="Icons64x64_1" substyle="ArrowDown" scriptevents="1" id="Button_PagerNext" />
 		</frame>
 	</frame>
-	<frame posn="0 -50">
+	<frame posn="0 -50" hidden="1" id="Frame_Cancel">
 		<quad sizen="35 8" scale="1.3" halign="center" valign="center" image="{{{ButtonQuitOff}}}" imagefocus="{{{ButtonQuitOn}}}" action="maniaplanet:togglespec" />
 		<label sizen="35 8" scale="0.95" halign="center" valign="center2" style="TextRaceMessageBig" opacity="0.8" textsize="2" text="{{{_("F6 to cancel")}}}" id="Label_Quit" />
 	</frame>
@@ -3325,6 +3689,8 @@ Text GetEchelonPath(CUser::EEchelon _Echelon) {
 }
 
 Void UpdatePlayerSlot(CMlFrame _Frame, CUser _User) {
+	if (_Frame == Null) return;
+	
 	if (_User == Null) {
 		_Frame.Visible = False;
 		return;
@@ -3338,6 +3704,7 @@ Void UpdatePlayerSlot(CMlFrame _Frame, CUser _User) {
 	declare Quad_CountryFlag	<=> (_Frame.GetFirstChild("Quad_CountryFlag")	as CMlQuad);
 	declare Quad_Echelon		<=> (_Frame.GetFirstChild("Quad_Echelon")		as CMlQuad);
 	declare Label_Echelon		<=> (_Frame.GetFirstChild("Label_Echelon")		as CMlLabel);
+	declare Frame_Ally			<=> (_Frame.GetFirstChild("Frame_Ally")			as CMlFrame);
 	
 	if (Quad_Avatar != Null)		Quad_Avatar.ImageUrl = "file://Avatars/"^_User.Login^"/Default";
 	if (Label_Name != Null)			Label_Name.Value = _User.Name;
@@ -3350,6 +3717,15 @@ Void UpdatePlayerSlot(CMlFrame _Frame, CUser _User) {
 		if (ZoneArray.existskey(2)) Zone = ZoneArray[2];
 		if (_User.LadderRank > 0) Label_Rank.Value = TL::Compose("%1: %2", Zone, TL::ToText(_User.LadderRank));
 		else Label_Rank.Value = TL::Compose("%1: %2", Zone, _("Not ranked"));
+	}
+	
+	declare netread Boolean[Text] Net_Lobby_VersusAllied for Teams[0];
+	if (Net_Lobby_VersusAllied.existskey(_User.Login)) {
+		if (Net_Lobby_VersusAllied[_User.Login]) {
+			Frame_Ally.Visible = True;
+		} else {
+			Frame_Ally.Visible = False;
+		}
 	}
 }
 
@@ -3471,10 +3847,12 @@ Void UpdateFormat() {
 
 main() {
 	declare Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
+	declare Frame_Cancel <=> (Page.GetFirstChild("Frame_Cancel") as CMlFrame);
 	
 	declare netread Integer Net_Matchmaking_FormatUpdate for Teams[0];
 	declare netread Boolean Net_Lobby_ShowVersusML for UI;
 	declare netread Integer Net_Lobby_VersusPlayersUpdate for UI;
+	declare netread Boolean Net_Lobby_AllowMatchCancel for Teams[0];
 	
 	G_PageStart = 0;
 	
@@ -3482,6 +3860,7 @@ main() {
 	declare PrevShowVersusML = False;
 	declare PrevVersusPlayersUpdate = -1;
 	declare PrevIsSpectatorMode = False;
+	declare PrevAllowMatchCancel = False;
 		
 	while (True) {
 		yield;
@@ -3502,6 +3881,11 @@ main() {
 		}
 		
 		if (!Frame_Global.Visible) continue;
+		
+		if (PrevAllowMatchCancel != Net_Lobby_AllowMatchCancel) {
+			PrevAllowMatchCancel = Net_Lobby_AllowMatchCancel;
+			Frame_Cancel.Visible = Net_Lobby_AllowMatchCancel;
+		}
 		
 		if (PrevFormatUpdate != Net_Matchmaking_FormatUpdate) {
 			PrevFormatUpdate = Net_Matchmaking_FormatUpdate;
@@ -3540,7 +3924,7 @@ Text Private_Lobby_GetMLSubstitute() {
 <frame posn="0 10" hidden="1" id="Frame_Global">
 	<label halign="center" valign="center" style="TextRaceMessageBig" textsize="6" text="{{{_("You are being transferred as a substitute.")}}}" />
 	<label posn="0 -8" halign="center" valign="center" style="TextRaceMessageBig" textsize="4" text="{{{_("Please wait.")}}}" />
-	<frame posn="0 -18">
+	<frame posn="0 -18" hidden="1" id="Frame_Cancel">
 		<quad sizen="35 8" scale="1.3" halign="center" valign="center" image="{{{ButtonQuitOff}}}" imagefocus="{{{ButtonQuitOn}}}" action="maniaplanet:togglespec" />
 		<label sizen="35 8" scale="0.95" halign="center" valign="center2" style="TextRaceMessageBig" opacity="0.8" textsize="2" text="{{{_("F6 to cancel")}}}" id="Label_Quit" />
 	</frame>
@@ -3548,11 +3932,14 @@ Text Private_Lobby_GetMLSubstitute() {
 <script><!--
 main() {
 	declare Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
+	declare Frame_Cancel <=> (Page.GetFirstChild("Frame_Cancel") as CMlFrame);
 	
 	declare netread Boolean Net_Lobby_ShowSubstituteML for UI;
+	declare netread Boolean Net_Lobby_AllowMatchCancel for Teams[0];
 	
 	declare PrevShowSubstituteML = False;
 	declare PrevIsSpectatorMode = False;
+	declare PrevAllowMatchCancel = False;
 	
 	while (True) {
 		yield;
@@ -3570,6 +3957,11 @@ main() {
 			} else {
 				Frame_Global.Visible = Net_Lobby_ShowSubstituteML;
 			}
+		}
+		
+		if (PrevAllowMatchCancel != Net_Lobby_AllowMatchCancel) {
+			PrevAllowMatchCancel = Net_Lobby_AllowMatchCancel;
+			Frame_Cancel.Visible = Net_Lobby_AllowMatchCancel;
 		}
 	}
 }

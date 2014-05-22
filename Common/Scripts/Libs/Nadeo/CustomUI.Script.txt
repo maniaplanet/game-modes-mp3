@@ -2,7 +2,7 @@
  * Custom UI library
  */
 
-#Const Version		"2013-12-10"
+#Const Version		"2014-05-19"
 #Const ScriptName	"CustomUI.Script.txt"
 
 #Include "TextLib" as TL
@@ -624,11 +624,12 @@ Void Unload() {
 Void Load() {
 	Unload();
 	
+	G_Key = C_DefaultKey;
+	
 	declare LayerCustomUI = UIManager.UILayerCreate();
 	G_LibCustomUI_LayerCustomUIId = LayerCustomUI.Id;
 	LayerCustomUI.ManialinkPage = Private_GetMLCustomUI();
 	UIManager.UIAll.UILayers.add(LayerCustomUI);
-	G_Key = C_DefaultKey;
 }
 
 // ---------------------------------- //

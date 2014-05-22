@@ -6,8 +6,8 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeArena, SiegeV1Arena"
-#Const Version				"2014-04-02"
-#Const ScriptName			"Siege.Script.txt"
+#Const Version				"2014-05-15"
+#Const ScriptName			"SiegeV1.Script.txt"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
@@ -34,7 +34,7 @@
 #Setting S_ClanNbMinPlayers		1		as _("Minumum number of players in each team")		///< Wait until this minimum is reach
 #Setting S_ClanNbMaxPlayers		0		as _("Max number of players per team (0: no max)")	///< do not spawn players beyond this limit, 0=no limit
 #Setting S_AutoBalance			True	as _("Use autobalance")								///< Use auto balance at the start of the map
-#Setting S_AutoManageAFK		True	//as _("Switch inactive players to spectators")
+//#Setting S_AutoManageAFK		True	//as _("Switch inactive players to spectators")
 #Setting S_DisplayRulesReminder True	as "<hidden>" // _("Display a window with the rules when the match begins")
 #Setting S_Matchmaking			False	as "<hidden>"										///< Use Elite with matchmaking
 #Setting S_MatchmakingSleep		0		as "<hidden>" 										///< Matchmaking match end duration (-1: infinite)

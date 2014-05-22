@@ -1,7 +1,7 @@
 /**
  *	MiniMap2 library
  */
-#Const	Version		"2014-03-12"
+#Const	Version		"2014-05-05"
 #Const	ScriptName	"MiniMap2.Script.txt"
 
 // ---------------------------------- //
@@ -87,8 +87,8 @@ main() {
 	declare PrevSize = <0., 0.>;
 	declare PrevScale = 0.;
 	declare PrevZoom = 0.;
-	declare PrevWorldPosition = <0., 0., 0.>;
-	declare PrevMapPosition = <0., 0.>;
+	declare PrevWorldPosition = <0., 0., 0.1>;
+	declare PrevMapPosition = <1., 0.>;
 	declare PrevMapYaw = 0.;
 	declare PrevUpdateOverlay = -1;
 	declare PrevVisibilityAll = True;
@@ -199,7 +199,7 @@ Void Unload() {
 	G_LibMiniMap2_LayerMiniMapId = NullId;
 	G_LibMiniMap2_Points.clear();
 	
-	// Activate the minimap
+	// Turn off the minimap
 	UseMinimap = False;
 }
 
@@ -208,13 +208,12 @@ Void Unload() {
 Void Load() {
 	Unload();
 	
-	// Activate the minimap
+	// Turn on the minimap
 	UseMinimap = True;
 	
 	// Create the minimap layer
 	declare LayerMiniMap = UIManager.UILayerCreate();
 	G_LibMiniMap2_LayerMiniMapId = LayerMiniMap.Id;
-	UIManager.UIAll.UILayers.add(LayerMiniMap);
 	LayerMiniMap.ManialinkPage = Private_GetMLMiniMap();
 	
 	// Initialize UI variables
@@ -247,6 +246,28 @@ Void Load() {
 	Net_LibMiniMap2_OverlayImage = C_LibMiniMap2_OverlayImage;
 	Net_LibMiniMap2_OverlayPos = C_LibMiniMap2_OverlayPos;
 	Net_LibMiniMap2_OverlaySize = C_LibMiniMap2_OverlaySize;
+}
+
+// ---------------------------------- //
+/** Attach the minimap to the UI
+ *
+ *	/!\ DO IT ONLY AFTER THE MAP IS LOADED
+ *	The minimap won't be generated correclty otherwise
+ *	and the UI will disappear
+ */
+Void Attach() {
+	if (
+		UIManager.UILayers.existskey(G_LibMiniMap2_LayerMiniMapId)
+		&& !UIManager.UIAll.UILayers.existskey(G_LibMiniMap2_LayerMiniMapId)
+	) {
+		UIManager.UIAll.UILayers.add(UIManager.UILayers[G_LibMiniMap2_LayerMiniMapId]);
+	}
+}
+
+// ---------------------------------- //
+/// Detach the minimap from the UI
+Void Detach() {
+	declare Removed = UIManager.UIAll.UILayers.removekey(G_LibMiniMap2_LayerMiniMapId);
 }
 
 // ---------------------------------- //
