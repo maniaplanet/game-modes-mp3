@@ -1,3 +1,75 @@
+<a id="2014-05-22">2014-05-22</a>
+---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/8e583c5b490fbc87f2b4c34d53aaaef36864b011)
+
+### Modes
+
+#### ShootMania/Battle
+* AutoManageAFK is turned off by default.
+* Fix on the U : the markers and poles helpers are now updated correctly.
+
+#### ShootMania/Combo
+* Now compatible with the new matchmaking system.
+* It's now possible to hide the timers on the right of the screen while spectating.
+
+#### ShootMania/Elite
+* Display the probability that the attacker can win the round based on his number of armors, the number of defenders and the time left in the round.
+* Fixed : the players lists position can now be customized during warm up.
+
+#### ShootMania/Heroes
+* Fixed : the script doesn't work on the dedicated server.
+
+#### ShootMania/ModeBase
+* Change to the S_AFKIdleTimeLimit are now taken into account in real time and not only at server restart.
+
+#### ShootMania/ModeMatchmaking
+* Players are now penalized for their first cancel by default.
+* One matchmaking round last 30 seconds instead of 60 seconds.
+* 60 rounds per map instead of 30.
+* Canceling a match the first time is now penalized by 90 seconds of ban instead of 60 seconds.
+* Each cancel after the first one will increase the penalty by 30 seconds instead of 5.
+* Integration with Combo.
+* Use the new version of the API (v4) with https.
+* Setting S_MatchmakingErrorMessage defines a custom error message that will be displayed in the chat to inform the players when an error occurs in the matchmaking system.
+* Setting S_LobbyAllowMatchCancel allows or not the players to cancel a match.
+* Setting S_LobbyLimitMatchCancel, if the players are allowed to cancel a match, how many matches can they cancel before being penalized.
+* Display the nickname of the player who canceled our match in the chat.
+* Better management of substitutes players.
+* Display the average waiting time of the players in the lobby.
+* Display which players are allied in the VS screen before being sent to a match.
+* Stop to ask for a substitute when a player is missing if the match end is close.
+* When reconnecting to a lobby after leaving an ongoing match you'll be sent back to your match server. Canceling will result in a penalty.
+* Fixed : the old scores table is not visible anymore after a map change in the lobby.
+* Fixed : the players list is sorted by echelon.
+* Fixed : player won't be blocked in the lobby instead of being transfered to their match server.
+
+#### ShootMania/Royal
+* AutoManageAFK is turned off by default.
+
+#### ShootMania/Siege
+* AutoManageAFK is turned off by default.
+* New setting S_UseWeaponSelection : force the player to use rocket in defense and laser in defense. S_UseWeaponSwitch must be false for this setting to be taken into account.
+* New setting S_CaptureThreshold : minimum time in ms a player must stand on a gate/pole to start capturing it.
+* Display a gauge on the screen while capturing a gate or a pole.
+
+
+### Libraries
+
+#### CustomUI
+* Setup the display key before building the UI.
+
+#### MiniMap2
+* Better initialization of the minimap.
+* Functions Attach() and Detach() to control the minimap layer.
+
+#### ShootMania/EliteStats
+* New stat system : save the probability that the attacker can win the round based on his number of armors, the number of defenders and the time left in the round.
+
+
+---------------------------------
+
+
 <a id="2014-04-30">2014-04-30</a>
 ---------------------------------
 
