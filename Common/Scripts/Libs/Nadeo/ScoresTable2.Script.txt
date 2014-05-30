@@ -4,7 +4,7 @@
  *	The library has a list of default columns ready to use,
  *	you can check the CreateCol() function to have more details:
  *	General -> LibST_Avatar, LibST_Name, LibST_ManiaStars, LibST_Tools, LibST_Tags
- *	TM -> LibST_TMBestTime, LibST_PrevTime, LibST_TMStunts, LibST_TMRespawns, LibST_TMCheckpoints, LibST_TMPoints, LibST_TMPrevRaceDeltaPoints
+ *	TM -> LibST_TMBestTime, LibST_TMPrevTime, LibST_TMBestLapTime, LibST_TMStunts, LibST_TMRespawns, LibST_TMCheckpoints, LibST_TMPoints, LibST_TMPrevRaceDeltaPoints
  *	SM -> LibST_SMPoints, LibST_SMRoundPoints
  *
  *	The library has a list of default styles ready to use,
@@ -21,7 +21,7 @@
  *	- LibST_SMWithLegends, add a space for columns legends in the header
  */
 
-#Const Version		"2014-04-16"
+#Const Version		"2014-05-30"
 #Const ScriptName	"ScoresTable.Script.txt"
 
 #Include "TextLib" as TL
@@ -342,7 +342,7 @@ Void DestroyCol(Text _ColId) {
  *	@param	_Id				The id of the column
  *							Some ids are already used by default, using one of this id will create a special column: 
  *								General -> LibST_Avatar, LibST_Name, LibST_ManiaStars, LibST_Tools, LibST_Tags
- *								TM -> LibST_TMBestTime, LibST_PrevTime, LibST_TMStunts, LibST_TMRespawns, LibST_TMCheckpoints, LibST_TMPoints, LibST_TMPrevRaceDeltaPoints
+ *								TM -> LibST_TMBestTime, LibST_TMPrevTime, LibST_TMBestLapTime, LibST_TMStunts, LibST_TMRespawns, LibST_TMCheckpoints, LibST_TMPoints, LibST_TMPrevRaceDeltaPoints
  *								SM -> LibST_SMPoints, LibST_SMRoundPoints
  *							When using an already created column name, the previous column will be destroyed and replaced by the new one
  *	@param	_Legend			The legend displayed above the column
@@ -371,6 +371,11 @@ Label_Col.Value = LibST_TimeToText(Score.BestRace.Time);""";
 			ColScript = """
 declare Score <=> (_Score as CTmScore);
 Label_Col.Value = LibST_TimeToText(Score.PrevRace.Time);""";
+		}
+		case "LibST_TMBestLapTime": {
+			ColScript = """
+declare Score <=> (_Score as CTmScore);
+Label_Col.Value = LibST_TimeToText(Score.BestLap.Time);""";
 		}
 		case "LibST_TMStunts": {
 			ColScript = """
@@ -1689,6 +1694,14 @@ if (LibST_PrevTMBestTime != Score.BestRace.Time) {
 declare LibST_PrevTMPrevTime for Score = -1;
 if (LibST_PrevTMPrevTime != Score.PrevRace.Time) {
 	LibST_PrevTMPrevTime = Score.PrevRace.Time;
+	SlotNeedUpdate = True;
+}""";
+				}
+				case "LibST_TMBestLapTime": {
+					MLScript[2] ^= """
+declare LibST_PrevTMBestLapTime for Score = -1;
+if (LibST_PrevTMBestLapTime != Score.BestLap.Time) {
+	LibST_PrevTMBestLapTime = Score.BestLap.Time;
 	SlotNeedUpdate = True;
 }""";
 				}
