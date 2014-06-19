@@ -179,7 +179,8 @@ Void SendPlayerRanking(Text _Login) {
 			TL::ToText(BestTime),
 			PlayerScore.User.ZonePath,
 			TL::ToText(PlayerScore.Points),
-			BestCheckpoints
+			BestCheckpoints,
+			TL::ToText(PlayerScore.Points + PlayerScore.PrevRaceDeltaPoints)
 		];
 	}
 	
