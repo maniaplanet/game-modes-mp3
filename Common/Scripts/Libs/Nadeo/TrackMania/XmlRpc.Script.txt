@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2014-04-29"
+#Const	Version		"2014-06-19"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -202,6 +202,15 @@ Void SendPlayersRanking(Integer _Range, Integer _Start) {
 	foreach (Score in Scores) {
 		Rank += 1;
 		if (Rank >= _Start) {
+			declare IsAway = False;
+			if (Private_FindPlayer(Score.User.Login) == Null) IsAway = True;
+		
+			declare BestTime = -1;
+			if (Score.BestRace != Null) BestTime = Score.BestRace.Time;
+			
+			declare TeamNum = -1;
+			if (UseClans) TeamNum = Score.TeamNum - 1;
+		
 			declare BestCheckpoints = "";
 			if (Score.BestRace != Null) {
 				foreach (CheckpointTime in Score.BestRace.Checkpoints) {
@@ -210,7 +219,9 @@ Void SendPlayersRanking(Integer _Range, Integer _Start) {
 				}
 			}
 			if (BestCheckpoints == "") BestCheckpoints = "-1";
-			PlayersRanking.add(Score.User.Login^":"^Rank^":"^BestCheckpoints);
+			
+			PlayersRanking.add(Score.User.Login^":"^Rank^":"^BestCheckpoints^":"^TeamNum^":"^Score.User.RequestsSpectate^":"^IsAway^":"^BestTime^":"^Score.User.ZonePath^":"^Score.Points^":"^(Score.Points+Score.PrevRaceDeltaPoints));
+			
 			Count += 1;
 			if (_Range >= 0 && Count >= _Range) break;
 		}
