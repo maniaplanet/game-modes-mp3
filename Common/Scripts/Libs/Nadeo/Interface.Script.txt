@@ -1,7 +1,7 @@
 /**
  * Interface library
  */
-#Const Version		"2014-04-29"
+#Const Version		"2014-06-25"
 #Const ScriptName	"Interface.Script.txt"
 
 // ---------------------------------- //
@@ -894,7 +894,7 @@ main() {
 			PrevTopUpdate = LibUI_TopUpdate;
 			
 			foreach (SlideId => SlideType in Net_LibUI_SlideType){
-				if (SlideType == C_SlideType_Top) UpdateSlideTop(SlideId, PrevTitle[SlideId], PrevContent[SlideId]);
+				if (SlideType == C_SlideType_Top && PrevTitle.existskey(SlideId) && PrevContent.existskey(SlideId)) UpdateSlideTop(SlideId, PrevTitle[SlideId], PrevContent[SlideId]);
 			}
 		}
 		
@@ -1102,10 +1102,10 @@ Void AddSlide(Integer _Id, Text _Type, Text _Title, Text _Content) {
 	declare netwrite Integer[Integer] Net_LibUI_SlideType for Teams[0];
 	declare netwrite Text[Integer] Net_LibUI_SlideTitle for Teams[0];
 	declare netwrite Text[Integer] Net_LibUI_SlideContent for Teams[0];
-	Net_LibUI_SlideUpdate	= Now;
 	Net_LibUI_SlideType		= G_LibUI_SlideType;
 	Net_LibUI_SlideTitle	= G_LibUI_SlideTitle;
 	Net_LibUI_SlideContent	= G_LibUI_SlideContent;
+	Net_LibUI_SlideUpdate	= Now;
 }
 
 // ---------------------------------- //
@@ -1119,6 +1119,16 @@ Void RemoveSlide(Integer _Id) {
 	declare Removed = G_LibUI_SlideType.removekey(_Id);
 	Removed = G_LibUI_SlideTitle.removekey(_Id);
 	Removed = G_LibUI_SlideContent.removekey(_Id);
+	
+	declare netwrite Integer Net_LibUI_SlideUpdate for Teams[0];
+	declare netwrite Integer[Integer] Net_LibUI_SlideType for Teams[0];
+	declare netwrite Text[Integer] Net_LibUI_SlideTitle for Teams[0];
+	declare netwrite Text[Integer] Net_LibUI_SlideContent for Teams[0];
+	Net_LibUI_SlideType		= G_LibUI_SlideType;
+	Net_LibUI_SlideTitle	= G_LibUI_SlideTitle;
+	Net_LibUI_SlideContent	= G_LibUI_SlideContent;
+	Net_LibUI_SlideUpdate	= Now;
+	
 	Private_UpdateSliderML();
 }
 
