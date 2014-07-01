@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2014-05-16"
+#Const ModeBaseVersion		"2014-05-28"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -80,6 +80,8 @@ declare Boolean MB_UseScriptCallbacks;
 declare Text MB_NeutralEmblemUrl;
 // Previous idle time limit value
 declare Integer MB_PrevAFKIdleTimeLimit;
+// Matchmaking
+declare Boolean MM_RestartMatchmaking;
 
 // ---------------------------------- //
 // Functions
@@ -285,10 +287,11 @@ main() {
 		&& !MB_StopServer
 	) {
 		// Match initialization
-		MB_CurrentSection = "StartMatch";
-		MB_SectionMatchNb	+= 1;
-		MB_SectionMapNb		= 0;
-		MB_StopMatch		= False;
+		MB_CurrentSection		= "StartMatch";
+		MB_SectionMatchNb		+= 1;
+		MB_SectionMapNb			= 0;
+		MB_StopMatch			= False;
+		MM_RestartMatchmaking	= False;
 		MB_XmlRpcCheck();
 		MB_NeutralEmblemUpdate();
 		
@@ -306,6 +309,7 @@ main() {
 			!ServerShutdownRequested
 			&& !MB_StopServer
 			&& !MB_StopMatch
+			&& !MM_RestartMatchmaking
 		) {
 			// Map initialization
 			MB_CurrentSection = "StartMap";
@@ -348,6 +352,7 @@ main() {
 				&& !MB_StopServer
 				&& !MatchEndRequested
 				&& !MB_StopMatch
+				&& !MM_RestartMatchmaking
 				&& !MB_StopMap
 			) {
 				// Submatch initialization
@@ -373,6 +378,7 @@ main() {
 					&& !MB_StopServer
 					&& !MatchEndRequested
 					&& !MB_StopMatch
+					&& !MM_RestartMatchmaking
 					&& !MB_StopMap
 					&& !MB_StopSubmatch
 				) {
@@ -399,6 +405,7 @@ main() {
 						&& !MB_StopServer
 						&& !MatchEndRequested
 						&& !MB_StopMatch
+						&& !MM_RestartMatchmaking
 						&& !MB_StopMap
 						&& !MB_StopSubmatch
 						&& !MB_StopRound
@@ -441,6 +448,7 @@ main() {
 							&& !MB_StopServer
 							&& !MatchEndRequested
 							&& !MB_StopMatch
+							&& !MM_RestartMatchmaking
 							&& !MB_StopMap
 							&& !MB_StopSubmatch
 							&& !MB_StopRound

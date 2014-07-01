@@ -4,7 +4,7 @@
 
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
-#Const	RoundsBaseVersion		"2014-04-29"
+#Const	RoundsBaseVersion		"2014-06-19"
 #Const	RoundsBaseScriptName	"RoundsBase.Script.txt"
 
 #Include "Libs/Nadeo/TrackMania/UI.Script.txt" as UI
@@ -16,6 +16,7 @@
 #Setting S_FinishTimeout		-1		as _("Finish timeout :")
 #Setting S_UseAlternateRules	False	as _("Use alternate rules :")
 #Setting S_ForceLapsNb			-1		as _("Force number of laps :")
+#Setting S_DisplayTimeDiff		False	as _("Display time difference at checkpoint :")
 
 // ---------------------------------- //
 // Constants
@@ -46,6 +47,7 @@ MB_UseSectionRound = True;
 G_PointsRepartition = C_PointsRepartition;
 
 UI::Load(["TimeGap", "SmallScoresTable", "Chrono", "CheckpointTime", "PrevBestTime"]);
+UI::DisplayTimeDiff(S_DisplayTimeDiff);
 ***
 
 ***InitMap***

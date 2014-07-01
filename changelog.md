@@ -1,3 +1,64 @@
+<a id="2014-07-02">2014-07-02</a>
+---------------------------------
+
+[Commit on GitHub]()
+
+### Modes
+
+#### ShootMania/Elite
+* Initialize the dodge total from the scores table in ***InitMap*** instead of ***StartMap*** to avoid to keep the value from the previous match while waiting for the match to start in matchmaking. [see](http://forum.maniaplanet.com/viewtopic.php?p=218684#p218684)
+* Use the new GetMode() function to get the current mode (free or classic) instead of accessing directly to the S_Mode setting. This function will always return a "valid" value (0 or 1) so the assert() are not necessary anymore. [see](https://github.com/maniaplanet/game-modes/issues/4)
+
+#### ShootMania/ModeBase
+* New boolean allowing to cancel an ongoing matchmaking match and start a new one.
+
+#### ShootMania/ModeMatchmaking
+* Universal lobby mode. Disable the matchmaking function on the lobby and allow players to create their own match. The lobby will then send players to a free match server.
+* Fix on the "remind rules" frame of the lobby to correctly display long texts inside. [see](http://forum.maniaplanet.com/viewtopic.php?p=218668#p218668)
+
+#### TrackMania/Rounds
+* Replace the custom RoundsVersion and RoundsScriptName #Const by the default Version and ScriptName. [see](http://forum.maniaplanet.com/viewtopic.php?f=489&t=27822)
+
+#### TrackMania/RoundsBase
+* New setting S_DisplayTimeDiff to hide/show time difference at checkpoint. [see](http://forum.maniaplanet.com/viewtopic.php?f=8&t=27872&p=218204#p218204)
+
+
+### Libraries
+
+#### Interface
+* Fix a bug preventing to remove a slide from the slider module. [see](http://forum.maniaplanet.com/viewtopic.php?f=468&t=27899#p217310)
+
+#### ShootMania/Debug
+* New styles added to the "styles" manialink (see BgsButtons in the background category)
+
+#### ShootMania/Elite/EliteEndSequence
+* Fix: added the missing </script> node at the end of the manialink xml. That was preventing the whole UI to work as expected at the end of the map.
+
+#### ShootMania/Elite/EliteStats
+* New tracking and saving system for stats.
+
+#### ShootMania/WeaponSelection2
+* Fix on the weapon selection screen. Sometimes pressing the 1, 2, 3 or 4 key didn't selected the right weapon.
+
+#### TrackMania/TM2
+* Send the "LibXmlRpc_OnStartCountDown" callback when calling the StartRace() function.
+* Force the UI sequence of the player to None when spawning him on the track.
+
+#### TrackMania/UI
+* The default checkpoint crossing sound is not played anymore when the default chrono UI is hidden. So the lib now plays the sound instead.
+
+#### TrackMania/XmlRpc
+* New XmlRpc callback "LibXmlRpc_OnStartCountDown" sent when the player is spawned on the track before the 3,2,1,GO!. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=27956&start=20#p219270)
+* The "LibXmlRpc_OnRespawn" callback sends more info : player login, block id, checkpoint in race, checkpoint in lap, number of respawn. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=27956&start=20#p219270)
+* Add the total score (PlayerScore.Points + PlayerScore.PrevRaceDeltaPoints) to the LibXmlRpc_PlayerRanking callback. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=27956&start=10#p218240)
+* More details in the LibXmlRpc_PlayersRanking callback : the login, rank, best checkpoints, team id, spectator status, away status, best time, zone, points and total points of the players are separated by a colon
+
+
+
+### Documentation
+* New styles added to the "styles" manialink (see BgsButtons in the background category)
+
+
 <a id="2014-05-22">2014-05-22</a>
 ---------------------------------
 
