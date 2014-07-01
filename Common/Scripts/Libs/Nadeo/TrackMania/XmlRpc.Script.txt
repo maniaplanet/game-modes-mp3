@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2014-06-19"
+#Const	Version		"2014-06-30"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -495,6 +495,12 @@ Void EndWarmUp() {
 	Private_SendCallbackArray("LibXmlRpc_EndWarmUp", Text[]);
 }
 
+Void OnStartCountdown(CTmPlayer _Player) {
+	if (!G_UseLibXmlRpc) return;
+	
+	Private_SendCallbackArray("LibXmlRpc_OnStartCountdown", [_Player.Login]);
+}
+
 // ---------------------------------- //
 /** Callback sent when a player starts a race
  *	Data:
@@ -516,7 +522,7 @@ Void OnStartLine(CTmModeEvent _Event) {
  *	@param	_Event		The event to handle
  */
 Void OnWayPoint(CTmModeEvent _Event) {
-	if (!G_UseLibXmlRpc) return;	
+	if (!G_UseLibXmlRpc) return;
 	
 	Private_SendCallbackArray("LibXmlRpc_OnWayPoint", [_Event.Player.Login, ""^_Event.BlockId, TL::ToText(_Event.RaceTime), TL::ToText(_Event.CheckpointInRace), TL::ToText(_Event.IsEndRace), TL::ToText(_Event.LapTime), TL::ToText(_Event.CheckpointInLap), TL::ToText(_Event.IsEndLap)]);
 }
@@ -544,7 +550,7 @@ Void OnGiveUp(CTmModeEvent _Event) {
 Void OnRespawn(CTmModeEvent _Event) {
 	if (!G_UseLibXmlRpc) return;
 	
-	Private_SendCallbackArray("LibXmlRpc_OnRespawn", [_Event.Player.Login]);
+	Private_SendCallbackArray("LibXmlRpc_OnRespawn", [_Event.Player.Login, ""^_Event.BlockId, TL::ToText(_Event.CheckpointInRace), TL::ToText(_Event.CheckpointInLap), TL::ToText(_Event.NbRespawns)]);
 }
 
 // ---------------------------------- //

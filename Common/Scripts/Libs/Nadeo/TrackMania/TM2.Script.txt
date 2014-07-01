@@ -2,10 +2,11 @@
  *	TM library
  */
 
-#Const Version		"2014-04-18"
+#Const Version		"2014-06-30"
 #Const ScriptName	"TM2.Script.txt"
 
 #Include "TextLib" as TL
+#Include "Libs/Nadeo/TrackMania/XmlRpc.Script.txt" as XmlRpc
 
 // ---------------------------------- //
 // Constant
@@ -137,9 +138,16 @@ Void StartRace(CTmPlayer _Player, Integer _StartTime, Boolean _RegisterOnLadder)
 	
 	// Undo forced visible scores table when starting race
 	declare UI <=> UIManager.GetUI(_Player);
-	if (UI != Null && UI.ScoreTableVisibility == CUIConfig::EVisibility::ForcedVisible) {
-		UI.ScoreTableVisibility = CUIConfig::EVisibility::None;
+	if (UI != Null) {
+		if (UI.ScoreTableVisibility == CUIConfig::EVisibility::ForcedVisible) {
+			UI.ScoreTableVisibility = CUIConfig::EVisibility::None;
+		}
+		if (UI.UISequence != CUIConfig::EUISequence::None) {
+			UI.UISequence = CUIConfig::EUISequence::None;
+		}
 	}
+	
+	XmlRpc::OnStartCountdown(_Player);
 }
 
 // ---------------------------------- //
