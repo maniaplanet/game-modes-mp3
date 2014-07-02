@@ -5,8 +5,8 @@
 #Extends "Modes/TrackMania/RoundsBase.Script.txt"
 
 #Const  CompatibleMapTypes  "Race"
-#Const	RoundsVersion		"2014-04-28"
-#Const	RoundsScriptName	"Rounds.Script.txt"
+#Const	Version		"2014-07-02"
+#Const	ScriptName	"Rounds.Script.txt"
 
 #Include "TextLib" as TL
 
@@ -26,7 +26,7 @@
 // ---------------------------------- //
 ***LogVersion***
 ***
-MB_LogVersion(RoundsScriptName, RoundsVersion);
+MB_LogVersion(ScriptName, Version);
 ***
 
 ***InitServer***
@@ -152,7 +152,7 @@ if (ForceEndRound) {
 // ---------------------------------- //
 // Close ladder
 Ladder_ComputeRank(CTmMode::ETmScoreSortOrder::TotalPoints);
-Mode::Ladder_CloseMatch();
+MB_Ladder_CloseMatch();
 
 Scores_Sort(CTmMode::ETmScoreSortOrder::TotalPoints);
 if (Scores.existskey(0) &&  Scores[0].BestRace.Time > 0) {
