@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-07-01"
+#Const ModeMatchmakingVersion		"2014-07-02"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -1434,6 +1434,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 	
 	// Send match to player UI
 	declare netwrite Boolean[Text] Net_Lobby_VersusAllied for Teams[0];
+	declare netwrite Integer Net_Lobby_VersusAlliedUpdate for Teams[0];
 	Net_Lobby_VersusAllied.clear();
 	foreach (MatchId => MatchPlayers in MatchesPlayers) {
 		foreach (Player => Clan in MatchPlayers) {
@@ -1456,6 +1457,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 			Private_MM_ShowVersusML(Player);
 		}
 	}
+	Net_Lobby_VersusAlliedUpdate = Now;
 }
 
 // ---------------------------------- //
@@ -4608,6 +4610,8 @@ Void UpdatePlayerSlot(CMlFrame _Frame, CUser _User) {
 		} else {
 			Frame_Ally.Visible = False;
 		}
+	} else {
+		Frame_Ally.Visible = False;
 	}
 }
 
@@ -4734,6 +4738,7 @@ main() {
 	declare netread Integer Net_Matchmaking_FormatUpdate for Teams[0];
 	declare netread Boolean Net_Lobby_ShowVersusML for UI;
 	declare netread Integer Net_Lobby_VersusPlayersUpdate for UI;
+	declare netread Integer Net_Lobby_VersusAlliedUpdate for Teams[0];
 	declare netread Integer Net_Lobby_MatchCancellation for UI;
 	declare netread Boolean Net_Lobby_AllowMatchCancel for Teams[0];
 	declare netread Integer Net_Lobby_LobbyLimitMatchCancel for Teams[0];
@@ -4743,6 +4748,7 @@ main() {
 	declare PrevFormatUpdate = -1;
 	declare PrevShowVersusML = False;
 	declare PrevVersusPlayersUpdate = -1;
+	declare PrevVersusAlliedUpdate = -1;
 	declare PrevIsSpectatorMode = False;
 	declare PrevAllowMatchCancel = False;
 	declare PrevMatchCancellation = -1;
@@ -4794,6 +4800,11 @@ main() {
 		
 		if (PrevVersusPlayersUpdate != Net_Lobby_VersusPlayersUpdate) {
 			PrevVersusPlayersUpdate = Net_Lobby_VersusPlayersUpdate;
+			UpdatePager(0);
+		}
+		
+		if (PrevVersusAlliedUpdate != Net_Lobby_VersusAlliedUpdate) {
+			PrevVersusAlliedUpdate = Net_Lobby_VersusAlliedUpdate;
 			UpdatePager(0);
 		}
 		
