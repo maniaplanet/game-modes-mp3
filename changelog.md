@@ -15,6 +15,13 @@
 #### ShootMania/ModeMatchmaking
 * Universal lobby mode. Disable the matchmaking function on the lobby and allow players to create their own match. The lobby will then send players to a free match server.
 * Fix on the "remind rules" frame of the lobby to correctly display long texts inside. [see](http://forum.maniaplanet.com/viewtopic.php?p=218668#p218668)
+* Fix a bug displaying players as allies in the versus screen of the lobby even if they were not.
+
+#### ShootMania/ModeSport
+* Fix : don't restart a matchmaking match when voting for change/next map on first map. Just keep playing the same match with the same players.
+
+#### TrackMania/ModeBase
+* Replaced all calls to the Mode library "sync" functions by the same call to the new "async" function from ModeBase. It solves XmlRpc problems where call to the TriggerModeScriptEvent and TriggerModeScriptEventArray methods were ignored if they were sent a few milliseconds after map beginning/ending (during ladder communication with the master server especially).
 
 #### TrackMania/Rounds
 * Replace the custom RoundsVersion and RoundsScriptName #Const by the default Version and ScriptName. [see](http://forum.maniaplanet.com/viewtopic.php?f=489&t=27822)
@@ -35,7 +42,7 @@
 * Fix: added the missing </script> node at the end of the manialink xml. That was preventing the whole UI to work as expected at the end of the map.
 
 #### ShootMania/Elite/EliteStats
-* New tracking and saving system for stats.
+* New tracking and saving system for attack ratio.
 
 #### ShootMania/WeaponSelection2
 * Fix on the weapon selection screen. Sometimes pressing the 1, 2, 3 or 4 key didn't selected the right weapon.
@@ -52,7 +59,6 @@
 * The "LibXmlRpc_OnRespawn" callback sends more info : player login, block id, checkpoint in race, checkpoint in lap, number of respawn. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=27956&start=20#p219270)
 * Add the total score (PlayerScore.Points + PlayerScore.PrevRaceDeltaPoints) to the LibXmlRpc_PlayerRanking callback. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=27956&start=10#p218240)
 * More details in the LibXmlRpc_PlayersRanking callback : the login, rank, best checkpoints, team id, spectator status, away status, best time, zone, points and total points of the players are separated by a colon
-
 
 
 ### Documentation
