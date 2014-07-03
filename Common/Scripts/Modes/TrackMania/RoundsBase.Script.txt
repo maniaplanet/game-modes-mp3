@@ -4,7 +4,7 @@
 
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
-#Const	RoundsBaseVersion		"2014-06-19"
+#Const	RoundsBaseVersion		"2014-07-02"
 #Const	RoundsBaseScriptName	"RoundsBase.Script.txt"
 
 #Include "Libs/Nadeo/TrackMania/UI.Script.txt" as UI
@@ -59,7 +59,7 @@ MB_SetLapsNb(S_ForceLapsNb);
 ***
 // ---------------------------------- //
 // Open ladder
-Mode::Ladder_OpenMatch_All();
+MB_Ladder_OpenMatch_All();
 MB_SetLapsNb(S_ForceLapsNb);
 ***
 

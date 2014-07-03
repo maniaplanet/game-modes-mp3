@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-06-24"
+#Const	ModeSportVersion	"2014-07-02"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -215,6 +215,7 @@ UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
 ***InitMatch***
 ***
 declare Integer TossWinner;
+declare MapSkipped = False;
 ***
 
 // ---------------------------------- //
@@ -374,11 +375,12 @@ declare MapWinnerName = "";
 // ---------------------------------- //
 // Wait players on first map when using matchmaking
 if (MM_IsMatchServer()) {
-	if (MB_SectionMapNb <= 1) {
+	if (MB_SectionMapNb <= 1 && !MapSkipped) {
 		MM_MatchWait();
 		PrepareMatch();
 	}
 }
+MapSkipped = False;
 
 ---StartUsingToken---
 
@@ -1387,6 +1389,7 @@ if (MatchEndRequested) {
 	
 	FirstAtk = G_AtkClan;
 	VoteClanNb = 3 - VoteClanNb;
+	MapSkipped = True;
 	
 	// Ignore points on this map for goal average
 	G_MatchAtkPoints[1] -= G_MapAtkPoints[1];
