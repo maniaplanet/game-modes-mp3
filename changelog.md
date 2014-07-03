@@ -1,7 +1,7 @@
 <a id="2014-07-02">2014-07-02</a>
 ---------------------------------
 
-[Commit on GitHub]()
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/0284efbe53c8202f79c113143f30fb40cbfedd13)
 
 ### Modes
 
