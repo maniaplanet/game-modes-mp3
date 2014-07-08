@@ -1,3 +1,49 @@
+<a id="2014-07-09">2014-07-09</a>
+---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/8557231d00b773092c13dc7fe628c6af0af4e874)
+
+### Modes
+
+#### Battle
+* The mode is now compatible with the matchmaking system, you can open your own lobby and match servers.
+
+#### ModeBase
+* All "synchronous" functions from the Mode library now have "asynchronous" equivalents in ModeBase. It allows to avoid calling a yield; in the library at the risk of missing important events (eg: XmlRpc events).
+
+#### ModeMatchmaking
+* It's now possible to show/hide on the client side the waiting screen, players list and masters list.
+* Players kicked from a match won't be sent back to the match server when they rejoin the lobby. [see](http://forum.maniaplanet.com/viewtopic.php?p=219695#p219695)
+* Three new XmlRpc methods to control the matchmaking function in the lobby : Matchmaking_Start, Matchmaking_Stop and Matchmaking_Force. With these it's now possible to stop/restart the matchmaking cleanly when needed (eg: before a restart/force next map).
+* Fix : going to the next map after a vote won't restart the 60 seconds waiting time at the beginning of the map. [see](http://forum.maniaplanet.com/viewtopic.php?p=220073#p220073)
+* Fix : going to the next map after a vote while the match was already started won't kick the players from the server anymore. [see](http://forum.maniaplanet.com/viewtopic.php?p=219976#p219976)
+
+#### Siege
+* Each checkpoint can now be associated with one, two or three gates instead of being forced at two.
+* There is 45 seconds to capture all the checkpoint's gates. A bonus of 10 seconds is awarded when capturing a gate.
+* The capture time of the gates is equal to 4.5 seconds divided by the number of gates at the checkpoints. eg: 3 gates -> 1.5 seconds each, 2 gates -> 2.25 seconds each, 1 gate -> 4.5 second.
+* Only 2 ammo instead of 4 for the Rocket in attack. [see](http://forum.maniaplanet.com/viewtopic.php?p=219700#p219700)
+* Play a sound only on attacker elimination instead of a different sound for defender and attacker elimination. [see](http://forum.maniaplanet.com/viewtopic.php?p=219700#p219700)
+* New setting S_WeaponMode. It can take one of these values : 0 -> Rocket versus Laser, 1 -> select your weapon before the turn, 2 -> switch weapon during the turn. Default value is 2.
+* New setting S_GatesStopDefenders. Select if players can walk through gates or not. Default value is True, so defenders can't go through gates anymore. [see](http://forum.maniaplanet.com/viewtopic.php?p=219700#p219700)
+* It's now possible to move/hide some parts of the UI by pressing F8. It's also possible to hide/show the gates/spawn markers this way. [see](http://forum.maniaplanet.com/viewtopic.php?p=219700#p219700)
+* The small scores header at the top of the screen now displays the number of players remaining in each team instead of the number of checkpoints captured.
+
+
+### Librairies
+
+#### Mode
+* All "synchronous" functions from this library now have "asynchronous" equivalents in ModeBase. It allows to avoid calling a yield; in the library at the risk of missing important events (eg: XmlRpc events).
+
+#### Top2
+* Fix : the library failed to access some users while updating. We now check that the user will be available before trying to access it.
+
+
+### MapTypes
+
+#### SiegeV2Arena
+* Each checkpoint can now be associated with one, two or three gates instead of being forced at two.
+
 <a id="2014-07-02">2014-07-02</a>
 ---------------------------------
 
