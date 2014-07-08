@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-07-02"
+#Const	ModeSportVersion	"2014-07-04"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -385,7 +385,9 @@ MapSkipped = False;
 ---StartUsingToken---
 
 // Matchmaking : allow substitutes
-MM_AllowSubstitutes(True);
+if (MM_IsMatchServer()) {
+	MM_AllowSubstitutes(True);
+}
 ***
 
 // ---------------------------------- //
@@ -1199,10 +1201,12 @@ declare TwoTeamsPlayedAtk = (MB_SectionTurnNb % 2 == 0);
 
 // ---------------------------------- //
 // If the end of the map is near, cancel any substitutes requests
-if (ClanScores[1] >= S_TurnWin - 2 || ClanScores[2] >= S_TurnWin - 2 || ClanScores[1] >= PointLimit - 2 || ClanScores[2] >= PointLimit - 2) {
-	MM_AllowSubstitutes(False);
-} else {
-	MM_AllowSubstitutes(True);
+if (MM_IsMatchServer()) {
+	if (ClanScores[1] >= S_TurnWin - 2 || ClanScores[2] >= S_TurnWin - 2 || ClanScores[1] >= PointLimit - 2 || ClanScores[2] >= PointLimit - 2) {
+		MM_AllowSubstitutes(False);
+	} else {
+		MM_AllowSubstitutes(True);
+	}
 }
 
 if (

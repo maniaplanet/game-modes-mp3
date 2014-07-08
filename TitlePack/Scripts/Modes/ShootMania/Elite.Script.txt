@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-07-01"
+#Const Version		"2014-07-04"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -22,6 +22,8 @@
 #Setting S_DraftPickNb			3		as _("Number of map to pick during draft")				///< Number of map to pick during draft
 #Setting S_RequiredPlayersNb	3		as _("Number of players per team")						///< Required number of players in each team
 #Setting S_DisplayRulesReminder True	as "<hidden>" // _("Display a window with the rules when the match begins")
+
+#Setting S_GameplayVersion		0		as _("Set gameplay version (-1: default)")
 
 #Const S_UseEliteB2				False	//as _("Elite Beta 2 gameplay")							///< Use the beta 2 gameplay settings
 
@@ -268,6 +270,10 @@ foreach (Score in Scores) {
 ***StartMap***
 ***
 UseLaserVsBullets = True;
+switch (S_GameplayVersion) {
+	case 0	: Gameplay = CSmMode::EGameplay::Mp3Beta0;
+	default	: Gameplay = CSmMode::EGameplay::Default;
+}
 EliteEndSequence::InitPlayersList();
 CustomUI::Attach();
 ***
@@ -1968,7 +1974,9 @@ foreach (Score in Scores) {
 	}
 }
 Ladder_SetResultsVersion(1);
-MM_SetLadderMatchId();
+if (MM_IsMatchServer()) {
+	MM_SetLadderMatchId();
+}
 Score::MatchEnd(True);
 foreach (Score in Scores) {
 	declare PrevPoints for Score = 0;

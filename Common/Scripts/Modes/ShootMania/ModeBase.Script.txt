@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2014-05-28"
+#Const ModeBaseVersion		"2014-07-08"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -236,6 +236,106 @@ Void MB_StopTurn() {
 }
 
 // ---------------------------------- //
+// Asynchronous versions of the Libs/Nadeo/Mode.Script.txt library synchrone functions
+// ---------------------------------- //
+// ---------------------------------- //
+/// Do a synchronization
+Void MB_Synchro_DoBarrier() {
+	declare Barrier = Synchro_AddBarrier();
+	while (!Synchro_BarrierReached(Barrier) && !ServerShutdownRequested) MB_Yield();
+}
+
+// ---------------------------------- //
+/// Balance the teams
+Void MB_AutoTeamBalance() {
+	AutoTeamBalance();
+	MB_Synchro_DoBarrier();
+}
+
+// ---------------------------------- //
+/// Load the next map
+Void MB_LoadMap() {
+	if (!MapLoaded) RequestLoadMap();
+	while (!MapLoaded && !ServerShutdownRequested) MB_Yield();
+}
+
+// ---------------------------------- //
+/// Unload the current map
+Void MB_UnloadMap() {
+	if (MapLoaded) {
+		UIManager.UIAll.UISequence = CUIConfig::EUISequence::None;
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+		RequestUnloadMap();
+	}
+	while (MapLoaded && !ServerShutdownRequested) MB_Yield();
+} 
+
+// ---------------------------------- //
+/// Show the new record and medals dialog (and the end-race replay in TM.)
+Void MB_Solo_SetNewRecord(CScore _NewScore, CMode::EMedal _NewMedal) {
+	Solo_SetNewRecord(_NewScore, _NewMedal);
+	while (Solo_NewRecordSequenceInProgress && !ServerShutdownRequested) MB_Yield();
+}
+
+// ---------------------------------- //
+/// Create a new match on the ladder and register all the scores
+Void MB_Ladder_OpenMatch_All() {
+	Ladder_CancelMatchRequest();
+	while (Ladder_RequestInProgress) MB_Yield();
+	
+	Ladder_OpenMatch_BeginRequest();
+	
+	foreach (Score in Scores) {
+		Ladder_OpenMatch_AddPlayer(Score);
+	}
+	
+	Ladder_OpenMatch_EndRequest();
+	while (Ladder_RequestInProgress) MB_Yield();
+}
+
+// ---------------------------------- //
+/** Create a new match on the ladder and register a list of scores
+ *
+ *	@param	_Scores 	The list of scores to register on the ladder
+ */
+Void MB_Ladder_OpenMatch(CScore[] _Scores) {
+	Ladder_CancelMatchRequest();
+	while (Ladder_RequestInProgress) MB_Yield();
+	
+	Ladder_OpenMatch_BeginRequest();
+	
+	foreach (Score in _Scores) {
+		Ladder_OpenMatch_AddPlayer(Score);
+	}
+	
+	Ladder_OpenMatch_EndRequest();
+	while (Ladder_RequestInProgress) MB_Yield();
+}
+
+// ---------------------------------- //
+/// Close the current match on the ladder
+Void MB_Ladder_CloseMatch() {
+	// Mmmh, this part don't do anything?
+	declare CScore PrevScore;
+	foreach (Score in Scores) {
+		if (PrevScore == Null)
+			continue;
+		assert(PrevScore.LadderRankSortValue <= Score.LadderRankSortValue);
+		PrevScore <=> Score;
+	}
+	
+	Ladder_CloseMatchRequest();
+	while (Ladder_RequestInProgress) MB_Yield();
+}
+
+// ---------------------------------- //
+/// Cancel the current match on the ladder
+Void MB_Ladder_CancelMatch() {
+	Ladder_CancelMatchRequest();
+	while (Ladder_RequestInProgress) MB_Yield();
+}
+
+// ---------------------------------- //
 // Main // Server start
 // ---------------------------------- //
 main() {
@@ -323,7 +423,7 @@ main() {
 			+++BeforeLoadMap+++
 			
 			XmlRpc::LoadingMap(MB_SectionMapNb);
-			Mode::LoadMap();
+			MB_LoadMap();
 			
 			if (MB_UseLogging) MB_Log("StartMap");
 	
@@ -334,7 +434,7 @@ main() {
 			XmlRpc::BeginMap(MB_SectionMapNb, MB_MapRestarted);
 			MB_MapRestarted = True;
 			
-			Mode::Synchro_DoBarrier();
+			MB_Synchro_DoBarrier();
 			
 			// Play mediatracker intro
 			if (MB_UseIntro) {
@@ -561,7 +661,7 @@ main() {
 			XmlRpc::SendScores();
 			XmlRpc::UnloadingMap(MB_SectionMapNb);
 			MB_MapRestarted = False;
-			Mode::UnloadMap();
+			MB_UnloadMap();
 			
 			+++AfterUnloadMap+++
 		}

@@ -2,7 +2,7 @@
  *	Debug library
  */
 
-#Const Version		"2014-07-01"
+#Const Version		"2014-07-04"
 #Const ScriptName	"Debug.Script.txt"
 
 #Include "TextLib" as TL
@@ -12,7 +12,7 @@
 // ---------------------------------- //
 #Const C_Labels_Style ["AvatarButtonNormal","BgMainMenuTitleHeader","Default","FrameTransitionFromLeft","FrameTransitionsFromRight","ListItemMedal","Manialink_Body","ProgressBar","ProgressBarSmall","SliderSmall","SliderVolume", "StyleTextScriptEditor","StyleValueYellowSmall","TextActionMaker","TextButtonBig","TextButtonMedium","TextButtonNav","TextButtonNavBack","TextButtonSmall","TextCardInfoSmall","TextCardInfoVerySmall","TextCardMedium","TextCardMediumWhite","TextCardRaceRank","TextCardScores2","TextCardSmall","TextCardSmallScores2","TextCardSmallScores2Rank","TextChallengeNameMedal","TextChallengeNameMedalNone","TextChallengeNameMedium","TextChallengeNameSmall","TextCongratsBig","TextCredits","TextCreditsTitle","TextEditorArticle","TextInfoMedium","TextInfoSmall","TextPlayerCardName","TextPlayerCardScore","TextRaceChat","TextRaceChrono","TextRaceChronoError","TextRaceChronoOfficial","TextRaceChronoWarning","TextRaceMessage","TextRaceMessageBig","TextRaceStaticSmall","TextRaceValueSmall","TextRankingsBig","TextSPScoreBig","TextSPScoreMedium","TextSPScoreSmall","TextStaticMedium","TextStaticSmall","TextStaticVerySmall","TextSubTitle1","TextSubTitle2","TextTips","TextTitle1","TextTitle2","TextTitle2Blink","TextTitle3","TextTitle3Header","TextTitleError","TextToolTipAM","TextToolTipAMBig","TextValueBig","TextValueMedium","TextValueMediumSm","TextValueSmall","TextValueSmallSm","TrackerText","TrackerTextBig","TrackListItem","TrackListLine","UiDriving_BgBottom","UiDriving_BgCard","UiDriving_BgCenter"]
 
-#Const C_Buttons_Style ["CardButtonMedium","CardButtonMediumL","CardButtonMediumS","CardButtonMediumWide","CardButtonMediumXL","CardButtonMediumXS","CardButtonMediumXXL","CardButtonMediumXXXL","CardButtonSmall","CardButtonSmallL","CardButtonSmallS","CardButtonSmallWide","CardButtonSmallXL","CardButtonSmallXS","CardButtonSmallXXL","CardButtonSmallXXXL","CardMain_Quit","CardMain_Tool","CardMain_Tool_NoBg"]
+#Const C_Buttons_Style ["CardButtonMedium","CardButtonMediumL","CardButtonMediumS","CardButtonMediumWide","CardButtonMediumXL","CardButtonMediumXS","CardButtonMediumXXL","CardButtonMediumXXXL","CardButtonSmall","CardButtonSmallL","CardButtonSmallS","CardButtonSmallWide","CardButtonSmallXL","CardButtonSmallXS","CardButtonSmallXXL","CardButtonSmallXXXL","CardMain_Quit","CardMain_Tool","CardMain_Tool_NoBg","CardMain_Tool_NoBg2"]
 
 #Const C_Sounds_Style ["Bonus"=>[0,1,2,3,4,5],"Capture"=>[0],"Checkpoint"=>[0,1],"Default"=>[0],"EndMatch"=>[0,1],"EndRound"=>[0],"Finish"=>[0,1],"FirstHit"=>[0],"Notice"=>[0],"PhaseChange"=>[0,1],"PlayerEliminated"=>[0],"PlayerHit"=>[0],"RankChange"=>[0,1],"Record"=>[0,1,2,3],"ScoreProgress"=>[0,1,2,3],"Silence"=>[0],"StartMatch"=>[0,1,2],"StartRound"=>[0],"TieBreakPoint"=>[0,1,2,3,4],"TiePoint"=>[0,1,2,3,4],"TimeOut"=>[0,1],"VictoryPoint"=>[0],"Warning"=>[0]]
 

@@ -5,13 +5,14 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-07-02"
+#Const ModeMatchmakingVersion		"2014-07-08"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 #Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
+#Include "Libs/Nadeo/Manialink.Script.txt" as Manialink
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
 // ---------------------------------- //
@@ -108,13 +109,15 @@ declare Ident		G_Lobby_WinnerId;				///< Current round winner
 declare Integer		G_Lobby_StartTime;				///< Lobby start time
 declare Integer		G_Lobby_EndTime;				///< Lobby end time
 declare Integer		G_Lobby_Phase;					///< Current lobby phase : playing/matchmaking
+declare Boolean		G_Lobby_MatchmakingEnabled;		///< Is the the matchmaking enabled?
 declare Integer		G_Match_Status;					///< Current match status
 declare Integer[][Text] G_Match_Players;			///< Logins and clans of the allowed players in the match
 declare Text		G_Match_Id;						///< Id of the match
 declare Text		G_Match_LobbyLogin;				///< Login of the lobby server where to send back the players
 declare Integer		G_Match_NextPing;				///< Time of the next ping of the match server to the API
 declare Boolean 	G_Match_AllowSubstitutes;		///< Allow the matchmaking to search substitutes to missing players
-declare Real[Text]	G_Match_MissingPlayers;			///< List of missing players login
+declare Boolean[Text] G_Match_MissingPlayers;		///< List of missing players login and if they were kicked or not
+declare Text[]		G_Match_KickedPlayers;			///< List of kicked players
 declare Boolean		G_Match_NewMissingPlayers;		///< True if there's some new missing players not already sent to the API
 declare Integer		G_Match_EmptySince;				///< Time since when the server is empty
 
@@ -353,6 +356,7 @@ MB_UseIntro = False;
 MB_UseOutro = False;
 MB_UseSectionRound = True;
 declare PrevLobbyDisplayMasters = True;
+G_Lobby_MatchmakingEnabled = True;
 
 // ---------------------------------- //
 // Clean the masters list
@@ -535,6 +539,41 @@ foreach (Event in PendingEvents) {
 }
 
 // ---------------------------------- //
+// Manage XmlRpc events
+foreach (Event in XmlRpc.PendingEvents) {
+	if (Event.Type == CXmlRpcEvent::EType::Callback) {
+		switch (Event.Param1) {
+			case "Matchmaking_Start": {
+				G_Lobby_MatchmakingEnabled = True;
+			}
+			case "Matchmaking_Stop": {
+				G_Lobby_MatchmakingEnabled = False;
+				if (G_Lobby_Phase == C_Lobby_Matchmaking) {
+					G_Lobby_EndTime = Now - 1;
+				}
+			}
+			case "Matchmaking_Force": {
+				if (G_Lobby_Phase == C_Lobby_Playing) {
+					G_Lobby_EndTime = Now - 1;
+				} else if (G_Lobby_Phase == C_Lobby_Matchmaking) {
+					Message::SendStatusMessage(
+						_("Matchmaking forced."),
+						S_LobbyMatchmakerTime * 1000,
+						1
+					);
+					
+					Private_Lobby_SetTimersAutoDown(S_LobbyMatchmakerTime * 1000);
+					G_Lobby_EndTime = Now + (S_LobbyMatchmakerTime * 1000);
+					
+					Private_MM_ComputeAllies();
+					MM_MatchMakerStart();
+				}
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
 // Change phase
 switch (G_Lobby_Phase) {
 	// ---------------------------------- //
@@ -579,8 +618,10 @@ switch (G_Lobby_Phase) {
 			
 			// ---------------------------------- //
 			// Start matchmaking
+			declare Message = _("Matchmaking in progress...");
+			if (!G_Lobby_MatchmakingEnabled) Message = _("Matchmaking disabled.");
 			Message::SendStatusMessage(
-				_("Matchmaking in progress..."),
+				Message,
 				S_LobbyMatchmakerTime * 1000,
 				1
 			);
@@ -599,6 +640,7 @@ switch (G_Lobby_Phase) {
 			
 		if (G_Lobby_EndTime > 0 && Now > G_Lobby_EndTime) {
 			MM_MatchMakerStop();
+			Message::CleanAllMessages();
 			
 			if (MB_SectionRoundNb >= S_LobbyRoundPerMap) {
 				MB_StopMap();
@@ -878,9 +920,12 @@ if (ToRemove != NullId) {
 declare Ident Lobby_MatchMakerRequestId for This;
 if (Lobby_MatchMakerRequestId != NullId) {
 	if (Http.Requests.existskey(Lobby_MatchMakerRequestId)) {
-		if (S_MatchmakingLogAPIError) MB_Log("[ERROR] Matchmaking HTTP Error XXX. API timeout.");
-		if (S_MatchmakingErrorMessage != "") UIManager.UIAll.SendChat(TL::Compose("%1 %2", C_MessagePrefix, S_MatchmakingErrorMessage));
+		if (G_Lobby_MatchmakingEnabled) {
+			if (S_MatchmakingLogAPIError) MB_Log("[ERROR] Matchmaking HTTP Error XXX. API timeout.");
+			if (S_MatchmakingErrorMessage != "") UIManager.UIAll.SendChat(TL::Compose("%1 %2", C_MessagePrefix, S_MatchmakingErrorMessage));
+		}
 		Http.Destroy(Http.Requests[Lobby_MatchMakerRequestId]);
+		Lobby_MatchMakerRequestId = NullId;
 	}
 }
 
@@ -1032,7 +1077,7 @@ Void Private_MM_AddMasters(Text[] _Logins) {
 	if (Net_Lobby_Masters.count > C_Lobby_MastersNb) {
 		declare RemoveNb = Net_Lobby_Masters.count - C_Lobby_MastersNb;
 		while (RemoveNb > 0) {
-			declare Removed = Net_Lobby_Masters.removekey(0);
+			declare Removed = Net_Lobby_Masters.removekey(Net_Lobby_Masters.count-1);
 			RemoveNb -= 1;
 		}
 	}
@@ -1593,7 +1638,7 @@ Void MM_MatchMakerRun() {
 }
 
 // ---------------------------------- //
-/// Start the MatchMaker
+/// Stop the MatchMaker
 Void MM_MatchMakerStop() {
 	---MatchMakerStop---
 }
@@ -1619,11 +1664,18 @@ Void Private_MM_PostMatchStatus() {
 		declare MissingPlayers = "";
 		if (G_Match_Status == C_MatchStatus_Substitute && G_Match_MissingPlayers.count > 0) {
 			declare NotFirst = False;
-			foreach (Login => LadderPoints in G_Match_MissingPlayers) {
+			foreach (Login => Kicked in G_Match_MissingPlayers) {
 				if (NotFirst) MissingPlayers ^= ",";
 				else NotFirst = True;
 				
-				MissingPlayers ^= """{"login":"{{{TL::MLEncode(Login)}}}"}""";
+				declare PlayerKicked = "false";
+				if (Kicked) PlayerKicked = "true";
+				
+				MissingPlayers ^= """
+{
+	"login":"{{{TL::MLEncode(Login)}}}",
+	"kicked": {{{PlayerKicked}}}
+}""";
 			}
 		}
 		declare MatchId = -1;
@@ -1722,6 +1774,11 @@ Void Private_MM_ManagePlayers() {
 		
 		// Change the status of the player
 		if (Matchmaking_PlayerStatus == C_PlayerStatus_Waiting) {
+			// A waiting player can't be spawned
+			if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
+				//UnspawnPlayer(Player);
+			}
+			
 			// Waiting match
 			if (G_Match_Status == C_MatchStatus_Waiting) {
 				Private_MM_GetMatch();
@@ -1780,7 +1837,13 @@ Void Private_MM_ManagePlayers() {
 			if (!PresentPlayers.existskey(Login)) {
 				// New
 				if (!G_Match_MissingPlayers.existskey(Login)) {
-					G_Match_MissingPlayers[Login] = 0.;
+					// Kicked from match?
+					declare Kicked = False;
+					if (G_Match_KickedPlayers.exists(Login)) {
+						declare Removed = G_Match_KickedPlayers.remove(Login);
+						Kicked = True;
+					}
+					G_Match_MissingPlayers[Login] = Kicked;
 					G_Match_NewMissingPlayers = True;
 				}
 			}
@@ -2758,6 +2821,13 @@ Void Private_MM_PlayLoop() {
 		}
 	}
 	else if (MM_IsMatchServer()) {
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CSmModeEvent::EType::OnPlayerRemoved) {
+				if (!Event.PlayerWasInLadderMatch) {
+					if (!G_Match_KickedPlayers.exists(Event.User.Login)) G_Match_KickedPlayers.add(Event.User.Login);
+				}
+			}
+		}
 		Private_MM_Ping(False);
 		Private_MM_ManagePlayers();
 	}
@@ -2880,6 +2950,7 @@ Void MM_MatchWait() {
 	G_Match_Id = "";
 	G_Match_LobbyLogin = "";
 	G_Match_MissingPlayers.clear();
+	G_Match_KickedPlayers.clear();
 	G_Match_NewMissingPlayers = False;
 	G_Match_EmptySince = -1;
 	
@@ -3244,6 +3315,7 @@ Text Private_Lobby_GetMLRulesReminder() {
 	declare Real	WindowY			= 5.;
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:RulesReminder">
 <frame id="RulesReminderMainFrame" posn="{{{WindowX}}} {{{WindowY}}} 0" hidden="true" >
 	<format  textemboss="1" />
 	<quad posn="0 -2" sizen="210 65" halign="center" valign="center" image="{{{WelcomeBgImage}}}" />
@@ -3302,6 +3374,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 }
 
@@ -3312,6 +3385,7 @@ main() {
  */
 Text Private_Lobby_GetMLGaugeTimer() {
 	return """
+<manialink version="1" name="ModeMatchmaking:GaugeTimer">
 <frame posn="0 69 2">
 	<gauge posn="0 6.3" sizen="90 7" halign="center" valign="center" drawbg="false" id="Gauge_Timer" />
 	<label posn="0 0" sizen="90 7" halign="center" valign="center" style="TextRaceChrono" textsize="6" textcolor="f90d" id="Label_WaitTime" />
@@ -3322,7 +3396,7 @@ Text Private_Lobby_GetMLGaugeTimer() {
 	main() {
 		declare Gauge_Timer		<=> (Page.GetFirstChild("Gauge_Timer")		as CMlGauge);
 		declare Label_WaitTime	<=> (Page.GetFirstChild("Label_WaitTime")	as CMlLabel);
-
+		
 		declare netread Integer	Net_Lobby_TimerMax	for Teams[0];
 		declare netread Integer	Net_Lobby_Timer		for Teams[0];
 		declare netread Boolean	Net_Lobby_AutoDown	for Teams[0];
@@ -3332,11 +3406,21 @@ Text Private_Lobby_GetMLGaugeTimer() {
 		
 		declare Integer Period;
 		declare Integer PrevNow = Now;
+		declare PrevTimerMax = -1;
+		declare PrevTimeDown = -1;
 		
 		while (True) {
 			sleep(50);
 			Period = Now - PrevNow;
 			PrevNow = Now;
+			
+			if (PrevTimerMax != Net_Lobby_TimerMax || PrevTimeDown != Net_Lobby_TimeDown) {
+				PrevTimerMax = Net_Lobby_TimerMax;
+				PrevTimeDown = Net_Lobby_TimeDown;
+				
+				if (Net_Lobby_AutoDown) Gauge_Timer.Ratio = 1.;
+				else Gauge_Timer.Ratio = 0.;
+			}
 			
 			if (Net_Lobby_AutoDown && Net_Lobby_TimeDown != 0) {
 				declare Real SpeedDown = (1. * Period)  / (1.* Net_Lobby_TimeDown);
@@ -3362,6 +3446,7 @@ Text Private_Lobby_GetMLGaugeTimer() {
 		}
 	}
 --></script>
+</manialink>
 """;
 }
 
@@ -3385,6 +3470,10 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 	declare ButtonRulesOff = "file://Media/Manialinks/Common/Lobbies/small-button-YELLOW.dds";
 	declare ButtonReadyOn = "file://Media/Manialinks/Common/Lobbies/ready-button-GREEN-ON.dds";
 	declare ButtonReadyOff = "file://Media/Manialinks/Common/Lobbies/ready-button-GREEN.dds";
+	declare ButtonHideOn = "file://Media/Manialinks/Shootmania/Common/button-hide-on.png";
+	declare ButtonHideOff = "file://Media/Manialinks/Shootmania/Common/button-hide.png";
+	declare ButtonShowOn = "file://Media/Manialinks/Shootmania/Common/button-show-on.png";
+	declare ButtonShowOff = "file://Media/Manialinks/Shootmania/Common/button-show.png";
 	
 	declare ButtonRules = "";
 	if (_DisplayRules) {
@@ -3407,6 +3496,7 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 	}
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:WaitingScreen">
 <framemodel id="Framemodel_EmptySlot">
 	<frame id="Frame_EmptySlot">
 		<quad sizen="80 20 -1" halign="center" valign="center" style="Bgs1" substyle="BgListLine" />
@@ -3432,6 +3522,9 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 <frame posn="0 0 10" id="Frame_Global">
 	<quad sizen="{{{SizeX}}} {{{SizeY}}} -1" halign="center" valign="center" image="{{{Background_Global}}}" />
 	<label posn="0 38" sizen="{{{SizeX}}} 4" scale="0.9" halign="center" valign="top" textsize="5" textemboss="1" autonewline="1" maxline="2" opacity="0.9" id="Label_Title" />
+	<frame posn="{{{SizeX*0.37}}} {{{SizeY*0.47}}} -2" id="Frame_ShowHide">
+		<quad sizen="5 6" rot="-90" image="{{{ButtonHideOff}}}" imagefocus="{{{ButtonHideOn}}}" scriptevents="1" id="Button_ShowHide" />
+	</frame>
 	<frame posn="0 18 1" scale="0.6" id="Frame_PlayerList">
 		{{{PlayersList}}}
 	</frame>
@@ -3452,9 +3545,12 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 </frame>
 <script><!--
 #Include "TextLib" as TL
+#Include "MathLib" as ML
 
 declare Integer G_PageStart;
 declare Integer G_PlayersMax;
+
+{{{Manialink::Animations(["EaseOutExp"])}}}
 
 Integer GetEchelon(CUser::EEchelon _Echelon) {
 	switch (_Echelon) {
@@ -3627,6 +3723,20 @@ Void UpdateFormat(Integer[] _Format) {
 	UpdatePager(0);
 }
 
+Void DisplayFrame(Boolean _Displayed) {
+	declare Button_ShowHide <=> (Page.GetFirstChild("Button_ShowHide") as CMlQuad);
+	
+	if (_Displayed) {
+		Button_ShowHide.ImageUrl = "{{{ButtonHideOff}}}";
+		Button_ShowHide.ImageUrlFocus = "{{{ButtonHideOn}}}";
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+	} else {
+		Button_ShowHide.ImageUrl = "{{{ButtonShowOff}}}";
+		Button_ShowHide.ImageUrlFocus = "{{{ButtonShowOn}}}";
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 -133 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+	}
+}
+
 main() {
 	declare Frame_Global	<=> (Page.GetFirstChild("Frame_Global")			as CMlFrame);
 	declare Frame_Ready		<=> (Frame_Global.GetFirstChild("Frame_Ready")	as CMlFrame);
@@ -3649,6 +3759,10 @@ main() {
 	declare netwrite Text Net_Lobby_RequestAlly for UI;
 	declare netwrite Integer Net_Lobby_SynchroRequestAlly for UI;
 	
+	declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
+	if (!MM_FrameIsDisplayed.existskey("WaitingScreen")) MM_FrameIsDisplayed["WaitingScreen"] = True;
+	DisplayFrame(MM_FrameIsDisplayed["WaitingScreen"]);
+	
 	G_PageStart = 0;
 	G_PlayersMax = {{{SlotsNb}}};
 	
@@ -3667,6 +3781,8 @@ main() {
 	while (True) {
 		yield;
 		if (InputPlayer == Null || !PageIsVisible) continue;
+		
+		LibManialink_AnimLoop();
 		
 		if (PrevIsSpectatorMode != IsSpectatorMode || PrevReconnectToServer != Net_Lobby_ReconnectToServer) {
 			PrevIsSpectatorMode = IsSpectatorMode;
@@ -3738,6 +3854,11 @@ main() {
 					case "Button_PagerPrev": {
 						UpdatePager(-1);
 					}
+					case "Button_ShowHide": {
+						declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
+						MM_FrameIsDisplayed["WaitingScreen"] = !MM_FrameIsDisplayed["WaitingScreen"];
+						DisplayFrame(MM_FrameIsDisplayed["WaitingScreen"]);
+					}
 				}
 			} else if (Event.Type == CMlEvent::Type::KeyPress) {
 				if (Event.KeyName == "F6") {
@@ -3754,7 +3875,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -3767,6 +3889,7 @@ Text Private_Lobby_GetMLReconnect() {
 	declare ButtonQuitOff = "file://Media/Manialinks/Common/Lobbies/small-button-RED.dds";
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:Reconnect">
 <frame posn="0 10" hidden="1" id="Frame_Global">
 	<label posn="0 59" sizen="90 7" halign="center" valign="center" style="TextRaceChrono" textsize="6" textcolor="f90d" id="Label_Countdown" />
 	<label halign="center" valign="center" style="TextRaceMessageBig" textsize="6" text="{{{_("We are sending you back to the match you left.")}}}" />
@@ -3833,7 +3956,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -3847,6 +3971,10 @@ Text Private_Lobby_GetMLPlayersList() {
 	
 	declare Background = "file://Media/Manialinks/Common/Lobbies/side-frame.png";
 	declare Echelon0 = "file://Media/Manialinks/Common/Echelons/echelon0.dds";
+	declare ButtonHideOn = "file://Media/Manialinks/Shootmania/Common/button-hide-on.png";
+	declare ButtonHideOff = "file://Media/Manialinks/Shootmania/Common/button-hide.png";
+	declare ButtonShowOn = "file://Media/Manialinks/Shootmania/Common/button-show-on.png";
+	declare ButtonShowOff = "file://Media/Manialinks/Shootmania/Common/button-show.png";
 	
 	declare PlayersNb = 20;
 	declare PlayersList = "";
@@ -3857,6 +3985,7 @@ Text Private_Lobby_GetMLPlayersList() {
 	}
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:PlayersList">
 <framemodel class="Frame_PlayerCard" id="Framemodel_PlayerCard">
 	<quad posn="0 0 -1" sizen="46 {{{PCSizeY}}}" valign="center" bgcolorfocus="ccc8" scriptevents="1" id="Button_Player" />
 	<quad sizen="2 {{{PCSizeY}}}" valign="center" bgcolor="c00" opacity="0.8" id="Quad_Status" />
@@ -3869,6 +3998,9 @@ Text Private_Lobby_GetMLPlayersList() {
 </framemodel>
 <frame posn="164 0 10" id="Frame_Global">
 	<quad posn="0 0 -1" sizen="{{{SizeX}}} {{{SizeY}}}" halign="right" valign="center" image="{{{Background}}}" />
+	<frame posn="{{{-SizeX*0.99}}} {{{SizeY*0.42}}} -2" id="Frame_ShowHide">
+		<quad sizen="5 6" rot="180" image="{{{ButtonHideOff}}}" imagefocus="{{{ButtonHideOn}}}" scriptevents="1" id="Button_ShowHide" />
+	</frame>
 	<frame posn="{{{-SizeX/2.-1.}}} {{{SizeY/2.}}}">
 		<frame id="Frame_Title">
 			<label posn="0 -4.5" sizen="{{{SizeX-8}}} 4" halign="center" style="TextRaceMessage" textopacity="0.9" text="{{{_("Players")}}}" />
@@ -3889,6 +4021,8 @@ Text Private_Lobby_GetMLPlayersList() {
 #Include "MathLib" as ML
 
 declare Integer G_PageStart;
+
+{{{Manialink::Animations(["EaseOutExp"])}}}
 
 Integer GetEchelon(CUser::EEchelon _Echelon) {
 	switch (_Echelon) {
@@ -4056,6 +4190,20 @@ Void UpdateHelpMessage(Integer _Mode) {
 	}
 }
 
+Void DisplayFrame(Boolean _Displayed) {
+	declare Button_ShowHide <=> (Page.GetFirstChild("Button_ShowHide") as CMlQuad);
+	
+	if (_Displayed) {
+		Button_ShowHide.ImageUrl = "{{{ButtonHideOff}}}";
+		Button_ShowHide.ImageUrlFocus = "{{{ButtonHideOn}}}";
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="164 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+	} else {
+		Button_ShowHide.ImageUrl = "{{{ButtonShowOff}}}";
+		Button_ShowHide.ImageUrlFocus = "{{{ButtonShowOn}}}";
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="210 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+	}
+}
+
 main() {
 	declare netread Integer Net_Lobby_SynchroServer for Teams[0];
 	declare netread Integer Net_Matchmaking_Mode for Teams[0];
@@ -4063,6 +4211,10 @@ main() {
 	declare netwrite Integer Net_Lobby_RequestAllyUpdate for UI;
 	declare netwrite Text Net_Lobby_RequestAlly for UI;
 	declare netwrite Integer Net_Lobby_SynchroRequestAlly for UI;
+	
+	declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
+	if (!MM_FrameIsDisplayed.existskey("PlayersList")) MM_FrameIsDisplayed["PlayersList"] = True;
+	DisplayFrame(MM_FrameIsDisplayed["PlayersList"]);
 	
 	declare Lobby_ReadyNb for UI = 0;
 	Lobby_ReadyNb = 0;
@@ -4077,6 +4229,8 @@ main() {
 	while (True) {
 		yield;
 		if (InputPlayer == Null || !PageIsVisible) continue;
+		
+		LibManialink_AnimLoop();
 		
 		if (PrevPlayersListUpdate != Net_Lobby_PlayersListUpdate) {
 			PrevPlayersListUpdate = Net_Lobby_PlayersListUpdate;
@@ -4113,12 +4267,17 @@ main() {
 					UpdatePager(1);
 				} else if (Event.ControlId == "Button_PagerPrev") {
 					UpdatePager(-1);
+				} else if (Event.ControlId == "Button_ShowHide") {
+					declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
+					MM_FrameIsDisplayed["PlayersList"] = !MM_FrameIsDisplayed["PlayersList"];
+					DisplayFrame(MM_FrameIsDisplayed["PlayersList"]);
 				}
 			}
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -4132,6 +4291,10 @@ Text Private_Lobby_GetMLMastersList() {
 	
 	declare Background = "file://Media/Manialinks/Common/Lobbies/side-frame.png";
 	declare Echelon0 = "file://Media/Manialinks/Common/Echelons/echelon0.dds";
+	declare ButtonHideOn = "file://Media/Manialinks/Shootmania/Common/button-hide-on.png";
+	declare ButtonHideOff = "file://Media/Manialinks/Shootmania/Common/button-hide.png";
+	declare ButtonShowOn = "file://Media/Manialinks/Shootmania/Common/button-show-on.png";
+	declare ButtonShowOff = "file://Media/Manialinks/Shootmania/Common/button-show.png";
 	
 	declare PlayersNb = 20;
 	declare PlayersList = "";
@@ -4142,6 +4305,7 @@ Text Private_Lobby_GetMLMastersList() {
 	}
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:MastersList">
 <framemodel class="Frame_PlayerCard" id="Framemodel_PlayerCard">
 	<quad posn="0 0 -1" sizen="45 {{{PCSizeY}}}" valign="center" bgcolor="3337" bgcolorfocus="9997" scriptevents="1" id="Button_Player" />
 	<quad sizen="2 {{{PCSizeY}}}" valign="center" bgcolor="000" opacity="0.8" id="Quad_Status" />
@@ -4154,6 +4318,9 @@ Text Private_Lobby_GetMLMastersList() {
 </framemodel>
 <frame posn="-165 0 10" id="Frame_Global">
 	<quad posn="0 0 -1" sizen="{{{SizeX}}} {{{SizeY}}}" valign="center" image="{{{Background}}}" />
+	<frame posn="{{{SizeX*0.99}}} {{{SizeY*0.42}}} -2" id="Frame_ShowHide">
+		<quad sizen="5 6" image="{{{ButtonHideOff}}}" imagefocus="{{{ButtonHideOn}}}" scriptevents="1" id="Button_ShowHide" />
+	</frame>
 	<frame posn="{{{SizeX/2.+1.}}} {{{SizeY/2.}}}">
 		<frame id="Frame_Title">
 			<label posn="0 -6" sizen="{{{SizeX-8}}} 4" halign="center" style="TextRaceMessage" textopacity="0.9" text="Masters" />
@@ -4169,6 +4336,11 @@ Text Private_Lobby_GetMLMastersList() {
 	</frame>
 </frame>
 <script><!--
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+
+{{{Manialink::Animations(["EaseOutExp"])}}}
+
 Text GetEchelonPath(Text _Echelon) {
 	return "file://Media/Manialinks/Common/Echelons/echelon"^_Echelon^".dds";
 }
@@ -4176,7 +4348,7 @@ Text GetEchelonPath(Text _Echelon) {
 Void UpdatePlayerCard(Integer _Slot, CMlFrame _Frame) {
 	declare netread Text[Integer][] Net_Lobby_Masters for Teams[0];
 	
-	declare Key = Net_Lobby_Masters.count - _Slot - 1;
+	declare Key = _Slot;
 	if (_Frame == Null || !Net_Lobby_Masters.existskey(Key)) return;
 	
 	declare Quad_CountryFlag<=> (_Frame.GetFirstChild("Quad_CountryFlag")	as CMlQuad);
@@ -4201,8 +4373,26 @@ Void UpdateMastersList() {
 	}
 }
 
+Void DisplayFrame(Boolean _Displayed) {
+	declare Button_ShowHide <=> (Page.GetFirstChild("Button_ShowHide") as CMlQuad);
+	
+	if (_Displayed) {
+		Button_ShowHide.ImageUrl = "{{{ButtonHideOff}}}";
+		Button_ShowHide.ImageUrlFocus = "{{{ButtonHideOn}}}";
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="-164 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+	} else {
+		Button_ShowHide.ImageUrl = "{{{ButtonShowOff}}}";
+		Button_ShowHide.ImageUrlFocus = "{{{ButtonShowOn}}}";
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="-210 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+	}
+}
+
 main() {
 	declare netread Integer Net_Lobby_MastersUpdate for Teams[0];
+	
+	declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
+	if (!MM_FrameIsDisplayed.existskey("MastersList")) MM_FrameIsDisplayed["MastersList"] = True;
+	DisplayFrame(MM_FrameIsDisplayed["MastersList"]);
 	
 	declare PrevMastersUpdate = -1;
 	
@@ -4210,13 +4400,26 @@ main() {
 		yield;
 		if (!PageIsVisible || InputPlayer == Null) continue;
 		
+		LibManialink_AnimLoop();
+		
 		if (PrevMastersUpdate != Net_Lobby_MastersUpdate) {
 			PrevMastersUpdate = Net_Lobby_MastersUpdate;
 			UpdateMastersList();
 		}
+		
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CMlEvent::Type::MouseClick) {
+				if (Event.ControlId == "Button_ShowHide") {
+					declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
+					MM_FrameIsDisplayed["MastersList"] = !MM_FrameIsDisplayed["MastersList"];
+					DisplayFrame(MM_FrameIsDisplayed["MastersList"]);
+				}
+			}
+		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -4231,6 +4434,7 @@ Text Private_Lobby_GetMLHeader() {
 	declare Background = "file://Media/Manialinks/Common/Lobbies/header.png";
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:Header">
 <frame posn="0 86" id="Frame_Global">
 	<quad posn="0 0 -1" sizen="{{{SizeX}}} {{{SizeY}}}" halign="center" image="{{{Background}}}" />
 	<label posn="0 -4" sizen="{{{SizeX-7}}} {{{SizeY}}}" halign="center" style="TextRaceMessage" textsize="3" id="Label_ServerName" />
@@ -4304,7 +4508,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -4351,6 +4556,7 @@ Text Private_Lobby_GetMLRules() {
 	declare ML = "";
 	if (ManialinkRules != "") {
 		ML ^= """
+<manialink version="1" name="ModeMatchmaking:Rules">
 <frame posn="0 0 30" hidden="1" id="Frame_Global">
 	{{{ManialinkRules}}}
 </frame>
@@ -4382,7 +4588,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 	}
 	
 	return ML;
@@ -4410,6 +4617,7 @@ Text Private_MM_GetMLStartingMatch() {
 	}
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:StartingMatch">
 <frame posn="155 -79" id="Frame_Waiting">
 	<label halign="right" valign="bottom" textsize="3" textemboss="1" id="Label_Waiting" />
 	<frame>
@@ -4474,7 +4682,7 @@ main() {
 	}
 }
 --></script>
-""";
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -4498,6 +4706,7 @@ Text Private_Lobby_GetMLVersus() {
 	}
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:VersusScreen">
 <framemodel id="Framemodel_PlayerCard">
 	<frame posn="-40 10" hidden="1" id="Frame_PlayerCard">
 		<quad sizen="80 20 -1" image="{{{Background_PlayerCard}}}" />
@@ -4819,7 +5028,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -4832,6 +5042,7 @@ Text Private_Lobby_GetMLSubstitute() {
 	declare ButtonQuitOff = "file://Media/Manialinks/Common/Lobbies/small-button-RED.dds";
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:Substitute">
 <frame posn="0 10" hidden="1" id="Frame_Global">
 	<label halign="center" valign="center" style="TextRaceMessageBig" textsize="6" text="{{{_("You are being transferred as a substitute.")}}}" />
 	<label posn="0 -8" halign="center" valign="center" style="TextRaceMessageBig" textsize="4" text="{{{_("Please wait.")}}}" />
@@ -4894,7 +5105,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -4915,6 +5127,10 @@ Text Private_Lobby_GetMLRooms() {
 	declare ButtonTopOff = "file://Media/Manialinks/Common/Lobbies/small-button-YELLOW.dds";
 	declare ButtonBottomOn = "file://Media/Manialinks/Common/Lobbies/ready-button-GREEN-ON.dds";
 	declare ButtonBottomOff = "file://Media/Manialinks/Common/Lobbies/ready-button-GREEN.dds";
+	declare ButtonHideOn = "file://Media/Manialinks/Shootmania/Common/button-hide-on.png";
+	declare ButtonHideOff = "file://Media/Manialinks/Shootmania/Common/button-hide.png";
+	declare ButtonShowOn = "file://Media/Manialinks/Shootmania/Common/button-show-on.png";
+	declare ButtonShowOff = "file://Media/Manialinks/Shootmania/Common/button-show.png";
 	
 	declare PlayersList = "";
 	declare SlotsNb = 6;
@@ -4928,6 +5144,7 @@ Text Private_Lobby_GetMLRooms() {
 	}
 	
 	return """
+<manialink version="1" name="ModeMatchmaking:Rooms">
 <framemodel id="Framemodel_EmptySlot">
 	<frame id="Frame_EmptySlot">
 		<quad sizen="80 20 -1" halign="center" valign="center" style="Bgs1" substyle="BgListLine" />
@@ -4953,6 +5170,9 @@ Text Private_Lobby_GetMLRooms() {
 </framemodel>
 <frame posn="0 0 10" id="Frame_Global">
 	<quad sizen="{{{SizeX}}} {{{SizeY}}} -1" halign="center" valign="center" image="{{{Background_Global}}}" />
+	<frame posn="{{{SizeX*0.37}}} {{{SizeY*0.47}}} -2" id="Frame_ShowHide">
+		<quad sizen="5 6" rot="-90" image="{{{ButtonHideOff}}}" imagefocus="{{{ButtonHideOn}}}" scriptevents="1" id="Button_ShowHide" />
+	</frame>
 	<frame class="View" id="Home" hidden="1">
 		<label posn="0 30" sizen="{{{SizeX-10}}} 4" scale="0.9" halign="center" valign="top" textsize="5" textemboss="1" autonewline="1" maxline="3" opacity="0.9" text="{{{_("You can create your own party by clicking on the create button below.")}}}" />
 		<label posn="0 10" sizen="{{{SizeX-10}}} 4" scale="0.9" halign="center" valign="top" textsize="5" textemboss="1" autonewline="1" maxline="3" opacity="0.9" text="{{{_("Or join an existing party by clicking on a player name on the right.")}}}" />
@@ -4986,6 +5206,7 @@ Text Private_Lobby_GetMLRooms() {
 </frame>
 <script><!--
 #Include "TextLib" as TL
+#Include "MathLib" as ML
 
 declare Text G_CurrentView;
 declare Integer[Integer] G_PageFormat;
@@ -4994,6 +5215,8 @@ declare Integer G_PageClan;
 declare Integer G_PageCurrent;
 declare Integer G_PlayersMax;
 declare CMlFrame Frame_ButtonBottom;
+
+{{{Manialink::Animations(["EaseOutExp"])}}}
 
 Integer GetEchelon(CUser::EEchelon _Echelon) {
 	switch (_Echelon) {
@@ -5308,6 +5531,20 @@ Void UpdateView() {
 	}
 }
 
+Void DisplayFrame(Boolean _Displayed) {
+	declare Button_ShowHide <=> (Page.GetFirstChild("Button_ShowHide") as CMlQuad);
+	
+	if (_Displayed) {
+		Button_ShowHide.ImageUrl = "{{{ButtonHideOff}}}";
+		Button_ShowHide.ImageUrlFocus = "{{{ButtonHideOn}}}";
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+	} else {
+		Button_ShowHide.ImageUrl = "{{{ButtonShowOff}}}";
+		Button_ShowHide.ImageUrlFocus = "{{{ButtonShowOn}}}";
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 -133 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+	}
+}
+
 main() {
 	declare Frame_Global	<=> (Page.GetFirstChild("Frame_Global")					as CMlFrame);
 	declare Label_Title		<=> (Frame_Global.GetFirstChild("Label_Title")			as CMlLabel);
@@ -5342,12 +5579,17 @@ main() {
 	declare netread Boolean Net_Lobby_AllowMatchCancel for Teams[0];
 	declare netread Integer Net_Lobby_LobbyLimitMatchCancel for Teams[0];
 	
+	declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
+	if (!MM_FrameIsDisplayed.existskey("Rooms")) MM_FrameIsDisplayed["Rooms"] = True;
+	DisplayFrame(MM_FrameIsDisplayed["Rooms"]);
+	
 	G_PageFormat = Integer[Integer];
 	G_PageStart = 0;
 	G_PageClan = 0;
 	G_PageCurrent = 0;
 	G_PlayersMax = {{{SlotsNb}}};
 	
+	declare FrameIsDisplayed = True;
 	declare PrevIsSpectatorMode = True;
 	declare PrevReconnectToServer = "";
 	declare PrevFormatUpdate = -1;
@@ -5360,6 +5602,8 @@ main() {
 	while (True) {
 		yield;
 		if (InputPlayer == Null || !PageIsVisible) continue;
+		
+		LibManialink_AnimLoop();
 		
 		if (PrevIsSpectatorMode != IsSpectatorMode || PrevReconnectToServer != Net_Lobby_ReconnectToServer) {
 			PrevIsSpectatorMode = IsSpectatorMode;
@@ -5421,11 +5665,18 @@ main() {
 						IsSpectatorMode = !IsSpectatorMode;
 					}
 				}
+			} else if (Event.Type == CMlEvent::Type::MouseClick) {
+				if (Event.ControlId == "Button_ShowHide") {
+					declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
+					MM_FrameIsDisplayed["Rooms"] = !MM_FrameIsDisplayed["Rooms"];
+					DisplayFrame(MM_FrameIsDisplayed["Rooms"]);
+				}
 			}
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -5489,5 +5740,8 @@ Void MM_Init(Integer[] _Format) {
 // ---------------------------------- //
 /// Send the match id to the ladder server to validate 100K matches
 Void MM_SetLadderMatchId() {
-	Ladder_SetMatchMakingMatchId(TL::ToInteger(G_Match_Id));
+	declare MatchId = TL::ToInteger(G_Match_Id);
+	if (MatchId < 0) return;
+	
+	Ladder_SetMatchMakingMatchId(MatchId);
 }

@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-07-01"
+#Const	Version				"2014-07-04"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -325,7 +325,7 @@ Layers::Update("Info", UpdateLayerInfo());
 
 // ---------------------------------- //
 // Matchmaking : allow substitutes
-MM_AllowSubstitutes(True);
+if (MM_IsMatchServer()) MM_AllowSubstitutes(True);
 ***
 
 ***InitRound***
@@ -816,7 +816,9 @@ foreach (Score in Scores) {
 	}
 }
 Ladder_SetResultsVersion(1);
-MM_SetLadderMatchId();
+if (MM_IsMatchServer()) {
+	MM_SetLadderMatchId();
+}
 Score::MatchEnd(True);
 foreach (Score in Scores) {
 	declare PrevPoints for Score = 0;
