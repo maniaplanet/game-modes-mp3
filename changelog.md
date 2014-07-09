@@ -1,3 +1,116 @@
+<a id="2014-07-09">2014-07-09</a>
+---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/8557231d00b773092c13dc7fe628c6af0af4e874)
+
+### Modes
+
+#### Battle
+* The mode is now compatible with the matchmaking system, you can open your own lobby and match servers.
+
+#### ModeBase
+* All "synchronous" functions from the Mode library now have "asynchronous" equivalents in ModeBase. It allows to avoid calling a yield; in the library at the risk of missing important events (eg: XmlRpc events).
+
+#### ModeMatchmaking
+* It's now possible to show/hide on the client side the waiting screen, players list and masters list.
+* Players kicked from a match won't be sent back to the match server when they rejoin the lobby. [see](http://forum.maniaplanet.com/viewtopic.php?p=219695#p219695)
+* Three new XmlRpc methods to control the matchmaking function in the lobby : Matchmaking_Start, Matchmaking_Stop and Matchmaking_Force. With these it's now possible to stop/restart the matchmaking cleanly when needed (eg: before a restart/force next map).
+* Fix : going to the next map after a vote won't restart the 60 seconds waiting time at the beginning of the map. [see](http://forum.maniaplanet.com/viewtopic.php?p=220073#p220073)
+* Fix : going to the next map after a vote while the match was already started won't kick the players from the server anymore. [see](http://forum.maniaplanet.com/viewtopic.php?p=219976#p219976)
+
+#### Siege
+* Each checkpoint can now be associated with one, two or three gates instead of being forced at two.
+* There is 45 seconds to capture all the checkpoint's gates. A bonus of 10 seconds is awarded when capturing a gate.
+* The capture time of the gates is equal to 4.5 seconds divided by the number of gates at the checkpoints. eg: 3 gates -> 1.5 seconds each, 2 gates -> 2.25 seconds each, 1 gate -> 4.5 second.
+* Only 2 ammo instead of 4 for the Rocket in attack. [see](http://forum.maniaplanet.com/viewtopic.php?p=219700#p219700)
+* Play a sound only on attacker elimination instead of a different sound for defender and attacker elimination. [see](http://forum.maniaplanet.com/viewtopic.php?p=219700#p219700)
+* New setting S_WeaponMode. It can take one of these values : 0 -> Rocket versus Laser, 1 -> select your weapon before the turn, 2 -> switch weapon during the turn. Default value is 2.
+* New setting S_GatesStopDefenders. Select if players can walk through gates or not. Default value is True, so defenders can't go through gates anymore. [see](http://forum.maniaplanet.com/viewtopic.php?p=219700#p219700)
+* It's now possible to move/hide some parts of the UI by pressing F8. It's also possible to hide/show the gates/spawn markers this way. [see](http://forum.maniaplanet.com/viewtopic.php?p=219700#p219700)
+* The small scores header at the top of the screen now displays the number of players remaining in each team instead of the number of checkpoints captured.
+
+
+### Librairies
+
+#### Mode
+* All "synchronous" functions from this library now have "asynchronous" equivalents in ModeBase. It allows to avoid calling a yield; in the library at the risk of missing important events (eg: XmlRpc events).
+
+#### Top2
+* Fix : the library failed to access some users while updating. We now check that the user will be available before trying to access it.
+
+
+### MapTypes
+
+#### SiegeV2Arena
+* Each checkpoint can now be associated with one, two or three gates instead of being forced at two.
+
+<a id="2014-07-02">2014-07-02</a>
+---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/0284efbe53c8202f79c113143f30fb40cbfedd13)
+
+### Modes
+
+#### ShootMania/Elite
+* Initialize the dodge total from the scores table in ***InitMap*** instead of ***StartMap*** to avoid to keep the value from the previous match while waiting for the match to start in matchmaking. [see](http://forum.maniaplanet.com/viewtopic.php?p=218684#p218684)
+* Use the new GetMode() function to get the current mode (free or classic) instead of accessing directly to the S_Mode setting. This function will always return a "valid" value (0 or 1) so the assert() are not necessary anymore. [see](https://github.com/maniaplanet/game-modes/issues/4)
+
+#### ShootMania/ModeBase
+* New boolean allowing to cancel an ongoing matchmaking match and start a new one.
+
+#### ShootMania/ModeMatchmaking
+* Universal lobby mode. Disable the matchmaking function on the lobby and allow players to create their own match. The lobby will then send players to a free match server.
+* Fix on the "remind rules" frame of the lobby to correctly display long texts inside. [see](http://forum.maniaplanet.com/viewtopic.php?p=218668#p218668)
+* Fix a bug displaying players as allies in the versus screen of the lobby even if they were not.
+
+#### ShootMania/ModeSport
+* Fix : don't restart a matchmaking match when voting for change/next map on first map. Just keep playing the same match with the same players.
+
+#### TrackMania/ModeBase
+* Replaced all calls to the Mode library "sync" functions by the same call to the new "async" function from ModeBase. It solves XmlRpc problems where call to the TriggerModeScriptEvent and TriggerModeScriptEventArray methods were ignored if they were sent a few milliseconds after map beginning/ending (during ladder communication with the master server especially).
+
+#### TrackMania/Rounds
+* Replace the custom RoundsVersion and RoundsScriptName #Const by the default Version and ScriptName. [see](http://forum.maniaplanet.com/viewtopic.php?f=489&t=27822)
+
+#### TrackMania/RoundsBase
+* New setting S_DisplayTimeDiff to hide/show time difference at checkpoint. [see](http://forum.maniaplanet.com/viewtopic.php?f=8&t=27872&p=218204#p218204)
+
+
+### Libraries
+
+#### Interface
+* Fix a bug preventing to remove a slide from the slider module. [see](http://forum.maniaplanet.com/viewtopic.php?f=468&t=27899#p217310)
+
+#### ShootMania/Debug
+* New styles added to the "styles" manialink (see BgsButtons in the background category)
+
+#### ShootMania/Elite/EliteEndSequence
+* Fix: added the missing </script> node at the end of the manialink xml. That was preventing the whole UI to work as expected at the end of the map.
+
+#### ShootMania/Elite/EliteStats
+* New tracking and saving system for attack ratio.
+
+#### ShootMania/WeaponSelection2
+* Fix on the weapon selection screen. Sometimes pressing the 1, 2, 3 or 4 key didn't selected the right weapon.
+
+#### TrackMania/TM2
+* Send the "LibXmlRpc_OnStartCountDown" callback when calling the StartRace() function.
+* Force the UI sequence of the player to None when spawning him on the track.
+
+#### TrackMania/UI
+* The default checkpoint crossing sound is not played anymore when the default chrono UI is hidden. So the lib now plays the sound instead.
+
+#### TrackMania/XmlRpc
+* New XmlRpc callback "LibXmlRpc_OnStartCountDown" sent when the player is spawned on the track before the 3,2,1,GO!. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=27956&start=20#p219270)
+* The "LibXmlRpc_OnRespawn" callback sends more info : player login, block id, checkpoint in race, checkpoint in lap, number of respawn. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=27956&start=20#p219270)
+* Add the total score (PlayerScore.Points + PlayerScore.PrevRaceDeltaPoints) to the LibXmlRpc_PlayerRanking callback. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=27956&start=10#p218240)
+* More details in the LibXmlRpc_PlayersRanking callback : the login, rank, best checkpoints, team id, spectator status, away status, best time, zone, points and total points of the players are separated by a colon
+
+
+### Documentation
+* New styles added to the "styles" manialink (see BgsButtons in the background category)
+
+
 <a id="2014-05-22">2014-05-22</a>
 ---------------------------------
 

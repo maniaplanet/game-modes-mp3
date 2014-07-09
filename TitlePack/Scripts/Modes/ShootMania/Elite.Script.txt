@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-05-16"
+#Const Version		"2014-07-04"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -22,6 +22,8 @@
 #Setting S_DraftPickNb			3		as _("Number of map to pick during draft")				///< Number of map to pick during draft
 #Setting S_RequiredPlayersNb	3		as _("Number of players per team")						///< Required number of players in each team
 #Setting S_DisplayRulesReminder True	as "<hidden>" // _("Display a window with the rules when the match begins")
+
+#Setting S_GameplayVersion		0		as _("Set gameplay version (-1: default)")
 
 #Const S_UseEliteB2				False	//as _("Elite Beta 2 gameplay")							///< Use the beta 2 gameplay settings
 
@@ -152,7 +154,7 @@ assert(S_RequiredPlayersNb > 0, _("You cannot set the minimum number of players 
 if (S_Practice) ElitePractice::Run();
 
 UseForcedClans = False;
-if (S_MatchmakingMode == 2) {
+if (MM_IsMatchServer()) {
 	MM_Init([S_RequiredPlayersNb, S_RequiredPlayersNb]);
 }
 
@@ -200,7 +202,7 @@ Replay_AutoStart = False;
 ***StartMatch***
 ***
 declare MapPlayedSinceMatchBeginning = 0;	///< Even maps skipped by a vote
-if (S_UseDraft) {
+if (S_UseDraft && !MM_IsMatchmakingServer()) {
 	Mode::LoadMap();
 	
 	G_TieBreakDefElim = [1 => 0, 2 => 0];
@@ -250,15 +252,11 @@ if (S_UseDraft) {
 
 ***RulesReminder***
 ***
-if (S_MatchmakingMode == 2) CreateRulesReminderLayer();
+if (MM_IsMatchServer()) CreateRulesReminderLayer();
 ***
 
-***StartMap***
+***InitMap***
 ***
-UseLaserVsBullets = True;
-EliteEndSequence::InitPlayersList();
-CustomUI::Attach();
-
 declare netwrite Integer Net_Elite_BestDodgeTotal for Teams[0];
 declare netwrite Text Net_Elite_BestDodgeName for Teams[0];
 Net_Elite_BestDodgeTotal = 0;
@@ -267,6 +265,17 @@ foreach (Score in Scores) {
 	declare DodgeTotal for Score = 0;
 	DodgeTotal = 0;
 }
+***
+
+***StartMap***
+***
+UseLaserVsBullets = True;
+switch (S_GameplayVersion) {
+	case 0	: Gameplay = CSmMode::EGameplay::Mp3Beta0;
+	default	: Gameplay = CSmMode::EGameplay::Default;
+}
+EliteEndSequence::InitPlayersList();
+CustomUI::Attach();
 ***
 
 ***InitTurn***
@@ -446,7 +455,7 @@ Player.AmmoGain		= Settings::GetReal(C_OAtkLaserAmmoGain, C_AtkLaserAmmoGain);
 Player.StaminaMax	= Settings::GetReal(C_OAtkStaminaMaxMultiplier, C_AtkStaminaMaxMultiplier);
 Player.StaminaGain	= Settings::GetReal(C_OAtkStaminaMaxMultiplier, C_AtkStaminaMaxMultiplier);
 
-if (S_Mode == 1 || S_MatchmakingMode == 2) Player.ArmorMax = DefSpawned * 100;
+if (GetMode() == C_ModeFree || MM_IsMatchServer()) Player.ArmorMax = DefSpawned * 100;
 else Player.ArmorMax = C_AtkArmorMax;
 if (Player.ArmorMax < 100) Player.ArmorMax = 100;
 
@@ -1561,7 +1570,7 @@ Void UpdateDodge() {
 	if (Net_Elite_BestDodgeTotal > 0) Dodge = TextLib::ToText(Net_Elite_BestDodgeTotal);
 	if (Net_Elite_BestDodgeName != "") Name = Net_Elite_BestDodgeName;
 	
-	Label_GameInfo.SetText(TextLib::Compose(_("Most dodge : %1 by %2"), Dodge, Name));
+	Label_GameInfo.SetText(TextLib::Compose(_("Most dodges : %1 by %2"), Dodge, Name));
 }
 
 Void UpdatePlayersStatus(Boolean _Forced) {
@@ -1965,6 +1974,9 @@ foreach (Score in Scores) {
 	}
 }
 Ladder_SetResultsVersion(1);
+if (MM_IsMatchServer()) {
+	MM_SetLadderMatchId();
+}
 Score::MatchEnd(True);
 foreach (Score in Scores) {
 	declare PrevPoints for Score = 0;

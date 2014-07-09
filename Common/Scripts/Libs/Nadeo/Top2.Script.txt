@@ -6,7 +6,7 @@
  *	You'll have to update both at the same time
  */
 
-#Const Version		"2013-10-23"
+#Const Version		"2014-07-03"
 #Const ScriptName	"Top2.Script.txt"
 
 #Include "TextLib" as TL
@@ -317,8 +317,13 @@ Void Private_LoadTop(Text[] _TopId) {
 		foreach (UserId => Sort in G_LibTop_TopSort[TopId]) {
 			if (Rank <= G_LibTop_TopSize[TopId]) {
 				G_LibTop_NetTopValue[TopId][Rank]	= G_LibTop_TopValue[TopId][UserId];
-				G_LibTop_NetTopName[TopId][Rank]	= Users[UserId].Name;
-				G_LibTop_NetTopLogin[TopId][Rank]	= Users[UserId].Login;
+				if (Users.existskey(UserId)) {
+					G_LibTop_NetTopName[TopId][Rank]	= Users[UserId].Name;
+					G_LibTop_NetTopLogin[TopId][Rank]	= Users[UserId].Login;
+				} else {
+					G_LibTop_NetTopName[TopId][Rank]	= ""^UserId;
+					G_LibTop_NetTopLogin[TopId][Rank]	= ""^UserId;
+				}
 			} else {
 				RemovedIds.add(UserId);
 			}

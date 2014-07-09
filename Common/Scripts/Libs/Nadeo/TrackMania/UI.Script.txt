@@ -6,7 +6,7 @@
  *	- SmallScoresTable -> display the player ranking at the end of the round
  *	- Chrono -> display a chrono at the bottom of the screen
  */
-#Const	Version		"2014-04-29"
+#Const	Version		"2014-06-30"
 #Const	ScriptName	"UI.Script.txt"
 
 #Include "TextLib" as TL
@@ -619,6 +619,7 @@ main() {
 				
 				if (Net_LibUI_Settings.existskey("IndependantLaps") && Net_LibUI_Settings["IndependantLaps"] == "True") IndependantLaps = True;
 				
+				declare IsEndLap = False;
 				if (InputPlayer.CurCheckpointLapTime < 0) {
 					if (InputPlayer.CurrentNbLaps <= 1) {
 						LapTime = InputPlayer.CurCheckpointRaceTime;
@@ -626,8 +627,15 @@ main() {
 						LapTime = InputPlayer.CurCheckpointRaceTime - PrevLapRaceTime;
 					}
 					PrevLapRaceTime = InputPlayer.CurCheckpointRaceTime;
+					IsEndLap = True;
 				} else {
 					LapTime = InputPlayer.CurCheckpointLapTime;
+				}
+				
+				if (IsEndLap) {
+					Audio.PlaySoundEvent(CAudioManager::ELibSound::Checkpoint, 1, 0.0);
+				} else {
+					Audio.PlaySoundEvent(CAudioManager::ELibSound::Checkpoint, 0, 0.0);
 				}
 				
 				if (IndependantLaps) {

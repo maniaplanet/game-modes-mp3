@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-05-19"
+#Const	Version				"2014-07-04"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -150,7 +150,7 @@ MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 ***
 // ---------------------------------- //
 // Matchmaking mode
-if (S_MatchmakingMode == 2) {
+if (MM_IsMatchServer()) {
 	MM_Init([S_NbPlayersPerTeam, S_NbPlayersPerTeam]);
 }
 
@@ -210,7 +210,7 @@ Markers::Load();
 ***
 declare Integer MapWinnerClan;
 declare CSmMapPlayerSpawn[Integer] Spawns;
-if (S_MatchmakingMode == 2) MB_UseIntro = False;
+if (MM_IsMatchServer()) MB_UseIntro = False;
 else MB_UseIntro = True;
 ***
 
@@ -290,7 +290,7 @@ if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
 
 // ---------------------------------- //
 // Wait players when using matchmaking
-if (S_MatchmakingMode == 2) {
+if (MM_IsMatchServer()) {
 	MM_MatchWait();
 	PrepareMatch();
 }
@@ -325,7 +325,7 @@ Layers::Update("Info", UpdateLayerInfo());
 
 // ---------------------------------- //
 // Matchmaking : allow substitutes
-MM_AllowSubstitutes(True);
+if (MM_IsMatchServer()) MM_AllowSubstitutes(True);
 ***
 
 ***InitRound***
@@ -816,6 +816,9 @@ foreach (Score in Scores) {
 	}
 }
 Ladder_SetResultsVersion(1);
+if (MM_IsMatchServer()) {
+	MM_SetLadderMatchId();
+}
 Score::MatchEnd(True);
 foreach (Score in Scores) {
 	declare PrevPoints for Score = 0;
@@ -824,7 +827,7 @@ foreach (Score in Scores) {
 
 // ---------------------------------- //
 // Send match result
-if (S_MatchmakingMode == 2) {
+if (MM_IsMatchServer()) {
 	MM_MatchEnd(MasterLogin);
 }
 
@@ -846,7 +849,7 @@ UIManager.UIAll.BigMessage				= "";
 
 // ---------------------------------- //
 // Transfert players back to the lobby
-if (S_MatchmakingMode == 2) {
+if (MM_IsMatchServer()) {
 	MM_MatchToLobby();
 }
 ***
