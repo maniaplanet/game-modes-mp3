@@ -95,6 +95,7 @@ Text Private_CreateLayerRules(Boolean _Hidden) {
 	declare RulesTip = _("Press F1 to show rules");
 	
 	ML = """
+<manialink version="1" name="Lib_SpawnScreen:Rules">
 <frame posn="0 0 55">
 	<frame posn="0 -70" id="FrameShow">
 		<!--<quad posn="0 0" sizen="140 20" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle3_5" />-->
@@ -148,7 +149,8 @@ main () {
 	}
 }
 --></script>
-	""";
+</manialink>
+""";
 	
 	return ML;
 }
@@ -215,6 +217,7 @@ Text Private_CreateLayerPrettyRules(Boolean _Hidden)  {
 	
 	//ML ^= Private_CreateHeaderText();
 	ML ^= """
+<manialink version="1" name="Lib_SpawnScreen:PrettyRules">
 <frame posn="0 10 55">
 	<frame id="Frame_BlackBg" hidden="1">
 		{{{Private_CreateHeaderText(0., -10., -55.)}}}
@@ -299,7 +302,8 @@ main () {
 	}
 }
 --></script>
-	""";
+</manialink>
+""";
 
 	return ML;
 }
@@ -397,6 +401,7 @@ Text Private_CreateLayerMapInfo() {
 	declare Integer YOffset = 14;
 	
 	return """
+<manialink version="1" name="Lib_SpawnScreen:MapInfo">
 <frame posn="-150 30 50">
 	<label posn="0 0 1" sizen="40 10" textsize="{{{BigTextSize}}}" valign="center" text="Map" textcolor="{{{HLColor}}}" style="TextTitle3"/>
 	<label posn="40 0 1" sizen="250 10" textsize="{{{SmallTextSize}}}" valign="center" id="Label_MapName" textcolor="{{{NormalColor}}}"/>
@@ -436,7 +441,7 @@ main() {
 	Label_MapAuthorZone.SetText(AuthorZonePath);
 }
 --></script>
-""";
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -569,6 +574,7 @@ for (J, I, 3) {
 	}
 	
 	return """
+<manialink version="1" name="Lib_SpawnScreen:Scores">
 <quad posn="0 0 -10" sizen="400 200" bgcolor="111f" valign="center" halign="center"/>
 {{{Private_CreateHeaderText(0., 0., -55.)}}}
 <frame posn="0 75">
@@ -618,6 +624,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 }
 

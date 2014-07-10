@@ -67,6 +67,7 @@ Text Private_GetMLCustomUI() {
 	}
 	
 	return """
+<manialink version="1" name="Lib_CustomUI:CustomUI">
 <frame posn="0 0 60" hidden="1" id="Frame_Global">
 	<frame id="Frame_Helpers">
 		{{{MLHelpers}}}
@@ -509,7 +510,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //

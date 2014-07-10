@@ -266,6 +266,7 @@ Void CreateWelcomeWindow(Text _WelcomeTitle, Text _WelcomeText) {
 	declare Text EncodedTitle 		= TextLib::MLEncode(_WelcomeTitle);
 	declare Text EncodedText 		= TextLib::MLEncode(_WelcomeText);
 	declare Text MLPage = """
+		<manialink version="1" name="Lib_BeginnersWelcome:WelcomeWindow">
 		<script><!--
 			main() {
 				declare Boolean DisplayWindow 	= True;
@@ -306,6 +307,7 @@ Void CreateWelcomeWindow(Text _WelcomeTitle, Text _WelcomeText) {
 				_("Press $<$o$f00F1$> to close this window.")}}}" />
 			<label halign="left" 	valign="top" 	posn="{{{-(WindowWidth/2)+2}}} {{{(WindowHeight/2)-(2*BigTextSize)}}}" 	text="{{{EncodedText}}}" />
 		</frame>
+		</manialink>
 	""";
 	
 	//WelcomeLayer.ManialinkPage = MLPage;

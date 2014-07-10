@@ -280,6 +280,7 @@ main() {
 Text Private_MergeML() {
 	declare ML = "";
 	
+	ML ^= """<manialink version="1" name="Lib_Top2:Tops">""";
 	ML ^= """<frame id="Frame_Top" hidden="1">""";
 	ML ^= Private_CreateTitleML();
 	foreach (TopML in G_LibTop_TopML) {
@@ -288,6 +289,7 @@ Text Private_MergeML() {
 	ML ^= Private_CreateBackgroundML();
 	ML ^= """</frame>""";
 	ML ^= Private_CreateScriptML();
+	ML ^= """</manialink>""";
 	
 	return ML;
 }

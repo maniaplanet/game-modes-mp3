@@ -73,7 +73,9 @@ Text GetScriptName() {
  */
 Text CreateLayerChrono() {
 	return
-"""<script><!--
+"""
+<manialink version="1" name="Lib_Chrono:Chrono">
+<script><!--
 	#Include "TextLib" as TextLib
 	
 	main() {
@@ -170,6 +172,7 @@ Text CreateLayerChrono() {
 	<label halign="center" valign="bottom" style="TextRaceChrono" id="Chrono" text="--:--.--" />
 	<quad posn="0 0.1" sizen="40 10" halign="center" valign="bottom" style="BgsPlayerCard" substyle="BgPlayerCard"/>
 </frame>
+</manialink>
 """;
 }
 

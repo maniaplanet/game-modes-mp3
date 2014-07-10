@@ -123,6 +123,7 @@ Text Private_CreateLayerPlayersLists(Text _Style, Real _Scale, Integer _Lines, I
 	}
 	
 return """
+<manialink version="1" name="Lib_Interface:PlayersLists">
 <frame id="Frame_PlayersLists">
 	<frame posn="-160 68">
 		<frame hidden="{{{HeadersHidden}}}">
@@ -207,6 +208,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 }
 
@@ -289,6 +291,7 @@ Void SetPlayersListsVisibility(Integer _Visibility) {
  */
 Void SetLayerPosition(CUILayer _LayerPosition) {
 	_LayerPosition.ManialinkPage = """
+<manialink version="1" name="Lib_Interface:Position">
 <script><!--
 	main() {
 		declare Label_PosTotal <=> (Page.GetFirstChild("PosTotal") as CMlLabel);
@@ -341,7 +344,7 @@ Void SetLayerPosition(CUILayer _LayerPosition) {
 	<label posn="0 1" halign="left" valign="bottom" id="PosTotal" />
 	<label posn="0 0" halign="right" valign="bottom" style="TextRaceChrono" id="PosCurrent" />
 </frame>
-""";
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -407,6 +410,7 @@ Void UpdatePosition(CPlayer _Player) {
  */
 Text Private_CreateLayerRank() {
 	return """
+<manialink version="1" name="Lib_Interface:Rank">
 <frame posn="150 -88">
 	<label posn="0 1" halign="left" valign="bottom" style="TextRaceMessage" id="Label_PosTotal" />
 	<label posn="0 0" halign="right" valign="bottom" style="TextRaceChrono" id="Label_PosCurrent" />
@@ -467,6 +471,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 }
 
@@ -952,6 +957,8 @@ Void Private_UpdateSliderML() {
 
 	
 	declare ML = "";
+	ML ^= """<manialink version="1" name="Lib_Interface:Slider">""";
+	
 	ML ^= """<frame posn="-70 86" id="Frame_SliderGlobal">""";
 		
 	ML ^= """	<frame posn="0 0" id="Frame_Slider">""";
@@ -971,7 +978,8 @@ Void Private_UpdateSliderML() {
 					<quad posn="-5.70 6 -1" sizen="60 60" image="{{{C_LibUI_ImgTopsBg2}}}" />
 					<quad posn="47.30 -20 0" sizen="3.93 5.83 0" image="{{{C_LibUI_ImgButtonMinimizeHide}}}" id="Quad_MinimizeTop" scriptevents="1"/>
 			 	</frame>
-			</frame>""";
+			</frame>
+		</manialink>""";
 			
 
 

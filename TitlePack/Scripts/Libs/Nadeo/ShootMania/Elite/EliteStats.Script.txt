@@ -52,6 +52,7 @@ declare Ident				G_LibEliteStats_PrevAtkPlayerLogin;		///< Previous id of the at
  */
 Text Private_CreateMLWinProbability() {
 	return """
+<manialink version="1" name="Lib_EliteStats:WinProbability">
 <frame class="LibCustomUI_Module" id="Elite_AtkWinProbability">
 	<frame posn="140 -88" scale="0.7" hidden="1" id="Frame_Global">
 		<!--<quad sizen="8 8" halign="right" valign="bottom" style="Icons64x64_1" substyle="OfficialRace" colorize="777" />-->
@@ -236,7 +237,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
@@ -246,6 +248,7 @@ main() {
  */
 Text Private_CreateMLSave() {
 	return """
+<manialink version="1" name="Lib_EliteStats:Save">
 <script><!--
 #Include "MathLib" as ML
 
@@ -344,7 +347,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //
