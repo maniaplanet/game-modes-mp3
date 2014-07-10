@@ -17,6 +17,7 @@
 * Three new XmlRpc methods to control the matchmaking function in the lobby : Matchmaking_Start, Matchmaking_Stop and Matchmaking_Force. With these it's now possible to stop/restart the matchmaking cleanly when needed (eg: before a restart/force next map).
 * Fix : going to the next map after a vote won't restart the 60 seconds waiting time at the beginning of the map. [see](http://forum.maniaplanet.com/viewtopic.php?p=220073#p220073)
 * Fix : going to the next map after a vote while the match was already started won't kick the players from the server anymore. [see](http://forum.maniaplanet.com/viewtopic.php?p=219976#p219976)
+* Fix : a player that go from ready to unready state between the API request and response wasn't sent to its match and the match wasn't canceled. Now this player will be penalized and the match canceled properly. [see](http://forum.maniaplanet.com/viewtopic.php?p=221311#p221311)
 
 #### Siege
 * Each checkpoint can now be associated with one, two or three gates instead of being forced at two.
