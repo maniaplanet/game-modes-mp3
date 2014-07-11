@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-07-08"
+#Const	Version				"2014-07-10"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -2228,11 +2228,9 @@ Void UpdateTimeLeftUI(CSmPlayer Player, Integer CurrentAckClan, Integer Duration
 	
 	declare netwrite Integer BattleWaves_TimeLeft for UI;
 	declare netwrite Integer BattleWaves_AtkClan for UI;
-	declare netwrite Integer BattleWaves_PlayerClan for UI;
 	
 	BattleWaves_AtkClan  = CurrentAckClan;
 	BattleWaves_TimeLeft = DurationInSeconds;
-	BattleWaves_PlayerClan = Player.CurrentClan;
 }
 
 
@@ -2267,7 +2265,6 @@ Text BuildTimeLeftManialink(Integer _WavesDuration) {
 main() {
 	declare netread Integer BattleWaves_TimeLeft 	for UI;
 	declare netread Integer BattleWaves_AtkClan 	for UI;
-	declare netread Integer BattleWaves_PlayerClan	for UI;
 	declare netread Boolean Battle_IsBeginner		for UI;
 	
 	declare CMlFrame FrameTimeLeft 	<=> (Page.GetFirstChild("FrameTimeLeft") as CMlFrame);
@@ -2278,16 +2275,20 @@ main() {
 	declare Clan1Color = Teams[0].ColorText;
 	declare Clan2Color = Teams[1].ColorText;
 	
-	declare CurrentAttkClan = -1;
+	declare PrevAtkClan = -1;
 	declare CurrentPlayerClan = -1;
+	declare PrevPlayerClan = -1;
 	
 	while(True) {
 		sleep(100);
 		
-		if((CurrentAttkClan != BattleWaves_AtkClan) || (BattleWaves_PlayerClan != CurrentPlayerClan))
+		if (GUIPlayer != Null) CurrentPlayerClan = GUIPlayer.CurrentClan;
+		else CurrentPlayerClan = -1;
+		
+		if((PrevAtkClan != BattleWaves_AtkClan) || (PrevPlayerClan != CurrentPlayerClan))
 		{
-			CurrentAttkClan 	= BattleWaves_AtkClan;
-			CurrentPlayerClan 	= BattleWaves_PlayerClan;
+			PrevAtkClan = BattleWaves_AtkClan;
+			PrevPlayerClan 	= CurrentPlayerClan;
 			
 			if(BattleWaves_AtkClan <= 0) {
 				FrameTimeLeft.Hide();
@@ -2295,7 +2296,7 @@ main() {
 			else {
 				FrameTimeLeft.Show();
 										
-				if(BattleWaves_PlayerClan == BattleWaves_AtkClan) {
+				if (CurrentPlayerClan == BattleWaves_AtkClan) {
 					LabelAttack.SetText(TextLib::Compose("$s%1", _("|Imperative|Attack")));
 					if(Battle_IsBeginner) {
 						Label_AdditionalRules.SetText(_("Capture the poles of the opposing team!"));
@@ -2304,7 +2305,7 @@ main() {
 						Label_AdditionalRules.SetText("");
 						LabelTimeLeft.PosnY = -4.;
 					}
-				} else {
+				} else if (CurrentPlayerClan == 3 - BattleWaves_AtkClan) {
 					LabelAttack.SetText(TextLib::Compose("$s%1", _("|Imperative|Defend")));
 					if(Battle_IsBeginner) {
 						Label_AdditionalRules.SetText(_("Prevent your poles from being captured!"));
@@ -2313,6 +2314,9 @@ main() {
 						Label_AdditionalRules.SetText("");
 						LabelTimeLeft.PosnY = -4.;
 					}
+				} else {
+					LabelAttack.SetText("");
+					Label_AdditionalRules.SetText("");
 				}
 			}
 		}
