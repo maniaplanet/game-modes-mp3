@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2014-06-30"
+#Const	Version		"2014-07-11"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -272,7 +272,14 @@ Void SendPlayersTimes() {
 Void SendTeamsScores() {
 	if (!G_UseLibXmlRpc) return;
 	
-	Private_SendCallbackArray("LibXmlRpc_TeamsScores", [TL::ToText(ClanScores[1]), TL::ToText(ClanScores[2])]);
+	declare PrevRaceDeltaPoints as ScoreTeam0 for Teams[0] = 0;
+	declare PrevRaceDeltaPoints as ScoreTeam1 for Teams[1] = 0;
+	Private_SendCallbackArray("LibXmlRpc_TeamsScores", [
+		TL::ToText(ClanScores[1]), 
+		TL::ToText(ClanScores[2]), 
+		TL::ToText(ClanScores[1]+ScoreTeam0),
+		TL::ToText(ClanScores[2]+ScoreTeam1)
+	]);
 }
 
 // ---------------------------------- //
