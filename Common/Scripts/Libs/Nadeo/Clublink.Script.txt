@@ -46,6 +46,7 @@ declare Boolean					G_LibClubLink_Updated;				///< The ClubLink of a team is upd
  */
 Text Private_CreateLayerTeams() {
 	return """
+<manialink version="1" name="Lib_Clublink:Teams">
 <frame posn="0 40" id="Frame_Spectators" hidden="1">
 	<quad posn="-159 0" sizen="40 20" halign="left"  id="Quad_SponsorTeam1" />
 	<quad posn=" 159 0" sizen="40 20" halign="right" id="Quad_SponsorTeam2" />
@@ -89,6 +90,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 }
 

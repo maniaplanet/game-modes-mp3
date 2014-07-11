@@ -221,6 +221,7 @@ Text CreateLayerMapSelection(Integer _BanNb, Integer _PickNb) {
 	declare Team2Name = TextLib::MLEncode(Teams[1].ColorizedName);
 
 	return """
+<manialink version="1" name="Lib_Draft:MapSelection">
 <script><!--
 	#Include "TextLib" as TextLib
 	
@@ -665,6 +666,7 @@ Text CreateLayerMapSelection(Integer _BanNb, Integer _PickNb) {
 		{{{MapDisplayString}}}
 	</frame>
 </frame>
+</manialink>
 """;
 }
 

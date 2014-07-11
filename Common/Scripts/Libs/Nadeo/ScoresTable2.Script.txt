@@ -1895,6 +1895,7 @@ if (PrevServerName != CurrentServerName) {
 	// ---------------------------------- //
 	// Scores table
 	ML_ScoresTable = """
+<manialink version="1" name="Lib_ScoresTable2:ScoresTable">
 {{{ML_Legend[1]}}}
 {{{ML_Legend[2]}}}
 {{{ML_PlayerCard[1]}}}
@@ -2735,6 +2736,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 
 	LayerScoresTable.ManialinkPage = ML_ScoresTable;

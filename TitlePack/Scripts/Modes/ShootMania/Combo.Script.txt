@@ -1149,6 +1149,7 @@ Text UpdateLayerInfo() {
 	}
 	
 	return """
+<manialink version="1" name="Combo:Info">
 <frame posn="-160 68">
 	<quad sizen="41 4" halign="left" bgcolor="0007" />
 	<quad posn="1 5 1" sizen="10 10" halign="left" style="Emblems" substyle="#1" /> 
@@ -1429,7 +1430,8 @@ main() {
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //

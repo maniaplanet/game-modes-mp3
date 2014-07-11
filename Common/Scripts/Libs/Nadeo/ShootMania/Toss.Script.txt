@@ -51,6 +51,7 @@ Text GetScriptName() {
 Text GetTossUI(Boolean _Spectator) {
 	return 
 """
+<manialink version="1" name="Lib_Toss:Toss">
 <script><!--
 	#Include "TextLib" as TextLib
 	
@@ -164,7 +165,7 @@ Text GetTossUI(Boolean _Spectator) {
 	<label posn="0 7 4" sizen="150 20" textsize="6" halign="center" valign="center" textprefix="$s" id="Winner" />
 	<label posn="0 6 4" sizen="170 12" focusareacolor1="000f" focusareacolor2="eeef" halign="center" valign="center" style="TextButtonNav" textprefix="$fff" text="{{{_("Press this button to toss")}}}" scriptevents="True" id="Toss" />
 </frame>
-""";
+</manialink>""";
 }
 
 /* ------------------------------------- */
@@ -177,6 +178,7 @@ Text GetTossUI(Boolean _Spectator) {
 Text GetVoteUI(Integer _ClanNb) {	
 	return
 """
+<manialink version="1" name="Lib_Toss:Vote">
 <script><!--
 	#Include "TextLib" as TextLib
 	
@@ -338,7 +340,7 @@ Text GetVoteUI(Integer _ClanNb) {
 		<label posn="0 0 10" textsize="4" halign="center" valign="center" textprefix="$s" id="Result" />
 	</frame>
 </frame>
-""";
+</manialink>""";
 }
 
 /* ------------------------------------- */

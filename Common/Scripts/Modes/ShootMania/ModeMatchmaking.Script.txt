@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-07-08"
+#Const ModeMatchmakingVersion		"2014-07-09"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -1342,6 +1342,79 @@ Void MM_ReconnectToServer(CPlayer _Player) {
 }
 
 // ---------------------------------- //
+/** Let a player cancel a match
+ *
+ *	@param	_User		The user who want to cancel his match
+ */
+Void MM_CancelMatch(CUser _User) {
+	if (_User == Null) return;
+	
+	declare Lobby_MatchId as Lobby_CancelMatchId for _User = "";
+	declare Lobby_MatchServer as Lobby_CancelMatchServer for _User = "";
+	declare Lobby_IsSubstitute as Lobby_CancelIsSubstitute for _User = False;
+
+	declare CancelMatchId = Lobby_CancelMatchId;
+	declare CancelMatchServer = Lobby_CancelMatchServer;
+	declare CancelIsSubstitute = Lobby_CancelIsSubstitute;
+
+	if (CancelMatchServer != "") {
+		if (S_MatchmakingLogMiscDebug) {
+			if (CancelIsSubstitute) MB_Log("[SERVER] "^_User.Login^" > Cancel substitute ("^CancelMatchId^") on server: "^CancelMatchServer);
+			else MB_Log("[SERVER] "^_User.Login^" > Cancel match ("^CancelMatchId^") on server: "^CancelMatchServer);
+		}
+		
+		// Penalize canceler
+		MM_PenalizePlayer(_User);
+		
+		// Mark player as canceler
+		declare Lobby_CancelerMatchId for _User = "";
+		declare Lobby_CancelerIsSubstitute for _User = False;
+		Lobby_CancelerMatchId = CancelMatchId;
+		Lobby_CancelerIsSubstitute = CancelIsSubstitute;
+	}
+	
+	if (CancelMatchId != "") {
+		// Normal match
+		if (!CancelIsSubstitute) {
+			foreach (User in Users) {
+				declare Lobby_MatchId for User = "";
+				declare Lobby_MatchServer for User = "";
+				declare Lobby_IsSubstitute for User = False;
+	
+				if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^User.Login^" > My match id : "^Lobby_MatchId^" | The match to cancel : "^CancelMatchId);
+				
+				if (CancelMatchId != Lobby_MatchId) continue;
+				
+				if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^User.Login^" > Match canceled ("^Lobby_MatchId^")");
+				
+				Lobby_MatchId = "";
+				Lobby_MatchServer = "";
+				Lobby_IsSubstitute = False;
+				
+				declare Player <=> SM::GetPlayer(User.Login);
+				Private_MM_HideVersusML(Player);
+				
+				declare UI <=> UIManager.GetUI(User);
+				if (UI != Null) {
+					UI.SendChat(TL::Compose(_("%1$<%2$> canceled match start."), C_MessagePrefix, _User.Name));
+				}
+			}
+		} 
+		// Substitute or player join the lobby
+		else {
+			declare Lobby_MatchId for _User = "";
+			declare Lobby_MatchServer for _User = "";
+			declare Lobby_IsSubstitute for _User = False;
+			Lobby_MatchId = "";
+			Lobby_MatchServer = "";
+			Lobby_IsSubstitute = False;
+			declare Player <=> SM::GetPlayer(_User.Login);
+			Private_MM_HideVersusML(Player);
+		}
+	}
+}
+
+// ---------------------------------- //
 /** Parse the matches XML and send player to their match server
  *
  *	@param	_MatchesXML			The XML containing the matches
@@ -1352,6 +1425,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 	declare MatchesPlayers = Integer[CSmPlayer][Text];
 	declare MatchesLogins = Integer[Text][Text];
 	declare MatchesUsersIds = Ident[][Integer][Text];
+	declare MatchesCancelers = Ident[];
 	declare XmlDoc <=> Xml.Create(_MatchesXML);
 	if (XmlDoc != Null && XmlDoc.Root != Null) {
 		declare NodeStatus <=> XmlDoc.Root.GetFirstChild("status");
@@ -1399,7 +1473,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 									if (G_Matchmaking_Format.count > 1) Clan += 1;
 									if (Login != "" && Clan >= 0) {
 										declare Player <=> SM::GetPlayer(Login);
-										if (Player != Null && !Player.RequestsSpectate) {
+										if (Player != Null) {
 											declare Lobby_MatchId for Player.User = "";
 											declare Lobby_MatchServer for Player.User = "";
 											declare Lobby_IsSubstitute for Player.User = False;
@@ -1412,6 +1486,10 @@ Void MM_GetMatches(Text _MatchesXML) {
 											MatchesUsersIds[MatchId][Clan].add(Player.User.Id);
 											MatchPlayersNb += 1;
 											CantBeSubstitute.add(Player.Id);
+											
+											if (Player.RequestsSpectate) {
+												MatchesCancelers.add(Player.User.Id);
+											}
 										}
 									}
 								}
@@ -1496,13 +1574,22 @@ Void MM_GetMatches(Text _MatchesXML) {
 			
 			declare netwrite Integer Net_Lobby_VersusPlayersUpdate for UI;
 			declare netwrite Integer[Text] Net_Lobby_VersusPlayers for UI;
+			declare netwrite Text Net_Lobby_MatchId for UI;
 			Net_Lobby_VersusPlayers = MatchesLogins[MatchId];
+			Net_Lobby_MatchId = MatchId;
 			Net_Lobby_VersusPlayersUpdate = Now;
 			
 			Private_MM_ShowVersusML(Player);
 		}
 	}
 	Net_Lobby_VersusAlliedUpdate = Now;
+	
+	// Player was ready before sending the players list to the API but unready when receiving the response
+	foreach (UserId in MatchesCancelers) {
+		if (Users.existskey(UserId)) {
+			MM_CancelMatch(Users[UserId]);
+		}
+	}
 }
 
 // ---------------------------------- //
@@ -1549,79 +1636,6 @@ Void MM_SendToMatches() {
 		Lobby_MatchId = "";
 		Lobby_MatchServer = "";
 		Lobby_IsSubstitute = False;
-	}
-}
-
-// ---------------------------------- //
-/** Let a player cancel a match
- *
- *	@param	_User		The user who want to cancel his match
- */
-Void MM_CancelMatch(CUser _User) {
-	if (_User == Null) return;
-	
-	declare Lobby_MatchId as Lobby_CancelMatchId for _User = "";
-	declare Lobby_MatchServer as Lobby_CancelMatchServer for _User = "";
-	declare Lobby_IsSubstitute as Lobby_CancelIsSubstitute for _User = False;
-
-	declare CancelMatchId = Lobby_CancelMatchId;
-	declare CancelMatchServer = Lobby_CancelMatchServer;
-	declare CancelIsSubstitute = Lobby_CancelIsSubstitute;
-
-	if (CancelMatchServer != "") {
-		if (S_MatchmakingLogMiscDebug) {
-			if (CancelIsSubstitute) MB_Log("[SERVER] "^_User.Login^" > Cancel substitute ("^CancelMatchId^") on server: "^CancelMatchServer);
-			else MB_Log("[SERVER] "^_User.Login^" > Cancel match ("^CancelMatchId^") on server: "^CancelMatchServer);
-		}
-		
-		// Penalize canceler
-		MM_PenalizePlayer(_User);
-		
-		// Mark player as canceler
-		declare Lobby_CancelerMatchId for _User = "";
-		declare Lobby_CancelerIsSubstitute for _User = False;
-		Lobby_CancelerMatchId = CancelMatchId;
-		Lobby_CancelerIsSubstitute = CancelIsSubstitute;
-	}
-	
-	if (CancelMatchId != "") {
-		// Normal match
-		if (!CancelIsSubstitute) {
-			foreach (User in Users) {
-				declare Lobby_MatchId for User = "";
-				declare Lobby_MatchServer for User = "";
-				declare Lobby_IsSubstitute for User = False;
-	
-				if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^User.Login^" > My match id : "^Lobby_MatchId^" | The match to cancel : "^CancelMatchId);
-				
-				if (CancelMatchId != Lobby_MatchId) continue;
-				
-				if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^User.Login^" > Match canceled ("^Lobby_MatchId^")");
-				
-				Lobby_MatchId = "";
-				Lobby_MatchServer = "";
-				Lobby_IsSubstitute = False;
-				
-				declare Player <=> SM::GetPlayer(User.Login);
-				Private_MM_HideVersusML(Player);
-				
-				declare UI <=> UIManager.GetUI(User);
-				if (UI != Null) {
-					UI.SendChat(TL::Compose(_("%1$<%2$> canceled match start."), C_MessagePrefix, _User.Name));
-				}
-			}
-		} 
-		// Substitute or player join the lobby
-		else {
-			declare Lobby_MatchId for _User = "";
-			declare Lobby_MatchServer for _User = "";
-			declare Lobby_IsSubstitute for _User = False;
-			Lobby_MatchId = "";
-			Lobby_MatchServer = "";
-			Lobby_IsSubstitute = False;
-			declare Player <=> SM::GetPlayer(_User.Login);
-			Private_MM_HideVersusML(Player);
-		}
 	}
 }
 
@@ -4742,6 +4756,9 @@ Text Private_Lobby_GetMLVersus() {
 			<quad posn="-1 0" sizen="9 9" halign="right" valign="center" style="Icons64x64_1" substyle="ArrowUp" scriptevents="1" id="Button_PagerPrev" />
 			<quad posn="1 0" sizen="9 9" valign="center" style="Icons64x64_1" substyle="ArrowDown" scriptevents="1" id="Button_PagerNext" />
 		</frame>
+		<frame posn="88 -35">
+			<label sizen="50 6" halign="right" opacity="0.7" textsize="1" textemboss="1" id="Label_MatchId" />
+		</frame>
 	</frame>
 	<frame posn="0 -50" hidden="1" id="Frame_Cancel">
 		<quad sizen="35 8" scale="1.3" halign="center" valign="center" image="{{{ButtonQuitOff}}}" imagefocus="{{{ButtonQuitOn}}}" action="maniaplanet:togglespec" />
@@ -4865,6 +4882,10 @@ Void UpdatePlayersList() {
 			else UpdatePlayerSlot(Frame_PlayerCard, Null);
 		}
 	}
+	
+	declare Label_MatchId <=> (Page.GetFirstChild("Label_MatchId") as CMlLabel);
+	declare netread Text Net_Lobby_MatchId for UI;
+	Label_MatchId.Value = "match id : #"^Net_Lobby_MatchId;
 }
 
 Void UpdatePager(Integer _Shift) {

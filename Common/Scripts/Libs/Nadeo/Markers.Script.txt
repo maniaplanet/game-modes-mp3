@@ -145,6 +145,7 @@ Void Private_GenerateManialink() {
 	}
 	
 	LayerMarkers.ManialinkPage = """
+<manialink version="1" name="Lib_Markers:Markers">
 <frame id="Frame_Global">
 	{{{ML}}}
 </frame>""";
@@ -152,7 +153,8 @@ Void Private_GenerateManialink() {
 	LayerMarkers.ManialinkPage ^= """
 <script><!--
 {{{G_LibMarkers_ManialinkScript}}}
---></script>""";
+--></script>
+</manialink>""";
 }
 
 // ---------------------------------- //

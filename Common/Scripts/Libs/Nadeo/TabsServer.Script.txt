@@ -60,6 +60,7 @@ CUILayer CreateTabPaneLayer(Text[Text] TabsImages, Integer TabFramePosnX, Intege
 	
 	// The ManiaLink associated to the tabs
 	declare MLText = """
+		<manialink version="1" name="Lib_TabsServer:Tabs">
 		<script><!--
 		
 		main()
@@ -219,6 +220,7 @@ CUILayer CreateTabPaneLayer(Text[Text] TabsImages, Integer TabFramePosnX, Intege
 		
 		MLText = MLText^"""
 		</frame>
+		</manialink>
 	""";
 	
 	TabPaneLayer.ManialinkPage = MLText;
@@ -320,6 +322,7 @@ Void Load() {
 	
 	// Scores layer detection
 	declare Text EmptyLayerMLPage = """
+		<manialink version="1" name="Lib_TabsServer:LayerScoresTable">
 		<script><!--
 			main(){
 				declare Boolean _TabsLib_ScoresLayerIsVisible for UI;
@@ -332,6 +335,7 @@ Void Load() {
 				}
 			}
 		--></script>
+		</manialink>
 	""";
 	
 	declare CUILayer EmptyLayerScores <=> UIManager.UILayerCreate();
@@ -341,6 +345,7 @@ Void Load() {
 	
 	// Alt layer detection
 	declare Text EmptyLayerAltMLPage = """
+		<manialink version="1" name="Lib_TabsServer:LayerAltMenu">
 		<script><!--
 			main(){
 				declare Boolean _TabsLib_AltLayerIsVisible for UI;
@@ -353,6 +358,7 @@ Void Load() {
 				}
 			}
 		--></script>
+		</manialink>
 	""";
 	
 	declare CUILayer EmptyLayerAlt <=> UIManager.UILayerCreate();

@@ -34,6 +34,7 @@ Text Private_CreateManialinkMenu() {
 	declare BS = "style=\"CardButtonMedium\"";
 	
 	return """
+<manialink version="1" name="Lib_Debug:Menu">
 <frame posn="155 82 20" id="Frame_Global">
 	<frame posn="0 0" id="Frame_SectionSelection">
 		<label posn="0 0" scale="0.5" halign="right" valign="center" {{{BS}}} text="Mode" scriptevents="1" id="Button_SectionMode" />
@@ -253,6 +254,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 }
 
@@ -348,6 +350,7 @@ Text Private_CreateManialinkStyles() {
 	}
 	
 	return """
+<manialink version="1" name="Lib_Debug:Styles">
 <frame posn="-157 88 57" id="Frame_Visibility">
 	<label style="CardButtonSmallS" text="Open ML Styles" scriptevents="1" id="Button_Visibility" />
 </frame>
@@ -880,6 +883,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 }
 

@@ -67,6 +67,7 @@ Text Private_CreateLayerWarmUp() {
 	declare Clan2Color = TL::ColorToText(Teams[1].ColorPrimary);
 	
 	return """
+<manialink version="1" name="Lib_WarmUp2:WarmUp">
 <frame posn="{{{C_LibWarmUp2_LayerPosition.X}}} {{{C_LibWarmUp2_LayerPosition.Y}}} 25" hidden="1" id="Frame_WarmUp">
 	<format textemboss="1" />
 	<frame posn="0 0" id="Frame_Pager">
@@ -583,6 +584,7 @@ main() {
 	}
 }
 --></script>
+</manialink>
 """;
 }
 

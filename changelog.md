@@ -1,3 +1,18 @@
+<a id="2014-07-10">2014-07-10</a>
+---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/579c412356dfc26a257fe9b63198e721aaad2fde)
+
+### Modes
+
+#### Siege
+* New setting S_AtkNbIncreaseCaptureSpeed. Select if the number of attackers on the gate increase the capture speed. It's now turned off by default.
+* Fix : If a spectator was on the server at the beginning of the turn he could later join the ongoing round with 1 armor point. It's not the case anymore.
+* Fix : Weapon was saved only at the end of the round and loaded after each respawn. Now weapon is saved as soon as the player change it.
+
+#### Battle
+* Fix : When spectating a player the "Attack/Defend" message at the top of the screen was relative to the spectator clan and not the spectated player clan. [see](http://forum.maniaplanet.com/viewtopic.php?p=221397#p221397)
+
 <a id="2014-07-09">2014-07-09</a>
 ---------------------------------
 
@@ -17,6 +32,7 @@
 * Three new XmlRpc methods to control the matchmaking function in the lobby : Matchmaking_Start, Matchmaking_Stop and Matchmaking_Force. With these it's now possible to stop/restart the matchmaking cleanly when needed (eg: before a restart/force next map).
 * Fix : going to the next map after a vote won't restart the 60 seconds waiting time at the beginning of the map. [see](http://forum.maniaplanet.com/viewtopic.php?p=220073#p220073)
 * Fix : going to the next map after a vote while the match was already started won't kick the players from the server anymore. [see](http://forum.maniaplanet.com/viewtopic.php?p=219976#p219976)
+* Fix : a player that go from ready to unready state between the API request and response wasn't sent to its match and the match wasn't canceled. Now this player will be penalized and the match canceled properly. [see](http://forum.maniaplanet.com/viewtopic.php?p=221311#p221311)
 
 #### Siege
 * Each checkpoint can now be associated with one, two or three gates instead of being forced at two.

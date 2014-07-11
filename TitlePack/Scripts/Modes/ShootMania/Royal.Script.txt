@@ -1599,6 +1599,7 @@ Text CreateLayerRoundInfos() {
 	declare Integer YPosition 	= -71;
 	
 	return """
+<manialink version="1" name="Royal:RoundInfo">
 <frame>
 	<format textemboss="1" />
 	<label posn="156 -86 1" halign="right" valign="bottom" id="Label_RemainingPlayers" />
@@ -1637,6 +1638,7 @@ Text CreateLayerRoundInfos() {
 		}
 	}
 --></script>
+</manialink>
 """;
 }
 
@@ -1749,6 +1751,7 @@ Void CreateMarkersManialinkPage() {
 	declare Real WideScreenRatio = 9./16.;
 	declare Text PoleMarkerImg = "file://Media/Manialinks/Shootmania/Common/goal_cap.dds";
 	declare Text MLText = """
+<manialink version="1" name="Royal:Markers">
 	<script><!--
 		main() {
 			declare Integer NbTopPlayersWithMarker = 3;
@@ -1789,7 +1792,7 @@ Void CreateMarkersManialinkPage() {
 			<quad halign="center" posn="0 0 0" sizen="{{{PoleImgSize*WideScreenRatio}}} {{{PoleImgSize}}}" image="{{{PoleMarkerImg}}}" autoscale="False" colorize="0. 0. 0." />
 		</frame>
 	</frame>
-	""";
+</manialink>""";
 	
 	declare LayerMarkers <=> UIManager.UILayerCreate();
 	LayerMarkers.ManialinkPage = MLText;
@@ -1816,6 +1819,7 @@ Void CreateRulesReminderLayer() {
 	declare Real 	WindowY			= 30.;	
 	
 	declare Text MLText = """
+<manialink version="1" name="Royal:RulesReminder">
 	<script><!--
 		// for the "do not show again" feature
 		declare persistent Boolean NadeoRoyal_PersistentShowRulesReminder for This = True;
@@ -1893,7 +1897,7 @@ Void CreateRulesReminderLayer() {
 		<!--<label halign="center" 	valign="bottom"	posn="0 {{{-(WindowHeight/2)}}}"  text="{{{
 				_("Press $<$o$f00F1$> to close this window.")}}}" />-->
 	</frame>
-	""";
+</manialink>""";
 	
 	Layers::Create("RulesReminder", MLText);
 	Layers::Attach("RulesReminder");
