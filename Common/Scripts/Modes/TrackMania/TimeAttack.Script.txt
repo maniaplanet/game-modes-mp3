@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"Race"
-#Const	Version		"2014-07-02"
+#Const	Version		"2014-07-15"
 #Const	ScriptName	"TimeAttack.Script.txt"
 
 #Include "TextLib" as TL
@@ -101,7 +101,9 @@ foreach (Player in Players) {
 
 ***WarmUp***
 ***
-if (S_WarmUpDuration > 0) {		
+if (S_WarmUpDuration > 0) {
+	XmlRpc::BeginWarmUp();
+	
 	WarmUp::Begin();
 	WarmUp::SetProgression(1, 1);
 	CutOffTimeLimit = _TimeLimit;
@@ -110,6 +112,9 @@ if (S_WarmUpDuration > 0) {
 		MB_Yield();
 		WarmUp::Loop();
 		WarmUp::ManageEvents();
+		foreach (Event in PendingEvents) {
+			XmlRpc::PassOn(Event);
+		}
 	}
 	WarmUp::End();
 	
@@ -122,6 +127,8 @@ if (S_WarmUpDuration > 0) {
 	CutOffTimeLimit = -1;
 	UIManager.UIAll.BigMessage = "";
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	
+	XmlRpc::EndWarmUp();
 }
 ***
 
