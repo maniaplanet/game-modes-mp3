@@ -1,3 +1,29 @@
+<a id="2014-07-11">2014-07-11</a>
+---------------------------------
+
+[Commit on GitHub](https://github.com/maniaplanet/game-modes/commit/8ccbd77b5a1a49edc59a586700be538eb8bb93bb)
+
+### Modes
+
+#### ShootMania/ModeMatchmaking
+* New setting "S_LobbyBasePenalty" allowing to set a custom penalty time base. Default is now 120 instead of 90 seconds. [see](http://forum.maniaplanet.com/viewtopic.php?p=221663#p221663)
+
+
+### Librairies
+
+#### TrackMania/UI
+* Fix : don't display anymore the small scores table on the right of the screen while racing in warm up mode after finishing the map a first time.
+
+#### TrackMania/XmlRpc
+* Add the total score (PlayerScore.Points + PlayerScore.PrevRaceDeltaPoints) to the LibXmlRpc_PlayerRanking callback. [see](http://forum.maniaplanet.com/viewtopic.php?p=219271#p219271)
+
+#### ShootMania/Elite/EndSequence
+* Fix : there's now an animation when loosing LP. [see](http://forum.maniaplanet.com/viewtopic.php?p=221732#p221732)
+* Fix : echelon from 9.2 to 9.9 are correctly displayed. [see](http://forum.maniaplanet.com/viewtopic.php?p=221732#p221732)
+* Fix : the amount of LP lost is correctly displayed.
+* Fix : always display two decimals for the LP amount.
+
+
 <a id="2014-07-10">2014-07-10</a>
 ---------------------------------
 
@@ -5,12 +31,12 @@
 
 ### Modes
 
-#### Siege
+#### ShootMania/Siege
 * New setting S_AtkNbIncreaseCaptureSpeed. Select if the number of attackers on the gate increase the capture speed. It's now turned off by default.
 * Fix : If a spectator was on the server at the beginning of the turn he could later join the ongoing round with 1 armor point. It's not the case anymore.
 * Fix : Weapon was saved only at the end of the round and loaded after each respawn. Now weapon is saved as soon as the player change it.
 
-#### Battle
+#### ShootMania/Battle
 * Fix : When spectating a player the "Attack/Defend" message at the top of the screen was relative to the spectator clan and not the spectated player clan. [see](http://forum.maniaplanet.com/viewtopic.php?p=221397#p221397)
 
 <a id="2014-07-09">2014-07-09</a>
@@ -20,13 +46,13 @@
 
 ### Modes
 
-#### Battle
-* The mode is now compatible with the matchmaking system, you can open your own lobby and match servers.
-
 #### ModeBase
 * All "synchronous" functions from the Mode library now have "asynchronous" equivalents in ModeBase. It allows to avoid calling a yield; in the library at the risk of missing important events (eg: XmlRpc events).
 
-#### ModeMatchmaking
+#### ShootMania/Battle
+* The mode is now compatible with the matchmaking system, you can open your own lobby and match servers.
+
+#### ShootMania/ModeMatchmaking
 * It's now possible to show/hide on the client side the waiting screen, players list and masters list.
 * Players kicked from a match won't be sent back to the match server when they rejoin the lobby. [see](http://forum.maniaplanet.com/viewtopic.php?p=219695#p219695)
 * Three new XmlRpc methods to control the matchmaking function in the lobby : Matchmaking_Start, Matchmaking_Stop and Matchmaking_Force. With these it's now possible to stop/restart the matchmaking cleanly when needed (eg: before a restart/force next map).
@@ -34,7 +60,7 @@
 * Fix : going to the next map after a vote while the match was already started won't kick the players from the server anymore. [see](http://forum.maniaplanet.com/viewtopic.php?p=219976#p219976)
 * Fix : a player that go from ready to unready state between the API request and response wasn't sent to its match and the match wasn't canceled. Now this player will be penalized and the match canceled properly. [see](http://forum.maniaplanet.com/viewtopic.php?p=221311#p221311)
 
-#### Siege
+#### ShootMania/Siege
 * Each checkpoint can now be associated with one, two or three gates instead of being forced at two.
 * There is 45 seconds to capture all the checkpoint's gates. A bonus of 10 seconds is awarded when capturing a gate.
 * The capture time of the gates is equal to 4.5 seconds divided by the number of gates at the checkpoints. eg: 3 gates -> 1.5 seconds each, 2 gates -> 2.25 seconds each, 1 gate -> 4.5 second.
@@ -57,7 +83,7 @@
 
 ### MapTypes
 
-#### SiegeV2Arena
+#### ShootMania/SiegeV2Arena
 * Each checkpoint can now be associated with one, two or three gates instead of being forced at two.
 
 <a id="2014-07-02">2014-07-02</a>
