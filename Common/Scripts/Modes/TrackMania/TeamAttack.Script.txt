@@ -5,8 +5,8 @@
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"Race"
-#Const	Version		"2014-07-02"
-#Const	ScriptName	"TimeAttack.Script.txt"
+#Const	Version		"2014-07-15"
+#Const	ScriptName	"TeamAttack.Script.txt"
 
 #Include "TextLib" as TL
 #Include "MathLib" as ML
