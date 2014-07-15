@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-07-09"
+#Const ModeMatchmakingVersion		"2014-07-11"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -27,6 +27,7 @@
 #Setting S_LobbyDisplayMasters		True		as "<hidden>"	///< Display the masters list
 #Setting S_LobbyAllowMatchCancel	True		as "<hidden>"	///< Allow match cancel
 #Setting S_LobbyLimitMatchCancel	0			as "<hidden>"	///< -1: infinite cancel, 0 or more: number of cancellations allowed
+#Setting S_LobbyBasePenalty			120			as "<hidden>"	///< Base penalty time
 #Setting S_MatchmakingErrorMessage	_("An error occured in the matchmaking API. If the problem persist please try to contact this server administrator.") as "<hidden>" ///< Send a message in the chat if an error occured
 #Setting S_MatchmakingLogAPIError	False		as "<hidden>"	///< Log the API requests errors
 #Setting S_MatchmakingLogAPIDebug	False		as "<hidden>"	///< Log all the api requests and responses
@@ -94,8 +95,6 @@
 #Const C_Master_Echelon		2	///< Echelon of the master
 
 #Const C_MessagePrefix		"$000»$09f"	///< Prefix used before the messages sent in the chat by the matchmaking
-
-#Const C_Penalty	90000	///< Base penalty
 
 // ---------------------------------- //
 // Globales
@@ -1256,7 +1255,7 @@ Void MM_PenalizePlayer(CUser _User) {
 	Lobby_MatchCancellation += 1;
 	
 	if (S_LobbyLimitMatchCancel >= 0 && Lobby_MatchCancellation > S_LobbyLimitMatchCancel) {
-		declare Penalty = C_Penalty + (S_LobbyTimePerRound * 1000 * (Lobby_MatchCancellation - S_LobbyLimitMatchCancel - 1));
+		declare Penalty = (S_LobbyBasePenalty * 1000) + (S_LobbyTimePerRound * 1000 * (Lobby_MatchCancellation - S_LobbyLimitMatchCancel - 1));
 		if (Penalty <= 0) Penalty = 0;
 		MM_UpdatePlayerPenalty(_User, Penalty);
 		
