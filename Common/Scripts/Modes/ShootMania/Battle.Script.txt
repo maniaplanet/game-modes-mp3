@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-07-10"
+#Const	Version				"2014-07-24"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -23,18 +23,20 @@
 // ---------------------------------- //
 // Settings
 // ---------------------------------- //
-#Setting	S_RespawnTime		6001	as _("Respawn time")		///< Time before respawn
-#Setting	S_AutoBalance		True	as _("Use autobalance")		///< Use auto balance at the start of the map
-#Setting	S_RoundsToWin		2		as _("Rounds to win")		///< Number of rounds to win a map
-#Setting	S_RoundGapToWin		1		as _("Round gap to win")	///< Minimum gap between the two leaders to win a map
-#Setting	S_RoundsLimit		3		as _("Rounds limit")		///< Point limit on map
-#Setting	S_TimeLimit			300 	as _("Time limit (seconds)") 		///< Time limit (seconds)
-#Setting	S_CaptureMaxValue	30000	as _("Capture time (milliseconds)") ///< Pole capture time (milliseconds)
-#Setting	S_AlternativePoints	False	as _("Use atk and def points as score")
-#Setting 	S_AllowBeginners	False	as _("Is a Beginners Welcome server")
-//#Setting 	S_AutoManageAFK		True	//as _("Switch inactive players to spectators")
-#Setting	S_ArmorPoints		2		as _("Armor points")
-#Setting	S_NbPlayersPerTeam	5		as _("Number of players per team in matchmaking")	///< Number of players per team when the matchmaking is enabled
+#Setting	S_RespawnTime			6001	as _("Respawn time")		///< Time before respawn
+#Setting	S_AutoBalance			True	as _("Use autobalance")		///< Use auto balance at the start of the map
+#Setting	S_RoundsToWin			2		as _("Rounds to win")		///< Number of rounds to win a map
+#Setting	S_RoundGapToWin			1		as _("Round gap to win")	///< Minimum gap between the two leaders to win a map
+#Setting	S_RoundsLimit			3		as _("Rounds limit")		///< Point limit on map
+#Setting	S_TimeLimit				300 	as _("Time limit (seconds)") 		///< Time limit (seconds)
+#Setting	S_CaptureMaxValue		30000	as _("Capture time (milliseconds)") ///< Pole capture time (milliseconds)
+#Setting	S_AlternativePoints		False	as _("Use atk and def points as score")
+#Setting 	S_AllowBeginners		False	as _("Is a Beginners Welcome server")
+//#Setting 	S_AutoManageAFK			True	//as _("Switch inactive players to spectators")
+#Setting	S_ArmorPoints			2		as _("Armor points")
+#Setting	S_NbPlayersPerTeamMax	5		as _("Number of players per team in matchmaking")	///< Number of players per team when the matchmaking is enabled
+#Setting	S_NbPlayersPerTeamMin	2		as _("Minimum number of players per team in matchmaking")	///< Minimum number of players in each team in matchmaking
+
 
 // Clublinks settings
 #Setting 	S_UsePlayerClublinks		False	as _("Use players clublinks")	///< Use the players clublinks, or otherwise use the default teams
@@ -124,7 +126,20 @@ MB_LogVersion(Beginners::GetScriptName(), Beginners::GetScriptVersion());
 
 ***LobbyStartServer***
 ***
-MM_SetFormat([S_NbPlayersPerTeam, S_NbPlayersPerTeam]);
+MM_SetFormat([S_NbPlayersPerTeamMax, S_NbPlayersPerTeamMax]);
+if (S_NbPlayersPerTeamMax > S_NbPlayersPerTeamMin) {
+	declare Formats = Integer[][];
+	for (I, S_NbPlayersPerTeamMin, S_NbPlayersPerTeamMax-1) {
+		if (I > 0) Formats.add([I, I]);
+	}
+	MM_SetProgressiveFormats(Formats);
+}
+***
+
+***InitServer***
+***
+declare IsRematch = False;	///< Do the players want a rematch ?
+declare RematchNb = 0;		///< Number of consecutive rematch
 ***
 
 ***Reinit***
@@ -222,7 +237,7 @@ CreateRulesReminderLayer();
 // ---------------------------------- //
 // Matchmaking mode
 if (MM_IsMatchServer()) {
-	MM_Init([S_NbPlayersPerTeam, S_NbPlayersPerTeam]);
+	MM_Init([S_NbPlayersPerTeamMax, S_NbPlayersPerTeamMax]);
 }
 
 +++Reinit+++
@@ -316,9 +331,11 @@ Top::ResetAll();
 
 // ---------------------------------- //
 // Wait players when using matchmaking
-if (MM_IsMatchServer()) {
+if (MM_IsMatchServer() && !IsRematch) {
 	MM_MatchWait();
+	MM_VoteForNextMap(True);
 }
+IsRematch = False;
 
 // ---------------------------------- //
 // Matchmaking : allow substitutes
@@ -1437,12 +1454,6 @@ if (WinnerClan != -1) {
 
 BalancedWeapons::MatchEnd();
 
-// ---------------------------------- //
-// Send match result
-if (MM_IsMatchServer()) {
-	MM_MatchEnd(MasterLogin);
-}
-
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
@@ -1455,9 +1466,24 @@ UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 ResetAllUIs();
 
 // ---------------------------------- //
-// Transfert players back to the lobby
+// Send match result and transfert players back to the lobby
 if (MM_IsMatchServer()) {
-	MM_MatchToLobby();
+	if (MB_StopMatch) {
+		if (RematchNb < S_MatchmakingRematchNbMax) {
+			IsRematch = MM_VoteForRematch();
+			RematchNb += 1;
+		}
+		
+		if (!IsRematch) {
+			RematchNb = 0;
+			MM_MatchEnd(MasterLogin);
+			MM_MatchToLobby();
+		} else {
+			MM_VoteForNextMap(False);
+		}
+	} else {
+		MM_VoteForNextMap(False);
+	}
 }
 ***
 
