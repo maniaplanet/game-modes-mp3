@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-07-04"
+#Const	Version				"2014-07-24"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -16,7 +16,8 @@
 // ---------------------------------- //
 // Settings
 // ---------------------------------- //
-#Setting S_NbPlayersPerTeam		2		as _("Number of players per team (Max. 5)")
+#Setting S_NbPlayersPerTeamMax	2		as _("Number of players per team (Max. 5)")
+#Setting S_NbPlayersPerTeamMin	2		as _("Minimum number of players per team in matchmaking")
 #Setting S_PointsLimit			3		as _("Points limit (0: No points limit)")
 #Setting S_RoundTimeLimit		300		as _("Round time limit (0: No time limit)")
 #Setting S_WarmUpDuration		90		as _("Warmup duration (0: disabled)")
@@ -118,7 +119,14 @@ MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 
 ***LobbyStartServer***
 ***
-MM_SetFormat([S_NbPlayersPerTeam, S_NbPlayersPerTeam]);
+MM_SetFormat([S_NbPlayersPerTeamMax, S_NbPlayersPerTeamMax]);
+if (S_NbPlayersPerTeamMax > S_NbPlayersPerTeamMin) {
+	declare Formats = Integer[][];
+	for (I, S_NbPlayersPerTeamMin, S_NbPlayersPerTeamMax-1) {
+		if (I > 0) Formats.add([I, I]);
+	}
+	MM_SetProgressiveFormats(Formats);
+}
 ***
 
 ***Rules***
@@ -144,6 +152,8 @@ SpawnScreen::CreatePrettyRules(ModeName);
 ***InitServer***
 ***
 MB_UsePlayerClublinks	= S_UsePlayerClublinks;
+declare IsRematch = False;	///< Do the players want a rematch ?
+declare RematchNb = 0;		///< Number of consecutive rematch
 ***
 
 ***StartServer***
@@ -151,7 +161,7 @@ MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 // ---------------------------------- //
 // Matchmaking mode
 if (MM_IsMatchServer()) {
-	MM_Init([S_NbPlayersPerTeam, S_NbPlayersPerTeam]);
+	MM_Init([S_NbPlayersPerTeamMax, S_NbPlayersPerTeamMax]);
 }
 
 // ---------------------------------- //
@@ -168,8 +178,8 @@ C_Default_Weapon = CSmMode::EWeapon::Rocket;
 // ---------------------------------- //
 // Create the warm up
 WarmUp2::Load();
-WarmUp2::CreateGroup("Clan1", S_NbPlayersPerTeam);
-WarmUp2::CreateGroup("Clan2", S_NbPlayersPerTeam);
+WarmUp2::CreateGroup("Clan1", S_NbPlayersPerTeamMax);
+WarmUp2::CreateGroup("Clan2", S_NbPlayersPerTeamMax);
 WarmUp2::DisplayClanSelection(True);
 
 // ---------------------------------- //
@@ -283,7 +293,7 @@ CreateMarkers();
 // Initalize settings
 S_Script_RoundTimeLimit = S_RoundTimeLimit;
 S_Script_PointsLimit = S_PointsLimit;
-S_Script_NbPlayersPerTeam = S_NbPlayersPerTeam;
+S_Script_NbPlayersPerTeam = S_NbPlayersPerTeamMax;
 if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
 	S_Script_NbPlayersPerTeam = C_NbPlayersPerTeamMax;
 }
@@ -291,12 +301,17 @@ if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
 // ---------------------------------- //
 // Wait players when using matchmaking
 if (MM_IsMatchServer()) {
-	MM_MatchWait();
+	if (!IsRematch) {
+		MM_MatchWait();
+		MM_VoteForNextMap(True);
+	}
 	PrepareMatch();
 }
 // ---------------------------------- //
 // Do warm up
 else WarmUp();
+
+IsRematch = False;
 
 declare ClansOrder = [1 => WarmUp2::GetGroup("Clan1"), 2 => WarmUp2::GetGroup("Clan2")];
 foreach (Clan => ClanOrder in ClansOrder) {
@@ -355,7 +370,7 @@ UpdateModeStatusMessage();
 // Initalize game
 S_Script_RoundTimeLimit = S_RoundTimeLimit;
 S_Script_PointsLimit = S_PointsLimit;
-S_Script_NbPlayersPerTeam = S_NbPlayersPerTeam;
+S_Script_NbPlayersPerTeam = S_NbPlayersPerTeamMax;
 if (S_Script_NbPlayersPerTeam > C_NbPlayersPerTeamMax) {
 	S_Script_NbPlayersPerTeam = C_NbPlayersPerTeamMax;
 }
@@ -689,8 +704,8 @@ if (S_Script_PointsLimit != S_PointsLimit) {
 	S_Script_PointsLimit = S_PointsLimit;
 	ST2::SetFooterText(TL::Compose("%1 "^S_PointsLimit, _("Points limit : ")));
 }
-if (S_Script_NbPlayersPerTeam != S_NbPlayersPerTeam) {
-	S_Script_NbPlayersPerTeam = S_NbPlayersPerTeam;
+if (S_Script_NbPlayersPerTeam != S_NbPlayersPerTeamMax) {
+	S_Script_NbPlayersPerTeam = S_NbPlayersPerTeamMax;
 	Layers::Update("Info", UpdateLayerInfo());
 }
 
@@ -826,12 +841,6 @@ foreach (Score in Scores) {
 }
 
 // ---------------------------------- //
-// Send match result
-if (MM_IsMatchServer()) {
-	MM_MatchEnd(MasterLogin);
-}
-
-// ---------------------------------- //
 // Winning sequence
 UIManager.UIAll.UISequence				= CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.BigMessageSound			= CUIConfig::EUISound::EndMatch;
@@ -848,9 +857,25 @@ MM_Sleep(C_SleepEndMap/2);
 UIManager.UIAll.BigMessage				= "";
 
 // ---------------------------------- //
-// Transfert players back to the lobby
+// Send match result and transfert players back to the lobby
+MB_StopMatch = True;
 if (MM_IsMatchServer()) {
-	MM_MatchToLobby();
+	if (MB_StopMatch) {
+		if (RematchNb < S_MatchmakingRematchNbMax) {
+			IsRematch = MM_VoteForRematch();
+			RematchNb += 1;
+		}
+		
+		if (!IsRematch) {
+			RematchNb = 0;
+			MM_MatchEnd(MasterLogin);
+			MM_MatchToLobby();
+		} else {
+			MM_VoteForNextMap(False);
+		}
+	} else {
+		MM_VoteForNextMap(False);
+	}
 }
 ***
 
