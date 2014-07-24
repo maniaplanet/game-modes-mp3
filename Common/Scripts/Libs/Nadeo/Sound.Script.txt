@@ -16,8 +16,6 @@
 #Const C_DefaultVolume_LimitMusicVolume 0.
 #Const C_MaxDuplicateInterval 100
 
-declare Integer G_LatestCheck;
-
 // ---------------------------------- //
 // Functions
 // ---------------------------------- //
