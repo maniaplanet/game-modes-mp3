@@ -5,24 +5,30 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-07-11"
+#Const ModeMatchmakingVersion		"2014-07-24"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 #Include "Libs/Nadeo/Layers2.Script.txt" as Layers
 #Include "Libs/Nadeo/Message.Script.txt" as Message
+#Include "Libs/Nadeo/VoteMap.Script.txt" as VoteMap
 #Include "Libs/Nadeo/Manialink.Script.txt" as Manialink
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
 // ---------------------------------- //
 // Settings
 // ---------------------------------- //
-#Setting S_MatchmakingAPIUrl		"https://matchmaking.maniaplanet.com/v5"	as "<hidden>"	///< URL of the matchmaking API
+#Setting S_MatchmakingAPIUrl		"https://matchmaking.maniaplanet.com/v6"	as "<hidden>"	///< URL of the matchmaking API
 #Setting S_MatchmakingMode			0			as "<hidden>"	///< 0 = Off, 1 = Lobby, 2 = Match, 3 = Universal lobby, 4 = Universal match
-#Setting S_LobbyTimePerRound		30			as "<hidden>"	///< Time limit per round in lobby mode (seconds, 0: no limit)
+#Setting S_MatchmakingRematchRatio	-1.			as "<hidden>"	///< Minimum ratio of players agreeing for a rematch to occur
+#Setting S_MatchmakingRematchNbMax	2			as "<hidden>"	///< Maxium number of consecutive rematch
+#Setting S_MatchmakingVoteForMap	False		as "<hidden>"	///< Allow players to vote for the next played map
+#Setting S_MatchmakingProgressive	False		as "<hidden>"	///< Can start a match with less players than the required number
 #Setting S_LobbyRoundPerMap  		60			as "<hidden>"	///< "Nb of rounds per map in lobby mode")
-#Setting S_LobbyMatchmakerTime		10			as "<hidden>"	///< Time allocated to the matchmaking (seconds)
+#Setting S_LobbyMatchmakerPerRound	6			as "<hidden>"	///< Number of matchmaker call in a "King of the Lobby" round
+#Setting S_LobbyMatchmakerWait		2			as "<hidden>"	///< Waiting time before the next call to the matchmaking function
+#Setting S_LobbyMatchmakerTime		8			as "<hidden>"	///< Time allocated to the matchmaking (seconds)
 #Setting S_LobbyInstagib  			False		as "<hidden>"	///< Laser mode in lobby
 #Setting S_LobbyDisplayMasters		True		as "<hidden>"	///< Display the masters list
 #Setting S_LobbyAllowMatchCancel	True		as "<hidden>"	///< Allow match cancel
@@ -45,8 +51,6 @@
 #Const C_Lobby_Playing		0	///< Playing phase
 #Const C_Lobby_Matchmaking	1	///< Matchmaking phase
 
-#Const C_LobbyTimePerRoundMin	15	///< Minumum value of the Lobby time per round setting
-
 #Const C_Lobby_ReconnectDuration	5000	///< Duration before sending back a player to the match he left
 #Const C_Lobby_MastersNb			20		///< Number of masters displayed
 #Const C_Lobby_BotsNb				0		///< Number of bots in the lobby
@@ -58,10 +62,11 @@
 #Const C_MatchStatus_Ending		4	///< Match ending
 
 #Const C_Match_PingInterval				60000	///< Time interval between each ping
-#Const C_Match_PreparationDuration		60000	///< Maximum duration of the match preparation once there's at least one player
+#Const C_Match_PreparationDuration		20000	///< Maximum duration of the match preparation once there's at least one player
 #Const C_Match_DelayBeforeTransfert		3000	///< Delay before sending back the player to the lobby at the end of the match
 #Const C_Match_EndingDuration			15000	///< Maximum duration of the match ending
 #Const C_Match_EmptyTimeBeforeRestart	300000	///< Time before restarting a match on an empty server
+#Const C_Match_RematchVoteDuration		10000	///< Vote duration for the rematch
 
 #Const C_PlayerStatus_Waiting	0	///< Player waiting approval
 #Const C_PlayerStatus_Valid		1	///< Player approved
@@ -81,6 +86,9 @@
 #Const C_PlayerInfo_Clan	0	///< Clan of the player
 #Const C_PlayerInfo_Slot	1	///< Slot of the player
 
+#Const C_MissingInfo_Clan	0	///< Clan of the missing player
+#Const C_MissingInfo_Kicked	1	///< Kick status of the missing player
+
 #Const C_Request_GetPlayers		0	///< /lobby-server/player-connection?login=somelogin&lobbylogin=anotherlogin
 #Const C_Request_PostPlayers	1	///< /lobby-server/matchmaking-live
 #Const C_Request_GetMatches		2	///< /match-server/match?serverlogin=somelogin
@@ -88,7 +96,7 @@
 #Const C_Request_PostResults	4	///< /match-server/result
 #Const C_Request_PostMatches	5	///< /lobby-server/match
 
-#Const C_RequestRandomDeviation	3500	///< Random time margin applied to the live request of the match and lobby server
+#Const C_RequestRandomDeviation	500	///< Random time margin applied to the live request of the match and lobby server
 
 #Const C_Master_Name		0	///< Name of the master
 #Const C_Master_Country		1	///< Country of the master
@@ -101,6 +109,8 @@
 // ---------------------------------- //
 declare Integer		G_Matchmaking_Mode;				///< Current matchmaking mode, see S_MatchmakingMode
 declare Integer[]	G_Matchmaking_Format;			///< Format of the match making [NbPlayersTeam1, NbPlayersTeam2, ..., NbPlayersTeamN]
+declare Integer[]	G_Matchmaking_CurrentFormat;	///< Format currently used
+declare Integer[][]	G_Matchmaking_ProgressiveFormats; ///< Formats available
 declare Integer		G_Matchmaking_MaxPlayers;		///< Maximum number of players in the biggest clan
 declare Integer[Ident] G_Matchmaking_RequestsIds;	///< Ident and type of the requests sent by the match making
 declare Integer		G_Lobby_BestCombo;				///< Current best combo in lobby
@@ -110,15 +120,17 @@ declare Integer		G_Lobby_EndTime;				///< Lobby end time
 declare Integer		G_Lobby_Phase;					///< Current lobby phase : playing/matchmaking
 declare Boolean		G_Lobby_MatchmakingEnabled;		///< Is the the matchmaking enabled?
 declare Integer		G_Match_Status;					///< Current match status
-declare Integer[][Text] G_Match_Players;			///< Logins and clans of the allowed players in the match
+declare Integer[][Text] G_Match_Players;			///< Logins, clans and order of the allowed players in the match
 declare Text		G_Match_Id;						///< Id of the match
 declare Text		G_Match_LobbyLogin;				///< Login of the lobby server where to send back the players
 declare Integer		G_Match_NextPing;				///< Time of the next ping of the match server to the API
 declare Boolean 	G_Match_AllowSubstitutes;		///< Allow the matchmaking to search substitutes to missing players
-declare Boolean[Text] G_Match_MissingPlayers;		///< List of missing players login and if they were kicked or not
+declare Integer[Integer][Text] G_Match_MissingPlayers; ///< List of missing players login, if they were kicked or not and their clan
 declare Text[]		G_Match_KickedPlayers;			///< List of kicked players
 declare Boolean		G_Match_NewMissingPlayers;		///< True if there's some new missing players not already sent to the API
 declare Integer		G_Match_EmptySince;				///< Time since when the server is empty
+declare Integer[Text] G_Match_GhostPlayers;			///< Logins and clans list of the ghost players
+declare Integer		G_Match_GhostPlayersIndex;		///< Next index to use when creating a chost players
 
 // ---------------------------------- //
 // Extend
@@ -128,6 +140,7 @@ declare Integer		G_Match_EmptySince;				///< Time since when the server is empty
 MB_LogVersion(ModeMatchmakingScriptName, ModeMatchmakingVersion);
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
+MB_LogVersion(VoteMap::GetScriptName(), VoteMap::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 ***
 
@@ -137,16 +150,27 @@ MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
 ***StartServer***
 ***
 Layers::Create("StartingMatch", Private_MM_GetMLStartingMatch());
-Layers::SetType("StartingMatch", CUILayer::EUILayerType::CutScene);
-
 Layers::Create("SendToServer", Private_Lobby_GetMLSendToServer());
+Layers::Create("RematchVote", Private_Lobby_GetMLRematchVote());
+Layers::SetType("StartingMatch", CUILayer::EUILayerType::CutScene);
 Layers::Attach("SendToServer");
+
+VoteMap::Load();
+
+G_Match_AllowSubstitutes = True;
 
 // @Debug
 foreach (Player in AllPlayers) {
 	declare Matchmaking_PlayerStatus for Player = C_PlayerStatus_Waiting;
 	Matchmaking_PlayerStatus = C_PlayerStatus_Waiting;
 }
+***
+
+***InitMap***
+***
+// Matchmaking already have an intro, skip the default one
+if (MM_IsMatchServer()) MB_UseIntro = False;
+else MB_UseIntro = True;
 ***
 
 ***PlayLoop***
@@ -158,6 +182,9 @@ Private_MM_PlayLoop();
 ***
 Layers::Destroy("StartingMatch");
 Layers::Destroy("SendToServer");
+Layers::Destroy("RematchVote");
+
+VoteMap::Unload();
 ***
 
 ***Matchmaking***
@@ -450,6 +477,11 @@ declare netwrite Net_Lobby_SynchroServer for Teams[0] = 0;
 Net_Lobby_SynchroServer += 1;
 ***
 
+***LobbyInitRound***
+***
+declare MatchmakingRunNb = 0;
+***
+
 ***LobbyStartRound***
 ***
 G_Lobby_BestCombo = 0;
@@ -459,15 +491,8 @@ G_Lobby_Phase = C_Lobby_Playing;
 // ---------------------------------- //
 // Initialize timers
 G_Lobby_StartTime = Now;
-if (S_LobbyTimePerRound > 0) {
-	if (S_LobbyTimePerRound < C_LobbyTimePerRoundMin) {
-		G_Lobby_EndTime = G_Lobby_StartTime + (C_LobbyTimePerRoundMin * 1000) + ML::Rand(-C_RequestRandomDeviation, C_RequestRandomDeviation);
-	} else {
-		G_Lobby_EndTime = G_Lobby_StartTime + (S_LobbyTimePerRound * 1000) + ML::Rand(-C_RequestRandomDeviation, C_RequestRandomDeviation);
-	}
-} else {
-	G_Lobby_EndTime = -1;
-}
+G_Lobby_EndTime = G_Lobby_StartTime + (S_LobbyMatchmakerWait * 1000) + ML::Rand(-C_RequestRandomDeviation, C_RequestRandomDeviation);
+Private_Lobby_UpdateTimers();
 
 // ---------------------------------- //
 // Initialize scores
@@ -504,7 +529,6 @@ Net_Lobby_LobbyLimitMatchCancel = S_LobbyLimitMatchCancel;
 ***
 Private_Lobby_UpdateUI();
 Private_Lobby_SpawnPlayers();
-Private_Lobby_UpdateTimers();
 
 if (PrevLobbyDisplayMasters != S_LobbyDisplayMasters) {
 	PrevLobbyDisplayMasters = S_LobbyDisplayMasters;
@@ -582,38 +606,41 @@ switch (G_Lobby_Phase) {
 			G_Lobby_Phase = C_Lobby_Matchmaking;
 			Message::CleanAllMessages();
 			Private_Lobby_ReinitPlayers();
+			MatchmakingRunNb += 1;
 			
-			// ---------------------------------- //
-			// Find the winner
-			declare BestScore = G_Lobby_BestCombo;
-			if (G_Lobby_WinnerId == NullId || !Users.existskey(G_Lobby_WinnerId)) {
-				// Recompute the winner
-				G_Lobby_WinnerId = NullId;
-				BestScore = 0;
-				foreach (Score in Scores) {
-					if (Score.Points > BestScore) {
-						BestScore = Score.Points;
-						G_Lobby_WinnerId = Score.User.Id;
+			if (MatchmakingRunNb >= S_LobbyMatchmakerPerRound) {
+				// ---------------------------------- //
+				// Find the winner
+				declare BestScore = G_Lobby_BestCombo;
+				if (G_Lobby_WinnerId == NullId || !Users.existskey(G_Lobby_WinnerId)) {
+					// Recompute the winner
+					G_Lobby_WinnerId = NullId;
+					BestScore = 0;
+					foreach (Score in Scores) {
+						if (Score.Points > BestScore) {
+							BestScore = Score.Points;
+							G_Lobby_WinnerId = Score.User.Id;
+						}
 					}
 				}
+				
+				// ---------------------------------- //
+				// Announce the winner
+				if (G_Lobby_WinnerId != NullId && Users.existskey(G_Lobby_WinnerId)) {
+					Message::SendBigMessage(
+						TL::Compose(_("$<%1$> is King of the Lobby!"), Users[G_Lobby_WinnerId].Name),
+						5000,
+						3
+					);
+				} else {
+					Message::SendBigMessage(
+						_("|Match|Draw"),
+						5000,
+						3
+					);
+				}
+				Mode::PlaySound(CUIConfig::EUISound::EndRound, 0);
 			}
-			
-			// ---------------------------------- //
-			// Announce the winner
-			if (G_Lobby_WinnerId != NullId && Users.existskey(G_Lobby_WinnerId)) {
-				Message::SendBigMessage(
-					TL::Compose(_("$<%1$> is King of the Lobby!"), Users[G_Lobby_WinnerId].Name),
-					5000,
-					3
-				);
-			} else {
-				Message::SendBigMessage(
-					_("|Match|Draw"),
-					5000,
-					3
-				);
-			}
-			Mode::PlaySound(CUIConfig::EUISound::EndRound, 0);
 			
 			// ---------------------------------- //
 			// Start matchmaking
@@ -641,10 +668,17 @@ switch (G_Lobby_Phase) {
 			MM_MatchMakerStop();
 			Message::CleanAllMessages();
 			
-			if (MB_SectionRoundNb >= S_LobbyRoundPerMap) {
-				MB_StopMap();
+			if (MatchmakingRunNb >= S_LobbyMatchmakerPerRound) {
+				if (MB_SectionRoundNb >= S_LobbyRoundPerMap) {
+					MB_StopMap();
+				} else {
+					MB_StopRound();
+				}
 			} else {
-				MB_StopRound();
+				G_Lobby_Phase = C_Lobby_Playing;
+				G_Lobby_StartTime = Now;
+				G_Lobby_EndTime = G_Lobby_StartTime + (S_LobbyMatchmakerWait * 1000) + ML::Rand(-C_RequestRandomDeviation, C_RequestRandomDeviation);
+				Private_Lobby_UpdateTimers();
 			}
 		}
 	}
@@ -786,12 +820,14 @@ if (Http.SlotsAvailable > 0) {
 			}
 		}
 		
+		G_Matchmaking_CurrentFormat = G_Matchmaking_Format;
+		
 		PostData = """
 {
 	"lobby": "{{{TL::MLEncode(ServerLogin)}}}",
 	"gamemode": "{{{TL::MLEncode(ServerModeName)}}}",
 	"titleid": "{{{TL::MLEncode(LoadedTitle.TitleId)}}}",
-	"format": {{{G_Matchmaking_Format}}},
+	"format": {{{G_Matchmaking_CurrentFormat}}},
 	"matches": [
 		{{{MatchesList}}}
 	],
@@ -810,6 +846,8 @@ if (Http.SlotsAvailable > 0) {
 	} else {
 		declare PlayersList = "";
 		declare FirstPlayer = True;
+		declare AvailablePlayersNb = 0;
+		
 		foreach (Player in Players) {
 			declare Integer Lobby_ReadySince for Player = -1;
 			declare Integer[Ident] Lobby_Allies for Player.User;
@@ -841,6 +879,8 @@ if (Http.SlotsAvailable > 0) {
 				AlliesList ^= "\""^TL::MLEncode(Users[AllyId].Login)^"\"";
 			}
 			
+			AvailablePlayersNb += 1;
+			
 			PlayersList ^= """
 		{
 			"login": "{{{TL::MLEncode(Player.Login)}}}",
@@ -849,13 +889,45 @@ if (Http.SlotsAvailable > 0) {
 			"allies": [{{{AlliesList}}}]
 		}""";
 		}
+		
+		G_Matchmaking_CurrentFormat = G_Matchmaking_Format;
+		
+		if (MM_MatchmakingIsProgressive()) {
+			declare RequiredPlayersNb = 0;
+			
+			// How many players are required
+			foreach (PlayersNb in G_Matchmaking_Format) {
+				RequiredPlayersNb += PlayersNb;
+			}
+			
+			/* If we have enough ready players don't do anything
+			 * If there's not enough players ready on the lobby
+			 * we try to find the format that would allow a maximum of players to play
+			 */
+			if (AvailablePlayersNb < RequiredPlayersNb) {
+				declare PlayingNb = 0;
+				foreach (AvailableFormat in G_Matchmaking_ProgressiveFormats) {
+					// How many players are required in this format ?
+					RequiredPlayersNb = 0;
+					foreach (PlayersNb in AvailableFormat) {
+						RequiredPlayersNb += PlayersNb;
+					}
+					
+					// If there's enough players for this format and more playing players than in one of the previously selected format
+					if (RequiredPlayersNb <= AvailablePlayersNb && RequiredPlayersNb > PlayingNb) {
+						PlayingNb = RequiredPlayersNb;
+						G_Matchmaking_CurrentFormat = AvailableFormat;
+					}
+				}
+			}
+		}
 	
 		PostData = """
 {
 	"lobby": "{{{TL::MLEncode(ServerLogin)}}}",
 	"gamemode": "{{{TL::MLEncode(ServerModeName)}}}",
 	"titleid": "{{{TL::MLEncode(LoadedTitle.TitleId)}}}",
-	"format": {{{G_Matchmaking_Format}}},
+	"format": {{{G_Matchmaking_CurrentFormat}}},
 	"players": [
 		{{{PlayersList}}}
 	],
@@ -936,18 +1008,6 @@ foreach (Player in AllPlayers) {
 MM_SendToMatches();
 ***
 
-***StartServer***
-***
-G_Match_AllowSubstitutes = True;
-***
-
-***InitMap***
-***
-// Matchmaking already have an intro, skip the default one
-if (MM_IsMatchServer()) MB_UseIntro = False;
-else MB_UseIntro = True;
-***
-
 // ---------------------------------- //
 // Functions
 // ---------------------------------- //
@@ -972,6 +1032,15 @@ Integer ToInteger(CUser::EEchelon _Echelon) {
 	}
 	
 	return 0;
+}
+
+// ---------------------------------- //
+/** Get the duration of one round
+ *
+ *	@return		the duration of one round
+ */
+Integer Private_Lobby_GetRoundDuration() {
+	return S_LobbyMatchmakerPerRound * (S_LobbyMatchmakerWait + S_LobbyMatchmakerTime) * 1000;
 }
 
 // ---------------------------------- //
@@ -1139,6 +1208,15 @@ Boolean MM_IsMatchmakingServer() {
 }
 
 // ---------------------------------- //
+/** Check if the matchmaking is progressive
+ *
+ *	@return		True if the matchmaking is progressive, False otherwise
+ */
+Boolean MM_MatchmakingIsProgressive() {
+	return (S_MatchmakingProgressive && !MM_IsUniversalServer());
+}
+
+// ---------------------------------- //
 /** Create a link to join another server in the same title
  *
  *	@param	_ServerLogin	The login of the server to join
@@ -1255,7 +1333,7 @@ Void MM_PenalizePlayer(CUser _User) {
 	Lobby_MatchCancellation += 1;
 	
 	if (S_LobbyLimitMatchCancel >= 0 && Lobby_MatchCancellation > S_LobbyLimitMatchCancel) {
-		declare Penalty = (S_LobbyBasePenalty * 1000) + (S_LobbyTimePerRound * 1000 * (Lobby_MatchCancellation - S_LobbyLimitMatchCancel - 1));
+		declare Penalty = (S_LobbyBasePenalty * 1000) + (Private_Lobby_GetRoundDuration() * (Lobby_MatchCancellation - S_LobbyLimitMatchCancel - 1));
 		if (Penalty <= 0) Penalty = 0;
 		MM_UpdatePlayerPenalty(_User, Penalty);
 		
@@ -1469,7 +1547,7 @@ Void MM_GetMatches(Text _MatchesXML) {
 								foreach (NodePlayer in Node.Children) {
 									declare Login = NodePlayer.GetAttributeText("login", "");
 									declare Clan = NodePlayer.GetAttributeInteger("clan", -1);
-									if (G_Matchmaking_Format.count > 1) Clan += 1;
+									if (G_Matchmaking_CurrentFormat.count > 1) Clan += 1;
 									if (Login != "" && Clan >= 0) {
 										declare Player <=> SM::GetPlayer(Login);
 										if (Player != Null) {
@@ -1677,17 +1755,18 @@ Void Private_MM_PostMatchStatus() {
 		declare MissingPlayers = "";
 		if (G_Match_Status == C_MatchStatus_Substitute && G_Match_MissingPlayers.count > 0) {
 			declare NotFirst = False;
-			foreach (Login => Kicked in G_Match_MissingPlayers) {
+			foreach (Login => MissingInfo in G_Match_MissingPlayers) {
 				if (NotFirst) MissingPlayers ^= ",";
 				else NotFirst = True;
 				
 				declare PlayerKicked = "false";
-				if (Kicked) PlayerKicked = "true";
+				if (MissingInfo[C_MissingInfo_Kicked] != 0) PlayerKicked = "true";
 				
 				MissingPlayers ^= """
 {
 	"login":"{{{TL::MLEncode(Login)}}}",
-	"kicked": {{{PlayerKicked}}}
+	"kicked": {{{PlayerKicked}}},
+	"clan": {{{MissingInfo[C_MissingInfo_Clan]}}}
 }""";
 			}
 		}
@@ -1777,6 +1856,20 @@ Void MM_AllowSubstitutes(Boolean _AllowSubstitutes) {
 }
 
 // ---------------------------------- //
+/** Create a ghost player
+ *
+ *	@param	_Clan	The clan of the ghost player
+ *
+ *	@return			The login of th eghost player
+ */
+Text Private_MM_CreateGhostPlayer(Integer _Clan) {
+	declare GhostName = "*player"^G_Match_GhostPlayersIndex^"*";
+	G_Match_GhostPlayers[GhostName] = _Clan;
+	G_Match_GhostPlayersIndex += 1;
+	return GhostName;
+}
+
+// ---------------------------------- //
 /// Manage players authorization
 Void Private_MM_ManagePlayers() {
 	declare PresentPlayers = Real[Text];
@@ -1840,7 +1933,7 @@ Void Private_MM_ManagePlayers() {
 	}
 	
 	foreach (User in ToKick) {
-		Admin_KickUser(User, "This matchmaking server is hosting a match. You can't join at the moment.");
+		Admin_KickUser(User, _("This matchmaking server is hosting a match. You can't join at the moment."));
 	}
 	
 	// Search missing players only if substitutes are allowed
@@ -1851,12 +1944,13 @@ Void Private_MM_ManagePlayers() {
 				// New
 				if (!G_Match_MissingPlayers.existskey(Login)) {
 					// Kicked from match?
-					declare Kicked = False;
+					declare Kicked = 0;
 					if (G_Match_KickedPlayers.exists(Login)) {
 						declare Removed = G_Match_KickedPlayers.remove(Login);
-						Kicked = True;
+						Kicked = 1;
 					}
-					G_Match_MissingPlayers[Login] = Kicked;
+					declare PlayerClan = PlayerInfo[C_PlayerInfo_Clan];
+					G_Match_MissingPlayers[Login] = [C_MissingInfo_Clan => PlayerClan, C_MissingInfo_Kicked => Kicked];
 					G_Match_NewMissingPlayers = True;
 				}
 			}
@@ -1895,16 +1989,37 @@ Void Private_MM_SetupMatch(Text _MatchXml) {
 			
 			if (NodeMatch != Null) {
 				declare NodeServer <=> NodeMatch.GetFirstChild("server");
+				declare NodeFormat <=> NodeMatch.GetFirstChild("format");
 				declare NodePlayers <=> NodeMatch.GetFirstChild("players");
 				declare MatchId = "";
 				declare MatchPlayers = Integer[][Text];
 				declare MatchLobbyLogin = "";
+				
+				// Setup the maximum number of ghost players we might need
+				declare GhostPlayersCount = Integer[Integer];
+				if (MM_MatchmakingIsProgressive()) {
+					foreach (Key => PlayersNb in G_Matchmaking_Format) {
+						declare Clan = Key;
+						if (G_Matchmaking_Format.count > 1) Clan += 1;
+						GhostPlayersCount[Clan] = PlayersNb;
+					}
+				}
 				
 				MatchId = NodeMatch.GetAttributeText("id", "");
 				
 				if (NodeServer != Null) {
 					MatchLobbyLogin = NodeServer.GetAttributeText("lobby", "");
 				}
+				
+				if (NodeFormat != Null) {
+					declare Format = Integer[];
+					foreach (NodeClan in NodeFormat.Children) {
+						declare PlayersNb = NodeClan.GetAttributeInteger("number", -1);
+						if (PlayersNb > 0) Format.add(PlayersNb);
+					}
+					G_Matchmaking_CurrentFormat = Format;
+				}
+				
 				if (NodePlayers != Null) {
 					foreach (NodePlayer in NodePlayers.Children) {
 						declare Login = NodePlayer.GetAttributeText("login", "");
@@ -1914,10 +2029,14 @@ Void Private_MM_SetupMatch(Text _MatchXml) {
 						
 						if (Replaced) {
 							declare Removed = G_Match_MissingPlayers.removekey(Login);
+							Removed = G_Match_GhostPlayers.removekey(Login);
 						} else {
-							if (G_Matchmaking_Format.count > 1) Clan += 1;
+							if (G_Matchmaking_CurrentFormat.count > 1) Clan += 1;
 							if (Login != "" && Clan >= 0) {
 								MatchPlayers[Login] = [Clan, Order];
+								if (MM_MatchmakingIsProgressive() && GhostPlayersCount.existskey(Clan)) {
+									GhostPlayersCount[Clan] -= 1;
+								}
 							}
 						}
 					}
@@ -1930,6 +2049,16 @@ Void Private_MM_SetupMatch(Text _MatchXml) {
 					G_Match_LobbyLogin = MatchLobbyLogin;
 					
 					Private_MM_SetMatchStatus(C_MatchStatus_Starting);
+				}
+				
+				// Complete the match with ghost players if necessary
+				if (MM_MatchmakingIsProgressive()) {
+					foreach (Clan => PlayersNb in GhostPlayersCount) {
+						for (I, 1, PlayersNb) {
+							declare GhostLogin = Private_MM_CreateGhostPlayer(Clan);
+							G_Match_Players[GhostLogin] = [Clan, -1];
+						}
+					}
 				}
 			}
 		}
@@ -1974,8 +2103,9 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
 							
 							if (Replaced) {
 								declare Removed = G_Match_MissingPlayers.removekey(Login);
+								Removed = G_Match_GhostPlayers.removekey(Login);
 							} else {
-								if (G_Matchmaking_Format.count > 1) Clan += 1;
+								if (G_Matchmaking_CurrentFormat.count > 1) Clan += 1;
 								if (Login != "" && Clan >= 0) {
 									MatchPlayers[Login] = [Clan, Order];
 								}
@@ -1984,6 +2114,12 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
 					}
 					
 					G_Match_Players = MatchPlayers;
+					
+					if (MM_MatchmakingIsProgressive()) {
+						foreach (GhostLogin => GhostClan in G_Match_GhostPlayers) {
+							G_Match_Players[GhostLogin] = [GhostClan, -1];
+						}
+					}
 				}
 			}
 		}
@@ -2170,7 +2306,7 @@ Integer[] Private_MM_GetFreeSlot(Integer _Id) {
 			OccupiedSlots[Clan].add(Slot);
 		}
 		
-		foreach (Clan => PlayersNb in G_Matchmaking_Format) {
+		foreach (Clan => PlayersNb in G_Matchmaking_CurrentFormat) {
 			if (!OccupiedSlots.existskey(Clan)) {
 				return [Clan, C_Lobby_DefaultSlot];
 			} else {
@@ -2916,13 +3052,42 @@ Integer MM_GetPlayerStatus(CSmPlayer _Player) {
 }
 
 // ---------------------------------- //
+/** Vote to select the next map
+ *
+ *	@param	_ForceLoadMap		If True, load the selected map after the vote.
+ *								If False, only modify the NextMapIndex variable.
+ */
+Void MM_VoteForNextMap(Boolean _ForceLoadMap) {
+	if (!S_MatchmakingVoteForMap) return;
+	
+	VoteMap::Begin();
+	
+	while (!VoteMap::CanStop()) {
+		MM_Yield();
+		VoteMap::Loop();
+		
+		+++MatchmakingMatchVoteForNextMap+++
+	}
+	
+	VoteMap::End();
+	
+	if (_ForceLoadMap) {
+		declare NextMapInfo <=> VoteMap::GetNextMapInfo();
+		if (NextMapInfo != Null && NextMapInfo.Id != Map.MapInfo.Id) {
+			MB_UnloadMap();
+			MB_LoadMap();
+		}
+	}
+}
+
+// ---------------------------------- //
 /// Prepare a new match
 Void Private_MM_MatchPrepare() {
 	StartTime = Now;
 	UIManager.UIAll.CountdownEndTime = StartTime + C_Match_PreparationDuration;
 	
 	declare ReqPlayersNb = 0;
-	foreach (PlayersNb in G_Matchmaking_Format) ReqPlayersNb += PlayersNb;
+	foreach (PlayersNb in G_Matchmaking_CurrentFormat) ReqPlayersNb += PlayersNb;
 	
 	declare netwrite Integer Net_MM_ReadyPlayersNb for Teams[0];
 	declare netwrite Integer Net_MM_ReadyPlayersMax for Teams[0];
@@ -2951,6 +3116,8 @@ Void Private_MM_MatchPrepare() {
 		}
 	}
 	
+	G_Matchmaking_CurrentFormat = G_Matchmaking_Format;
+	
 	Layers::Detach("StartingMatch");
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
@@ -2964,8 +3131,15 @@ Void MM_MatchWait() {
 	G_Match_LobbyLogin = "";
 	G_Match_MissingPlayers.clear();
 	G_Match_KickedPlayers.clear();
+	G_Match_GhostPlayers.clear();
+	G_Match_GhostPlayersIndex = 0;
 	G_Match_NewMissingPlayers = False;
 	G_Match_EmptySince = -1;
+	
+	foreach (Player in AllPlayers) {
+		declare Matchmaking_PlayerStatus for Player = C_PlayerStatus_Waiting;
+		Matchmaking_PlayerStatus = C_PlayerStatus_Waiting;
+	}
 	
 	Private_MM_SetMatchStatus(C_MatchStatus_Waiting);
 	
@@ -2978,7 +3152,102 @@ Void MM_MatchWait() {
 	
 	// Got a match, now prepare it
 	Private_MM_MatchPrepare();
+}
+
+// ---------------------------------- //
+/** Launch a vote to see if the players want a rematch
+ *
+ *	@return		True if the players want a rematch, False otherwise
+ */
+Boolean MM_VoteForRematch() {
+	if (S_MatchmakingRematchRatio < 0.) return False;
 	
+	Layers::Attach("RematchVote");
+	
+	declare netwrite Net_MM_RematchVote_SynchroServer for Teams[0] = 10;
+	Net_MM_RematchVote_SynchroServer += 1;
+	
+	declare StopVote = False;
+	declare Result = False;
+	declare PlayersVotes = Boolean[Ident];
+	
+	foreach (Player in Players) {
+		declare MM_RematchVoted for Player = False;
+				
+		if (Player.User.IsFakeUser) MM_RematchVoted = True;
+		else MM_RematchVoted = False;
+	}
+	
+	declare VoteEndTime = Now + C_Match_RematchVoteDuration;
+	declare netwrite Net_MM_RematchVote_EndTime for Teams[0] = 0;
+	Net_MM_RematchVote_EndTime = VoteEndTime;
+	
+	while (!StopVote && Now < VoteEndTime) {
+		MM_Yield();
+		
+		+++MatchmakingMatchVoteForRematch+++
+		
+		StopVote = True;
+		
+		foreach (Player in Players) {
+			declare UI <=> UIManager.GetUI(Player);
+			if (UI != Null) {
+				declare MM_RematchVoted for Player = False;
+				declare netread Integer Net_MM_RematchVote_Update for UI;
+				declare MM_PrevVoteUpdate for Player = -1;
+				if (MM_PrevVoteUpdate != Net_MM_RematchVote_Update) {
+					MM_PrevVoteUpdate = Net_MM_RematchVote_Update;
+					
+					declare netread Integer Net_MM_RematchVote_SynchroClient for UI;
+					if (Net_MM_RematchVote_SynchroClient == Net_MM_RematchVote_SynchroServer) {
+						declare netread Boolean Net_MM_RematchVote_Value for UI;
+						PlayersVotes[Player.Id] = Net_MM_RematchVote_Value;
+						MM_RematchVoted = True;
+						Message::SendBigMessage(Player, _("Waiting for other players."), VoteEndTime - Now, 1);
+					}
+				}
+				
+				if (!MM_RematchVoted) StopVote = False;
+			}
+		}
+		
+		// Check vote ratio
+		declare VoteYes = 0;
+		declare VoteNo = Players.count;
+		foreach (PlayerId => Vote in PlayersVotes) {
+			if (Vote) {
+				VoteYes += 1;
+				VoteNo -= 1;
+			}
+		}
+		declare VoteRatio = 0.;
+		if (PlayersVotes.count > 0) VoteRatio = (VoteYes*1.) / (Players.count*1.);
+		
+		if (VoteRatio >= S_MatchmakingRematchRatio) {
+			Result = True;
+			StopVote = True;
+		}
+	}
+	
+	Layers::Detach("RematchVote");
+	Message::CleanAllMessages();
+	
+	if (Result) {
+		Message::SendStatusMessage(_("Enough players agreed to play a rematch."), 3000, 2);
+		Message::SendBigMessage(_("We are starting a new match."), 3000, 2);
+	} else {
+		Message::SendStatusMessage(_("Not enough players agreed to play a rematch."), 3000, 2);
+		Message::SendBigMessage(_("We are sending you back to the lobby."), 3000, 2);
+	}
+	declare End = Now + 3000;
+	while (Now < End) {
+		MM_Yield();
+		+++MatchmakingMatchVoteForRematch+++
+	}
+	
+	Message::CleanAllMessages();
+	
+	return Result;
 }
 
 // ---------------------------------- //
@@ -3029,6 +3298,12 @@ Void MM_MatchToLobby() {
 	}
 	StartTime = -1;
 	UIManager.UIAll.CountdownEndTime = -1;
+	
+	// Kick all remaining players
+	// @Tmp, waiting for the CanKick() function before trying to kick everyone
+	/*foreach (User in Users) {
+		Admin_KickUser(User, _("Match over. You should have been transferred back to the lobby."));
+	}*/
 	
 	G_Match_LobbyLogin = "";
 }
@@ -3182,12 +3457,12 @@ Integer Private_Lobby_NotifyHit(CSmPlayer _Shooter)  {
 /// Update the timers
 Void Private_Lobby_UpdateTimers() {
 	declare netwrite Integer	Net_Lobby_TimerMax	for Teams[0];
-	declare netwrite Integer	Net_Lobby_Timer		for Teams[0];
+	declare netwrite Integer	Net_Lobby_StartTime	for Teams[0];
 	declare netwrite Boolean	Net_Lobby_AutoDown	for Teams[0];
 	declare netwrite Integer	Net_Lobby_TimeDown	for Teams[0];
 	
 	Net_Lobby_TimerMax = G_Lobby_EndTime - G_Lobby_StartTime;
-	Net_Lobby_Timer = Now - G_Lobby_StartTime;
+	Net_Lobby_StartTime = G_Lobby_StartTime;
 	
 	if (G_Lobby_Phase == C_Lobby_Playing) {
 		Net_Lobby_AutoDown = False;
@@ -3202,12 +3477,10 @@ Void Private_Lobby_UpdateTimers() {
  */
 Void Private_Lobby_SetTimersAutoDown(Integer _Duration) {
 	declare netwrite Integer	Net_Lobby_TimerMax	for Teams[0];
-	declare netwrite Integer	Net_Lobby_Timer		for Teams[0];
 	declare netwrite Boolean	Net_Lobby_AutoDown	for Teams[0];
 	declare netwrite Integer	Net_Lobby_TimeDown	for Teams[0];
 	
 	Net_Lobby_TimerMax = 0;
-	Net_Lobby_Timer = 0;
 	Net_Lobby_AutoDown = True;
 	Net_Lobby_TimeDown = _Duration;
 }
@@ -3411,7 +3684,7 @@ Text Private_Lobby_GetMLGaugeTimer() {
 		declare Label_WaitTime	<=> (Page.GetFirstChild("Label_WaitTime")	as CMlLabel);
 		
 		declare netread Integer	Net_Lobby_TimerMax	for Teams[0];
-		declare netread Integer	Net_Lobby_Timer		for Teams[0];
+		declare netread Integer	Net_Lobby_StartTime	for Teams[0];
 		declare netread Boolean	Net_Lobby_AutoDown	for Teams[0];
 		declare netread Integer	Net_Lobby_TimeDown	for Teams[0];
 		
@@ -3441,7 +3714,7 @@ Text Private_Lobby_GetMLGaugeTimer() {
 				else Gauge_Timer.Ratio -= SpeedDown;
 			} else {
 				if (Net_Lobby_TimerMax > 0) {
-					declare Real Ratio = (1. * Net_Lobby_Timer) / Net_Lobby_TimerMax;
+					declare Real Ratio = (1. * (ArenaNow - Net_Lobby_StartTime)) / Net_Lobby_TimerMax;
 					if(Ratio < 0.) Ratio = 0.;
 					if(Ratio > 1.) Ratio = 1.;
 					Gauge_Timer.Ratio = Ratio;
@@ -4660,10 +4933,23 @@ main() {
 	declare netread Integer Net_MM_ReadyPlayersNb for Teams[0];
 	declare netread Integer Net_MM_ReadyPlayersMax for Teams[0];
 	declare PrevReadyPlayersNb = -1;
+	declare PrevReadyPlayersMax = -1;
 	
 	while (True) {
 		yield;
 		if (InputPlayer == Null || !PageIsVisible) continue;
+		
+		if (PrevReadyPlayersMax != Net_MM_ReadyPlayersMax) {
+			PrevReadyPlayersMax = Net_MM_ReadyPlayersMax;
+			
+			foreach (Key => Quad_Player in Quads_Player) {
+				if (Key <= Net_MM_ReadyPlayersMax - 1) {
+					Quad_Player.Visible = True;
+				} else {
+					Quad_Player.Visible = False;
+				}
+			}
+		}
 		
 		if (PrevReadyPlayersNb != Net_MM_ReadyPlayersNb) {
 			PrevReadyPlayersNb = Net_MM_ReadyPlayersNb;
@@ -5700,6 +5986,89 @@ main() {
 }
 
 // ---------------------------------- //
+/** Create the rematch vote manialink
+ *
+ *	@return		The manialink
+ */
+Text Private_Lobby_GetMLRematchVote() {
+	declare SizeX = 130.;
+	declare SizeY = SizeX * 0.3;
+	
+	declare Background = "file://Media/Manialinks/Common/Lobbies/header.png";
+	declare ButtonNoOn = "file://Media/Manialinks/Common/Lobbies/small-button-RED-ON.dds";
+	declare ButtonNoOff = "file://Media/Manialinks/Common/Lobbies/small-button-RED.dds";
+	declare ButtonYesOn = "file://Media/Manialinks/Common/Lobbies/ready-button-GREEN-ON.dds";
+	declare ButtonYesOff = "file://Media/Manialinks/Common/Lobbies/ready-button-GREEN.dds";
+	
+	return """
+<manialink version="1" name="ModeMatchmaking:RematchVote">
+<frame posn="0 30" id="Frame_Global">
+	<quad posn="0 0 -1" sizen="{{{SizeX}}} {{{SizeY}}}" halign="center" image="{{{Background}}}" />
+	<label posn="0 -7" sizen="{{{SizeX-7}}} {{{SizeY}}}" halign="center" style="TextRaceMessage" textsize="4" text="{{{_("Do you want to play a rematch?")}}}" />
+	<label posn="0 -21" sizen="20 4" halign="center" style="TextRaceChrono" textsize="6" opacity="0.75" id="Label_RemainingTime" />
+	<label posn="-43 -21" sizen="30 4" halign="center" style="TextButtonBig" textsize="5" opacity="0.75" text="{{{_("Yes")}}}" scriptevents="1" id="Button_Yes" />
+	<label posn="43 -21" sizen="30 4" halign="center" style="TextButtonBig" textsize="5" opacity="0.75" text="{{{_("No")}}}" scriptevents="1" id="Button_No"/>
+</frame>
+<script><!--
+#Include "TextLib" as TL
+
+Void SendVote(Boolean _Value) {
+	declare netread Integer Net_MM_RematchVote_SynchroServer for Teams[0];
+	declare netwrite Integer Net_MM_RematchVote_SynchroClient for UI;
+	declare netwrite Integer Net_MM_RematchVote_Update for UI;
+	declare netwrite Boolean Net_MM_RematchVote_Value for UI;
+	
+	Net_MM_RematchVote_SynchroClient = Net_MM_RematchVote_SynchroServer;
+	Net_MM_RematchVote_Value = _Value;
+	Net_MM_RematchVote_Update = Now;
+	
+	declare Button_Yes <=> (Page.GetFirstChild("Button_Yes") as CMlLabel);
+	declare Button_No <=> (Page.GetFirstChild("Button_No") as CMlLabel);
+	if (_Value) {
+		Button_Yes.Scale = 1.1;
+		Button_Yes.TextColor = <0.1, 0.9, 0.1>;
+		Button_No.Scale = 1.;
+		Button_No.TextColor = <1., 1., 1.>;
+	} else {
+		Button_No.Scale = 1.1;
+		Button_No.TextColor = <0.9, 0.1, 0.1>;
+		Button_Yes.Scale = 1.;
+		Button_Yes.TextColor = <1., 1., 1.>;
+	}
+}
+
+main() {
+	declare Label_RemainingTime	<=> (Page.GetFirstChild("Label_RemainingTime") as CMlLabel);
+	
+	declare netread Integer Net_MM_RematchVote_EndTime for Teams[0];
+	
+	while (True) {
+		yield;
+		if (!PageIsVisible || InputPlayer == Null) continue;
+		
+		if (Net_MM_RematchVote_EndTime >= ArenaNow) {
+			Label_RemainingTime.Value = TL::TimeToText(Net_MM_RematchVote_EndTime - ArenaNow);
+		} else {
+			Label_RemainingTime.Value = TL::TimeToText(0);
+		}
+		
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CMlEvent::Type::MouseClick) {
+				if (Event.ControlId == "Button_Yes") {
+					SendVote(True);
+				} else if (Event.ControlId == "Button_No") {
+					SendVote(False);
+				}
+			}
+		}
+	}
+}
+--></script>
+</manialink>
+""";
+}
+
+// ---------------------------------- //
 /** Select the right manialink depending on the king of lobby
  *
  *	@param	_DisplayRules		Allow to display a manialink with the rules of the mode
@@ -5723,6 +6092,7 @@ Text Private_Lobby_GetMLLobbyScreen(Boolean _DisplayRules) {
  */
 Void MM_SetFormat(Integer[] _NewFormat) {
 	G_Matchmaking_Format = _NewFormat;
+	G_Matchmaking_CurrentFormat = _NewFormat;
 	
 	declare Max = 0;
 	if (MM_IsUniversalServer()) {
@@ -5745,6 +6115,15 @@ Void MM_SetFormat(Integer[] _NewFormat) {
 	Net_Matchmaking_MaxPlayers = G_Matchmaking_MaxPlayers;
 	
 	Layers::Update("StartingMatch", Private_MM_GetMLStartingMatch());
+}
+
+// ---------------------------------- //
+/** Set the progressive matchmaking formats on this server
+ *
+ *	@param	_AvailableFormats		List of available progressive formats
+ */
+Void MM_SetProgressiveFormats(Integer[][] _ProgressiveFormats) {
+	G_Matchmaking_ProgressiveFormats = _ProgressiveFormats;
 }
 
 // ---------------------------------- //
