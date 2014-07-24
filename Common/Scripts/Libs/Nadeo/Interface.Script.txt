@@ -1,7 +1,7 @@
 /**
  * Interface library
  */
-#Const Version		"2014-06-25"
+#Const Version		"2014-07-15"
 #Const ScriptName	"Interface.Script.txt"
 
 // ---------------------------------- //
@@ -89,19 +89,23 @@ Text GetScriptName() {
 
 // ---------------------------------- //
 Void SetLayerTeams(CUILayer _LayerTeams) {
-	_LayerTeams.ManialinkPage = 
-	C_TeamNamesManialink^"""
-<playerlist posn="-160 66" halign="left"  style="" substyle="Small" lines="10" columns="1" team="1" status="Playing"/>
-<playerlist posn=" 160 66" halign="right" style="" substyle="Small" lines="10" columns="1" team="2" status="Playing"/>
+	_LayerTeams.ManialinkPage = """
+<manialink version="1" name="Lib_Interface:PlayersLists_Players">
+		{{{C_TeamNamesManialink}}}
+	<playerlist posn="-160 66" halign="left"  style="" substyle="Small" lines="10" columns="1" team="1" status="Playing"/>
+	<playerlist posn=" 160 66" halign="right" style="" substyle="Small" lines="10" columns="1" team="2" status="Playing"/>
+</manialink>
 """;
 }
 
 // ---------------------------------- //
 Void SetLayerTeamsForSpectators(CUILayer _LayerTeams) {
-	_LayerTeams.ManialinkPage = 
-	C_TeamNamesManialink^"""
-<playerlist posn="-160 66" halign="left"  style="" substyle="Medium" lines="5" columns="1" team="1" status="Playing"/>
-<playerlist posn=" 160 66" halign="right" style="" substyle="Medium" lines="5" columns="1" team="2" status="Playing"/>
+	_LayerTeams.ManialinkPage = """
+<manialink version="1" name="Lib_Interface:PlayersLists_Spectators">
+		{{{C_TeamNamesManialink}}}
+	<playerlist posn="-160 66" halign="left"  style="" substyle="Medium" lines="5" columns="1" team="1" status="Playing"/>
+	<playerlist posn=" 160 66" halign="right" style="" substyle="Medium" lines="5" columns="1" team="2" status="Playing"/>
+</manialink>
 """;
 }
 
