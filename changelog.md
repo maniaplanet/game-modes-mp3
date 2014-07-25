@@ -1,3 +1,80 @@
+<a id="2014-07-24">2014-07-24</a>
+---------------------------------
+
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-07-11...Maniaplanet_Update_2014-07-24)
+
+### Modes
+
+#### Shootmania/Battle
+* Matchmaking enhancements : vote map, rematch and progressive matchmaking.
+* The setting "S_NbPlayersPerTeam" is replaced by "S_NbPlayersPerTeamMax".
+* New setting "S_NbPlayersPerTeamMin".
+* "S_NbPlayersPerTeamMin" and "S_NbPlayersPerTeamMax" allow to setup the minimum and maximum number of players in a team in matchmaking.
+
+#### Shootmania/Combo
+* Matchmaking enhancements : vote map, rematch and progressive matchmaking.
+* Setting "S_NbPlayersPerTeam" is replaced by "S_NbPlayersPerTeamMax".
+* New setting "S_NbPlayersPerTeamMin".
+* "S_NbPlayersPerTeamMin" and "S_NbPlayersPerTeamMax" controls the maximum and minimum number of players a clan must have in matchmaking.
+
+#### Shootmania/Elite
+* Setting "S_GameplayVersion" is removed. Elite now uses the same gameplay version that the other game modes.
+* Matchmaking enhancement : progressive matchmaking.
+* Display the matchmaking match id in the top left corner of the screen of the scores table.
+* Setting "S_RequiredPlayersNb" replaced by "S_NbPlayersPerTeamMax", default value is 3.
+* New setting "S_NbPlayersPerTeamMin", default value is 2.
+* "S_NbPlayersPerTeamMax" and "S_NbPlayersPerTeamMin"  allow to setup the maximum and minimum number of players per team in matchmaking.
+
+#### Shootmania/Heroes
+* Rename the "S_RequiredPlayersNb" setting into "S_NbPlayersPerTeamMax" to match the one in the Elite script.
+
+#### Shootmania/ModeMatchmaking
+* New rematch feature. At the end of a match the players can vote to play another one with the same people. If enough players agree a new match starts on the same server without going through the lobby again.
+* New vote map feature. At the start of the match and at the end of each map the players can vote for the next map. Each player can vote for one map, all the maps that receive a vote are placed in a pool. If a map have several votes, it will be placed the same number of time in the pool. Then one map is chosen randomly in the pool to be the next one.
+* New progressive matchmaking. When there's not enough players on the lobby, the matchmaking can start a match with less players and then send substitute to complete the match line up. Eg: 5vs5 Siege need 10 players on the lobby. With progressive matchmaking, the lobby can start a match with only 4 players. Then this match will receive substitutes from the lobby until there's 10 players.
+* The matchmaking function is now ran much more frequently, every 10 seconds instead of 40 seconds.
+* The players connection maximum waiting time when joining the match server is reduced to 20 seconds (it was 60 seconds before the update).
+* The animation of the gauge in the lobby is smoother.
+* New version of the matchmaking api. The S_MatchmakingAPIUrl setting value is now "https://matchmaking.maniaplanet.com/v6".
+* New setting S_MatchmakingRematchRatio, set the minimum ratio of players that have to agree to play a rematch before launching one. The value range from 0.0 to 1.0. Any negative value turn off the rematch vote. The default value is -1.0.
+* New setting S_MatchmakingRematchNbMax, set the maximum number of consecutive rematch. The default value is 2.
+* New setting S_MatchmakingVoteForMap, allow or not to vote for the next map. The default value is False.
+* New setting S_MatchmakingProgressive, enable or disable the progressive matchmaking. The default value is False.
+* Setting S_LobbyTimePerRound is removed and replaced by the S_LobbyMatchmakerTime and S_LobbyMatchmakerWait settings.
+* Setting S_LobbyMatchmakerTime set the duration of the versus screen display. The default value is 8 (it was 10 before the update).
+* Setting S_LobbyMatchmakerWait set the waiting time before calling the matchmaking function again. The default value is 2. So in the end the matchamking runs every (S_LobbyMatchmakerTime + S_LobbyMatchmakerWait) seconds -> 10 seconds by default.
+* New setting S_LobbyMatchmakerPerRound, set how many times the matchmaking function is called before ending the current round of King of the Lobby. The default value is 6.
+
+#### Shootmania/ModeSport
+* Matchmaking enhancement : rematch and vote map.
+* The duration of the podium sequence at the end of the match is not shorten by the S_QuickMode setting anymore.
+* Setting "S_RequiredPlayersNb" renamed into "S_NbPlayersPerTeamMax" to match the change in the Elite script.
+
+#### Shootmania/Siege
+* Fix : when using the old capture mode, capture time won't be divided by the number of gates at the checkpoint.
+
+#### Trackmania/TeamAttack
+* Fix : use the correct ScriptName constant. Now "TeamAttack.Script.txt" instead of "TimeAttack.Script.txt". [see](http://forum.maniaplanet.com/viewtopic.php?p=221874#p221874)
+
+#### Trackmania/TimeAttack
+* Fix : the time attack mode now sends the "LibXmlRpc_BeginWarmUp" call back at the beginning of the warm up and "LibXmlRpc_EndWarmUp" at the end. Additionally it also sends all events callbacks during the warm up (eg: "LibXmlRpc_OnStartLine", "OnWayPoint", etc). [see](http://forum.maniaplanet.com/viewtopic.php?p=221954#p221954)
+
+
+### Librairies
+
+#### Interface
+* Add a name to the manialink that will be displayed in the debugger.
+
+#### VoteMap
+* New library allowing to vote for the next map. The library displays a list of all the maps available on the server. Each player can vote for one map. Several players can vote for the same map. When the vote timer reach 0. Each map with at least one vote is put into a pool. If a map has several votes, it's put several times into the pool. The library will then select a random map inside the pool and set it as the next map.
+
+#### Shootmania/Elite/EliteEndSequence
+* Fix : the gauge don't increase continuously until map change under certain conditions anymore.
+* Rewrite of the script animating the gauge. Added an easing and a sound on the animation.
+
+---------------------------------
+
+
 <a id="2014-07-11">2014-07-11</a>
 ---------------------------------
 
@@ -23,6 +100,8 @@
 * Fix : the amount of LP lost is correctly displayed.
 * Fix : always display two decimals for the LP amount.
 
+---------------------------------
+
 
 <a id="2014-07-10">2014-07-10</a>
 ---------------------------------
@@ -38,6 +117,9 @@
 
 #### ShootMania/Battle
 * Fix : When spectating a player the "Attack/Defend" message at the top of the screen was relative to the spectator clan and not the spectated player clan. [see](http://forum.maniaplanet.com/viewtopic.php?p=221397#p221397)
+
+---------------------------------
+
 
 <a id="2014-07-09">2014-07-09</a>
 ---------------------------------
@@ -85,6 +167,9 @@
 
 #### ShootMania/SiegeV2Arena
 * Each checkpoint can now be associated with one, two or three gates instead of being forced at two.
+
+---------------------------------
+
 
 <a id="2014-07-02">2014-07-02</a>
 ---------------------------------
@@ -151,6 +236,8 @@
 
 ### Documentation
 * New styles added to the "styles" manialink (see BgsButtons in the background category)
+
+---------------------------------
 
 
 <a id="2014-05-22">2014-05-22</a>
@@ -220,7 +307,6 @@
 
 #### ShootMania/EliteStats
 * New stat system : save the probability that the attacker can win the round based on his number of armors, the number of defenders and the time left in the round.
-
 
 ---------------------------------
 
