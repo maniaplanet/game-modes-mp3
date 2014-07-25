@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-04-30"
+#Const Version		"2014-07-24"
 #Const ScriptName	"Heroes.Script.txt"
 
 #Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
@@ -27,7 +27,7 @@
 #Const C_AtkEliminationPoints	1	///< Points for eliminating the attacker
 
 #Const C_RequiredPlayersNb		5	///< Required number of players in each team
-#Const S_RequiredPlayersNb		5
+#Const S_NbPlayersPerTeamMax	5
 
 #Const Description _("TYPE: Team versus Team (5 vs 5)\nOBJECTIVE:\nOne team is in attack with four players with the Laser and one player with the Nucleus. The other team is in defense with five players with the Rocket.\nThe attackers must capture the pole but only the Nucleus can do it. The defenders must eliminate the Nucleus or prevent the capture.\nThe first team to reach the points limit wins the map.")
 
