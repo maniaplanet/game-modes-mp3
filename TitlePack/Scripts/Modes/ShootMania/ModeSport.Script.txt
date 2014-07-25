@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-07-04"
+#Const	ModeSportVersion	"2014-07-23"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -162,7 +162,9 @@ declare WinnerMapClan = -1;			///< Winner Clan for a map
 declare WinnerSubmatchClan = -1;	///< Winner Clan for a submatch (KotM)
 declare WinnerMatchClan = -1;		///< Winner Clan for a match
 declare WinType = -1;				///< Type of victory for the turn: timelimit = 1, pole capture=2, etc.
-declare SleepMultiplier = 1.;
+declare SleepMultiplier = 1.;		///< Multiply the different sleept times of the script by this value
+declare IsRematch = False;			///< Do the players want a rematch ?
+declare RematchNb = 0;				///< Number of consecutive rematch
 
 declare netwrite Integer Clan1MapPoints for XmlRpc;
 declare netwrite Integer Clan1MatchPoints for XmlRpc;
@@ -182,8 +184,8 @@ MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 UsePlayerTagging = True;
 G_AtkSlot = [1 => 1, 2 => 1];
 WarmUp2::Load();
-WarmUp2::CreateGroup("Clan1", S_RequiredPlayersNb);
-WarmUp2::CreateGroup("Clan2", S_RequiredPlayersNb);
+WarmUp2::CreateGroup("Clan1", S_NbPlayersPerTeamMax);
+WarmUp2::CreateGroup("Clan2", S_NbPlayersPerTeamMax);
 WarmUp2::DisplayClanSelection(True);
 
 // ---------------------------------- //
@@ -375,12 +377,14 @@ declare MapWinnerName = "";
 // ---------------------------------- //
 // Wait players on first map when using matchmaking
 if (MM_IsMatchServer()) {
-	if (MB_SectionMapNb <= 1 && !MapSkipped) {
+	if (MB_SectionMapNb <= 1 && !MapSkipped && !IsRematch) {
 		MM_MatchWait();
+		MM_VoteForNextMap(True);
 		PrepareMatch();
 	}
 }
 MapSkipped = False;
+IsRematch = False;
 
 ---StartUsingToken---
 
@@ -450,7 +454,7 @@ if (GetMode() == C_ModeFree || MM_IsMatchServer()) {
 		NeedWarmUp = True;
 	}
 } else {
-	if (WarmUp2::GetPlayersNb("Clan1") < S_RequiredPlayersNb || WarmUp2::GetPlayersNb("Clan2") < S_RequiredPlayersNb) {
+	if (WarmUp2::GetPlayersNb("Clan1") < S_NbPlayersPerTeamMax || WarmUp2::GetPlayersNb("Clan2") < S_NbPlayersPerTeamMax) {
 		NeedWarmUp = True;
 	}
 }
@@ -617,7 +621,7 @@ if (G_AtkClan == 2) Clan = "Clan2";
 declare SlotNb = WarmUp2::GetSlotsNb(Clan);
 declare I = 0;
 while (True) {
-	if (G_AtkSlot[G_AtkClan] > S_RequiredPlayersNb) G_AtkSlot[G_AtkClan] = 1;
+	if (G_AtkSlot[G_AtkClan] > S_NbPlayersPerTeamMax) G_AtkSlot[G_AtkClan] = 1;
 	
 	declare PlayerId = WarmUp2::GetSlot(Clan, G_AtkSlot[G_AtkClan]);
 	if (PlayerId != NullId && Players.existskey(PlayerId)) {
@@ -1291,7 +1295,7 @@ UIManager.UIAll.BigMessage = "";
 // ---------------------------------- //
 // Select the next atk slot
 G_AtkSlot[G_AtkClan] += 1;
-if (G_AtkSlot[G_AtkClan] > S_RequiredPlayersNb) G_AtkSlot[G_AtkClan] = 1;
+if (G_AtkSlot[G_AtkClan] > S_NbPlayersPerTeamMax) G_AtkSlot[G_AtkClan] = 1;
 // ---------------------------------- //
 // Team exchange role for the next turn
 G_AtkClan = G_DefClan;
@@ -1457,10 +1461,6 @@ else {
 	MB_StopMatch = False;
 }
 
-if (MM_IsMatchServer() && MB_StopMatch) {
-	MM_MatchEnd(MasterLogin);
-}
-
 // ---------------------------------- //
 // Display the winning message if there is one
 if(Message != "") {
@@ -1469,24 +1469,36 @@ if(Message != "") {
 	UIManager.UIAll.BigMessage = Message;
 	UIManager.UIAll.StatusMessage = "$<"^Teams[0].ColorizedName^"$> "^G_MapScores[1]^" - "^G_MapScores[2]^" $<"^Teams[1].ColorizedName^"$>";
 	UpdateHeader();
-	//UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
-	Elite_Sleep(MathLib::NearestInteger(3000*SleepMultiplier));
+	Elite_Sleep(3000);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
-	Elite_Sleep(MathLib::NearestInteger(8000*SleepMultiplier));
+	Elite_Sleep(8000);
 }
 
-// ---------------------------------- //
-// Matchmaking match end
-if (MM_IsMatchServer() && MB_StopMatch) {
-	MM_MatchToLobby();
-}
 +++EndSequenceEnd+++
-
 
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 UIManager.UIAll.StatusMessage = "";
 UIManager.UIAll.BigMessage = "";
+
+if (MM_IsMatchServer()) {
+	if (MB_StopMatch) {
+		if (RematchNb < S_MatchmakingRematchNbMax) {
+			IsRematch = MM_VoteForRematch();
+			RematchNb += 1;
+		}
+		
+		if (!IsRematch) {
+			RematchNb = 0;
+			MM_MatchEnd(MasterLogin);
+			MM_MatchToLobby();
+		} else {
+			MM_VoteForNextMap(False);
+		}
+	} else {
+		MM_VoteForNextMap(False);
+	}
+}
 ***
 
 // ---------------------------------- //
@@ -1625,7 +1637,7 @@ Void SpawnThemAll(Integer _Phase) {
 	} 
 	// Playing time
 	else {
-		declare MaxDef = S_RequiredPlayersNb;
+		declare MaxDef = S_NbPlayersPerTeamMax;
 		declare MaxAtk = 1;
 		
 		declare DefSpawned = 0;
@@ -2163,7 +2175,7 @@ Void PrepareMatch() {
 				if (Players.existskey(Id)) {
 					TestedNb += 1;
 					declare Player <=> Players[Id];
-					for (K, J+1, S_RequiredPlayersNb) {
+					for (K, J+1, S_NbPlayersPerTeamMax) {
 						if (ClansOrders.existskey(I) && Players.existskey(ClansOrders[I][K])) {
 							declare Player2 <=> Players[ClansOrders[I][K]];
 							if (Users_AreAllies(Player.User, Player2.User)) AlliesNb += 1;
@@ -2209,9 +2221,9 @@ Void PrepareMatch() {
 		WarmUp2::Enable("Clan1");
 		WarmUp2::Enable("Clan2");
 	} else {
-		UIManager.UIAll.CountdownEndTime = Now + TimeOut;
+		declare WaitEndTime = Now + 500;
 		
-		while (Now < UIManager.UIAll.CountdownEndTime && !ServerShutdownRequested && !MatchEndRequested) {
+		while (Now < WaitEndTime && !ServerShutdownRequested && !MatchEndRequested) {
 			MM_Yield();
 			ManageCommand();
 			ForceClublinkReload();
@@ -2355,8 +2367,8 @@ Void WarmUp2() {
 			if (LongTimer <= 0) { LongTimer = 0; ShortTimer = 0; }
 			
 			if (GetMode() == C_ModeClassic) {
-				WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, S_RequiredPlayersNb], LongTimer => [1, S_RequiredPlayersNb]]);
-				WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, S_RequiredPlayersNb], LongTimer => [1, S_RequiredPlayersNb]]);
+				WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, S_NbPlayersPerTeamMax], LongTimer => [1, S_NbPlayersPerTeamMax]]);
+				WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, S_NbPlayersPerTeamMax], LongTimer => [1, S_NbPlayersPerTeamMax]]);
 			} else {
 				WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, 1], LongTimer => [1, 1]]);
 				WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, 1], LongTimer => [1, 1]]);
