@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-07-09"
+#Const Version		"2014-07-24"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -18,10 +18,9 @@
 #Setting S_UseDraft				False	as _("Use draft mode before match")						///< Use draft mode at match beginning
 #Setting S_DraftBanNb			4		as _("Number of map to ban during draft (-1: ban all)")	///< Number of map to ban during draft
 #Setting S_DraftPickNb			3		as _("Number of map to pick during draft")				///< Number of map to pick during draft
-#Setting S_RequiredPlayersNb	3		as _("Number of players per team")						///< Required number of players in each team
+#Setting S_NbPlayersPerTeamMax	3		as _("Number of players per team")						///< Required number of players in each team
+#Setting S_NbPlayersPerTeamMin	2		as _("Minimum number of players per team in matchmaking")	///< Minimum number of players in each team in matchmaking
 #Setting S_DisplayRulesReminder True	as "<hidden>" // _("Display a window with the rules when the match begins")
-
-#Setting S_GameplayVersion		0		as _("Set gameplay version (-1: default)")
 
 #Const S_UseEliteB2				False	//as _("Elite Beta 2 gameplay")							///< Use the beta 2 gameplay settings
 
@@ -76,7 +75,14 @@ MB_LogVersion(EliteEndSequence::GetScriptName(), EliteEndSequence::GetScriptVers
 
 ***LobbyStartServer***
 ***
-MM_SetFormat([S_RequiredPlayersNb, S_RequiredPlayersNb]);
+MM_SetFormat([S_NbPlayersPerTeamMax, S_NbPlayersPerTeamMax]);
+if (S_NbPlayersPerTeamMax > S_NbPlayersPerTeamMin) {
+	declare Formats = Integer[][];
+	for (I, S_NbPlayersPerTeamMin, S_NbPlayersPerTeamMax-1) {
+		if (I > 0) Formats.add([I, I]);
+	}
+	MM_SetProgressiveFormats(Formats);
+}
 ***
 
 ***ManialinkRules***
@@ -145,14 +151,14 @@ ModeStatusMessage = _("TYPE: Team versus Team (1 vs 3)\nOBJECTIVE: Capture the p
 
 ***StartServer***
 ***
-assert(S_RequiredPlayersNb > 0, _("You cannot set the minimum number of players below 1."));
+assert(S_NbPlayersPerTeamMax > 0, _("You cannot set the minimum number of players below 1."));
 // ---------------------------------- //
 // Practice mode
 if (S_Practice) ElitePractice::Run();
 
 UseForcedClans = False;
 if (MM_IsMatchServer()) {
-	MM_Init([S_RequiredPlayersNb, S_RequiredPlayersNb]);
+	MM_Init([S_NbPlayersPerTeamMax, S_NbPlayersPerTeamMax]);
 }
 
 // ---------------------------------- //
@@ -262,15 +268,18 @@ foreach (Score in Scores) {
 	declare DodgeTotal for Score = 0;
 	DodgeTotal = 0;
 }
+
+declare netwrite Text Net_Elite_MatchId for Teams[0];
+if (MM_IsMatchServer()) {
+	Net_Elite_MatchId = G_Match_Id;
+} else {
+	Net_Elite_MatchId = "";
+}
 ***
 
 ***StartMap***
 ***
 UseLaserVsBullets = True;
-switch (S_GameplayVersion) {
-	case 0	: Gameplay = CSmMode::EGameplay::Mp3Beta0;
-	default	: Gameplay = CSmMode::EGameplay::Default;
-}
 EliteEndSequence::InitPlayersList();
 CustomUI::Attach();
 ***
@@ -305,9 +314,16 @@ Layers::DetachReplay("Replay");
 Layers::AttachReplay("PreTurn");
 Replay_SaveInterface();
 
-EliteStats::CheckSettings(S_TimeLimit, S_TimePole, S_TimeCapture, S_RequiredPlayersNb);
+EliteStats::CheckSettings(S_TimeLimit, S_TimePole, S_TimeCapture, S_NbPlayersPerTeamMax);
 EliteStats::WinProbabilityVisibility(True);
 EliteStats::StartTurn();
+
+declare netwrite Text Net_Elite_MatchId for Teams[0];
+if (MM_IsMatchServer()) {
+	Net_Elite_MatchId = G_Match_Id;
+} else {
+	Net_Elite_MatchId = "";
+}
 ***
 
 ***PlayLoop***
@@ -1194,7 +1210,7 @@ return """
 	</frame>
 	<!-- **************** Players Ranking **************** -->
 	<frame posn="{{{-164.5*CW/2.}}} -18" id="Frame_Ranking">
-		{{{CreatePlayersListBig(1, S_RequiredPlayersNb*2, CW)}}}
+		{{{CreatePlayersListBig(1, S_NbPlayersPerTeamMax*2, CW)}}}
 	</frame>
 	<!-- **************** Bottom panels **************** -->
 	<frame posn="{{{-164*CW/2.}}} -55.8">
@@ -1211,10 +1227,11 @@ return """
 		<quad posn="{{{163*SW}}} -13.7" sizen="4 4" halign="right" valign="center" image="file://Media/Manialinks/ShootMania/Common/Score.dds" />
 	</frame>
 </frame>
-<!-- **************** Spec count **************** -->
+<!-- **************** Spec count and matchmaking match id**************** -->
 <frame posn="-150 82">
 	<label posn="0.5 0.5" valign="center" textemboss="1" text="0" id="Label_SpecCount" />
 	<quad sizen="7 7" halign="right" valign="center" style="BgRaceScore2" substyle="Tv" />
+	<label posn="-7 -4" sizen="50 6" scale="0.8" textsize="2" textemboss="1" id="Label_MatchId" />
 </frame>
 <script><!--
 #Include "TextLib" as TextLib
@@ -1269,7 +1286,7 @@ Void UpdatePlayersList(
 	Text[][Integer]		_Tags_Id,
 	CUser::ETagType[][Integer] _Tags_Type
 ) {	
-	for (I, 1, {{{S_RequiredPlayersNb*2}}}) {
+	for (I, 1, {{{S_NbPlayersPerTeamMax*2}}}) {
 		declare Frame_Player <=> (Frame_Ranking.GetFirstChild("Frame_Player_"^I) as CMlFrame);
 		
 		if (_Logins.existskey(I)) {
@@ -1621,6 +1638,7 @@ main() {
 	declare Label_SpecCount	<=> (Page.GetFirstChild("Label_SpecCount")		as CMlLabel);
 	declare Quad_Clan1Color	<=> (Page.GetFirstChild("Quad_Clan1Color")		as CMlQuad);
 	declare Quad_Clan2Color	<=> (Page.GetFirstChild("Quad_Clan2Color")		as CMlQuad);
+	declare Label_MatchId	<=> (Page.GetFirstChild("Label_MatchId")		as CMlLabel);
 	
 	declare netread Integer				Net_LayerST_Update			for UI;
 	declare netread Integer				Net_LayerST_AttackerKey		for UI;
@@ -1638,6 +1656,7 @@ main() {
 	declare netread Integer				Net_LayerST_Mode			for UI;
 	declare netread Integer[Integer]	Net_LayerST_NbBeHit			for UI;
 	declare netread Integer 			Net_Elite_BestDodgeTotal 	for Teams[0];
+	declare netread Text				Net_Elite_MatchId			for Teams[0];
 	
 	declare Text[Integer]		Logins;
 	declare Text[Integer]		Names;
@@ -1661,6 +1680,7 @@ main() {
 	declare PrevClan1Color = <0., 0., 1.>;
 	declare PrevClan2Color = <1., 0., 0.>;
 	declare PrevBestDodgeTotal = -1;
+	declare PrevMatchId = "";
 
 	while (True) {
 		yield;
@@ -1697,13 +1717,23 @@ main() {
 			UpdateDodge();
 		}
 		
+		if (PrevMatchId != Net_Elite_MatchId) {
+			PrevMatchId = Net_Elite_MatchId;
+			
+			if (Net_Elite_MatchId != "") {
+				Label_MatchId.Value = "Match id : #"^Net_Elite_MatchId;
+			} else {
+				Label_MatchId.Value = "";
+			}
+		}
+		
 		if (LastUpdate != Net_LayerST_Update) {
 			LastUpdate = Net_LayerST_Update;
 			
 			UpdatePlayersStatus(True);
 			
 			Logins = Net_LayerST_Logins;
-			for (I, 1, {{{S_RequiredPlayersNb*2}}}) {
+			for (I, 1, {{{S_NbPlayersPerTeamMax*2}}}) {
 				declare Frame_Player <=> Frame_Ranking.GetFirstChild("Quad_Player_"^I);
 				if (Frame_Player == Null) continue;
 				declare SpectateLogin for Frame_Player = "";
@@ -1712,8 +1742,8 @@ main() {
 			}
 			
 			if (Net_LayerST_AttackerKey <= 0) Order = -1;
-			else if (Net_LayerST_AttackerKey <= {{{S_RequiredPlayersNb}}}) Order = Net_LayerST_AttackerKey;
-			else Order = Net_LayerST_AttackerKey - {{{S_RequiredPlayersNb}}};
+			else if (Net_LayerST_AttackerKey <= {{{S_NbPlayersPerTeamMax}}}) Order = Net_LayerST_AttackerKey;
+			else Order = Net_LayerST_AttackerKey - {{{S_NbPlayersPerTeamMax}}};
 			
 			Names.clear();
 			LadderRanks.clear();
@@ -1791,7 +1821,7 @@ main() {
 			PrevUISequence = UI.UISequence;
 			
 			if (UI.UISequence != CUIConfig::EUISequence::Playing) {
-				for (I, 1, {{{S_RequiredPlayersNb*2}}}) {
+				for (I, 1, {{{S_NbPlayersPerTeamMax*2}}}) {
 					declare Frame_Player	<=> (Frame_Ranking.GetFirstChild("Frame_Player_"^I)	as CMlFrame);
 					declare Quad_Eliminated <=> (Frame_Player.GetFirstChild("Quad_Eliminated") as CMlQuad);
 					Quad_Eliminated.Hide();
@@ -1844,7 +1874,7 @@ for (I, 1, 2) {
 	declare J = 1;
 	foreach (Slot => Id in ClansOrders[I]) {
 		if (Players.existskey(Id)) {
-			declare Key = J+((I-1)*S_RequiredPlayersNb);
+			declare Key = J+((I-1)*S_NbPlayersPerTeamMax);
 			declare Player <=> Players[Id];
 			Logins[Key] = Player.Login;
 			if (Id == G_AtkPlayerId) AttackerKey = Key;
@@ -1867,7 +1897,7 @@ for (I, 1, 2) {
 			declare Integer AllyUpdate as AllyUpdate1 for Player;
 			if (AllyUpdate1 != Now) Ally1 = False;
 			AllyUpdate1 = Now;
-			for (K, J+1, S_RequiredPlayersNb) {
+			for (K, J+1, S_NbPlayersPerTeamMax) {
 				if (ClansOrders.existskey(I) && Players.existskey(ClansOrders[I][K])) {
 					declare Player2 <=> Players[ClansOrders[I][K]];
 					if (Users_AreAllies(Player.User, Player2.User)) {
@@ -2396,7 +2426,7 @@ Text CreateLayerPlayers() {
 	}
 	
 	if (ClansOrders.existskey(G_DefClan)) {
-		for (J, 1, S_RequiredPlayersNb) {
+		for (J, 1, S_NbPlayersPerTeamMax) {
 			declare DefenderLogin = "";
 			if (ClansOrders[G_DefClan].existskey(J) && Players.existskey(ClansOrders[G_DefClan][J])) DefenderLogin = Players[ClansOrders[G_DefClan][J]].Login;
 			DefendersLogins ^= """declare DefenderLogin{{{J}}} = "{{{DefenderLogin}}}";""";
@@ -2512,7 +2542,7 @@ main() {
 		Frame_TeamName[K]		<=> (Frame_PlayersLists.GetFirstChild("Frame_TeamName_"^K) as CMlFrame);
 		Frame_HitDetail[K] = CMlFrame[Integer];
 		G_Slots[K] = Ident[Integer];
-		for (L, 1, {{{S_RequiredPlayersNb}}}) {
+		for (L, 1, {{{S_NbPlayersPerTeamMax}}}) {
 			Frame_HitDetail[K][L] <=> (Frame_PlayersList[K].GetFirstChild("Frame_HitDetail_"^L) as CMlFrame);
 			G_Slots[K][L] = NullId;
 		}
@@ -2580,7 +2610,7 @@ main() {
 			}
 			
 			for (I, 1, 2) {
-				for (J, 1, {{{S_RequiredPlayersNb}}}) {
+				for (J, 1, {{{S_NbPlayersPerTeamMax}}}) {
 					if (G_Slots[I][J] == NullId) {
 						if (Net_Elite_PlayersOrder.existskey(I) && Net_Elite_PlayersOrder[I].existskey(J)) {
 							foreach (Player in Players) {
