@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-07-24"
+#Const ModeMatchmakingVersion		"2014-07-30"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -1880,30 +1880,8 @@ Void Private_MM_ManagePlayers() {
 		
 		// Change the status of the player
 		if (Matchmaking_PlayerStatus == C_PlayerStatus_Waiting) {
-			// A waiting player can't be spawned
-			if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
-				//UnspawnPlayer(Player);
-			}
-			
-			// Waiting match
-			if (G_Match_Status == C_MatchStatus_Waiting) {
-				Private_MM_GetMatch();
-				SetPlayerClan(Player, 0);
-			} 
-			// Waiting substitute
-			else if (G_Match_Status == C_MatchStatus_Substitute) {
-				Private_MM_GetMatch();
-				SetPlayerClan(Player, 0);
-			}
-			// Match running normally
-			else {
-				if (G_Match_Players.existskey(Player.Login)) {
-					Matchmaking_PlayerStatus = C_PlayerStatus_Valid;
-					SetPlayerClan(Player, G_Match_Players[Player.Login][C_PlayerInfo_Clan]);
-				} else {
-					Matchmaking_PlayerStatus = C_PlayerStatus_Invalid;
-				}
-			}
+			Private_MM_GetMatch();
+			SetPlayerClan(Player, 0);
 		}
 		
 		// Kick the invalid players
@@ -2071,6 +2049,17 @@ Void Private_MM_SetupMatch(Text _MatchXml) {
 			Matchmaking_PlayerStatus = C_PlayerStatus_Invalid;
 		}
 	}
+	// Validate players if the match is starting
+	else {
+		foreach (Player in AllPlayers) {
+			declare Matchmaking_PlayerStatus for Player = C_PlayerStatus_Waiting;
+			if (G_Match_Players.existskey(Player.Login)) {
+				Matchmaking_PlayerStatus = C_PlayerStatus_Valid;
+			} else {
+				Matchmaking_PlayerStatus = C_PlayerStatus_Invalid;
+			}
+		}
+	}
 }
 
 // ---------------------------------- //
@@ -2208,7 +2197,7 @@ Void Private_MM_ManageHttpResponses() {
 				case C_Request_GetMatches: {
 					if (G_Match_Status == C_MatchStatus_Waiting) {
 						Private_MM_SetupMatch(Request.Result);
-					} else if (G_Match_Status == C_MatchStatus_Substitute) {
+					} else {
 						Private_MM_SetupSubstitute(Request.Result);
 					}
 				}
