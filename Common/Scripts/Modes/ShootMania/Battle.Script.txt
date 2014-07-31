@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-07-24"
+#Const	Version				"2014-07-31"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -2279,9 +2279,9 @@ Text BuildTimeLeftManialink(Integer _WavesDuration) {
 	declare MLText = """
 <frame posn="0 57 40" halign="center" valign="center" hidden="1" id="FrameTimeLeft">
 	<frame posn="0 4">
-		<label posn="0 4" halign="center" valign="center" textsize="8" id="LabelAttack" />
+		<label posn="0 4" halign="center" valign="center" textsize="8" textemboss="true" id="LabelAttack" />
 		<label posn="0 -2" halign="center" valign="center" textsize="4" textemboss="true" id="Label_AdditionalRules" />
-		<label posn="0 -8" halign="center" valign="center" textsize="8" id="LabelTimeLeft" />
+		<label posn="0 -8" halign="center" valign="center" textsize="8" textemboss="true" id="LabelTimeLeft" />
 	</frame>
 </frame>
 <script><!--
@@ -2309,6 +2309,7 @@ main() {
 		sleep(100);
 		
 		if (GUIPlayer != Null) CurrentPlayerClan = GUIPlayer.CurrentClan;
+		else if (InputPlayer != Null && !InputPlayer.RequestsSpectate) CurrentPlayerClan = InputPlayer.CurrentClan;
 		else CurrentPlayerClan = -1;
 		
 		if((PrevAtkClan != BattleWaves_AtkClan) || (PrevPlayerClan != CurrentPlayerClan))
@@ -2341,7 +2342,11 @@ main() {
 						LabelTimeLeft.PosnY = -4.;
 					}
 				} else {
-					LabelAttack.SetText("");
+					if (Teams.existskey(BattleWaves_AtkClan-1)) {
+						LabelAttack.SetText(TextLib::Compose("{{{_("|TeamName is attacking|$<%1$> is attacking")}}}", Teams[BattleWaves_AtkClan-1].ColorizedName));
+					} else {
+						LabelAttack.SetText("");
+					}
 					Label_AdditionalRules.SetText("");
 				}
 			}
