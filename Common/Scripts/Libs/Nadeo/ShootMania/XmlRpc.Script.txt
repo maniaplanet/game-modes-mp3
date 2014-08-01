@@ -218,12 +218,14 @@ Void UnloadingMap(Integer _Number) {
 // ---------------------------------- //
 /** Callback sent at the beginning of the match
  *	Data:
- *	[Number of the match]
+ *	[Number of the match, Map restarted]
  */
-Void BeginMatch(Integer _Number) {
+Void BeginMatch(Integer _Number, Boolean _Restarted) {
 	if (!G_UseLibXmlRpc) return;
 	
-	Private_SendCallbackArray("LibXmlRpc_BeginMatch", [TL::ToText(_Number)]);
+	declare Restarted = "False";
+	if (_Restarted) Restarted = "True";
+	Private_SendCallbackArray("LibXmlRpc_BeginMatch", [TL::ToText(_Number), Restarted]);
 }
 
 // ---------------------------------- //
