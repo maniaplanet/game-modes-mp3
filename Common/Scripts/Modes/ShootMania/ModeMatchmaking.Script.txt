@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-07-30"
+#Const ModeMatchmakingVersion		"2014-08-01"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -227,9 +227,11 @@ while (
 	if (MB_UseLogging) MB_Log("LobbyStartMatch");
 	
 	+++LobbyInitMatch+++
+	
+	// Check for map restart
 	declare persistent MB_MapRestarted = False;
 	XmlRpc::BeginMatch(MB_SectionMatchNb, MB_MapRestarted);
-	MB_MapRestarted = True;
+		
 	+++LobbyStartMatch+++
 	Clublink::Update();
 
@@ -260,9 +262,7 @@ while (
 		+++LobbyInitMap+++
 		
 		// Check for map restart
-		declare persistent MB_MapRestarted = False;
 		XmlRpc::BeginMap(MB_SectionMapNb, MB_MapRestarted);
-		MB_MapRestarted = True;
 			
 		Mode::Synchro_DoBarrier();
 		
@@ -273,6 +273,8 @@ while (
 		
 		+++LobbyStartMap+++
 		Clublink::Update();
+		MB_MapRestarted = True;
+		
 // ---------------------------------- //
 // Round sequence start
 // ---------------------------------- //				
@@ -362,6 +364,7 @@ while (
 	XmlRpc::EndMatch(MB_SectionMatchNb);
 	+++LobbyEndMatch+++
 	XmlRpc::SendScores();
+	MB_MapRestarted = False;
 }
 
 XmlRpc::Unload();

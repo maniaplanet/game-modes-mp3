@@ -3,7 +3,7 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2014-07-08"
+#Const ModeBaseVersion		"2014-08-01"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -398,9 +398,11 @@ main() {
 		if (MB_UseLogging) MB_Log("StartMatch");
 		
 		+++InitMatch+++
+		
+		// Check for map restart
 		declare persistent MB_MapRestarted = False;
 		XmlRpc::BeginMatch(MB_SectionMatchNb, MB_MapRestarted);
-			MB_MapRestarted = True;
+		
 		+++StartMatch+++
 		Clublink::Update();
 
@@ -428,13 +430,11 @@ main() {
 			MB_LoadMap();
 			
 			if (MB_UseLogging) MB_Log("StartMap");
-	
+			
 			+++InitMap+++
 			
 			// Check for map restart
-			declare persistent MB_MapRestarted = False;
 			XmlRpc::BeginMap(MB_SectionMapNb, MB_MapRestarted);
-			MB_MapRestarted = True;
 			
 			MB_Synchro_DoBarrier();
 			
@@ -445,6 +445,7 @@ main() {
 			
 			+++StartMap+++
 			Clublink::Update();
+			MB_MapRestarted = True;
 		
 // ---------------------------------- //
 // Submatch sequence start (King of the Map style)
@@ -678,6 +679,7 @@ main() {
 		XmlRpc::EndMatch(MB_SectionMatchNb);
 		+++EndMatch+++
 		XmlRpc::SendScores();
+		MB_MapRestarted = False;
 	}
 // ---------------------------------- //
 // Server end
