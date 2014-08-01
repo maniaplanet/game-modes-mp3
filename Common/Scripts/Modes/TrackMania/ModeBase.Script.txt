@@ -4,7 +4,7 @@
 
 #RequireContext CTmMode
 
-#Const	ModeBaseVersion		"2014-07-02"
+#Const	ModeBaseVersion		"2014-08-01"
 #Const	ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -519,7 +519,11 @@ main() {
 		if (MB_UseLogging) MB_Log("StartMatch");
 		
 		+++InitMatch+++
-		XmlRpc::BeginMatch(MB_SectionMatchNb);
+		
+		// Check for map restart
+ 		declare persistent MB_MapRestarted = False;
+		XmlRpc::BeginMatch(MB_SectionMatchNb, MB_MapRestarted);
+		
 		+++StartMatch+++
 		Clublink::Update();
 		
@@ -557,9 +561,7 @@ main() {
 			+++InitMap+++
 			
 			// Check for map restart
-			declare persistent MB_MapRestarted = False;
 			XmlRpc::BeginMap(MB_SectionMapNb, MB_MapRestarted);
-			MB_MapRestarted = True;
 			
 			// Play mediatracker intro
 			if (MB_UseIntro) {
@@ -569,6 +571,7 @@ main() {
 			
 			+++StartMap+++
 			Clublink::Update();
+			MB_MapRestarted = True;
 			
 // ---------------------------------- //
 // Submatch sequence start
@@ -769,6 +772,7 @@ main() {
 		
 		XmlRpc::EndMatch(MB_SectionMatchNb);
 		+++EndMatch+++
+		MB_MapRestarted = False;
 	}
 // ---------------------------------- //
 // Server end
