@@ -80,8 +80,8 @@
 	"Text"		=> "fffc"
 ]
 
-#Const C_BlueBotsNb	0	///< Blue bots number
-#Const C_RedBotsNb	0	///< Red bots number
+#Const C_BlueBotsNb	3	///< Blue bots number
+#Const C_RedBotsNb	3	///< Red bots number
 
 // ---------------------------------- //
 // Command
@@ -225,7 +225,7 @@ declare MapSkipped = False;
 // ---------------------------------- //
 ***StartMatch***
 ***
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMatch", Json::Enfold(Json::Stringify("MatchNumber", MB_SectionMatchNb)));
+if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMatch", Json::Enfold(Json::Merge([Json::Stringify("MatchNumber", MB_SectionMatchNb), Json::Stringify("MapRestart", MB_MapRestarted)])));
 // ---------------------------------- //
 // Initialize match goal average
 G_MapScores				= [1 => 0, 2 => 0];
@@ -273,7 +273,7 @@ else MB_UseIntro = True;
 // ---------------------------------- //
 ***StartMap***
 ***
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMap", Json::Enfold(Json::Stringify("MapNumber", MB_SectionMapNb)));
+if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMap", Json::Enfold(Json::Merge([Json::Stringify("MapNumber", MB_SectionMapNb), Json::Stringify("MapRestart", MB_MapRestarted)])));
 G_MapSpecCamDirection = GetOverviewCamDirection();
 
 // ---------------------------------- //

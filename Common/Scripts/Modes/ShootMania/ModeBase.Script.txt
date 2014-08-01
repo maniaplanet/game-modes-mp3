@@ -398,7 +398,9 @@ main() {
 		if (MB_UseLogging) MB_Log("StartMatch");
 		
 		+++InitMatch+++
-		XmlRpc::BeginMatch(MB_SectionMatchNb);
+		declare persistent MB_MapRestarted = False;
+		XmlRpc::BeginMatch(MB_SectionMatchNb, MB_MapRestarted);
+			MB_MapRestarted = True;
 		+++StartMatch+++
 		Clublink::Update();
 
