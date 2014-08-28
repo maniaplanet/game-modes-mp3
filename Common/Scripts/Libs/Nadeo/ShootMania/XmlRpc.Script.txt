@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2014-08-01"
+#Const	Version		"2014-08-28"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -185,11 +185,17 @@ Void SendPlayerRanking(Text _Login) {
 Void SendScores() {
 	if (!G_UseLibXmlRpc) return;
 	
+	declare MapPoints1 = UIManager.UIAll.ScoreSummary_Points1;
+	declare MapPoints2 = UIManager.UIAll.ScoreSummary_Points2;
+	if (MapPoints1 == -1 && MapPoints2 == -1) {
+		MapPoints1 = UIManager.UIAll.ScoreSummary_RoundPoints1;
+		MapPoints2 = UIManager.UIAll.ScoreSummary_RoundPoints2;
+	}
 	Private_SendCallbackArray("LibXmlRpc_Scores", [
 		TL::ToText(UIManager.UIAll.ScoreSummary_MatchPoints1),
 		TL::ToText(UIManager.UIAll.ScoreSummary_MatchPoints2),
-		TL::ToText(UIManager.UIAll.ScoreSummary_Points1), 
-		TL::ToText(UIManager.UIAll.ScoreSummary_Points2)
+		TL::ToText(MapPoints1), 
+		TL::ToText(MapPoints2)
 	]);
 }
 
