@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-07-31"
+#Const	Version				"2014-08-29"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -696,6 +696,7 @@ if(S_BattleWaves) {
 		if(EngagePole != Null && ! EngagePole.Gauge.Captured) {
 			declare EngageClan = -1;
 			foreach(PlayerId in EngagePole.Sector.PlayersIds) {
+				if (!Players.existskey(PlayerId)) continue;
 				declare Player <=> Players[PlayerId];
 				declare PlayerClan = Player.CurrentClan;
 				if(EngageClan < 0) EngageClan = PlayerClan;
@@ -725,6 +726,7 @@ if(S_BattleWaves) {
 					CUIConfig::EUISound::PhaseChange, 0);
 				
 				foreach(PlayerId in EngagePole.Sector.PlayersIds) {
+					if (!Players.existskey(PlayerId)) continue;
 					declare Player <=> Players[PlayerId];
 					declare Integer Battle_ScoreAttackBonus for Player.Score;
 					Battle_ScoreAttackBonus += S_PointsOnEngage;
@@ -807,6 +809,7 @@ for (Clan, 1, 2) {
 		// This section is useful only if you want to give points to pole denial.
 		declare IsGoalThreatened = False; // Is an attacker on the pole ?
 		foreach (PlayerId in Pole.Sector.PlayersIds) {
+			if (!Players.existskey(PlayerId)) continue;
 			declare Player <=> Players[PlayerId];
 			if (Player.CurrentClan != Clan) {
 				IsGoalThreatened = True;
@@ -820,6 +823,7 @@ for (Clan, 1, 2) {
 		
 		declare IsGoalDenied = False;
 		foreach (PlayerId in Pole.Sector.PlayersIds) {
+			if (!Players.existskey(PlayerId)) continue;
 			declare Player <=> Players[PlayerId];
 			if (Player.CurrentClan == Clan) { // GoalClan
 				IsGoalDenied = True;
@@ -838,6 +842,7 @@ for (Clan, 1, 2) {
 						
 			declare NumberOfPlayerCapturing = 0;
 			foreach (PlayerId in Pole.Sector.PlayersIds) {
+				if (!Players.existskey(PlayerId)) continue;
 				declare Player <=> Players[PlayerId];
 				if (Player.CurrentClan == Clan) continue; // Opponent team only
 				
@@ -961,6 +966,7 @@ if(S_BattleWaves) {
 				// Add def points for a "just in time" capture
 				if((DurationBeforePivot > 0) && (DurationBeforePivot <= C_JustInTimeLimit)) {
 					foreach (PlayerId in Pole.Sector.PlayersIds) {
+						if (!Players.existskey(PlayerId)) continue;
 						declare CustomScorePlayer <=> Players[PlayerId];
 						if (CustomScorePlayer.CurrentClan == Clan) continue; // Opponent team only
 						else {
@@ -1091,6 +1097,7 @@ Boolean SqCloserThan(Vec3 _A, Vec3 _B, Real _SqDistance) {
 if(S_BattleWaves) {
 	declare Integer PoleClan = Pole.Gauge.Clan;
 	foreach (PlayerId in Pole.Sector.PlayersIds) {
+		if (!Players.existskey(PlayerId)) continue;
 		declare Player <=> Players[PlayerId];
 		declare UI <=> UIManager.GetUI(Player);
 		if (UI != Null) {
@@ -1121,6 +1128,7 @@ if(S_BattleWaves) {
 } else {
 	declare Integer PoleClan = Pole.Gauge.Clan;
 	foreach (PlayerId in Pole.Sector.PlayersIds) {
+		if (!Players.existskey(PlayerId)) continue;
 		declare Player <=> Players[PlayerId];
 		
 		declare UI <=> UIManager.GetUI(Player);
