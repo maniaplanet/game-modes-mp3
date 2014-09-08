@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/RoundsBase.Script.txt"
 
 #Const  CompatibleMapTypes  "Race"
-#Const	Version		"2014-07-02"
+#Const	Version		"2014-09-08"
 #Const	ScriptName	"Rounds.Script.txt"
 
 #Include "TextLib" as TL
@@ -220,11 +220,11 @@ Void ComputeLatestRaceScores() {
 		foreach (Score in Scores) {
 			if (Score.PrevRace.Time > 0) {
 				declare Points = 0;
-				if (G_PointsRepartition.count > 0) {
-					if (G_PointsRepartition.existskey(I)) {
-						Points = G_PointsRepartition[I];
+				if (MB_PointsRepartition.count > 0) {
+					if (MB_PointsRepartition.existskey(I)) {
+						Points = MB_PointsRepartition[I];
 					} else {
-						Points = G_PointsRepartition[G_PointsRepartition.count - 1];
+						Points = MB_PointsRepartition[MB_PointsRepartition.count - 1];
 					}
 				}
 				Score.PrevRaceDeltaPoints = Points;
