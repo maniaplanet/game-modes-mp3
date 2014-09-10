@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-08-01"
+#Const ModeMatchmakingVersion		"2014-09-09"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -1916,7 +1916,7 @@ Void Private_MM_ManagePlayers() {
 	}
 	
 	foreach (User in ToKick) {
-		Admin_KickUser(User, _("This matchmaking server is hosting a match. You can't join at the moment."));
+		declare Kicked = Admin_KickUser(User, _("This matchmaking server is hosting a match. You can't join at the moment."));
 	}
 	
 	// Search missing players only if substitutes are allowed
@@ -3295,9 +3295,9 @@ Void MM_MatchToLobby() {
 	
 	// Kick all remaining players
 	// @Tmp, waiting for the CanKick() function before trying to kick everyone
-	/*foreach (User in Users) {
-		Admin_KickUser(User, _("Match over. You should have been transferred back to the lobby."));
-	}*/
+	foreach (User in Users) {
+		declare Kicked = Admin_KickUser(User, _("Match over. You should have been transferred back to the lobby."));
+	}
 	
 	G_Match_LobbyLogin = "";
 }
@@ -5130,12 +5130,14 @@ Void UpdatePlayersList() {
 		declare Real LadderPoints;
 		
 		User <=> GetUser(Login);
-		if (User != Null) LadderPoints = User.LadderPoints;
-		
-		// @Debug
-		if (User.IsFakeUser) LadderPoints = GetEchelon(User.Echelon) * 10000.;
-		
-		ClansUsers[Clan][User] = -LadderPoints;
+		if (User != Null) {
+			LadderPoints = User.LadderPoints;
+			
+			// @Debug
+			if (User.IsFakeUser) LadderPoints = GetEchelon(User.Echelon) * 10000.;
+			
+			ClansUsers[Clan][User] = -LadderPoints;
+		}
 	}
 	
 	declare Frames_Clan = [
