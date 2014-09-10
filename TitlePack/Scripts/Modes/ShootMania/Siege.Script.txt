@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeV2Arena"
-#Const Version				"2014-07-24"
+#Const Version				"2014-07-29"
 #Const ScriptName			"Siege.Script.txt"
 
 /* @Arche
@@ -283,6 +283,7 @@ SpawnScreen::DestroyRules();
 declare ModeName = "Siege";
 declare ModeObjectives = TL::Compose(_("$<%11. $>The goal of this mode is to capture a maximum of poles.\n$<%12. $>A game is divided in rounds of two turns each.\n$<%13. $>During a round each team plays one turn on attack and one turn on defense.\n$<%14. $>The attackers must capture the poles in order on the map. The defenders must stop them.\n$<%15. $>If a team captures all the poles during its turn, this team instantly wins the map.\n$<%16. $>After %2 rounds, the team that captured the most poles wins the map."), "$"^SpawnScreen::GetModeColor(), TL::ToText(S_NbRoundMax));
 declare ModeConditions = TL::Compose(_("$<%11. $>If an attacker is eliminated they will not respawn for the rest of the turn.\n$<%12. $>If a defender is eliminated they are respawned as soon as a pole is captured.\n$<%13. $>For each new round, the attackers restart from the beginning of the map, but with one additional armor."), "$"^SpawnScreen::GetModeColor());
+SpawnScreen::ResetRulesSection();
 SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
 SpawnScreen::AddSubsection(_("Objectives"), ModeObjectives, 25.);
 SpawnScreen::AddSubsection(_("Conditions"), ModeConditions, 85.);
@@ -1367,10 +1368,10 @@ Void SaveLastWeapon(CSmPlayer _Player) {
 	if (_Player == Null || GetWeaponMode() != C_WeaponMode_Switch) return;
 	
 	if (_Player.CurrentClan == G_CapturingClan) {
-		declare LastAtkWeapon for _Player = CSmMode::EWeapon::Rocket;
+		declare LastAtkWeapon for _Player.User = CSmMode::EWeapon::Rocket;
 		LastAtkWeapon = WeaponSwitch::GetWeapon(_Player);
 	} else {
-		declare LastDefWeapon for _Player = CSmMode::EWeapon::Rocket;
+		declare LastDefWeapon for _Player.User = CSmMode::EWeapon::Rocket;
 		LastDefWeapon = WeaponSwitch::GetWeapon(_Player);
 	}
 }
@@ -1860,10 +1861,10 @@ Void SetupSkills(CSmPlayer _Player) {
 		
 		// Restore last weapon
 		if (IsAtk) {
-			declare LastAtkWeapon for _Player = CSmMode::EWeapon::Rocket;
+			declare LastAtkWeapon for _Player.User = CSmMode::EWeapon::Rocket;
 			WeaponSwitch::SetWeapon(_Player, LastAtkWeapon);
 		} else {
-			declare LastDefWeapon for _Player = CSmMode::EWeapon::Rocket;
+			declare LastDefWeapon for _Player.User = CSmMode::EWeapon::Rocket;
 			WeaponSwitch::SetWeapon(_Player, LastDefWeapon);
 		}
 	} 
