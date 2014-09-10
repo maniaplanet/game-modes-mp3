@@ -5,8 +5,8 @@
  *	each map with a vote has a chance top be selected.
  *	Maps with more votes have a higher probability to be selected.
  */
-#Const	Version		"2014-07-23"
-#Const	ScriptName	"Vote%a.Script.txt"
+#Const	Version		"2014-07-31"
+#Const	ScriptName	"VoteMap.Script.txt"
 
 #Include "MathLib" as ML
 #Include "Libs/Nadeo/CustomUI.Script.txt" as CustomUI

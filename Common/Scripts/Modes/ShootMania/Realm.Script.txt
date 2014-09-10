@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"RealmArena"
-#Const	Version				"2013-12-13"
+#Const	Version				"2014-07-25"
 #Const	ScriptName			"Realm.Script.txt"
 
 #Include "TextLib" as TL
@@ -913,6 +913,7 @@ Void UpdateSpawnStatus(CSmPlayer _Player) {
 Void CreateRules() {
 	declare ModeName = "Realm";
 	
+	SpawnScreen::ResetRulesSection();
 	SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
 	SpawnScreen::AddSubsection(
 		_("Objectives"), 

@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-07-23"
+#Const	ModeSportVersion	"2014-08-01"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -225,7 +225,7 @@ declare MapSkipped = False;
 // ---------------------------------- //
 ***StartMatch***
 ***
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMatch", Json::Enfold(Json::Stringify("MatchNumber", MB_SectionMatchNb)));
+if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMatch", Json::Enfold(Json::Merge([Json::Stringify("MatchNumber", MB_SectionMatchNb), Json::Stringify("Restart", MB_MapRestarted)])));
 // ---------------------------------- //
 // Initialize match goal average
 G_MapScores				= [1 => 0, 2 => 0];
@@ -273,7 +273,7 @@ else MB_UseIntro = True;
 // ---------------------------------- //
 ***StartMap***
 ***
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMap", Json::Enfold(Json::Stringify("MapNumber", MB_SectionMapNb)));
+if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMap", Json::Enfold(Json::Merge([Json::Stringify("MapNumber", MB_SectionMapNb), Json::Stringify("Restart", MB_MapRestarted)])));
 G_MapSpecCamDirection = GetOverviewCamDirection();
 
 // ---------------------------------- //
@@ -1780,7 +1780,10 @@ Void DisplayHitDistance(CSmPlayer _Shooter, CSmPlayer _Victim, Boolean _ShooterO
 	
 	declare Distance = MathLib::Distance(_Shooter.Position, _Victim.Position);
 	Distance = MathLib::NearestInteger(Distance*10.0)/10.0;
-	declare DistanceMessage = TextLib::Compose(_("%1m hit!"), TextLib::SubString(TextLib::ToText(Distance), 0, 5));
+	declare DistanceText = TextLib::SubString(TextLib::ToText(Distance), 0, 5);
+	declare DistanceSplit = TextLib::Split(".", DistanceText);
+	if (DistanceSplit.count == 1) DistanceText = DistanceSplit[0];
+	declare DistanceMessage = TextLib::Compose(_("%1m hit!"), DistanceText);
 	if (_ShooterOnly) {
 		NoticeHitDistance(_Shooter, DistanceMessage);
 	} else {

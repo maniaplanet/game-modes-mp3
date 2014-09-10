@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-07-24"
+#Const Version		"2014-07-25"
 #Const ScriptName	"Heroes.Script.txt"
 
 #Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
@@ -44,6 +44,7 @@ declare ModeName = "Heroes";
 declare ModeObjectives = TextLib::Compose(_("$<%11. $>The attacker must capture a pole after %2 seconds and before %3 seconds.\n$<%12. $>The defenders must prevent the attacker from capturing a pole.\n$<%13. $>The game is divided in rounds of two turns each.\n$<%14. $>During a round each team play one turn in attack and one turn in defense.\n$<%15. $>The team who wins the turn scores 1 point.\n$<%16. $>The first team to score at least %4 points with %5 ahead of their opponent wins the map."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_TimeLimit - S_TimePole), TextLib::ToText(S_TimeLimit), TextLib::ToText(S_TurnWin), TextLib::ToText(S_TurnGap));
 declare ModeConditions = TextLib::Compose(_("$<%11. $>The team in defense play with Rockets.\n$<%12. $>The team in attack play with 4 Lasers and 1 Nucleus.\n$<%13. $>The player with the Nucleus is the attacker and is the only one who can capture a pole.\n$<%14. $>If the attacker is eliminated, his team lose the turn."), "$"^SpawnScreen::GetModeColor());
 
+SpawnScreen::ResetRulesSection();
 SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
 SpawnScreen::AddSubsection(
 	_("Objectives"), 

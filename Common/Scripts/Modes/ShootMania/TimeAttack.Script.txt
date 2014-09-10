@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"TimeAttackArena"
-#Const Version				"2013-12-6"
+#Const Version				"2014-07-25"
 #Const ScriptName			"TimeAttack.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -392,6 +392,7 @@ Void CreateRules() {
 	declare ModeObjectives = TextLib::Compose(_("$<%11. $>You must finish the race as fast as possible.\n$<%12. $>To validate a race you must touch the finish after going through all the checkpoints.\n$<%13. $>You can start over and improve your time as often as you want during %2 minutes.\n$<%14. $>The player with the best time after %2 minutes wins the map."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_TimeLimit / 60));
 	declare ModeConditions = TextLib::Compose(_("$<%11. $>Press the respawn button to restart from the beginning."), "$"^SpawnScreen::GetModeColor());
 	
+	SpawnScreen::ResetRulesSection();
 	SpawnScreen::AddSubsection(_("Type"), _("Solo"), 0.);
 	SpawnScreen::AddSubsection(
 		_("Objectives"), 

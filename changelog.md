@@ -1,3 +1,47 @@
+<a id="2014-09-10">2014-09-10</a>
+---------------------------------
+
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-07-24...Maniaplanet_Update_2014-09-10)
+
+### Modes
+
+#### ShootMania/All modes
+* Fix : Reset the rules in the spawn screen at the beginning of each map to avoid to fill the rules array with duplicate rules.
+
+#### ShootMania/Battle
+* Fix : Check that a player Id exists in the Players array before trying to access it. [see](http://forum.maniaplanet.com/viewtopic.php?p=227017#p227017)
+* Fix : The "Attack" and "Defend" messages at the top of screen are now displayed correctly when spawning. [see](http://forum.maniaplanet.com/viewtopic.php?f=8&t=28620&p=224480#p224370)
+* In spectator mode, when using the cam7 (global view) the name of the team in attack is displayed. eg : "Blue is attacking".
+
+#### Shootmania/ModeMatchmaking
+* Fix : Check that User is not Null before using it. [see](http://forum.maniaplanet.com/viewtopic.php?p=226307#p226307)
+* Fix : substitutes were kicked by the match server when joining under certain conditions.
+
+#### ShootMania/Siege
+* The weapons used in atk and def during the previous round are saved even across maps.
+* Fix the "LibXmlRpc_Scores" callback in Siege.
+
+#### TrackMania/RoundsBase
+* Fix the Rounds_GetPointsRepartition and Rounds_SetPointsRepartition XmlRpc callback and method. They could be invoked only during the round, now it's possible to invoke them anytime. [see](http://forum.maniaplanet.com/viewtopic.php?p=227330#p227330)
+
+### Libraries
+
+#### ShootMania/Debug
+* New quad styles and substyles.
+
+#### ShootMania/VoteMap
+* Fix : set the correct library name in the ScriptName #Const
+
+#### ShootMania/XmlRpc
+* The "LibXmlRpc_BeginMatch" callback now return one more value. A boolean to indicate if the script was restarted or not.
+
+#### TrackMania/XmlRpc
+* The "LibXmlRpc_BeginMatch" callback now return one more value. A boolean to indicate if the script was restarted or not.
+
+
+---------------------------------
+
+
 <a id="2014-07-24">2014-07-24</a>
 ---------------------------------
 

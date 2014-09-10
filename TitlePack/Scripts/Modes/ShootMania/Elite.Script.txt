@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-07-24"
+#Const Version		"2014-07-25"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -136,6 +136,7 @@ ManialinkRules = """
 // ---------------------------------- //
 // Create rules
 declare ModeName = "Elite";
+SpawnScreen::ResetRulesSection();
 SpawnScreen::AddSubsection(_("Type"), _("Two teams - 1 vs 3"), 0.);
 SpawnScreen::AddSubsection(
 	_("Objectives"), 
