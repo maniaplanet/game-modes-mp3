@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-07-24"
+#Const	Version				"2014-07-25"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -135,6 +135,7 @@ declare ModeName = "Combo";
 declare ModeObjectives = TL::Compose(_("$<%11. $>Eliminate the two opponents within a short range of time (Combo Time).\n$<%12. $>Your Combo Time starts when you eliminate one opponent: eliminate the second one before it ends to win the round."), "$"^SpawnScreen::GetModeColor());
 declare ModeConditions = TL::Compose(_("$<%11. $>Each time you eliminate an opponent, your Combo Time increases.\n$<%12. $>Use '1', '2', '3' and '4' on your keyboard to switch weapon. Collecting a weapon item grants your team with the ability to use it this round, or with 1 extra ammo max if you already own it."), "$"^SpawnScreen::GetModeColor());
 
+SpawnScreen::ResetRulesSection();
 SpawnScreen::AddSubsection(_("Type"), _("Team versus Team"), 0.);
 SpawnScreen::AddSubsection(
 	_("Objectives"), 

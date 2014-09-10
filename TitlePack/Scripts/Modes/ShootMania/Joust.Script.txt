@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"JoustArena"
-#Const	Version				"2013-12-13"
+#Const	Version				"2014-07-25"
 #Const	ScriptName			"Joust.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -110,6 +110,7 @@ declare ModeName = "Joust";
 declare ModeObjectives = TextLib::Compose(_("$<%11. $>You must hit your opponent with your weapons to score points.\n$<%12. $>The first player to score at least %2 points with %3 ahead of their opponent wins the round.\n$<%13. $>Take at least %4 rounds with %5 ahead of your opponents to win the match."), "$"^SpawnScreen::GetModeColor(), TextLib::ToText(S_RoundPointsToWin), TextLib::ToText(S_RoundPointsGap), TextLib::ToText(S_MatchPointsToWin), TextLib::ToText(S_MatchPointsGap));
 declare ModeConditions = TextLib::Compose(_("$<%11. $>Ammunitions are limited. You must alternatively capture poles on each side of the map to reload."), "$"^SpawnScreen::GetModeColor());
 
+SpawnScreen::ResetRulesSection();
 SpawnScreen::AddSubsection(_("Type"), _("Duel"), 0.);
 SpawnScreen::AddSubsection(
 	_("Objectives"), 
@@ -342,7 +343,7 @@ else EndTime = -1;
 // ---------------------------------- //
 // Spawn players
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
-RespawnPlayers(StartTime);
+JoustRespawnPlayers(StartTime);
 
 declare ClubLinkUrl = [1 => "", 2 => ""];
 for (I, 1, 2) {
@@ -373,12 +374,12 @@ for (I, 1, 2) {
 	declare UI <=> UIManager.GetUI(Players[G_CurrPlayerIds[I]]);
 	if (UI == Null) continue;
 	
-	UI.Hud3dMarkers = "";
+	UI.MarkersXML = "";
 	foreach (Landmark in MapLandmarks_Gauge) {
 		declare Pos = Landmark.Position;
 		declare Icon = "PointA";
 		if (Landmark.Tag == "Goal2") Icon = "PointB";
-		UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" /> """;
+		UI.MarkersXML ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" /> """;
 	}
 }
 UIManager.UIAll.SendNotice(
@@ -501,7 +502,7 @@ foreach (Event in PendingEvents) {
 						}
 						CurrGoalsSide[I] = -1;
 						AGoalHaveBeenCaptured = True;
-						RespawnPlayer(Event.Victim, Now+3000, Event.Victim.Armor - 100);
+						JoustRespawnPlayer(Event.Victim, Now+3000, Event.Victim.Armor - 100);
 					}
 				}
 				SetScoreHeader();
@@ -529,7 +530,7 @@ foreach (Event in PendingEvents) {
 					}
 					CurrGoalsSide[I] = -1;
 					AGoalHaveBeenCaptured = True;
-					RespawnPlayer(Event.Player, Now+3000, Event.Player.Armor - 100);
+					JoustRespawnPlayer(Event.Player, Now+3000, Event.Player.Armor - 100);
 				}
 			}
 			SetScoreHeader();
@@ -635,20 +636,20 @@ if (AGoalHaveBeenCaptured) {
 		declare UI <=> UIManager.GetUI(Player);
 		if (UI == Null) continue;
 		
-		UI.Hud3dMarkers = "";
+		UI.MarkersXML = "";
 		if (CurrGoalsSide[I] != -1) {
 			foreach (Pole in Goals[CurrGoalsSide[I]]) {
 				declare Pos = Pole.Position;
 				declare Icon = "PointA";
 				if (Pole.Tag == "Goal2") Icon = "PointB";
-				UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" />""";
+				UI.MarkersXML ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" />""";
 			}
 		} else {
 			foreach (Landmark in MapLandmarks_Gauge) {
 				declare Pos = Landmark.Position;
 				declare Icon = "PointA";
 				if (Landmark.Tag == "Goal2") Icon = "PointB";
-				UI.Hud3dMarkers ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" />""";
+				UI.MarkersXML ^= """<marker icon="{{{Icon}}}" pos="{{{Pos.X}}} {{{Pos.Y+2}}} {{{Pos.Z}}}" />""";
 			}
 		}
 	}
@@ -1131,7 +1132,7 @@ Void UpdateCombo(CSmPlayer _Player) {
  *	@param	_SpawnDate	When to spawn the player
  *	@param	_Armor		Number of armor at spawn
  */
-Void RespawnPlayer(CSmPlayer _Player, Integer _SpawnDate, Integer _Armor) {
+Void JoustRespawnPlayer(CSmPlayer _Player, Integer _SpawnDate, Integer _Armor) {
 	UnspawnPlayer(_Player);
 	
 	_Player.ArmorMax = S_RoundPointsToWin * 100;
@@ -1157,7 +1158,7 @@ Void RespawnPlayer(CSmPlayer _Player, Integer _SpawnDate, Integer _Armor) {
  *
  *	@param	_SpawnDate	When to spawn the players
  */
-Void RespawnPlayers(Integer _SpawnDate) {
+Void JoustRespawnPlayers(Integer _SpawnDate) {
 	if(!G_CurrPlayerIds.existskey(1) || !Players.existskey(G_CurrPlayerIds[1])
 	|| !G_CurrPlayerIds.existskey(2) || !Players.existskey(G_CurrPlayerIds[2])) return;
 	
@@ -1165,7 +1166,7 @@ Void RespawnPlayers(Integer _SpawnDate) {
 	
 	for (I, 1, 2) {
 		if (G_CurrPlayers[I].SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
-			RespawnPlayer(G_CurrPlayers[I], _SpawnDate, S_RoundPointsToWin * 100);
+			JoustRespawnPlayer(G_CurrPlayers[I], _SpawnDate, S_RoundPointsToWin * 100);
 		}
 	}
 	
