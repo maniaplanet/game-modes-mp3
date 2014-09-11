@@ -1,7 +1,7 @@
 <a id="2014-09-10">2014-09-10</a>
 ---------------------------------
 
-[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-07-24...Maniaplanet_Update_2014-09-10)
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-07-24...ManiaPlanet_Update_2014-09-10)
 
 ### Modes
 
