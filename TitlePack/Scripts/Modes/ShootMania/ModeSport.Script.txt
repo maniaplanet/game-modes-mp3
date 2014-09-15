@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-08-01"
+#Const	ModeSportVersion	"2014-09-11"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -33,6 +33,7 @@
 #Setting S_DeciderTurnLimit	20		as _("Decider map points limit")		///< Points limit on decider map
 #Setting S_QuickMode		False	as _("Less time between rounds")		///< Mutliplier for the sleep times between rounds
 #Setting S_UseLegacyCallback True	as "<hidden>"							///< Send the old JSON callbacks
+#Setting S_WarnWhenSpectating False as "<hidden>"						///< Send a message in the chat when a player switch to spectator mode
 // Clublinks settings
 #Setting S_UsePlayerClublinks		False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1		""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
@@ -1964,7 +1965,9 @@ Void UpdateSpectators(Boolean _Forced) {
 			declare PrevSpectatorForcedClan for UI = -1;
 			if (PrevSpectatorForcedClan != UI.SpectatorForcedClan) {
 				PrevSpectatorForcedClan = UI.SpectatorForcedClan;
-				UIManager.UIAll.SendChat(TextLib::Compose("$<%1$> goes into spectator mode", Spectator.Name));
+				if (S_WarnWhenSpectating) {
+					UIManager.UIAll.SendChat(TextLib::Compose("$<%1$> goes into spectator mode", Spectator.Name));
+				}
 			}
 		}
 	}
