@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-09-15"
+#Const	Version				"2014-09-16"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -509,7 +509,7 @@ foreach (Event in XmlRpc.PendingEvents) {
 				}
 				declare Boolean Combo_PauseStatus for This;
 				Combo_PauseStatus = PauseStatus;
-				XmlRpc.SendCallback("Combo_Pause", TL::ToText(Combo_PauseStatus));
+				XmlRpc.SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
 			}
 			case "Combo_GetPause": {
 				declare Boolean Combo_PauseStatus for This;
