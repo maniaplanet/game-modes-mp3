@@ -1,3 +1,13 @@
+<a id="2014-xx-xx">2014-xx-xx</a>
+---------------------------------
+
+[Diff from previous release]()
+
+### Libraries
+
+#### TrackMania/UI
+* New controls on the Trackmania UI via XmlRpc. It's now possible to control (hide/show/move) most of the UI elements of Trackmania with XmlRpc. [see](http://forum.maniaplanet.com/viewtopic.php?f=470&t=28654&start=0) & [documentation](http://doc.maniaplanet.com/creation/maniascript/libraries/library-ui.html)
+
 <a id="2014-09-10">2014-09-10</a>
 ---------------------------------
 
