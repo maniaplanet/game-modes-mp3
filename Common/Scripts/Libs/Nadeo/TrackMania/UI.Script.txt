@@ -6,10 +6,11 @@
  *	- SmallScoresTable -> display the player ranking at the end of the round
  *	- Chrono -> display a chrono at the bottom of the screen
  */
-#Const	Version		"2014-09-16"
+#Const	Version		"2014-09-18"
 #Const	ScriptName	"UI.Script.txt"
 
 #Include "TextLib" as TL
+#Include "Libs/Nadeo/TrackMania/WarmUp.Script.txt" as WarmUp
 
 // ---------------------------------- //
 // Constants
@@ -1465,6 +1466,7 @@ Void Private_SetVisibility(Text _Name, Text _Visible) {
 		case "chrono"					: DisplayChrono(!Hide);
 		case "checkpoint_time"			: DisplayCheckpointTime(!Hide);
 		case "personnal_best_and_rank"	: DisplayPrevBestTime(!Hide);
+		case "warmup"					: WarmUp::SetLayerVisibility(!Hide);
 	}
 }
 
@@ -1491,7 +1493,7 @@ Void Private_SetPosition(Text _Name, Text _Position) {
 		case "checkpoint_time"			: SetCheckpointTimePosition(Position);
 		case "chat"						: UIManager.UIAll.OverlayChatOffset = <Position.X, Position.Y>;
 		case "countdown"				: UIManager.UIAll.CountdownCoord = <Position.X, Position.Y>;
-		
+		case "warmup"					: WarmUp::SetLayerPosition(Position);
 	}
 }
 
@@ -1539,6 +1541,7 @@ Text Private_GetProperties() {
 	<position visible="{{{Private_BooleanToText(!UIManager.UIAll.OverlayHidePosition)}}}" />
 	<checkpoint_time visible="{{{Private_BooleanToText(DisplayCheckpointTime())}}}" pos="{{{Private_Vec3ToText(GetCheckpointTimePosition())}}}" />
 	<chat_avatar visible="{{{Private_BooleanToText(!UIManager.UIAll.OverlayChatHideAvatar)}}}" />
+	<warmup visible="{{{Private_BooleanToText(WarmUp::GetLayerVisibility())}}}" pos="{{{Private_Vec3ToText(WarmUp::GetLayerPosition())}}}" />
 </ui_properties>""";
 }
 
