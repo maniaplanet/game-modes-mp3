@@ -3,6 +3,17 @@
 
 [Diff from previous release]()
 
+### Modes
+
+#### ShootMania/ModeMatchmaking
+* Penalties are now managed by the matchmaking API. Thanks to that, they are now persistent and global. Persistent : if you rage quit a match and leave maniaplanet, your penalty will be applied the next time you join the lobby, even if it's one week later. Global : being penalized in one lobby means you'll be penalized in all lobbies. eg: leave a match in Elite and you will also be penalized in the Siege lobby.
+* Players are not penalized for canceling a replacement anymore.
+* Matchmaking api version : v7.
+* Removed the following settings : S_LobbyAllowMatchCancel, S_LobbyLimitMatchCancel and S_LobbyBasePenalty.
+* Removed the message warning players about matches canceling and penalties in the lobby.
+* Fix : wait for player synchro before playing a new map. [see](http://forum.maniaplanet.com/viewtopic.php?p=227013#p227013)
+
+
 ### Libraries
 
 #### TrackMania/UI
