@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-09-24"
+#Const ModeMatchmakingVersion		"2014-09-25"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -1881,11 +1881,14 @@ Void Private_MM_PostMatchStatus() {
 				declare PlayerKicked = "false";
 				if (MissingInfo[C_MissingInfo_Kicked] != 0) PlayerKicked = "true";
 				
+				declare Clan = MissingInfo[C_MissingInfo_Clan];
+				if (G_Matchmaking_CurrentFormat.count > 1) Clan -= 1;
+				
 				MissingPlayers ^= """
 {
 	"login":"{{{TL::MLEncode(Login)}}}",
 	"kicked": {{{PlayerKicked}}},
-	"clan": {{{MissingInfo[C_MissingInfo_Clan]}}}
+	"clan": {{{Clan}}}
 }""";
 			}
 		}

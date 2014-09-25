@@ -12,6 +12,7 @@
 * Removed the following settings : S_LobbyAllowMatchCancel, S_LobbyLimitMatchCancel and S_LobbyBasePenalty.
 * Removed the message warning players about matches canceling and penalties in the lobby.
 * Fix : wait for player synchro before playing a new map. [see](http://forum.maniaplanet.com/viewtopic.php?p=227013#p227013)
+* Fix : send the right player clan in the missing players array to avoid the SetPlayerClan() error in progressive matchmaking. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=28998#p226648)
 
 
 ### Libraries
