@@ -5,6 +5,9 @@
 
 ### Modes
 
+#### TrackMania/All
+* Added a description for each mode. This description is displayed when pressing esc > help while playing. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=29199&p=230318#p230666)
+
 #### ShootMania/ModeMatchmaking
 * Penalties are now managed by the matchmaking API. Thanks to that, they are now persistent and global. Persistent : if you rage quit a match and leave maniaplanet, your penalty will be applied the next time you join the lobby, even if it's one week later. Global : being penalized in one lobby means you'll be penalized in all lobbies. eg: leave a match in Elite and you will also be penalized in the Siege lobby.
 * Players are not penalized for canceling a replacement anymore.
@@ -22,6 +25,7 @@
 
 #### TrackMania/UI
 * New controls on the Trackmania UI via XmlRpc. It's now possible to control (hide/show/move) most of the UI elements of Trackmania with XmlRpc. [see](http://forum.maniaplanet.com/viewtopic.php?f=470&t=28654&start=0) & [documentation](http://doc.maniaplanet.com/creation/maniascript/libraries/library-ui.html)
+* Better alignment of the sand timer. [see](http://forum.maniaplanet.com/viewtopic.php?f=470&t=28654&start=10#p229872)
 
 <a id="2014-09-10">2014-09-10</a>
 ---------------------------------
