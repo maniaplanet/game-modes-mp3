@@ -1084,7 +1084,7 @@ Text Private_CreateMLCountdown() {
 	return """
 <manialink version="1" name="Lib_UI:Countdown">
 <frame posn="{{{C_LibUI_CountdownPos.X}}} {{{C_LibUI_CountdownPos.Y}}} {{{C_LibUI_CountdownPos.Z}}}" id="Frame_Global">
-	<quad sizen="6 6" valign="center" style="BgRaceScore2" substyle="SandTimer" />
+	<quad posn="0 0.5" sizen="6 6" valign="center" style="BgRaceScore2" substyle="SandTimer" />
 	<label sizen="40 6" halign="right" valign="center2" textsize="5" style="TextRaceChrono" id="Label_Countdown" />
 </frame>
 <script><!--
