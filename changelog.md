@@ -22,6 +22,7 @@
 
 #### VoteMap
 * Added a text to explain how the vote works. [see](http://forum.maniaplanet.com/viewtopic.php?f=469&t=29347#p229984)
+* Removed the "validate" button. Voting for a map is now considered as validating. No need for a button anymore.  [see](http://forum.maniaplanet.com/viewtopic.php?f=469&t=29347&p=230818#p230698)
 
 #### TrackMania/UI
 * New controls on the Trackmania UI via XmlRpc. It's now possible to control (hide/show/move) most of the UI elements of Trackmania with XmlRpc. [see](http://forum.maniaplanet.com/viewtopic.php?f=470&t=28654&start=0) & [documentation](http://doc.maniaplanet.com/creation/maniascript/libraries/library-ui.html)
