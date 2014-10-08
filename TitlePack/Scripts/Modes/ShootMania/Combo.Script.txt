@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-09-16"
+#Const	Version				"2014-10-08"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -242,17 +242,10 @@ else MB_UseIntro = True;
 Users_SetNbFakeUsers(C_BlueBots, C_RedBots);
 Score::MatchBegin();
 SM::SetupDefaultVisibility();
-//UIManager.UIAll.TeamLabelsVisibility = CUIConfig::ELabelsVisibility::Always;
 MapWinnerClan = 0;
 G_ClansPlayers = [1 => Ident[], 2 => Ident[]];
 Spawns = [1 => Null, 2 => Null];
-foreach (MapLandmark in MapLandmarks_PlayerSpawn) {
-	if (MapLandmark.Order == 1) Spawns[1] <=> MapLandmark.PlayerSpawn;
-	else if (MapLandmark.Order == 2) Spawns[2] <=> MapLandmark.PlayerSpawn;
-}
-assert(Spawns[1] != Null && Spawns[2] != Null);
 UpdateModeStatusMessage();
-UpdateBasesColors();
 
 // ---------------------------------- //
 // Initialize players
@@ -280,25 +273,11 @@ foreach (Score in Scores) {
 }
 
 // ---------------------------------- //
-// Set storm center
-foreach (Pole in MapLandmarks_Gauge) {
-	if (Pole.Tag == "Checkpoint") {
-		OffZoneCenterLandmarkId = Pole.Id;
-		break;
-	}
-}
-
-// ---------------------------------- //
 // Update the scores table
 ST2::ClearScores();
 ST2::SetFooterText(TL::Compose("%1 "^S_PointsLimit, _("Points limit : ")));
 
 UpdateScoresHeader();
-
-// ---------------------------------- //
-// Initialize markers
-Markers::Clear();
-CreateMarkers();
 
 // ---------------------------------- //
 // Initalize settings
@@ -318,9 +297,33 @@ if (MM_IsMatchServer()) {
 	}
 	PrepareMatch();
 }
+
+// ---------------------------------- //
+// Initialize markers
+Markers::Clear();
+CreateMarkers();
+
+// ---------------------------------- //
+// Initialize landmarks
+foreach (MapLandmark in MapLandmarks_PlayerSpawn) {
+	if (MapLandmark.Order == 1) Spawns[1] <=> MapLandmark.PlayerSpawn;
+	else if (MapLandmark.Order == 2) Spawns[2] <=> MapLandmark.PlayerSpawn;
+}
+assert(Spawns[1] != Null && Spawns[2] != Null);
+UpdateBasesColors();
+
+// ---------------------------------- //
+// Set storm center
+foreach (Pole in MapLandmarks_Gauge) {
+	if (Pole.Tag == "Checkpoint") {
+		OffZoneCenterLandmarkId = Pole.Id;
+		break;
+	}
+}
+
 // ---------------------------------- //
 // Do warm up
-else WarmUp();
+if (!MM_IsMatchServer()) WarmUp();
 
 IsRematch = False;
 

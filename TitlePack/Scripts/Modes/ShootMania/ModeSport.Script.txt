@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-09-11"
+#Const	ModeSportVersion	"2014-10-08"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -275,23 +275,6 @@ else MB_UseIntro = True;
 ***StartMap***
 ***
 if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMap", Json::Enfold(Json::Merge([Json::Stringify("MapNumber", MB_SectionMapNb), Json::Stringify("Restart", MB_MapRestarted)])));
-G_MapSpecCamDirection = GetOverviewCamDirection();
-
-// ---------------------------------- //
-// Initialize anchors
-Goals = CSmMapLandmark[];
-Checkpoints = CSmMapLandmark[];
-foreach (Pole in MapLandmarks_Gauge) {
-	if (Pole.Tag == "Goal A" || Pole.Tag == "Goal B" || Pole.Tag == "Goal C") Goals.add(Pole);
-	else if (Pole.Tag == "Checkpoint") Checkpoints.add(Pole);
-}
-G_CheckpointsNb = Checkpoints.count;
-// Compatibility with old MapType
-if (Goals.count <= 0) {
-	MB_Log("Old MapType compatibility");
-	declare OldPole <=> Map::GetLandmarkGauge("Goal", 0);
-	if (OldPole != Null) Goals.add(OldPole);
-}
 
 // ---------------------------------- //
 // Initialize all scores
@@ -334,7 +317,6 @@ Clublink::SyncUpdate();
 
 // ---------------------------------- //
 // Initialize UI
-//UIManager.ResetAll();
 InitUi();
 SpawnScreen::AttachRules();
 Clublink::Attach();
@@ -386,6 +368,24 @@ if (MM_IsMatchServer()) {
 }
 MapSkipped = False;
 IsRematch = False;
+
+G_MapSpecCamDirection = GetOverviewCamDirection();
+
+// ---------------------------------- //
+// Initialize anchors
+Goals = CSmMapLandmark[];
+Checkpoints = CSmMapLandmark[];
+foreach (Pole in MapLandmarks_Gauge) {
+	if (Pole.Tag == "Goal A" || Pole.Tag == "Goal B" || Pole.Tag == "Goal C") Goals.add(Pole);
+	else if (Pole.Tag == "Checkpoint") Checkpoints.add(Pole);
+}
+G_CheckpointsNb = Checkpoints.count;
+// Compatibility with old MapType
+if (Goals.count <= 0) {
+	MB_Log("Old MapType compatibility");
+	declare OldPole <=> Map::GetLandmarkGauge("Goal", 0);
+	if (OldPole != Null) Goals.add(OldPole);
+}
 
 ---StartUsingToken---
 

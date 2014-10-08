@@ -8,6 +8,12 @@
 #### TrackMania/All
 * Added a description for each mode. This description is displayed when pressing esc > help while playing. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=29199&p=230318#p230666)
 
+#### ShootMania/Combo
+* Fixed runtime error. When using matchmaking, if the vote map was activated, some variables concerning the landmarks were initialized before the vote. So if there was a map change because of the vote, the variables were intialized with the landmarks of the previous map. [see](ttp://forum.maniaplanet.com/viewtopic.php?f=261&t=28998&view=unread#p230753)
+
+#### ShootMania/ModeSport
+* Fixed runtime error. When using matchmaking, if the vote map was activated, some variables concerning the landmarks were initialized before the vote. So if there was a map change because of the vote, the variables were intialized with the landmarks of the previous map. [see](ttp://forum.maniaplanet.com/viewtopic.php?f=261&t=28998&view=unread#p230753)
+
 #### ShootMania/ModeMatchmaking
 * Penalties are now managed by the matchmaking API. Thanks to that, they are now persistent and global. Persistent : if you rage quit a match and leave maniaplanet, your penalty will be applied the next time you join the lobby, even if it's one week later. Global : being penalized in one lobby means you'll be penalized in all lobbies. eg: leave a match in Elite and you will also be penalized in the Siege lobby.
 * Players are not penalized for canceling a replacement anymore.
