@@ -1,9 +1,8 @@
 /**
- *	Multi Clans library
- *	Handle more than 2 clans in a game
+ *	Color library
  */
 
-#Const Version		"2013-11-29"
+#Const Version		"2014-10-13"
 #Const ScriptName	"Color.Script.txt"
 
 #Include "TextLib" as TextLib
@@ -95,36 +94,45 @@ Vec3 HsvToRgb(Vec3 _HSV) {
  *	@return		The HSV values [0.-1.[
  */
 Vec3 RgbToHsv(Vec3 _RGB) {
-	declare HSV = <0., 0., 0.>;
-	declare RGB = [_RGB.X, _RGB.Y, _RGB.Z];
-	declare Min = 1.;
-	declare Max = 0.;
+	declare Real R = _RGB.X;
+	declare Real G = _RGB.Y;
+	declare Real B = _RGB.Z;
 	
-	foreach (Value in RGB) {
-		if (Value < Min) Min = Value;
-		if (Value > Max) Max = Value;
+	if(R < 0.) R = 0.;
+	if(G < 0.) G = 0.;
+	if(B < 0.) B = 0.;
+	if(R > 1.) R = 1.;
+	if(G > 1.) G = 1.;
+	if(B > 1.) B = 1.;
+	
+	declare Real CMax = R;
+	if(G > R && G > B) CMax = G;
+	if(B > R && B > G) CMax = B;
+	
+	declare Real CMin = R;
+	if(G <= R && G <= B) CMin = G;
+	if(B <= R && B <= G) CMin = B;
+	
+	declare Real Delta = CMax - CMin;
+	declare Real H = 0.;
+	if(Delta > 0.) {
+		if(CMax == R) {
+			if(G > B) 	H = 		1./6 * (G - B) /Delta;
+			else 		H = 1 - 	(1./6 * (B - G) /Delta);
+		} else if(CMax == G) {
+			if(B > R)	H = 2./6. + (1./6. * (B - R))/Delta;
+			else		H = 2./6. - (1./6. * (R - B))/Delta;
+		} else {
+			if(R > G)	H = 4./6. + (1./6. * (R - G))/Delta;
+			else		H = 4./6. - (1./6. * (G - R))/Delta;
+		}
 	}
-	HSV.Z = Max;
 	
-	declare Delta = Max - Min;
+	declare Real S = 0.;
+	if(CMax > 0.) S = Delta / CMax;
 	
-	if (Max != 0.) {
-		HSV.Y = Delta / Max;
-	} else {
-		// Error
-		HSV.Z = 0.;
-		return HSV;
-	}
-	
-	if (_RGB.X == Max) HSV.X = (_RGB.Y - _RGB.Z) / Delta;
-	else if (_RGB.Y == Max) HSV.X = 2 + ((_RGB.Y - _RGB.X) / Delta);
-	else HSV.X = 4 + ((_RGB.X - _RGB.Y) / Delta);
-	
-	HSV.X *= 60;
-	if (HSV.X < 0) HSV.X += 360.;
-	HSV.X /= 360.;
-	
-	return HSV;
+	declare V = CMax;
+	return <H, S, V>;
 }
 
 // ---------------------------------- //

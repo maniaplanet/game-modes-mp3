@@ -26,6 +26,9 @@
 
 ### Libraries
 
+#### Color
+* Fix the RgbToHsv() function. The green color wasn't converted correctly. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29453#p231086)
+
 #### VoteMap
 * Added a text to explain how the vote works. [see](http://forum.maniaplanet.com/viewtopic.php?f=469&t=29347#p229984)
 * Removed the "validate" button. Voting for a map is now considered as validating. No need for a button anymore.  [see](http://forum.maniaplanet.com/viewtopic.php?f=469&t=29347&p=230818#p230698)
