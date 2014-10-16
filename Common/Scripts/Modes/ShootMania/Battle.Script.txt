@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-08-29"
+#Const	Version				"2014-10-14"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -28,7 +28,8 @@
 #Setting	S_RoundsToWin			2		as _("Rounds to win")		///< Number of rounds to win a map
 #Setting	S_RoundGapToWin			1		as _("Round gap to win")	///< Minimum gap between the two leaders to win a map
 #Setting	S_RoundsLimit			3		as _("Rounds limit")		///< Point limit on map
-#Setting	S_TimeLimit				300 	as _("Time limit (seconds)") 		///< Time limit (seconds)
+#Setting	S_TimeLimit				300 	as _("Time limit (seconds)")///< Time limit (seconds)
+#Setting	S_UseOvertime			True	as _("Use overtime")		///< Activate the overtime system
 #Setting	S_CaptureMaxValue		30000	as _("Capture time (milliseconds)") ///< Pole capture time (milliseconds)
 #Setting	S_AlternativePoints		False	as _("Use atk and def points as score")
 #Setting 	S_AllowBeginners		False	as _("Is a Beginners Welcome server")
@@ -88,6 +89,11 @@
 #Const C_TopId_Capture	"CAPTURE"
 #Const C_TopId_Defense 	"DEFENSE"
 #Const C_TopId_Attack	"ATTACK"
+#Const C_TopId_Combo	"COMBO"
+
+#Const C_SlideId_Attack		0
+#Const C_SlideId_Defense	1
+#Const C_SlideId_Combo		3
 
 #Const Description _("TYPE: Team versus Team\nOBJECTIVE:\nCapture all the poles of the opposing team before the end of the time limit.\nIn Waves mode you can only capture when your team is in attack.\nThe team with the more poles at the end of the round scores 1 point. If this team reaches the points limit she wins the map.")
 
@@ -115,7 +121,6 @@ MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
 MB_LogVersion(Top::GetScriptName(), Top::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
-MB_LogVersion(Message::GetScriptName(), Message::GetScriptVersion());
 MB_LogVersion(Victory::GetScriptName(), Victory::GetScriptVersion());
 MB_LogVersion(Interface::GetScriptName(), Interface::GetScriptVersion());
 MB_LogVersion(Tabs::GetScriptName(), Tabs::GetScriptVersion());
@@ -172,12 +177,12 @@ G_CurrentRoundIndex = 0;
 // Tops
 
 Top::Load();
-declare Real TopXPosition	= -70.5;
+declare Real TopXPosition	= -76.;
 declare Real TopYPosition	= 31.;
-declare Real TopXOffset 	= 47.;
+declare Real TopXOffset 	= 38.;
 declare Integer NbPlayersPerTop = 12;
 declare Text TopBGImg		= C_ImgBaseDir^"topsBg.dds";
-Top::SetTopWidth(46.);
+Top::SetTopWidth(37.);
 Top::SetDefaultTitle();
 Top::Create(C_TopId_Hit, _("Hit"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 TopXPosition += TopXOffset;
@@ -186,6 +191,8 @@ TopXPosition += TopXOffset;
 Top::Create(C_TopId_Defense, _("Defense"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
 TopXPosition += TopXOffset;
 Top::Create(C_TopId_Attack, _("|Substantive|Attack"), NbPlayersPerTop, <TopXPosition, TopYPosition>);
+TopXPosition += TopXOffset;
+Top::Create(C_TopId_Combo, "Combo", NbPlayersPerTop, <TopXPosition, TopYPosition>);
 Top::SetCommonBackgroundImage(TopBGImg,  <0.05, 95.75>, <207., 175.75>);
 Top::SetLayerType(CUILayer::EUILayerType::AltMenu);
 
@@ -312,10 +319,12 @@ Users_SetNbFakeUsers(C_Battle_BlueBots, C_Battle_RedBots); // add bots for debug
 foreach(Player in Players) {
 	// reset map tops
 	declare Integer MapHit 		for Player = 0;
+	declare Integer MapCombo	for Player = 0;
 	declare Integer MapCapture 	for Player = 0;
 	declare Integer MapDefense 	for Player = 0;
 	declare Integer MapAttack 	for Player = 0;
 	MapHit 		= 0;
+	MapCombo	= 0;
 	MapCapture 	= 0;
 	MapDefense 	= 0;
 	MapAttack 	= 0;
@@ -340,6 +349,14 @@ IsRematch = False;
 // ---------------------------------- //
 // Matchmaking : allow substitutes
 if (MM_IsMatchServer()) MM_AllowSubstitutes(True);
+
+// ---------------------------------- //
+// Create tops slider
+Interface::CreateSlider();
+Interface::SetSliderAnimation(<-208., 40.>, <-160., 40.>);
+//Interface::AddSlide(C_SlideId_Attack, "Top", _("|Battle Top5 Attack|Top Attack"), C_TopId_Attack);
+//Interface::AddSlide(C_SlideId_Defense, "Top", _("|Battle Top5 Defense|Top Defense"), C_TopId_Defense);
+Interface::AddSlide(C_SlideId_Combo, "Top", _("|Top5 hits combo|Top Combo"), C_TopId_Combo);
 ***
 
 ***SleepLoop***
@@ -360,6 +377,8 @@ Void ComputeCaptureMaxValue()
 ***InitRound***
 ***
 declare Boolean RoundBattleWaves = S_BattleWaves;
+declare CaptureOngoing = False;
+declare OvertimeActivation = False;
 
 declare UpdateLayerScoresTable = False;	///< The scores table UI need an update
 declare ClanPoles = [1=>CSmMapLandmark[], 2=>CSmMapLandmark[]];
@@ -470,8 +489,10 @@ UpdateBasesColors();
 
 foreach (Player in AllPlayers) {
 	InitializePlayer(Player, NbPolesByClan, LayerMarkers, PoleMarkers);
+	
+	declare Integer RoundCombo for Player = 0;
+	RoundCombo = 0;
 }
-
 
 // ---------------------------------- //
 // Update the players clublinks
@@ -513,12 +534,16 @@ if(S_AllowBeginners) {
 	Beginners::NotifyNewPlayer(Player);
 }
 if (Now > StartTime + 10) UpdateLayerScoresTable = True;
+
+Interface::ShowSlider(Player, 0);
 ***
 
 ***OnNewSpectator***
 ***
 InitializePlayer(Spectator, NbPolesByClan, LayerMarkers, PoleMarkers);
 if (Now > StartTime + 10) UpdateLayerScoresTable = True;
+
+Interface::ShowSlider(Spectator, 0);
 ***
 
 Void UpdateScoreTeamsUI(CSmPlayer Player) {
@@ -560,6 +585,8 @@ if (MM_IsMatchServer()) {
 
 Message::Loop();
 Tabs::XmlRpcLoop();
+CaptureOngoing = False;
+OvertimeActivation = False;
 
 foreach (Event in PendingEvents) {
 	if (Event.Type == CSmModeEvent::EType::OnHit) {
@@ -597,6 +624,16 @@ foreach (Event in PendingEvents) {
 				declare Integer Battle_ScoreAttackBonus  for Shooter.Score;
 				
 				Battle_ScoreHit += PointsGivenToTheShooter;
+				
+				// Combo
+				declare Integer Battle_ScoreCombo as ComboShooter for Shooter.Score;
+				declare Integer Battle_ScoreCombo as ComboVictim for Victim.Score;
+				declare Integer MapCombo for Shooter;
+				declare Integer RoundCombo for Shooter;
+				ComboShooter += 1;
+				ComboVictim = 0;
+				if (ComboShooter > MapCombo) MapCombo = ComboShooter;
+				if (ComboShooter > RoundCombo) RoundCombo = ComboShooter;
 				
 				declare Boolean BonusGranted = False;
 				// 1. Check if the victim is currently taking a pole
@@ -664,6 +701,7 @@ foreach (Event in PendingEvents) {
 	} else if (Event.Type == CSmModeEvent::EType::OnArmorEmpty) {
 		BalancedWeapons::OnOut(Event.Shooter, Event.Victim);
 		XmlRpc::OnArmorEmpty(Event);
+		Interface::ShowSlider(Event.Victim, 0);
 		PassOn(Event);
 	} else if (Event.Type == CSmModeEvent::EType::OnCapture) {
 		if (Event.Landmark.Tag == "Goal") {
@@ -672,6 +710,9 @@ foreach (Event in PendingEvents) {
 			XmlRpc::OnCapture(Event);
 		}
 		
+		PassOn(Event);
+	} else if (Event.Type == CSmModeEvent::EType::OnPlayerRequestRespawn) {
+		Interface::ShowSlider(Event.Player, 0);
 		PassOn(Event);
 	} else {
 		PassOn(Event);
@@ -774,8 +815,14 @@ foreach (Player in Players) {
 		Player.ArmorMax = TotalArmor;
 		Player.Armor	= TotalArmor;
 		
+		// Reset combo
+		declare Integer Battle_ScoreCombo for Player.Score;
+		Battle_ScoreCombo = 0;
+		
 		SetPlayerClan(Player, MM_GetRequestedClan(Player));
 		SM::SpawnPlayer(Player, Player.CurrentClan, G_ClanSpawnAnchors[Player.CurrentClan].PlayerSpawn, Now + S_RespawnTime);
+		
+		Interface::HideSlider(Player, 5000);
 		
 		if(S_AllowBeginners) {
 			Beginners::HighlightPlayer(Player);
@@ -795,6 +842,58 @@ foreach (Player in Players) {
 	if (UI != Null) {
 		declare netwrite Integer Battle_PoleCaptureState for UI;
 		Battle_PoleCaptureState = C_PoleCaptureState_Neutral;
+	}
+}
+
+// In overtime
+declare AtkIsCapturing = False;
+declare DefIsCapturing = False;
+if (S_UseOvertime && S_BattleWaves && (EndTime < 0 || Now >= EndTime - 15000)) {
+	
+	// Check who's capturing
+	for (Clan, 1, 2) {
+		declare PolesOfClan = ClanPoles[Clan];
+		foreach (Pole in PolesOfClan) {
+			// Check if pole is denied
+			declare IsGoalDenied = False;
+			foreach (PlayerId in Pole.Sector.PlayersIds) {
+				if (!Players.existskey(PlayerId)) continue;
+				declare Player <=> Players[PlayerId];
+				if (Player.CurrentClan == Clan) {
+					IsGoalDenied = True;
+				}
+				
+			}
+			
+			if (!IsGoalDenied && (Pole.Sector.PlayersIds.count > 0)) {
+				declare NumberOfPlayerCapturing = 0;
+				foreach (PlayerId in Pole.Sector.PlayersIds) {
+					if (!Players.existskey(PlayerId)) continue;
+					declare Player <=> Players[PlayerId];
+					if (Player.CurrentClan == Clan) continue; // Opponent team only
+					
+					NumberOfPlayerCapturing += 1;
+				}
+			
+				if (NumberOfPlayerCapturing > 0) {
+					if (Clan == CurrentAckClan) DefIsCapturing = True;
+					else AtkIsCapturing = True;
+				}
+			}
+		}
+	}
+	
+	if (DefIsCapturing || AtkIsCapturing) {
+		OvertimeActivation = True;
+		DoUpdateScore = True;
+	}
+	
+	// Invert attack role
+	if (Now >= EndTime && DefIsCapturing && !AtkIsCapturing) {
+		CurrentAckClan = 3-CurrentAckClan;
+		UIManager.UIAll.SendNotice(
+			"", CUIConfig::ENoticeLevel::PlayerInfo, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::PhaseChange, 0
+		);
 	}
 }
 
@@ -839,7 +938,7 @@ for (Clan, 1, 2) {
 		---IsCapturePossible---
 		if (IsCapturePossible && (Pole.Sector.PlayersIds.count > 0)) {
 			declare Integer PoleGlobalIndex = ((Clan-1)*NbPolesByClan) + PoleIndex;
-						
+			
 			declare NumberOfPlayerCapturing = 0;
 			foreach (PlayerId in Pole.Sector.PlayersIds) {
 				if (!Players.existskey(PlayerId)) continue;
@@ -886,8 +985,10 @@ for (Clan, 1, 2) {
 			+++Capturing+++
 			Pole.Gauge.Speed = NumberOfPlayerCapturing;
 			
+			
 			if(NumberOfPlayerCapturing > 0) {
 				DoUpdateScore = True;
+				CaptureOngoing = True;
 			}
 			
 		} else {
@@ -977,6 +1078,23 @@ if(S_BattleWaves) {
 					}
 				}
 				
+				// Display the name of the player who did the pivot
+				if (DurationBeforePivot <= (WavesDuration * 1000) / 5) {
+					foreach (PlayerId in Pole.Sector.PlayersIds) {
+						if (!Players.existskey(PlayerId)) continue;
+						declare Player <=> Players[PlayerId];
+						if (Player.CurrentClan != Clan) {
+							declare TimeSplit = TL::Split(".", TL::ToText(DurationBeforePivot / 1000.));
+							declare Time = "0";
+							if (TimeSplit.existskey(0)) Time = TimeSplit[0];
+							if (TimeSplit.existskey(1)) Time ^= "."^TL::SubText(TimeSplit[1], 0, 1);
+							declare Message = TL::Compose(_("|Battle: 1=Player name, 2=Time in seconds|$<%1$> restarts attack countdown (%2s)"), Player.Name, Time);
+							Message::SendBigMessage(Message, 3000, 1);
+							break;
+						}
+						
+					}
+				}
 				DurationBeforePivot = WavesDuration * 1000;	// redemarre la jauge.
 			}
 		}
@@ -1018,19 +1136,23 @@ if(True) // Create a context
 {
 	UpdatePlayerScore(CustomScorePlayer, G_CaptureMaxValue);
 	
-	declare Integer Battle_ScoreDefense 	 for CustomScorePlayer;
-	declare Integer Battle_ScoreAttack  	 for CustomScorePlayer;
-	declare Integer Battle_ScoreHit 		 for CustomScorePlayer.Score;
+	declare Integer Battle_ScoreDefense	for CustomScorePlayer;
+	declare Integer Battle_ScoreAttack	for CustomScorePlayer;
+	declare Integer Battle_ScoreHit		for CustomScorePlayer.Score; 
 	
 	ST2::SetColValue("Attack", CustomScorePlayer.Score, TextLib::ToText(Battle_ScoreAttack));
 	ST2::SetColValue("Defense", CustomScorePlayer.Score, TextLib::ToText(Battle_ScoreDefense));
 	
 	// update tops
 	declare Integer MapHit 		for CustomScorePlayer = 0;
+	declare Integer MapCombo	for CustomScorePlayer = 0;
 	declare Integer MapDefense 	for CustomScorePlayer = 0;
 	declare Integer MapAttack 	for CustomScorePlayer = 0;
 	
+	declare Integer RoundCombo	for CustomScorePlayer = 0;
+	
 	Top::SetRecord(CustomScorePlayer, C_TopId_Hit		, ""^(MapHit + Battle_ScoreHit)			, -(MapHit 		+ Battle_ScoreHit));
+	Top::SetRecord(CustomScorePlayer, C_TopId_Combo		, ""^(RoundCombo)						, -RoundCombo);
 	Top::SetRecord(CustomScorePlayer, C_TopId_Defense	, ""^(MapDefense + Battle_ScoreDefense)	, -(MapDefense 	+ Battle_ScoreDefense));
 	Top::SetRecord(CustomScorePlayer, C_TopId_Attack	, ""^(MapAttack + Battle_ScoreAttack)	, -(MapAttack 	+ Battle_ScoreAttack));
 }
@@ -1062,18 +1184,22 @@ if(True) // Create a context
 	declare Integer Battle_ScoreCapture 	 for CustomScorePlayer;
 	declare Integer Battle_ScoreDefense 	 for CustomScorePlayer;
 	declare Integer Battle_ScoreAttack  	 for CustomScorePlayer;
-	declare Integer Battle_ScoreHit 		 for CustomScorePlayer;
+	declare Integer Battle_ScoreHit 		 for CustomScorePlayer.Score;
 	ST2::SetColValue("Capture", CustomScorePlayer.Score, TextLib::ToText(Battle_ScoreCapture));
 	ST2::SetColValue("Attack", CustomScorePlayer.Score, TextLib::ToText(Battle_ScoreAttack));
 	ST2::SetColValue("Defense", CustomScorePlayer.Score, TextLib::ToText(Battle_ScoreDefense));
 	
 	// update tops
 	declare Integer MapHit 		for CustomScorePlayer = 0;
+	declare Integer MapCombo	for CustomScorePlayer = 0;
 	declare Integer MapCapture 	for CustomScorePlayer = 0;
 	declare Integer MapDefense 	for CustomScorePlayer = 0;
 	declare Integer MapAttack 	for CustomScorePlayer = 0;
 	
+	declare Integer RoundCombo	for CustomScorePlayer = 0;
+	
 	Top::SetRecord(CustomScorePlayer, C_TopId_Hit		, ""^(MapHit + Battle_ScoreHit)			, -(MapHit 		+ Battle_ScoreHit));
+	Top::SetRecord(CustomScorePlayer, C_TopId_Combo		, ""^(RoundCombo)						, -(RoundCombo));
 	Top::SetRecord(CustomScorePlayer, C_TopId_Capture	, ""^(MapCapture + Battle_ScoreCapture)	, -(MapCapture 	+ Battle_ScoreCapture));
 	Top::SetRecord(CustomScorePlayer, C_TopId_Defense	, ""^(MapDefense + Battle_ScoreDefense)	, -(MapDefense 	+ Battle_ScoreDefense));
 	Top::SetRecord(CustomScorePlayer, C_TopId_Attack	, ""^(MapAttack + Battle_ScoreAttack)	, -(MapAttack 	+ Battle_ScoreAttack));
@@ -1272,10 +1398,12 @@ Void InitializePlayer(CSmPlayer Player, Integer NbPolesByClan, CUILayer LayerMar
 	
 	// update tops
 	declare Integer MapHit 		for Player = 0;
+	declare Integer MapCombo	for Player = 0;
 	declare Integer MapCapture 	for Player = 0;
 	declare Integer MapDefense 	for Player = 0;
 	declare Integer MapAttack 	for Player = 0;
 	//MapHit 		= 0;
+	//MapCombo 		= 0;
 	//MapCapture 	= 0;
 	//MapDefense 	= 0;
 	//MapAttack 	= 0;
@@ -1303,7 +1431,7 @@ Void InitializePlayer(CSmPlayer Player, Integer NbPolesByClan, CUILayer LayerMar
 // ---------------------------------- //
 ***EndRound***
 ***
-//declare Integer Dummy;
+Message::CleanAllMessages();
 
 foreach(Player in Players) {
 	if(Player.Score == Null) continue;
@@ -1324,6 +1452,7 @@ foreach(Player in Players) {
 }
 
 foreach(Player in AllPlayers) {
+	Interface::ShowSlider(Player, 0);
 	declare UI <=> UIManager.GetUI(Player);
 	if(UI == Null) continue;
 	
@@ -1356,6 +1485,7 @@ Top::Loop();
 
 StartTime = -1;
 EndTime = -1;
+UIManager.UIAll.OverlayHideCountdown = False;
 for (Clan, 1, 2) {
 	foreach (Pole in ClanPoles[Clan]) {
 		Pole.Gauge.Speed = 0;
@@ -1472,6 +1602,8 @@ MM_Sleep(10*1000);
 
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 ResetAllUIs();
+
+Interface::DestroySlider();
 
 // ---------------------------------- //
 // Send match result and transfert players back to the lobby
@@ -1885,17 +2017,40 @@ for (Clan, 1, 2) {
 	if (NumberOfCapturedPoles[Clan] == ClanPoles[3-Clan].count) Victory::SetRoundWinnerIfNoWinner(Clan);
 }
 
+// Warn about overtime
+if (S_UseOvertime && EndTime >= 0 && Now >= EndTime - 15000) {
+	if (OvertimeActivation && UIManager.UIAll.StatusMessage != _("Overtime is going to be activated.")) {
+		UIManager.UIAll.StatusMessage = _("Overtime is going to be activated.");
+	} else if (!OvertimeActivation && UIManager.UIAll.StatusMessage == _("Overtime is going to be activated.")) {
+		UIManager.UIAll.StatusMessage = "";
+	}
+}
+
 if (Now >= EndTime) {
-	// First Criteria : Current Score
-	if (NumberOfCapturedPoles[1] > NumberOfCapturedPoles[2]) Victory::SetRoundWinnerIfNoWinner(1);
-	if (NumberOfCapturedPoles[2] > NumberOfCapturedPoles[1]) Victory::SetRoundWinnerIfNoWinner(2);
-	// 2nd Criteria : most captured
-	if (TotalCaptureValue[1] > TotalCaptureValue[2]) Victory::SetRoundWinnerIfNoWinner(1);
-	if (TotalCaptureValue[2] > TotalCaptureValue[1]) Victory::SetRoundWinnerIfNoWinner(2);
-	// 3rd Criteria : First capture
-	if (FirstClanToStartCapture != 0) Victory::SetRoundWinnerIfNoWinner(FirstClanToStartCapture);
-	// 4rth Criteria : Draw
-	Victory::SetRoundDrawIfNoWinner();
+	// Overtime
+	if (S_UseOvertime && CaptureOngoing) {
+		if (EndTime >= 0) {
+			UIManager.UIAll.OverlayHideCountdown = True;
+			EndTime = -1;
+		}
+		if (UIManager.UIAll.BigMessage != _("Overtime")) {
+			Message::CleanAllMessages();
+			UIManager.UIAll.StatusMessage = "";
+			UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
+			UIManager.UIAll.BigMessage = _("Overtime");
+		}
+	} else {
+		// First Criteria : Current Score
+		if (NumberOfCapturedPoles[1] > NumberOfCapturedPoles[2]) Victory::SetRoundWinnerIfNoWinner(1);
+		if (NumberOfCapturedPoles[2] > NumberOfCapturedPoles[1]) Victory::SetRoundWinnerIfNoWinner(2);
+		// 2nd Criteria : most captured
+		if (TotalCaptureValue[1] > TotalCaptureValue[2]) Victory::SetRoundWinnerIfNoWinner(1);
+		if (TotalCaptureValue[2] > TotalCaptureValue[1]) Victory::SetRoundWinnerIfNoWinner(2);
+		// 3rd Criteria : First capture
+		if (FirstClanToStartCapture != 0) Victory::SetRoundWinnerIfNoWinner(FirstClanToStartCapture);
+		// 4rth Criteria : Draw
+		Victory::SetRoundDrawIfNoWinner();
+	}
 }
 
 if(!Victory::NoRoundWinner()) {
@@ -1921,7 +2076,7 @@ if(S_BattleWaves) {
 
 ***UIAll***
 ***
-declare Integer DurationInSeconds = DurationBeforePivot/1000;
+declare Integer DurationInSeconds = (DurationBeforePivot/1000) + 1;
 
 foreach(Player in Players) {
 	UpdateTimeLeftUI(Player, CurrentAckClan, DurationInSeconds);
@@ -2285,11 +2440,12 @@ Text BuildTimeLeftManialink(Integer _WavesDuration) {
 	//log(ColorClan2);
 	
 	declare MLText = """
-<frame posn="0 57 40" halign="center" valign="center" hidden="1" id="FrameTimeLeft">
+<manialink version="1" name="Battle:TimeLeft">
+<frame posn="0 63 40" halign="center" valign="center" hidden="1" id="FrameTimeLeft">
 	<frame posn="0 4">
-		<label posn="0 4" halign="center" valign="center" textsize="8" textemboss="true" id="LabelAttack" />
-		<label posn="0 -2" halign="center" valign="center" textsize="4" textemboss="true" id="Label_AdditionalRules" />
-		<label posn="0 -8" halign="center" valign="center" textsize="8" textemboss="true" id="LabelTimeLeft" />
+		<label posn="0 4" halign="center" valign="center" style="TextRaceMessageBig" textsize="4" id="LabelAttack" />
+		<label posn="0 -2" halign="center" valign="center" style="TextRaceMessageBig" textsize="4" id="Label_AdditionalRules" />
+		<label posn="0 -8" halign="center" valign="center" style="TextRaceMessageBig" textsize="4" id="LabelTimeLeft" />
 	</frame>
 </frame>
 <script><!--
@@ -2338,7 +2494,7 @@ main() {
 						LabelTimeLeft.PosnY = -8.;
 					} else {
 						Label_AdditionalRules.SetText("");
-						LabelTimeLeft.PosnY = -4.;
+						LabelTimeLeft.PosnY = -2.;
 					}
 				} else if (CurrentPlayerClan == 3 - BattleWaves_AtkClan) {
 					LabelAttack.SetText(TextLib::Compose("$s%1", _("|Imperative|Defend")));
@@ -2347,7 +2503,7 @@ main() {
 						LabelTimeLeft.PosnY = -8.;
 					} else {
 						Label_AdditionalRules.SetText("");
-						LabelTimeLeft.PosnY = -4.;
+						LabelTimeLeft.PosnY = -2.;
 					}
 				} else {
 					if (Teams.existskey(BattleWaves_AtkClan-1)) {
@@ -2360,14 +2516,15 @@ main() {
 			}
 		}
 		
-		if(BattleWaves_TimeLeft < {{{_WavesDuration}}}) {
+		if(BattleWaves_TimeLeft <= {{{_WavesDuration}}}) {
 			LabelTimeLeft.SetText("$s"^BattleWaves_TimeLeft);
 		} else {
 			LabelTimeLeft.SetText("");
 		}
 	}
 }
---></script>""";
+--></script>
+</manialink>""";
 	
 	
 	return MLText;
