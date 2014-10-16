@@ -7,6 +7,7 @@
 #Const ScriptName	"Stats.Script.txt"
 
 #Include "TextLib" as TL
+#Include "Libs/Nadeo/ShootMania/XmlRpc.Script.txt" as XmlRpc
 
 // ---------------------------------- //
 // Constants
@@ -90,8 +91,7 @@ Void Private_SendWeaponsHasHit(CSmMode::EWeapon _Weapon, Integer _Sequence, Text
 		Response.add(User.Login^":"^HasHit);
 	}
 	
-	log(Now^"> Stats_WeaponsHasHit > Response: "^Response);
-	XmlRpc.SendCallbackArray("Stats_WeaponsHasHit", Response);
+	if (XmlRpc::CallbackIsAllowed("Stats_WeaponsHasHit")) XmlRpc::SendCallbackArray("Stats_WeaponsHasHit", Response);
 }
 
 // ---------------------------------- //
@@ -148,6 +148,8 @@ Void Unload() {
 		declare WeaponsHasHit for User = Integer[Integer][Integer];
 		WeaponsHasHit.clear();
 	}
+	
+	XmlRpc::UnregisterCallback("Stats_WeaponsHasHit");
 }
 
 // ---------------------------------- //
@@ -158,6 +160,8 @@ Void Load() {
 	foreach (Sequence in C_Sequences) {
 		G_LibStats_DefaultSequenceInteger[Sequence] = 0;
 	}
+	
+	XmlRpc::RegisterCallback("Stats_WeaponsHasHit", "Hit statistic");
 }
 
 // ---------------------------------- //

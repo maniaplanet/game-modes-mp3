@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-10-08"
+#Const	Version				"2014-10-15"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -225,6 +225,15 @@ Layers::Create("Info");
 // ---------------------------------- //
 // Initialize Markers
 Markers::Load();
+
+// ---------------------------------- //
+// Register callbacks
+XmlRpc::RegisterCallback("Combo_Pause", """
+* Data : An array with one value saying if the mode is in pause or not
+* Example : ["True"]
+* Note : This callback is sent after using the `Combo_GetPause` method or when the pause status changes.
+* Version : available since Combo.Script.txt_v2014-09-15
+""");
 ***
 
 ***InitMap***
@@ -512,11 +521,11 @@ foreach (Event in XmlRpc.PendingEvents) {
 				}
 				declare Boolean Combo_PauseStatus for This;
 				Combo_PauseStatus = PauseStatus;
-				XmlRpc.SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
+				if (XmlRpc::CallbackIsAllowed("Combo_Pause")) XmlRpc::SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
 			}
 			case "Combo_GetPause": {
 				declare Boolean Combo_PauseStatus for This;
-				XmlRpc.SendCallback("Combo_Pause", TL::ToText(Combo_PauseStatus));
+				if (XmlRpc::CallbackIsAllowed("Combo_Pause")) XmlRpc::SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
 			}
 		}
 	}
@@ -530,7 +539,7 @@ foreach (Event in PendingEvents) {
 			case "Command_SetPause": {
 				declare Boolean Combo_PauseStatus for This;
 				Combo_PauseStatus = Event.CommandValueBoolean;
-				XmlRpc.SendCallback("Combo_Pause", TL::ToText(Combo_PauseStatus));
+				if (XmlRpc::CallbackIsAllowed("Combo_Pause")) XmlRpc::SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
 			}
 		}
 	}
@@ -965,6 +974,8 @@ if (MM_IsMatchServer()) {
 WarmUp2::Unload();
 SpawnScreen::DestroyRules();
 Markers::Unload();
+
+XmlRpc::UnregisterCallback("Combo_Pause");
 
 // ---------------------------------- //
 // Destroy layer

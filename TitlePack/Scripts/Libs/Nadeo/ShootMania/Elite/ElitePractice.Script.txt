@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2014-07-25"
+#Const Version    "2014-10-15"
 #Const ScriptName "ElitePractice.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -713,9 +713,9 @@ Void Private_FindMaster() {
 		}
 	}
 	
-	if (MB_LibEP_UseScriptCallbacks) {
-		XmlRpc.SendCallbackArray("Master", [MasterLogin]);
-	}
+	//if (MB_LibEP_UseScriptCallbacks) {
+		if (XmlRpc::CallbackIsAllowed("Master")) XmlRpc::SendCallbackArray("Master", [MasterLogin]);
+	//}
 }
 
 // ---------------------------------- //
@@ -1039,7 +1039,9 @@ Void CreateRulesReminderLayer() {
 // ---------------------------------- //
 // Main // Server start
 // ---------------------------------- //
-Void Run() {	
+Void Run() {
+	XmlRpc::Load();
+	
 	MB_LibEP_CurrentSection = "StartServer";
 	
 	// Server initialization
@@ -1140,8 +1142,8 @@ Void Run() {
 	// ---------------------------------- //
 	// <<< +++StartServer+++
 	// ---------------------------------- //
+	XmlRpc::RegisterCallback("Master", "The login of the master of the match");
 	
-	XmlRpc::Load();
 	Clublink::Load(MB_LibEP_UsePlayerClublinks);
 
 // ---------------------------------- //
@@ -2291,7 +2293,6 @@ Void Run() {
 	if (MB_LibEP_UseLogging) Private_Log("EndServer");
 	
 	Clublink::Unload();
-	XmlRpc::Unload();
 	// ---------------------------------- //
 	// >>> +++EndServer+++
 	// ---------------------------------- //
@@ -2303,9 +2304,13 @@ Void Run() {
 	SpawnScreen::DestroyScores();
 	SpawnScreen::DestroyMapInfo();
 	
+	XmlRpc::UnregisterCallback("Master");
+	
 	AttackingOrder.clear();
 	// ---------------------------------- //
 	// <<< +++EndServer+++
 	// ---------------------------------- //
+	
+	XmlRpc::Unload();
 }
 

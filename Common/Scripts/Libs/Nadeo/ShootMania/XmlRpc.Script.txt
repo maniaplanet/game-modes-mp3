@@ -1,26 +1,21 @@
 /**
- *	XmlRpc lib
+ *	XmlRpc lib for Shootmania
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2014-08-28"
+#Const	Version		"2014-10-16"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
-
-// ---------------------------------- //
-// Globales
-// ---------------------------------- //
-declare Boolean G_UseLibXmlRpc;
+#Include "MathLib" as ML
+#Include "Libs/Nadeo/XmlRpcCommon.Script.txt" as XmlRpc
 
 // ---------------------------------- //
 // Functions
 // ---------------------------------- //
-
 // ---------------------------------- //
 // Private
 // ---------------------------------- //
-
 // ---------------------------------- //
 /** Get the current rankings of the players
  *	Format:
@@ -71,16 +66,8 @@ Void Private_ToggleAltMenu(Boolean _Action, Text _Login) {
 }
 
 // ---------------------------------- //
-/// Wrapper for the SendCallbackArray() method
-Void Private_SendCallbackArray(Text _Type, Text[] _Data) {
-	//log(Now^"> LibXmlRpc > SendCallbackArray() > Type: "^_Type^" | Data: "^_Data);
-	XmlRpc.SendCallbackArray(_Type, _Data);
-}
-
-// ---------------------------------- //
 // Public
 // ---------------------------------- //
-
 // ---------------------------------- //
 /** Return the version number of the script
  *
@@ -100,27 +87,236 @@ Text GetScriptName() {
 }
 
 // ---------------------------------- //
+/** Check the base XmlRpc library for the documentation
+ *	of the following functions
+ */
+Void Enable() {
+	XmlRpc::Enable();
+}
+Void Disable() {
+	XmlRpc::Disable();
+}
+Boolean IsEnabled() {
+	return XmlRpc::IsEnabled();
+}
+Void SendCallbackArray(Text _Name, Text[] _Data) {
+	XmlRpc::SendCallbackArray(_Name, _Data);
+}
+Void SendCallback(Text _Name, Text _Data) {
+	XmlRpc::SendCallback(_Name, _Data);
+}
+Void RegisterCallback(Text _Name, Text _Doc) {
+	XmlRpc::RegisterCallback(_Name, _Doc);
+}
+Void UnregisterCallback(Text _Name) {
+	XmlRpc::UnregisterCallback(_Name);
+}
+Boolean CallbackIsBlocked(Text _Name) {
+	return XmlRpc::CallbackIsBlocked(_Name);
+}
+Boolean CallbackIsAllowed(Text _Name) {
+	return XmlRpc::CallbackIsAllowed(_Name);
+}
+Text[] ListCallbacks(Boolean _SendCallback) {
+	return XmlRpc::ListCallbacks(_SendCallback);
+}
+Text CallbackHelp(Text _Name, Boolean _SendCallback) {
+	return XmlRpc::CallbackHelp(_Name, _SendCallback);
+}
+Void BlockCallback(Text _Name) {
+	XmlRpc::BlockCallback(_Name);
+}
+Void BlockAllCallbacks() {
+	XmlRpc::BlockAllCallbacks();
+}
+Void UnblockCallback(Text _Name) {
+	XmlRpc::UnblockCallback(_Name);
+}
+Void UnblockAllCallbacks() {
+	XmlRpc::UnblockAllCallbacks();
+}
+Text[] GetBlockedCallbacks(Boolean _SendCallback) {
+	return XmlRpc::GetBlockedCallbacks(_SendCallback);
+}
+
+// ---------------------------------- //
 /// Unload the library
 Void Unload() {
+	UnregisterCallback("LibXmlRpc_Rankings");
+	UnregisterCallback("LibXmlRpc_PlayerRanking");
+	UnregisterCallback("LibXmlRpc_Scores");
+	UnregisterCallback("LibXmlRpc_OnShoot");
+	UnregisterCallback("LibXmlRpc_OnHit");
+	UnregisterCallback("LibXmlRpc_OnNearMiss");
+	UnregisterCallback("LibXmlRpc_OnArmorEmpty");
+	UnregisterCallback("LibXmlRpc_OnCapture");
+	UnregisterCallback("LibXmlRpc_OnPlayerRequestRespawn");
+	UnregisterCallback("WarmUp_Status");
+	UnregisterCallback("Royal_UpdatePoints");
+	UnregisterCallback("Royal_SpawnPlayer");
+	UnregisterCallback("Royal_RoundWinner");
+	UnregisterCallback("TimeAttack_OnStart");
+	UnregisterCallback("TimeAttack_OnCheckpoint");
+	UnregisterCallback("TimeAttack_OnFinish");
+	UnregisterCallback("TimeAttack_OnRestart");
+	UnregisterCallback("Joust_OnReload");
+	UnregisterCallback("Joust_SelectedPlayers");
+	UnregisterCallback("Joust_RoundResult");
+	UnregisterCallback("Elite_BeginTurn");
+	UnregisterCallback("Elite_EndTurn");
 	
+	XmlRpc::Unload();
 }
 
 // ---------------------------------- //
 /// Load the library
 Void Load() {
+	Unload();
 	
-}
+	XmlRpc::Load();
 
-// ---------------------------------- //
-/// Enable the script callbacks
-Void Enable() {
-	G_UseLibXmlRpc = True;
-}
+RegisterCallback("LibXmlRpc_Rankings", """
+* Data : An array with a list of players with their scores
+* Example : ["Login1:Score1;Login2:Score2;Login3:Score3;LoginN:ScoreN"]
+* Note : This callback is sent just before `LibXmlRpc_EndTurn`, `LibXmlRpc_EndRound`, `LibXmlRpc_EndSubmatch`, `LibXmlRpc_EndMap` and `LibXmlRpc_EndMatch`
+""");
 
-// ---------------------------------- //
-/// Disable the script callbacks
-Void Disable() {
-	G_UseLibXmlRpc = False;
+RegisterCallback("LibXmlRpc_PlayerRanking", """
+* Data : An array with the current rank in the scores, login, nickname, team id, spectator status, away status, points and zone of a player
+* Example : ["1", "eole", "b`Side.Eole", "0", "False", "False", "10", "World|Europe|France|Outre-Mer|Reunion"]
+* Note : [Rank, Login, NickName, TeamId, IsSpectator, IsAway, CurrentPoints, Zone]
+""");
+
+RegisterCallback("LibXmlRpc_Scores", """
+* Data : An array with the match and map scores in team modes
+* Example : ["1", "0", "5", "6"]
+* Note : ["MatchScoreClan1", "MatchScoreClan2", "MapScoreClan1", "MapScoreClan2"]
+""");
+
+RegisterCallback("LibXmlRpc_OnShoot", """
+* Data : An array with the login of the shooter and the number of the weapon used
+* Example : ["ShooterLogin", "1"]
+* Note : This callback is sent when a player shoots.
+Weapon number -> 1: Laser, 2: Rocket, 3: Nucleus, 5: Arrow
+""");
+
+RegisterCallback("LibXmlRpc_OnHit", """
+* Data : An array with the login of the shooter, the login of the victim, the amount of damage, the weapon number, the shooter points (the +1, +2, etc displayed in game when you hit someone) and the hit distance.
+* Example : ["ShooterLogin", "VictimLogin", "200", "1", "2", "45."]
+* Note : This callback is sent when a player is hit.
+One armor point = 100 damage. Weapon number -> 1: Laser, 2: Rocket, 3: Nucleus, 5: Arrow. The hit distance is calculated with the position of the payers when the projectile hit, so it's not really accurate for weapons with a travel time.
+""");
+
+RegisterCallback("LibXmlRpc_OnNearMiss", """
+* Data : An array with the login of the shooter, the login of the victim, the weapon number and the distance of the miss
+* Example : ["ShoterLogin", "VictimLogin", "1", "0.05"]
+* Note : This callback is sent when a player shot a Laser near another player without hitting him.
+The distance is in meter.
+""");
+
+RegisterCallback("LibXmlRpc_OnArmorEmpty", """
+* Data : An array with the login of the shooter, the login of the victim, the amount of damage, the weapon number and the shooter points (the +1, +2, etc displayed in game when you hit someone)
+* Example : ["ShooterLogin", "VictimLogin", "100", "3", "1"]
+* Note : This callback is sent when a player has 0 armor (hit by a player, fall in an offzone, ...)
+One armor point = 100 damage, Weapon number -> 1: Laser, 2: Rocket, 3: Nucleus, 5: Arrow
+""");
+
+RegisterCallback("LibXmlRpc_OnCapture", """
+* Data : An array with the login of the players who were on the pole plate when it was captured
+* Example : ["Login1;Login2;Login3;LoginN"]
+* Note : This callback is sent when a pole is captured.
+""");
+
+RegisterCallback("LibXmlRpc_OnPlayerRequestRespawn", """
+* Data : An array with the login of the player requesting the respawn
+* Example : ["Login"]
+* Note : This callback is sent when a player requests a respawn.
+""");
+
+RegisterCallback("WarmUp_Status", """
+* Data : An array with one value saying if the mode use a warm up or not
+* Example : ["True"]
+* Note : This callback is sent after using the `WarmUp_GetStatus` method
+""");
+
+RegisterCallback("Royal_UpdatePoints", """
+* Data : An array with the login of the player scoring the point, the type of points and the number of points
+* Example : ["Login", "Pole", "10"]
+* Note : This callback is sent when a player scores points.
+The points can be of three types: Hit, Pole or Survival
+""");
+
+RegisterCallback("Royal_SpawnPlayer", """
+* Data : An array with the login of the player spawning and the type of spawn
+* Example : ["Login", "1"]
+* Note : This callback is sent when a player spawns or respawns.
+Two type of spawn -> 0: normal, 1: early . The normal spawn is the first spawn of the player, while an early respawn is when a player respawn during a round before the pole is captured.
+""");
+
+RegisterCallback("Royal_RoundWinner", """
+* Data : An array with the login of the player who won the round
+* Example : ["Login"]
+* Note : This callback is sent at the end of the round.
+""");
+
+RegisterCallback("TimeAttack_OnStart", """
+* Data : An array with the login of the player
+* Example : ["Login"]
+* Note : This callback is sent when a player starts a run.
+""");
+
+RegisterCallback("TimeAttack_OnCheckpoint", """
+* Data : An array with the login of the player and its time at the checkpoint
+* Example : ["Login", "37840"]
+* Note : This callback is sent when a player crosses a checkpoint.
+The time is in milliseconds.
+""");
+
+RegisterCallback("TimeAttack_OnFinish", """
+* Data : An array with the login of the player and its time at the finish
+* Example : ["Login", "149890"]
+* Note : This callback is sent when a player crosses the finish line.
+The time is in milliseconds.
+""");
+
+RegisterCallback("TimeAttack_OnRestart", """
+* Data : An array with the login of the player and its time at the time of the restart
+* Example : ["Login", "3540"]
+* Note : This callback is sent when a player asks to respawn or is eliminated.
+The time is in milliseconds.
+""");
+
+RegisterCallback("Joust_OnReload", """
+* Data : An array with the login of the player reloading
+* Example : ["Login"]
+* Note : This callback is sent when a player touches a pole to reload.
+""");
+
+RegisterCallback("Joust_SelectedPlayers", """
+* Data : An array with the logins of the two players who'll play the round.
+* Example : ["LoginPlayer1", "LoginPlayer2"]
+* Note : This callback is sent at the beginning of the round to announce the two opponents.
+""");
+
+RegisterCallback("Joust_RoundResult", """
+* Data : An array with the logins and score of each player of the round
+* Example : ["LoginPlayer1:ScorePlayer1", "LoginPlayer2:ScorePlayer2"]
+* Note : This callback is sent at the end of the round.
+""");
+
+RegisterCallback("Elite_BeginTurn", """
+* Data : An array with the logins of the attacker and defenders
+* Example : ["attackerlogin", "defenderlogin1;defenderlogin2;defenderlogin3"]
+* Note : This callback is sent after LibXmlRpc_BeginTurn.
+* Version : available since ModeSport.Script.txt_v2014-10-13
+""");
+
+RegisterCallback("Elite_EndTurn", """
+* Data : An array with the type of victory for the round
+* Example : [1]
+* Note : 1 -> Time limit, 2 -> Capture, 3 -> Attacker eliminated, 4-> Defenders eliminated
+* Version : available since ModeSport.Script.txt_v2014-10-13
+""");
 }
 
 // ---------------------------------- //
@@ -129,9 +325,9 @@ Void Disable() {
  *	[Rankings]
  */
 Void SendRankings() {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_Rankings")) return;
 	
-	Private_SendCallbackArray("LibXmlRpc_Rankings", [Private_GetRankings()]);
+	SendCallbackArray("LibXmlRpc_Rankings", [Private_GetRankings()]);
 }
 
 // ---------------------------------- //
@@ -142,7 +338,7 @@ Void SendRankings() {
  *	@param	_Login		The login of the player to get
  */
 Void SendPlayerRanking(Text _Login) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_PlayerRanking")) return;
 	
 	declare Text[] PlayerRanking;
 	declare CSmScore PlayerScore;
@@ -174,7 +370,7 @@ Void SendPlayerRanking(Text _Login) {
 		];
 	}
 	
-	Private_SendCallbackArray("LibXmlRpc_PlayerRanking", PlayerRanking);
+	SendCallbackArray("LibXmlRpc_PlayerRanking", PlayerRanking);
 }
 
 // ---------------------------------- //
@@ -183,7 +379,7 @@ Void SendPlayerRanking(Text _Login) {
  *	[Match Team 1, Match Team 2, Map Team 1, Map Team 2]
  */
 Void SendScores() {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_Scores")) return;
 	
 	declare MapPoints1 = UIManager.UIAll.ScoreSummary_Points1;
 	declare MapPoints2 = UIManager.UIAll.ScoreSummary_Points2;
@@ -191,7 +387,7 @@ Void SendScores() {
 		MapPoints1 = UIManager.UIAll.ScoreSummary_RoundPoints1;
 		MapPoints2 = UIManager.UIAll.ScoreSummary_RoundPoints2;
 	}
-	Private_SendCallbackArray("LibXmlRpc_Scores", [
+	SendCallbackArray("LibXmlRpc_Scores", [
 		TL::ToText(UIManager.UIAll.ScoreSummary_MatchPoints1),
 		TL::ToText(UIManager.UIAll.ScoreSummary_MatchPoints2),
 		TL::ToText(MapPoints1), 
@@ -205,9 +401,7 @@ Void SendScores() {
  *	[Number of the map]
  */
 Void LoadingMap(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_LoadingMap", [TL::ToText(_Number)]);
+	XmlRpc::LoadingMap(_Number);
 }
 
 // ---------------------------------- //
@@ -216,22 +410,34 @@ Void LoadingMap(Integer _Number) {
  *	[Number of the map]
  */
 Void UnloadingMap(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_UnloadingMap", [TL::ToText(_Number)]);
+	XmlRpc::UnloadingMap(_Number);
 }
 
 // ---------------------------------- //
-/** Callback sent at the beginning of the match
+/** Callback sent before the beginning of the server
+ *	Data:
+ *	[]
+ */
+Void BeginServer() {
+	XmlRpc::BeginServer();
+}
+
+// ---------------------------------- //
+/** Callback sent after the beginning of the server
+ *	Data:
+ *	[]
+ */
+Void BeginServerStop() {
+	XmlRpc::BeginServerStop();
+}
+
+// ---------------------------------- //
+/** Callback sent before the beginning of the match
  *	Data:
  *	[Number of the match, Map restarted]
  */
 Void BeginMatch(Integer _Number, Boolean _Restarted) {
-	if (!G_UseLibXmlRpc) return;
-	
-	declare Restarted = "False";
-	if (_Restarted) Restarted = "True";
-	Private_SendCallbackArray("LibXmlRpc_BeginMatch", [TL::ToText(_Number), Restarted]);
+	XmlRpc::BeginMatch(_Number, _Restarted);
 }
 
 // ---------------------------------- //
@@ -241,51 +447,84 @@ Void BeginMatch(Integer _Number) {
 }
 
 // ---------------------------------- //
-/** Callback sent at the beginning of the map
+/** Callback sent after the beginning of the match
+ *	Data:
+ *	[Number of the match, Map restarted]
+ */
+Void BeginMatchStop(Integer _Number, Boolean _Restarted) {
+	XmlRpc::BeginMatchStop(_Number, _Restarted);
+}
+
+// ---------------------------------- //
+/** Callback sent before the beginning of the map
  *	Data:
  *	[Number of the map, Map UID, Map restarted]
  */
 Void BeginMap(Integer _Number, Boolean _Restarted) {
-	if (!G_UseLibXmlRpc) return;
-	
-	declare MapUID = "";
-	if (Map != Null && Map.MapInfo != Null) MapUID = ""^Map.MapInfo.Id;
-	declare Restarted = "False";
-	if (_Restarted) Restarted = "True";
-	Private_SendCallbackArray("LibXmlRpc_BeginMap", [TL::ToText(_Number), MapUID, Restarted]);
+	XmlRpc::BeginMap(_Number, _Restarted);
 }
 
 // ---------------------------------- //
-/** Callback sent at the beginning of the submatch
+/** Callback sent after the beginning of the map
+ *	Data:
+ *	[Number of the map, Map UID, Map restarted]
+ */
+Void BeginMapStop(Integer _Number, Boolean _Restarted) {
+	XmlRpc::BeginMapStop(_Number, _Restarted);
+}
+
+// ---------------------------------- //
+/** Callback sent before the beginning of the submatch
  *	Data:
  *	[Number of the submatch]
  */
 Void BeginSubmatch(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_BeginSubmatch", [TL::ToText(_Number)]);
+	XmlRpc::BeginSubmatch(_Number);
 }
 
 // ---------------------------------- //
-/** Callback sent at the beginning of the round
+/** Callback sent after the beginning of the submatch
+ *	Data:
+ *	[Number of the submatch]
+ */
+Void BeginSubmatchStop(Integer _Number) {
+	XmlRpc::BeginSubmatchStop(_Number);
+}
+
+// ---------------------------------- //
+/** Callback sent before the beginning of the round
  *	Data:
  *	[Number of the round]
  */
 Void BeginRound(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_BeginRound", [TL::ToText(_Number)]);
+	XmlRpc::BeginRound(_Number);
 }
 
 // ---------------------------------- //
-/** Callback sent at the beginning of the turn
+/** Callback sent after the beginning of the round
+ *	Data:
+ *	[Number of the round]
+ */
+Void BeginRoundStop(Integer _Number) {
+	XmlRpc::BeginRoundStop(_Number);
+}
+
+// ---------------------------------- //
+/** Callback sent before the beginning of the turn
  *	Data:
  *	[Number of the turn]
  */
 Void BeginTurn(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_BeginTurn", [TL::ToText(_Number)]);
+	XmlRpc::BeginTurn(_Number);
+}
+
+// ---------------------------------- //
+/** Callback sent after the beginning of the turn
+ *	Data:
+ *	[Number of the turn]
+ */
+Void BeginTurnStop(Integer _Number) {
+	XmlRpc::BeginTurnStop(_Number);
 }
 
 // ---------------------------------- //
@@ -294,9 +533,7 @@ Void BeginTurn(Integer _Number) {
  *	[]
  */
 Void BeginPlaying() {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_BeginPlaying", Text[]);
+	XmlRpc::BeginPlaying();
 }
 
 // ---------------------------------- //
@@ -305,103 +542,149 @@ Void BeginPlaying() {
  *	[]
  */
 Void EndPlaying() {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_EndPlaying", Text[]);
+	XmlRpc::EndPlaying();
 }
 
 // ---------------------------------- //
-/** Callback sent at the end of the turn
+/** Callback sent before the end of the turn
  *	Data:
  *	[Number of the turn]
  */
 Void EndTurn(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
 	SendRankings();
-	Private_SendCallbackArray("LibXmlRpc_EndTurn", [TL::ToText(_Number)]);
+	XmlRpc::EndTurn(_Number);
 }
 
 // ---------------------------------- //
-/** Callback sent at the end of the round
+/** Callback sent after the end of the turn
+ *	Data:
+ *	[Number of the turn]
+ */
+Void EndTurnStop(Integer _Number) {
+	SendRankings();
+	XmlRpc::EndTurnStop(_Number);
+}
+
+// ---------------------------------- //
+/** Callback sent before the end of the round
  *	Data:
  *	[Number of the round]
  */
 Void EndRound(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
 	SendRankings();
-	Private_SendCallbackArray("LibXmlRpc_EndRound", [TL::ToText(_Number)]);
+	XmlRpc::EndRound(_Number);
 }
 
 // ---------------------------------- //
-/** Callback sent at the end of the submatch
+/** Callback sent after the end of the round
+ *	Data:
+ *	[Number of the round]
+ */
+Void EndRoundStop(Integer _Number) {
+	SendRankings();
+	XmlRpc::EndRoundStop(_Number);
+}
+
+// ---------------------------------- //
+/** Callback sent before the end of the submatch
  *	Data:
  *	[Number of the submatch]
  */
 Void EndSubmatch(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
 	SendRankings();
-	Private_SendCallbackArray("LibXmlRpc_EndSubmatch", [TL::ToText(_Number)]);
+	XmlRpc::EndSubmatch(_Number);
 }
 
 // ---------------------------------- //
-/** Callback sent at the end of the map
+/** Callback sent after the end of the submatch
+ *	Data:
+ *	[Number of the submatch]
+ */
+Void EndSubmatchStop(Integer _Number) {
+	SendRankings();
+	XmlRpc::EndSubmatchStop(_Number);
+}
+
+// ---------------------------------- //
+/** Callback sent before the end of the map
  *	Data:
  *	[Number of the map, Map UID]
  */
 Void EndMap(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
 	SendRankings();
-	declare MapUID = "";
-	if (Map != Null && Map.MapInfo != Null) MapUID = ""^Map.MapInfo.Id;
-	Private_SendCallbackArray("LibXmlRpc_EndMap", [TL::ToText(_Number), MapUID]);
+	XmlRpc::EndMap(_Number);
 }
 
 // ---------------------------------- //
-/** Callback sent at the end of the match
+/** Callback sent after the end of the map
+ *	Data:
+ *	[Number of the map, Map UID]
+ */
+Void EndMapStop(Integer _Number) {
+	SendRankings();
+	XmlRpc::EndMapStop(_Number);
+}
+
+// ---------------------------------- //
+/** Callback before the end of the match
  *	Data:
  *	[Number of the match]
  */
 Void EndMatch(Integer _Number) {
-	if (!G_UseLibXmlRpc) return;
-	
 	SendRankings();
-	Private_SendCallbackArray("LibXmlRpc_EndMatch", [TL::ToText(_Number)]);
+	XmlRpc::EndMatch(_Number);
+}
+
+// ---------------------------------- //
+/** Callback sent after the end of the match
+ *	Data:
+ *	[Number of the match]
+ */
+Void EndMatchStop(Integer _Number) {
+	SendRankings();
+	XmlRpc::EndMatchStop(_Number);
+}
+
+// ---------------------------------- //
+/** Callback sent before the end of the server
+ *	Data:
+ *	[]
+ */
+Void EndServer() {
+	XmlRpc::EndServer();
+}
+
+// ---------------------------------- //
+/** Callback sent after the end of the server
+ *	Data:
+ *	[]
+ */
+Void EndServerStop() {
+	XmlRpc::EndServerStop();
 }
 
 // ---------------------------------- //
 /// Callback sent at the beginning of the podium sequence
 Void BeginPodium() {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_BeginPodium", Text[]);
+	XmlRpc::BeginPodium();
 }
 
 // ---------------------------------- //
 /// Callback sent at the end of the podium
 Void EndPodium() {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_EndPodium", Text[]);
+	XmlRpc::EndPodium();
 }
 
 // ---------------------------------- //
 /// Callback sent at the beginning of the warmup
 Void BeginWarmUp() {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_BeginWarmUp", Text[]);
+	XmlRpc::BeginWarmUp();
 }
 
 // ---------------------------------- //
 /// Callback sent at the end of the warmup
 Void EndWarmUp() {
-	if (!G_UseLibXmlRpc) return;
-	
-	Private_SendCallbackArray("LibXmlRpc_EndWarmUp", Text[]);
+	XmlRpc::EndWarmUp();
 }
 
 // ---------------------------------- //
@@ -412,12 +695,12 @@ Void EndWarmUp() {
  *	Weapon number: 1 -> Laser, 2 -> Rocket, 3 -> Nucleus
  */
 Void OnShoot(CSmModeEvent _Event) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_OnShoot")) return;
 	
 	declare ShooterLogin = "Null";
 	if (_Event.Shooter != Null) ShooterLogin = _Event.Shooter.Login;
 	declare Data = [ShooterLogin, TL::ToText(_Event.WeaponNum)];
-	Private_SendCallbackArray("LibXmlRpc_OnShoot", Data);
+	SendCallbackArray("LibXmlRpc_OnShoot", Data);
 }
 
 // ---------------------------------- //
@@ -430,14 +713,18 @@ Void OnShoot(CSmModeEvent _Event) {
  *	Shooter points: the number of points scored by the shooter on this hit
  */
 Void OnHit(CSmModeEvent _Event) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_OnHit")) return;
 	
 	declare ShooterLogin = "Null";
 	declare VictimLogin = "Null";
+	declare Distance = "0.";
 	if (_Event.Shooter != Null) ShooterLogin = _Event.Shooter.Login;
 	if (_Event.Victim != Null) VictimLogin = _Event.Victim.Login;
-	declare Data = [ShooterLogin, VictimLogin, TL::ToText(_Event.Damage), TL::ToText(_Event.WeaponNum), TL::ToText(_Event.ShooterPoints)];
-	Private_SendCallbackArray("LibXmlRpc_OnHit", Data);
+	if (_Event.Shooter != Null && _Event.Victim != Null) {
+		Distance = TL::ToText(ML::Distance(_Event.Victim.Position, _Event.Shooter.Position));
+	}
+	declare Data = [ShooterLogin, VictimLogin, TL::ToText(_Event.Damage), TL::ToText(_Event.WeaponNum), TL::ToText(_Event.ShooterPoints), Distance];
+	SendCallbackArray("LibXmlRpc_OnHit", Data);
 }
 
 // ---------------------------------- //
@@ -449,14 +736,14 @@ Void OnHit(CSmModeEvent _Event) {
  *	Near miss distance: in centimeters
  */
 Void OnNearMiss(CSmModeEvent _Event) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_OnNearMiss")) return;
 	
 	declare ShooterLogin = "Null";
 	declare VictimLogin = "Null";
 	if (_Event.Shooter != Null) ShooterLogin = _Event.Shooter.Login;
 	if (_Event.Victim != Null) VictimLogin = _Event.Victim.Login;
 	declare Data = [ShooterLogin, VictimLogin, TL::ToText(_Event.WeaponNum), TL::ToText(_Event.MissDist)];
-	Private_SendCallbackArray("LibXmlRpc_OnNearMiss", Data);
+	SendCallbackArray("LibXmlRpc_OnNearMiss", Data);
 }
 
 // ---------------------------------- //
@@ -469,14 +756,14 @@ Void OnNearMiss(CSmModeEvent _Event) {
  *	Shooter points: the number of points scored by the shooter on this elimination
  */
 Void OnArmorEmpty(CSmModeEvent _Event) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_OnArmorEmpty")) return;
 	
 	declare ShooterLogin = "Null";
 	declare VictimLogin = "Null";
 	if (_Event.Shooter != Null) ShooterLogin = _Event.Shooter.Login;
 	if (_Event.Victim != Null) VictimLogin = _Event.Victim.Login;
 	declare Data = [ShooterLogin, VictimLogin, TL::ToText(_Event.Damage), TL::ToText(_Event.WeaponNum), TL::ToText(_Event.ShooterPoints)];
-	Private_SendCallbackArray("LibXmlRpc_OnArmorEmpty", Data);
+	SendCallbackArray("LibXmlRpc_OnArmorEmpty", Data);
 }
 
 // ---------------------------------- //
@@ -487,7 +774,7 @@ Void OnArmorEmpty(CSmModeEvent _Event) {
  *	List of players: login1;login2;login3;login4
  */
 Void OnCapture(CSmModeEvent _Event) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_OnCapture")) return;
 	
 	declare PlayersList = "";
 	if (_Event.Landmark != Null && _Event.Landmark.Sector != Null) {
@@ -499,7 +786,7 @@ Void OnCapture(CSmModeEvent _Event) {
 		}
 	}
 	declare Data = [PlayersList];
-	Private_SendCallbackArray("LibXmlRpc_OnCapture", Data);
+	SendCallbackArray("LibXmlRpc_OnCapture", Data);
 }
 
 // ---------------------------------- //
@@ -508,17 +795,26 @@ Void OnCapture(CSmModeEvent _Event) {
  *	[Player login]
  */
 Void OnPlayerRequestRespawn(CSmModeEvent _Event) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_OnPlayerRequestRespawn")) return;
 	
 	declare PlayerLogin = "Null";
 	if (_Event.Player != Null) PlayerLogin = _Event.Player.Login;
 	declare Data = [PlayerLogin];
-	Private_SendCallbackArray("LibXmlRpc_OnPlayerRequestRespawn", Data);
+	SendCallbackArray("LibXmlRpc_OnPlayerRequestRespawn", Data);
 }
 
+// ---------------------------------- //
+/** Send the current warm up status
+ *	Data:
+ *	[True]
+ *
+ *	True if the warm up is loaded, False otherwise
+ */
 Void SendWarmUpStatus() {
+	if (!CallbackIsAllowed("WarmUp_Status")) return;
+	
 	declare LibXmlRpc_LibWarmUp2Loaded for XmlRpc = False;
-	Private_SendCallbackArray("WarmUp_Status", [TL::ToText(LibXmlRpc_LibWarmUp2Loaded)]);
+	SendCallbackArray("WarmUp_Status", [TL::ToText(LibXmlRpc_LibWarmUp2Loaded)]);
 }
 
 // ---------------------------------- //
@@ -528,12 +824,13 @@ Void SendWarmUpStatus() {
 // ---------------------------------- //
 /// Wait for XmlRpc callbacks
 Void Loop() {
-	if (!G_UseLibXmlRpc) return;
+	if (!IsEnabled()) return;
+	
+	XmlRpc::Loop();
 	
 	foreach (Event in XmlRpc.PendingEvents) {
 		if (Event.Type == CXmlRpcEvent::EType::Callback) {
 			switch (Event.Param1) {
-				// Get the current rankings
 				case "LibXmlRpc_GetRankings"		: SendRankings();
 				case "LibXmlRpc_GetPlayerRanking"	: SendPlayerRanking(Event.Param2);
 				case "LibXmlRpc_GetScores"			: SendScores();
@@ -564,14 +861,14 @@ Void Loop() {
  *	@param	_Points		The number of points received
  */
 Void Royal_UpdatePoints(CSmPlayer _Player, Text _Type, Integer _Points) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("Royal_UpdatePoints")) return;
 	
 	declare PlayerLogin = "Null";
 	if (_Player != Null) PlayerLogin = _Player.Login;
 	if (_Type == "") return;
 	
 	declare Data = [PlayerLogin, _Type, TL::ToText(_Points)];
-	Private_SendCallbackArray("Royal_UpdatePoints", Data);
+	SendCallbackArray("Royal_UpdatePoints", Data);
 }
 
 // ---------------------------------- //
@@ -585,21 +882,28 @@ Void Royal_UpdatePoints(CSmPlayer _Player, Text _Type, Integer _Points) {
  *	@param	_Type		The type of spawn
  */
 Void Royal_SpawnPlayer(CSmPlayer _Player, Integer _Type) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("Royal_SpawnPlayer")) return;
 	
 	declare PlayerLogin = "Null";
 	if (_Player != Null) PlayerLogin = _Player.Login;
 	
 	declare Data = [PlayerLogin, TL::ToText(_Type)];
-	Private_SendCallbackArray("Royal_SpawnPlayer", Data);
+	SendCallbackArray("Royal_SpawnPlayer", Data);
 }
 
+// ---------------------------------- //
+/** Send a callback with the login of the winner
+ *	Data:
+ *	[Player login]
+ *
+ *	@param	_UserId		The id of the user who won the round
+ */
 Void Royal_RoundWinner(Ident _UserId) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("Royal_RoundWinner")) return;
 	if (!Users.existskey(_UserId)) return;
 	
 	declare Data = [Users[_UserId].Login];
-	Private_SendCallbackArray("Royal_RoundWinner", Data);
+	SendCallbackArray("Royal_RoundWinner", Data);
 }
 
 // ---------------------------------- //
@@ -613,12 +917,12 @@ Void Royal_RoundWinner(Ident _UserId) {
  *	@param	_Player		The starting player
  */
 Void TimeAttack_OnStart(CSmPlayer _Player) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("TimeAttack_OnStart")) return;
 	
 	declare PlayerLogin = "Null";
 	if (_Player != Null) PlayerLogin = _Player.Login;
 	declare Data = [PlayerLogin];
-	Private_SendCallbackArray("TimeAttack_OnStart", Data);
+	SendCallbackArray("TimeAttack_OnStart", Data);
 }
 
 // ---------------------------------- //
@@ -630,12 +934,12 @@ Void TimeAttack_OnStart(CSmPlayer _Player) {
  *	@param	_Time		The time at the checkpoint
  */
 Void TimeAttack_OnCheckpoint(CSmPlayer _Player, Integer _Time) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("TimeAttack_OnCheckpoint")) return;
 	
 	declare PlayerLogin = "Null";
 	if (_Player != Null) PlayerLogin = _Player.Login;
 	declare Data = [PlayerLogin, TL::ToText(_Time)];
-	Private_SendCallbackArray("TimeAttack_OnCheckpoint", Data);
+	SendCallbackArray("TimeAttack_OnCheckpoint", Data);
 }
 
 // ---------------------------------- //
@@ -647,12 +951,12 @@ Void TimeAttack_OnCheckpoint(CSmPlayer _Player, Integer _Time) {
  *	@param	_Time		The time at the finish
  */
 Void TimeAttack_OnFinish(CSmPlayer _Player, Integer _Time) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("TimeAttack_OnFinish")) return;
 	
 	declare PlayerLogin = "Null";
 	if (_Player != Null) PlayerLogin = _Player.Login;
 	declare Data = [PlayerLogin, TL::ToText(_Time)];
-	Private_SendCallbackArray("TimeAttack_OnFinish", Data);
+	SendCallbackArray("TimeAttack_OnFinish", Data);
 }
 
 // ---------------------------------- //
@@ -664,12 +968,12 @@ Void TimeAttack_OnFinish(CSmPlayer _Player, Integer _Time) {
  *	@param	_Time		The time of the restart
  */
 Void TimeAttack_OnRestart(CSmPlayer _Player, Integer _Time) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("TimeAttack_OnRestart")) return;
 	
 	declare PlayerLogin = "Null";
 	if (_Player != Null) PlayerLogin = _Player.Login;
 	declare Data = [PlayerLogin, TL::ToText(_Time)];
-	Private_SendCallbackArray("TimeAttack_OnRestart", Data);
+	SendCallbackArray("TimeAttack_OnRestart", Data);
 }
 
 // ---------------------------------- //
@@ -683,12 +987,12 @@ Void TimeAttack_OnRestart(CSmPlayer _Player, Integer _Time) {
  *	@param	_Player		The player who reloaded
  */
 Void Joust_OnReload(CSmPlayer _Player) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("Joust_OnReload")) return;
 	
 	declare PlayerLogin = "Null";
 	if (_Player != Null) PlayerLogin = _Player.Login;
 	declare Data = [PlayerLogin];
-	Private_SendCallbackArray("Joust_OnReload", Data);
+	SendCallbackArray("Joust_OnReload", Data);
 }
 
 // ---------------------------------- //
@@ -700,14 +1004,14 @@ Void Joust_OnReload(CSmPlayer _Player) {
  *	@param	_Player2	The second player
  */
 Void Joust_SelectedPlayers(CSmPlayer _Player1, CSmPlayer _Player2) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("Joust_SelectedPlayers")) return;
 	
 	declare Player1Login = "Null";
 	if (_Player1 != Null) Player1Login = _Player1.Login;
 	declare Player2Login = "Null";
 	if (_Player2 != Null) Player2Login = _Player2.Login;
 	declare Data = [Player1Login, Player2Login];
-	Private_SendCallbackArray("Joust_SelectedPlayers", Data);
+	SendCallbackArray("Joust_SelectedPlayers", Data);
 }
 
 // ---------------------------------- //
@@ -723,14 +1027,14 @@ Void Joust_SelectedPlayers(CSmPlayer _Player1, CSmPlayer _Player2) {
  *	@param	_Score2		The score of the second player
  */
 Void Joust_RoundResult(CSmPlayer _Player1, Integer _Score1, CSmPlayer _Player2, Integer _Score2) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("Joust_RoundResult")) return;
 	
 	declare Player1Login = "Null";
 	if (_Player1 != Null) Player1Login = _Player1.Login;
 	declare Player2Login = "Null";
 	if (_Player2 != Null) Player2Login = _Player2.Login;
 	declare Data = [Player1Login^":"^_Score1, Player2Login^":"^_Score2];
-	Private_SendCallbackArray("Joust_RoundResult", Data);
+	SendCallbackArray("Joust_RoundResult", Data);
 }
 
 // ---------------------------------- //
@@ -747,7 +1051,7 @@ Void Joust_RoundResult(CSmPlayer _Player1, Integer _Score1, CSmPlayer _Player2, 
  *	@param _MapLandmark		The checkpoint that was activated
  */
 Void Siege_OnCapture(CSmMapLandmark _MapLandmark) {
-	if (!G_UseLibXmlRpc) return;
+	if (!CallbackIsAllowed("LibXmlRpc_OnCapture")) return;
 	
 	declare PlayersList = "";
 	if (_MapLandmark != Null && _MapLandmark.Sector != Null) {
@@ -759,5 +1063,50 @@ Void Siege_OnCapture(CSmMapLandmark _MapLandmark) {
 		}
 	}
 	declare Data = [PlayersList];
-	Private_SendCallbackArray("LibXmlRpc_OnCapture", Data);
+	SendCallbackArray("LibXmlRpc_OnCapture", Data);
+}
+
+// ---------------------------------- //
+/// Elite
+
+// ---------------------------------- //
+/** Callback sent at the beginning of the turn in Elite 
+ *	Data : 
+ *	[attackerlogin, defenderlogin1, defenderloginx, ...]
+ *
+ *	@param	_Players		The players to send
+ */
+Void Elite_BeginTurn(CSmPlayer[] _AtkPlayers, CSmPlayer[] _DefPlayers) {
+	if (!CallbackIsAllowed("Elite_BeginTurn")) return;
+	
+	declare AttackersList = "";
+	foreach (Player in _AtkPlayers) {
+		if (AttackersList != "") AttackersList ^= ";";
+		if (Player != Null) AttackersList ^= Player.Login;
+	}
+	
+	declare DefendersList = "";
+	foreach (Player in _DefPlayers) {
+		if (DefendersList != "") DefendersList ^= ";";
+		if (Player != Null) DefendersList ^= Player.Login;
+	}
+	
+	SendCallbackArray("Elite_BeginTurn", [AttackersList, DefendersList]);
+}
+
+// ---------------------------------- //
+/** Callback sent at the end of the turn in Elite 
+ *	Data : 
+ *	[1]
+ *	1 -> Time limit
+ *	2 -> Capture
+ *	3 -> Attacker eliminated
+ *	4 -> Defenders eliminated
+ *
+ *	@param	_WinType		The type of win
+ */
+Void Elite_EndTurn(Integer _WinType) {
+	if (!CallbackIsAllowed("Elite_EndTurn")) return;
+	
+	SendCallbackArray("Elite_EndTurn", [TL::ToText(_WinType)]);
 }

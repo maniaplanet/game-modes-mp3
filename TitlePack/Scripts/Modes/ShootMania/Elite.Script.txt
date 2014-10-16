@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-07-25"
+#Const Version		"2014-10-16"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -169,6 +169,14 @@ Layers::Create("Players", CreateLayerPlayers());
 // @UIReplay > 
 Layers::Create("Replay", CreateLayerReplay());
 Layers::Create("PreTurn");
+
+XmlRpc::RegisterCallback("Master", "The login of the master of the match.");
+XmlRpc::RegisterCallback("OnHit", "This callback is sent when a player hit another player.");
+XmlRpc::RegisterCallback("OnArmorEmpty", "This callback is sent when a player reaches 0 armor (eliminated by another player, falling in an offzone).");
+XmlRpc::RegisterCallback("OnPlayerRequestRespawn", "This callback is sent when a player requests a respawn.");
+XmlRpc::RegisterCallback("OnCapture", "This callback is sent when the attacker captured the pole.");
+XmlRpc::RegisterCallback("OnShoot", "This callback is sent when a player shoots.");
+XmlRpc::RegisterCallback("OnNearMiss", "This callback is sent when the attacker shot a Laser near a defender without hitting him.");
 
 Draft::StartServer();
 Settings::Load();
@@ -407,6 +415,13 @@ Settings::Unload();
 EliteEndSequence::Unload();
 EliteStats::Unload();
 CustomUI::Unload();
+XmlRpc::UnregisterCallback("Master");
+XmlRpc::UnregisterCallback("OnHit");
+XmlRpc::UnregisterCallback("OnArmorEmpty");
+XmlRpc::UnregisterCallback("OnPlayerRequestRespawn");
+XmlRpc::UnregisterCallback("OnCapture");
+XmlRpc::UnregisterCallback("OnShoot");
+XmlRpc::UnregisterCallback("OnNearMiss");
 ***
 
 ***StartUsingToken***
@@ -741,17 +756,17 @@ if (Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
 	UpdateLayerScoresTable(C_SequencePlaying);
 	
 	// Stats
-	if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
+	if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("OnHit")) {
 		declare JSON = Json::Enfold(EliteStringify("Event", Event));
-		XmlRpc.SendCallback("OnHit", JSON);
+		XmlRpc::SendCallback("OnHit", JSON);
 	}
 	XmlRpc::OnHit(Event);
 	
 	// Don't forget to send stats for the atk elimination because we won't trigger the OnArmorEmpty event
 	if (AtkIsEliminated) {
-		if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
+		if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("OnArmorEmpty")) {
 			declare JSON2 = Json::Enfold(EliteStringifySimulateArmorEmpty("Event", Event));
-			XmlRpc.SendCallback("OnArmorEmpty", JSON2);
+			XmlRpc::SendCallback("OnArmorEmpty", JSON2);
 		}
 		G_AtkElimPlayerId = Event.Shooter.Id;
 		XmlRpc::OnArmorEmpty(Event);
@@ -790,9 +805,9 @@ if (Event.Victim != Null && Event.Victim.Score != Null) {
 UpdateLayerScoresTable(C_SequencePlaying);
 
 // Stats
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("OnArmorEmpty")) {
 	declare JSON = Json::Enfold(EliteStringify("Event", Event));
-	XmlRpc.SendCallback("OnArmorEmpty", JSON);
+	XmlRpc::SendCallback("OnArmorEmpty", JSON);
 }
 
 XmlRpc::OnArmorEmpty(Event);
@@ -822,9 +837,9 @@ if (Event.Player != Null && Event.Player.CurrentClan == G_DefClan) {
 }
 
 // Stats
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("OnPlayerRequestRespawn")) {
 	declare JSON = Json::Enfold(EliteStringify("Event", Event));
-	XmlRpc.SendCallback("OnPlayerRequestRespawn", JSON);
+	XmlRpc::SendCallback("OnPlayerRequestRespawn", JSON);
 }
 
 XmlRpc::OnPlayerRequestRespawn(Event);
@@ -850,9 +865,9 @@ if (Event.Landmark.Tag == "Checkpoint") {
 UpdateLayerInfo();
 
 // Stats
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("OnCapture")) {
 	declare JSON = Json::Enfold(EliteStringify("Event", Event));
-	XmlRpc.SendCallback("OnCapture", JSON);
+	XmlRpc::SendCallback("OnCapture", JSON);
 }
 
 XmlRpc::OnCapture(Event);
@@ -873,9 +888,9 @@ if (
 }
 
 // Stats
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("OnShoot")) {
 	declare JSON = Json::Enfold(EliteStringify("Event", Event));
-	XmlRpc.SendCallback("OnShoot", JSON);
+	XmlRpc::SendCallback("OnShoot", JSON);
 }
 
 XmlRpc::OnShoot(Event);
@@ -916,9 +931,9 @@ if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) {
 		}
 		
 		// Stats
-		if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
+		if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("OnNearMiss")) {
 			declare JSON = Json::Enfold(EliteStringify("Event", Event));
-			XmlRpc.SendCallback("OnNearMiss", JSON);
+			XmlRpc::SendCallback("OnNearMiss", JSON);
 		}
 		
 		XmlRpc::OnNearMiss(Event);
@@ -965,9 +980,9 @@ if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) {
 	}
 	
 	// Stats
-	if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
+	if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("OnNearMiss")) {
 		declare JSON = Json::Enfold(EliteStringify("Event", Event));
-		XmlRpc.SendCallback("OnNearMiss", JSON);
+		XmlRpc::SendCallback("OnNearMiss", JSON);
 	}
 	
 	XmlRpc::OnNearMiss(Event);
@@ -2060,7 +2075,7 @@ foreach (Score in Scores) {
 	}
 }
 //if (MB_UseScriptCallbacks) {
-	XmlRpc.SendCallbackArray("Master", [MasterLogin]);
+	if (XmlRpc::CallbackIsAllowed("Master")) XmlRpc::SendCallbackArray("Master", [MasterLogin]);
 //}
 ***
 
