@@ -1,7 +1,7 @@
 /**
  * Interface library
  */
-#Const Version		"2014-07-15"
+#Const Version		"2014-10-14"
 #Const ScriptName	"Interface.Script.txt"
 
 // ---------------------------------- //
@@ -600,7 +600,7 @@ Text Private_CreateSliderScript() {
 #Const C_SlideType_Top	{{{C_LibUI_SlideType_Top}}}
 #Const C_SlideType_Text	{{{C_LibUI_SlideType_Text}}}
 #Const C_SlideType_Img	{{{C_LibUI_SlideType_Img}}}
-#Const C_AnimDuration	1000
+#Const C_AnimDuration	250
 
 declare CMlFrame[Integer] G_Slides;
 //declare CBuddy Buddy for UI;
@@ -666,6 +666,10 @@ Real EaseInOutBack(Integer _Time, Real _StartPos, Real _EndPos, Integer _Duratio
 	declare Distance = (_EndPos - _StartPos) / 2.;
 	declare Progression = (_Time * 1.) / (_Duration / 2.);
 	declare Damping = _Damping * 1.525;
+	
+	// EaseOutQuad;
+	declare X = _Time / (_Duration*1.);
+	return -(_EndPos - _StartPos) * X * (X-2.) + _StartPos;
 	
 	// In
 	if (Progression < 1.) {
