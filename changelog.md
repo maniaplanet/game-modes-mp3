@@ -1,7 +1,106 @@
+<a id="2014-10-16">2014-10-16</a>
+---------------------------------
+
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-09-10...ManiaPlanet_Update_2014-10-16)
+
+### Modes
+
+#### TrackMania/All
+* Added a description for each mode. This description is displayed when pressing esc > help while playing. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=29199&p=230318#p230666)
+
+#### TrackMania/ModeBase
+* New callbacks : LibXmlRpc_BeginServerStop, LibXmlRpc_BeginMatchStop, LibXmlRpc_BeginMapStop, LibXmlRpc_BeginSubmatchStop, LibXmlRpc_BeginRoundStop, LibXmlRpc_BeginTurnStop, LibXmlRpc_EndTurnStop, LibXmlRpc_EndRoundStop, LibXmlRpc_EndSubmatchStop, LibXmlRpc_EndMapStop, LibXmlRpc_EndMatchStop and LibXmlRpc_EndServerStop. They are all sent at the end of their respective sequences. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+
+#### TrackMania/RoundsBase
+* Support for the new XmlRpc callbacks control system.
+
+#### ShootMania/ModeBase
+* New callbacks : LibXmlRpc_BeginServerStop, LibXmlRpc_BeginMatchStop, LibXmlRpc_BeginMapStop, LibXmlRpc_BeginSubmatchStop, LibXmlRpc_BeginRoundStop, LibXmlRpc_BeginTurnStop, LibXmlRpc_EndTurnStop, LibXmlRpc_EndRoundStop, LibXmlRpc_EndSubmatchStop, LibXmlRpc_EndMapStop, LibXmlRpc_EndMatchStop and LibXmlRpc_EndServerStop. They are all sent at the end of their respective sequences. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+
+#### ShootMania/ModeSport
+* Fixed runtime error. When using matchmaking, if the vote map was activated, some variables concerning the landmarks were initialized before the vote. So if there was a map change because of the vote, the variables were intialized with the landmarks of the previous map. [see](ttp://forum.maniaplanet.com/viewtopic.php?f=261&t=28998&view=unread#p230753)
+* Support for the new XmlRpc callbacks control system.
+* Legacy callbacks are now disable by default : S_UseLegacyCallback = False. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+* New callback "Elite_BeginTurn" containing the logins of the players. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+* New callback "Elite_EndTurn" containing the type of victory. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+
+#### ShootMania/ModeMatchmaking
+* Penalties are now managed by the matchmaking API. Thanks to that, they are now persistent and global. Persistent : if you rage quit a match and leave maniaplanet, your penalty will be applied the next time you join the lobby, even if it's one week later. Global : being penalized in one lobby means you'll be penalized in all lobbies. eg: leave a match in Elite and you will also be penalized in the Siege lobby.
+* Players are not penalized for canceling a replacement anymore.
+* Matchmaking api version : v7.
+* Removed the following settings : S_LobbyAllowMatchCancel, S_LobbyLimitMatchCancel and S_LobbyBasePenalty.
+* Removed the message warning players about matches canceling and penalties in the lobby.
+* Fix : wait for player synchro before playing a new map. [see](http://forum.maniaplanet.com/viewtopic.php?p=227013#p227013)
+* Fix : send the right player clan in the missing players array to avoid the SetPlayerClan() error in progressive matchmaking. [see](http://forum.maniaplanet.com/viewtopic.php?f=261&t=28998#p226648)
+
+#### ShootMania/Elite
+* Support for the new XmlRpc callbacks control system.
+
+#### ShootMania/Battle
+* Overtime : when the round countdown reaches zero, if one of the two team is capturing a pole the game will continue. It will end only when both teams aren't capturing a pole.
+* Display the name of the player who restarted the wave countdown if it was near 0.
+* Display tops (Attack, defense and combo) on the side of the screen when you're not playing.
+
+#### ShootMania/Combo
+* Fixed runtime error. When using matchmaking, if the vote map was activated, some variables concerning the landmarks were initialized before the vote. So if there was a map change because of the vote, the variables were intialized with the landmarks of the previous map. [see](ttp://forum.maniaplanet.com/viewtopic.php?f=261&t=28998&view=unread#p230753)
+* Support for the new XmlRpc callbacks control system.
+
+
+### Libraries
+
+#### Color
+* Fix the RgbToHsv() function. The green color wasn't converted correctly. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29453#p231086)
+
+#### Interface
+* Changed the animation of the slider from an EaseInOutBack to an EaseOutQuad easing.
+
+#### VoteMap
+* Added a text to explain how the vote works. [see](http://forum.maniaplanet.com/viewtopic.php?f=469&t=29347#p229984)
+* Removed the "validate" button. Voting for a map is now considered as validating. No need for a button anymore.  [see](http://forum.maniaplanet.com/viewtopic.php?f=469&t=29347&p=230818#p230698)
+
+#### XmlRpcCommon
+* Moved all common code between Shootmania and Trackmania in this library.
+* This library allows game modes creators to register or unregister callbacks and their documentation, making them accessible to the callback control system.
+* It's now possible to block unnecessary callbacks to save resources.
+* New method : LibXmlRpc_ListCallbacks. Trigger the LibXmlRpc_Callbacks callback listing all the registered callbacks.
+* New method : LibXmlRpc_GetCallbackHelp. Trigger the LibXmlRpc_CallbackHelp callback giving help about a callback.
+* New method : LibXmlRpc_BlockCallback. Block a specific callback.
+* New method : LibXmlRpc_BlockAllCallbacks. Block all callbacks.
+* New method : LibXmlRpc_UnblockCallback. Unblock a specific callback.
+* New method : LibXmlRpc_UnblockAllCallbacks. Unblock all callbacks.
+* New method : LibXmlRpc_GetBlockedCallbacks. Trigger the LibXmlRpc_BlockedCallbacks callback listing the blocked callbacks.
+* New callbacks : LibXmlRpc_BeginServer and LibXmlRpc_EndServer. They are sent when the script start and stop. Which can happen at server start, stop or map restart.
+* New callbacks : LibXmlRpc_BeginServerStop, LibXmlRpc_BeginMatchStop, LibXmlRpc_BeginMapStop, LibXmlRpc_BeginSubmatchStop, LibXmlRpc_BeginRoundStop, LibXmlRpc_BeginTurnStop, LibXmlRpc_EndTurnStop, LibXmlRpc_EndRoundStop, LibXmlRpc_EndSubmatchStop, LibXmlRpc_EndMapStop, LibXmlRpc_EndMatchStop and LibXmlRpc_EndServerStop. They are all sent at the end of their respective sequences. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+
+#### TrackMania/UI
+* New controls on the Trackmania UI via XmlRpc. It's now possible to control (hide/show/move) most of the UI elements of Trackmania with XmlRpc. [see](http://forum.maniaplanet.com/viewtopic.php?f=470&t=28654&start=0) & [documentation](http://doc.maniaplanet.com/creation/maniascript/libraries/library-ui.html)
+* Better alignment of the sand timer. [see](http://forum.maniaplanet.com/viewtopic.php?f=470&t=28654&start=10#p229872)
+* Support for the new XmlRpc callbacks control system.
+
+#### TrackMania/XmlRpc
+* Use the new XmlRpcCommon library.
+* Support for the new XmlRpc callbacks control system.
+
+#### ShootMania/AFK
+* Support for the new XmlRpc callbacks control system.
+
+#### ShootMania/Stats
+* Support for the new XmlRpc callbacks control system.
+
+#### ShootMania/XmlRpc
+* Use the new XmlRpcCommon library.
+* Support for the new XmlRpc callbacks control system.
+* Addition of the hit distance in the "LibXmlRpc_OnHit" callback. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+* New callback "Elite_BeginTurn" containing the logins of the players. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+* New callback "Elite_EndTurn" containing the type of victory. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443#p231006)
+
+---------------------------------
+
+
 <a id="2014-09-10">2014-09-10</a>
 ---------------------------------
 
-[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-07-24...Maniaplanet_Update_2014-09-10)
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-07-24...ManiaPlanet_Update_2014-09-10)
 
 ### Modes
 
@@ -24,6 +123,7 @@
 #### TrackMania/RoundsBase
 * Fix the Rounds_GetPointsRepartition and Rounds_SetPointsRepartition XmlRpc callback and method. They could be invoked only during the round, now it's possible to invoke them anytime. [see](http://forum.maniaplanet.com/viewtopic.php?p=227330#p227330)
 
+
 ### Libraries
 
 #### ShootMania/Debug
@@ -37,7 +137,6 @@
 
 #### TrackMania/XmlRpc
 * The "LibXmlRpc_BeginMatch" callback now return one more value. A boolean to indicate if the script was restarted or not.
-
 
 ---------------------------------
 

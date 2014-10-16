@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-08-01"
+#Const	ModeSportVersion	"2014-10-16"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -32,7 +32,8 @@
 #Setting S_TurnLimit		15		as _("Default map points limit")		///< Maximum number of points before next map
 #Setting S_DeciderTurnLimit	20		as _("Decider map points limit")		///< Points limit on decider map
 #Setting S_QuickMode		False	as _("Less time between rounds")		///< Mutliplier for the sleep times between rounds
-#Setting S_UseLegacyCallback True	as "<hidden>"							///< Send the old JSON callbacks
+#Setting S_UseLegacyCallback False	as "<hidden>"							///< Send the old JSON callbacks
+#Setting S_WarnWhenSpectating False as "<hidden>"						///< Send a message in the chat when a player switch to spectator mode
 // Clublinks settings
 #Setting S_UsePlayerClublinks		False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1		""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
@@ -193,6 +194,18 @@ WarmUp2::DisplayClanSelection(True);
 ---Rules---
 
 // ---------------------------------- //
+// Init callbacks
+XmlRpc::RegisterCallback("BeginMatch", "This callback is sent at the beginning of each match");
+XmlRpc::RegisterCallback("BeginMap", "This callback is sent at the beginning of each map");
+XmlRpc::RegisterCallback("BeginTurn", "This callback is sent at the beginning of each turn");
+XmlRpc::RegisterCallback("EndTurn", "This callback is sent at the end of each turn");
+XmlRpc::RegisterCallback("EndMap", "This callback is sent at the end of each map");
+XmlRpc::RegisterCallback("EndMatch", "This callback is sent at the end of each match");
+XmlRpc::RegisterCallback("MatchmakingGetOrder", "The server sends this callback and then waits during 5 seconds to receive the 'MatchmakingSetOrder' script event");
+XmlRpc::RegisterCallback("BeginWarmup", "This callback is sent at the beginning of the warm up");
+XmlRpc::RegisterCallback("EndWarmup", "This callback is sent at the end of the warm up");
+
+// ---------------------------------- //
 // Layers creation
 // UI All
 Layers::Create("ScoresTable", CreateLayerScoresTable());
@@ -225,7 +238,7 @@ declare MapSkipped = False;
 // ---------------------------------- //
 ***StartMatch***
 ***
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMatch", Json::Enfold(Json::Merge([Json::Stringify("MatchNumber", MB_SectionMatchNb), Json::Stringify("Restart", MB_MapRestarted)])));
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("BeginMatch")) XmlRpc::SendCallback("BeginMatch", Json::Enfold(Json::Merge([Json::Stringify("MatchNumber", MB_SectionMatchNb), Json::Stringify("Restart", MB_MapRestarted)])));
 // ---------------------------------- //
 // Initialize match goal average
 G_MapScores				= [1 => 0, 2 => 0];
@@ -273,24 +286,7 @@ else MB_UseIntro = True;
 // ---------------------------------- //
 ***StartMap***
 ***
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginMap", Json::Enfold(Json::Merge([Json::Stringify("MapNumber", MB_SectionMapNb), Json::Stringify("Restart", MB_MapRestarted)])));
-G_MapSpecCamDirection = GetOverviewCamDirection();
-
-// ---------------------------------- //
-// Initialize anchors
-Goals = CSmMapLandmark[];
-Checkpoints = CSmMapLandmark[];
-foreach (Pole in MapLandmarks_Gauge) {
-	if (Pole.Tag == "Goal A" || Pole.Tag == "Goal B" || Pole.Tag == "Goal C") Goals.add(Pole);
-	else if (Pole.Tag == "Checkpoint") Checkpoints.add(Pole);
-}
-G_CheckpointsNb = Checkpoints.count;
-// Compatibility with old MapType
-if (Goals.count <= 0) {
-	MB_Log("Old MapType compatibility");
-	declare OldPole <=> Map::GetLandmarkGauge("Goal", 0);
-	if (OldPole != Null) Goals.add(OldPole);
-}
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("BeginMap")) XmlRpc::SendCallback("BeginMap", Json::Enfold(Json::Merge([Json::Stringify("MapNumber", MB_SectionMapNb), Json::Stringify("Restart", MB_MapRestarted)])));
 
 // ---------------------------------- //
 // Initialize all scores
@@ -333,7 +329,6 @@ Clublink::SyncUpdate();
 
 // ---------------------------------- //
 // Initialize UI
-//UIManager.ResetAll();
 InitUi();
 SpawnScreen::AttachRules();
 Clublink::Attach();
@@ -385,6 +380,24 @@ if (MM_IsMatchServer()) {
 }
 MapSkipped = False;
 IsRematch = False;
+
+G_MapSpecCamDirection = GetOverviewCamDirection();
+
+// ---------------------------------- //
+// Initialize anchors
+Goals = CSmMapLandmark[];
+Checkpoints = CSmMapLandmark[];
+foreach (Pole in MapLandmarks_Gauge) {
+	if (Pole.Tag == "Goal A" || Pole.Tag == "Goal B" || Pole.Tag == "Goal C") Goals.add(Pole);
+	else if (Pole.Tag == "Checkpoint") Checkpoints.add(Pole);
+}
+G_CheckpointsNb = Checkpoints.count;
+// Compatibility with old MapType
+if (Goals.count <= 0) {
+	MB_Log("Old MapType compatibility");
+	declare OldPole <=> Map::GetLandmarkGauge("Goal", 0);
+	if (OldPole != Null) Goals.add(OldPole);
+}
 
 ---StartUsingToken---
 
@@ -600,7 +613,6 @@ if (G_Override_FirstAtkClan == 1 || G_Override_FirstAtkClan == 2) {
 	G_Override_FirstAtkClan = -1;
 }
 
-
 // ---------------------------------- //
 // Play team presentation
 if (MB_SectionTurnNb <= 1) {
@@ -640,6 +652,29 @@ while (True) {
 	if (I >= SlotNb) break;
 }
 ST2::SetFooterText(TextLib::Compose("%1 : %2", _("Attacker"), NextAtkName));
+
+// ---------------------------------- //
+// Send attacker and defenders on XmlRpc
+if (True) {
+	declare CSmPlayer AtkPlayer;
+	declare CSmPlayer[] DefPlayers;
+	
+	if (AllPlayers.existskey(G_AtkPlayerId)) AtkPlayer <=> AllPlayers[G_AtkPlayerId];
+	
+	declare DefClan = "Clan1";
+	if (G_AtkClan == 1) DefClan = "Clan2";
+	declare OrderDef = WarmUp2::GetGroup(DefClan);
+	declare DefSpawned = 0;
+	foreach (Slot => PlayerId in OrderDef) {
+		if (DefSpawned >= S_NbPlayersPerTeamMax) break;
+		if (!Players.existskey(PlayerId)) continue;
+		DefPlayers.add(Players[PlayerId]);
+		DefSpawned += 1;
+	}
+	
+	XmlRpc::Elite_BeginTurn([AtkPlayer], DefPlayers);
+}
+
 
 // ---------------------------------- //
 // Attach the correct spawn screen layer and update the scores table
@@ -736,8 +771,8 @@ UpdateMarkers();
 		
 declare AtkPlayer <=> CSmPlayer;
 if (Players.existskey(G_AtkPlayerId)) AtkPlayer <=> Players[G_AtkPlayerId];
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
-	XmlRpc.SendCallback("BeginTurn", Json::Enfold(Json::Merge([
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("BeginTurn")) {
+	XmlRpc::SendCallback("BeginTurn", Json::Enfold(Json::Merge([
 		Json::Stringify("TurnNumber", MB_SectionTurnNb),
 		TurnStringify(),
 		Json::Stringify("AttackingClan", G_AtkClan),
@@ -957,6 +992,7 @@ if (Now > StartTime)  {
 			AtkPlayer <=> Players[G_AtkPlayerId];
 			UnspawnPlayer(AtkPlayer);
 		}
+		XmlRpc::Elite_EndTurn(WinType);
 	}
 
 	if (WinnerTurnClan == -1) {
@@ -973,6 +1009,7 @@ if (Now > StartTime)  {
 			UpgradeScore(G_DefClan, 1);
 			+++RegisterStats+++
 			MB_StopTurn = True;
+			XmlRpc::Elite_EndTurn(WinType);
 		} 
 		// ---------------------------------- //
 		// If the attacker is still alive
@@ -1010,6 +1047,7 @@ if (Now > StartTime)  {
 				WinnerTurnClan = G_AtkClan;
 				+++RegisterStats+++
 				MB_StopTurn = True;
+				XmlRpc::Elite_EndTurn(WinType);
 			}
 		}
 	}
@@ -1071,8 +1109,8 @@ switch(WinType) {
 	case C_WinDefenseEliminated: WinTypeString = "DefenseEliminated";
 }
 
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
-	XmlRpc.SendCallback("EndTurn", Json::Enfold(Json::Merge([
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("EndTurn")) {
+	XmlRpc::SendCallback("EndTurn", Json::Enfold(Json::Merge([
 		Json::Stringify("TurnNumber", MB_SectionTurnNb),
 		TurnStringify(),
 		Json::Stringify("AttackingClan", G_AtkClan),
@@ -1333,8 +1371,8 @@ if (G_Override_FirstAtkClan == 1 || G_Override_FirstAtkClan == 2) {
 
 declare HeaderClanScores = Integer[Integer];
 HeaderClanScores = [1 => G_MapScores[1], 2 => G_MapScores[2]];
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
-	XmlRpc.SendCallback("EndMap", Json::Enfold(Json::Merge([
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("EndMap")) {
+	XmlRpc::SendCallback("EndMap", Json::Enfold(Json::Merge([
 		Json::Stringify("MapNumber", MB_SectionMapNb),
 		Json::Stringify("MapWinnerClan", WinnerMapClan),
 		Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
@@ -1508,8 +1546,8 @@ if (MM_IsMatchServer()) {
 ***
 declare HeaderClanScores = Integer[Integer];
 HeaderClanScores = [1 => G_MapScores[1], 2 => G_MapScores[2]];
-if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
-	XmlRpc.SendCallback("EndMatch", Json::Enfold(Json::Merge([
+if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("EndMatch")) {
+	XmlRpc::SendCallback("EndMatch", Json::Enfold(Json::Merge([
 		Json::Stringify("MatchNumber", MB_SectionMatchNb),
 		Json::Stringify("MatchWinnerClan", WinnerMatchClan),
 		Json::Stringify("Clan1MapScore", HeaderClanScores[1]),
@@ -1520,6 +1558,16 @@ if (MB_UseScriptCallbacks && S_UseLegacyCallback) {
 
 ***EndServer***
 ***
+XmlRpc::UnregisterCallback("BeginMatch");
+XmlRpc::UnregisterCallback("BeginMap");
+XmlRpc::UnregisterCallback("BeginTurn");
+XmlRpc::UnregisterCallback("EndTurn");
+XmlRpc::UnregisterCallback("EndMap");
+XmlRpc::UnregisterCallback("EndMatch");
+XmlRpc::UnregisterCallback("MatchmakingGetOrder");
+XmlRpc::UnregisterCallback("BeginWarmup");
+XmlRpc::UnregisterCallback("EndWarmup");
+
 WarmUp2::Unload();
 // Destroy Layers
 Layers::Destroy("ScoresTable");
@@ -1964,7 +2012,9 @@ Void UpdateSpectators(Boolean _Forced) {
 			declare PrevSpectatorForcedClan for UI = -1;
 			if (PrevSpectatorForcedClan != UI.SpectatorForcedClan) {
 				PrevSpectatorForcedClan = UI.SpectatorForcedClan;
-				UIManager.UIAll.SendChat(TextLib::Compose("$<%1$> goes into spectator mode", Spectator.Name));
+				if (S_WarnWhenSpectating) {
+					UIManager.UIAll.SendChat(TextLib::Compose("$<%1$> goes into spectator mode", Spectator.Name));
+				}
 			}
 		}
 	}
@@ -2193,7 +2243,7 @@ Void PrepareMatch() {
 	}
 	
 	declare MatchmakingSetOrderParam2 = "";
-	XmlRpc.SendCallback("MatchmakingGetOrder", "");
+	if (XmlRpc::CallbackIsAllowed("MatchmakingGetOrder")) XmlRpc::SendCallback("MatchmakingGetOrder", "");
 	
 	// ---------------------------------- //
 	// Let the players select their orders if they are all allies
@@ -2311,7 +2361,7 @@ Void WarmUp2() {
 	XmlRpc::BeginWarmUp();
 	+++StartWarmUp+++
 	
-	if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("BeginWarmup", Json::Enfold(Json::Stringify("AllReady", False)));
+	if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("BeginWarmup")) XmlRpc::SendCallback("BeginWarmup", Json::Enfold(Json::Stringify("AllReady", False)));
 	
 	// Shutdown the poles during warmup
 	foreach (Goal in MapLandmarks_Gauge) {
@@ -2397,7 +2447,7 @@ Void WarmUp2() {
 	
 	WarmUp2::End();
 	
-	if (MB_UseScriptCallbacks && S_UseLegacyCallback) XmlRpc.SendCallback("EndWarmup", Json::Enfold(Json::Stringify("AllReady", True)));
+	if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("EndWarmup")) XmlRpc::SendCallback("EndWarmup", Json::Enfold(Json::Stringify("AllReady", True)));
 	
 	PlaySound(CUIConfig::EUISound::StartMatch, 0);
 	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;

@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-07-25"
+#Const	Version				"2014-10-15"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -23,16 +23,21 @@
 #Setting S_WarmUpDuration		90		as _("Warmup duration (0: disabled)")
 #Setting S_AllowUnbalancedTeams	False	as _("Allow a game to begin without the same number of players in each team")
 #Setting S_UseArmorReduction	False	as _("Reduce the armor of players above two armor points")
+#Setting S_ArmorMax				4		as _("Maximum number of armors a player can have")
+#Setting S_SpawnProtectionTime	0		as _("Invincibility time after spawn")
 // Clublinks settings
 #Setting S_UsePlayerClublinks	False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1	""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
 #Setting S_ForceClublinkTeam2	""		as "<hidden>"	///< Force the Clublink of team 2 (format: http://www.example.com/MyTeam.Club.xml)
 
 // ---------------------------------- //
+// Commands
+// ---------------------------------- //
+#Command Command_SetPause	(Boolean) as _("Pause the game")
+
+// ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_ActionEvent_SwitchWeapon "SwitchWeapon"
-
 #Const C_Object [
 	"Armor"		=> "Armor",
 	"Arrow"		=> "Arrow",
@@ -64,9 +69,9 @@
 #Const C_ArmorReductionStart	200
 
 #Const C_RoundStartInvicibilityDuration 10000
+#Const C_PauseInvincibilityDuration		10000
 #Const C_Default_ComboTime		3000
-#Const C_Default_Armor			200
-#Const C_Default_ArmorMax		400
+#Const C_Default_ArmorBase		0.5
 #Const C_Object_Delay			30000
 #Const C_Object_ArmorValue		100
 #Const C_NbPlayersPerTeamMax	5
@@ -95,6 +100,11 @@ declare Integer G_ComboClan;					///< Clan doing the combo
 declare Integer G_ComboNextTick;				///< Combo time
 declare Integer[Integer] G_ClanComboTimeLimit;	///< Timer max of the combo for each clan
 declare Ident[][Integer] G_ClansPlayers;		///< List of players allowed to play
+declare Integer G_InvincibilityEndTime;			///< End time of the players invincibility
+
+declare Boolean G_Pause_Status;					///< Current pause status
+declare Integer G_Pause_StartTime;				///< Pause start time
+declare Integer G_Pause_CountdownEndTime;		///< CountdownEndTime value when the pause started
 
 declare Integer S_Script_RoundTimeLimit;
 declare Integer S_Script_PointsLimit;
@@ -215,6 +225,15 @@ Layers::Create("Info");
 // ---------------------------------- //
 // Initialize Markers
 Markers::Load();
+
+// ---------------------------------- //
+// Register callbacks
+XmlRpc::RegisterCallback("Combo_Pause", """
+* Data : An array with one value saying if the mode is in pause or not
+* Example : ["True"]
+* Note : This callback is sent after using the `Combo_GetPause` method or when the pause status changes.
+* Version : available since Combo.Script.txt_v2014-09-15
+""");
 ***
 
 ***InitMap***
@@ -232,17 +251,10 @@ else MB_UseIntro = True;
 Users_SetNbFakeUsers(C_BlueBots, C_RedBots);
 Score::MatchBegin();
 SM::SetupDefaultVisibility();
-//UIManager.UIAll.TeamLabelsVisibility = CUIConfig::ELabelsVisibility::Always;
 MapWinnerClan = 0;
 G_ClansPlayers = [1 => Ident[], 2 => Ident[]];
 Spawns = [1 => Null, 2 => Null];
-foreach (MapLandmark in MapLandmarks_PlayerSpawn) {
-	if (MapLandmark.Order == 1) Spawns[1] <=> MapLandmark.PlayerSpawn;
-	else if (MapLandmark.Order == 2) Spawns[2] <=> MapLandmark.PlayerSpawn;
-}
-assert(Spawns[1] != Null && Spawns[2] != Null);
 UpdateModeStatusMessage();
-UpdateBasesColors();
 
 // ---------------------------------- //
 // Initialize players
@@ -270,25 +282,11 @@ foreach (Score in Scores) {
 }
 
 // ---------------------------------- //
-// Set storm center
-foreach (Pole in MapLandmarks_Gauge) {
-	if (Pole.Tag == "Checkpoint") {
-		OffZoneCenterLandmarkId = Pole.Id;
-		break;
-	}
-}
-
-// ---------------------------------- //
 // Update the scores table
 ST2::ClearScores();
 ST2::SetFooterText(TL::Compose("%1 "^S_PointsLimit, _("Points limit : ")));
 
 UpdateScoresHeader();
-
-// ---------------------------------- //
-// Initialize markers
-Markers::Clear();
-CreateMarkers();
 
 // ---------------------------------- //
 // Initalize settings
@@ -308,9 +306,33 @@ if (MM_IsMatchServer()) {
 	}
 	PrepareMatch();
 }
+
+// ---------------------------------- //
+// Initialize markers
+Markers::Clear();
+CreateMarkers();
+
+// ---------------------------------- //
+// Initialize landmarks
+foreach (MapLandmark in MapLandmarks_PlayerSpawn) {
+	if (MapLandmark.Order == 1) Spawns[1] <=> MapLandmark.PlayerSpawn;
+	else if (MapLandmark.Order == 2) Spawns[2] <=> MapLandmark.PlayerSpawn;
+}
+assert(Spawns[1] != Null && Spawns[2] != Null);
+UpdateBasesColors();
+
+// ---------------------------------- //
+// Set storm center
+foreach (Pole in MapLandmarks_Gauge) {
+	if (Pole.Tag == "Checkpoint") {
+		OffZoneCenterLandmarkId = Pole.Id;
+		break;
+	}
+}
+
 // ---------------------------------- //
 // Do warm up
-else WarmUp();
+if (!MM_IsMatchServer()) WarmUp();
 
 IsRematch = False;
 
@@ -349,7 +371,6 @@ if (MM_IsMatchServer()) MM_AllowSubstitutes(True);
 declare Integer RoundWinnerClan;
 declare Integer SpawnClan1;
 declare Integer SpawnClan2;
-declare Integer InvincibilityEndTime;
 ***
 
 ***StartRound***
@@ -424,7 +445,7 @@ foreach (Player in Players) {
 	}
 	declare SpawnTime = Now + 2000;
 	if (SpawnTime < StartTime) SpawnTime = StartTime;
-	if (MapLandmark_PlayerSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, C_Default_Armor, MapLandmark_PlayerSpawn, SpawnTime);
+	if (MapLandmark_PlayerSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, GetDefaultArmor(), MapLandmark_PlayerSpawn, SpawnTime);
 }
 
 // ---------------------------------- //
@@ -445,10 +466,10 @@ if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") {
 
 // ---------------------------------- //
 // Round start invincibility
-InvincibilityEndTime = StartTime + C_RoundStartInvicibilityDuration;
+G_InvincibilityEndTime = StartTime + C_RoundStartInvicibilityDuration;
 UsePvPCollisions = False;
 UsePvPWeapons = False;
-Message::SendStatusMessage(_("Players are invincible"), InvincibilityEndTime - Now, 1);
+Message::SendStatusMessage(_("Players are invincible"), G_InvincibilityEndTime - Now, 1);
 ***
 
 ***OnNewPlayer***
@@ -473,6 +494,8 @@ if (UI != Null) {
 
 ***Yield***
 ***
+// ---------------------------------- //
+// XmlRpc
 foreach (Event in XmlRpc.PendingEvents) {
 	if (Event.Type == CXmlRpcEvent::EType::CallbackArray) {
 		switch (Event.ParamArray1) {
@@ -489,18 +512,68 @@ foreach (Event in XmlRpc.PendingEvents) {
 				}
 			}
 		}
+	} else if (Event.Type == CXmlRpcEvent::EType::Callback) {
+		switch (Event.Param1) {
+			case "Combo_SetPause": {
+				declare PauseStatus = True;
+				if (Event.Param2 == "False" || Event.Param2 == "false" || Event.Param2 == "") {
+					PauseStatus = False;
+				}
+				declare Boolean Combo_PauseStatus for This;
+				Combo_PauseStatus = PauseStatus;
+				if (XmlRpc::CallbackIsAllowed("Combo_Pause")) XmlRpc::SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
+			}
+			case "Combo_GetPause": {
+				declare Boolean Combo_PauseStatus for This;
+				if (XmlRpc::CallbackIsAllowed("Combo_Pause")) XmlRpc::SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
+			}
+		}
 	}
+}
+
+// ---------------------------------- //
+// Commands
+foreach (Event in PendingEvents) {
+	if (Event.Type == CSmModeEvent::EType::OnCommand) {
+		switch (Event.CommandName) {
+			case "Command_SetPause": {
+				declare Boolean Combo_PauseStatus for This;
+				Combo_PauseStatus = Event.CommandValueBoolean;
+				if (XmlRpc::CallbackIsAllowed("Combo_Pause")) XmlRpc::SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
+// Messages
+Message::Loop();
+***
+
+***Pause***
+***
+// ---------------------------------- //
+// Check Action events
+foreach (Event in PendingEvents) {
+	Discard(Event);
 }
 ***
 
 ***PlayLoop***
 ***
 // ---------------------------------- //
-// Libraries
-Message::Loop();
+// Pause
+declare Boolean Combo_PauseStatus for This;
+if (GetPause() != Combo_PauseStatus) {
+	SetPause(Combo_PauseStatus);
+}
+if (GetPause()) {
+	+++Pause+++
+	continue;
+}
 
 // ---------------------------------- //
-// Check Action events
+// Check events
 foreach (Event in PendingEvents) {
 	// ---------------------------------- //
 	// On armor empty
@@ -518,6 +591,21 @@ foreach (Event in PendingEvents) {
 		if (Event.Victim == Null || Event.Shooter == Event.Victim) {
 			Discard(Event);
 		} else if (Event.Shooter != Null && Event.Victim != Null && Event.Shooter.CurrentClan == Event.Victim.CurrentClan) {
+			Discard(Event);
+		} else if (SpawnProtectionActive(Event.Victim)) {
+			if (Event.Shooter != Null) {
+				declare UI <=> UIManager.GetUI(Event.Shooter);
+				if (UI != Null) {
+					UI.SendNotice(
+						TL::Compose(_("$<%1$> is invincible"), Event.Victim.Name),
+						CUIConfig::ENoticeLevel::PlayerWarning, 
+						Event.Victim.User, 
+						CUIConfig::EAvatarVariant::Default,
+						CUIConfig::EUISound::Default,
+						0
+					);
+				}
+			}
 			Discard(Event);
 		} else {
 			if (Event.Damage > C_MaxDamage) Event.Damage = C_MaxDamage;
@@ -592,8 +680,8 @@ foreach (Event in PendingEvents) {
 
 // ---------------------------------- //
 // Round start invincibility
-if (InvincibilityEndTime > 0 && InvincibilityEndTime <= Now) {
-	InvincibilityEndTime = -1;
+if (G_InvincibilityEndTime > 0 && G_InvincibilityEndTime <= Now) {
+	G_InvincibilityEndTime = -1;
 	UsePvPCollisions = True;
 	UsePvPWeapons = True;
 	UIManager.UIAll.SendNotice("", CUIConfig::ENoticeLevel::MatchInfo, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::PhaseChange, 0);
@@ -606,7 +694,7 @@ if (UIManager.UIAll.CountdownEndTime > 0 && UIManager.UIAll.CountdownEndTime <= 
 	OffZoneRadius = C_OffZoneRadiusMax;
 	OffZoneRadiusSpeed = (C_OffZoneRadiusMax - C_OffZoneRadiusMin) / ML::ToReal(C_OffZoneDuration);
 	G_OffZoneIsActivated = True;
-	UIManager.UIAll.StatusMessage = _("Direct elimination");
+	Message::SetDefaultStatusMessage(_("Direct elimination"));
 }
 // ---------------------------------- //
 // Stop the storm
@@ -644,7 +732,7 @@ foreach (Player in Players) {
 			if (!G_ClansPlayers.existskey(Player.CurrentClan)) continue;
 			if (!G_ClansPlayers[Player.CurrentClan].exists(Player.Id)) continue;
 			
-			Player.ArmorMax = C_Default_ArmorMax;
+			Player.ArmorMax = GetDefaultArmorMax();
 			
 			declare CSmMapPlayerSpawn MapLandmark_PlayerSpawn;
 			if (Player.CurrentClan == 1) {
@@ -654,7 +742,7 @@ foreach (Player in Players) {
 				MapLandmark_PlayerSpawn <=> Spawns[SpawnClan2];
 				SpawnClan2 = 3 - SpawnClan2;
 			}
-			if (MapLandmark_PlayerSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, C_Default_Armor, MapLandmark_PlayerSpawn, Now);
+			if (MapLandmark_PlayerSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, GetDefaultArmor(), MapLandmark_PlayerSpawn, Now);
 			
 			declare netwrite Net_Combo_AmmoMax for Player = C_AmmoMax;
 			SetPlayerAmmo(Player, CSmMode::EWeapon::Rocket, Net_Combo_AmmoMax["Rocket"]/2);
@@ -747,6 +835,7 @@ if (EndMap) MB_StopMap = True;
 ***
 UIManager.UIAll.StatusMessage = "";
 Message::CleanAllMessages();
+Message::SetDefaultStatusMessage("");
 Score::RoundEnd();
 UIManager.UIAll.CountdownEndTime = -1;
 OffZoneRadius = -1.;
@@ -886,10 +975,98 @@ WarmUp2::Unload();
 SpawnScreen::DestroyRules();
 Markers::Unload();
 
+XmlRpc::UnregisterCallback("Combo_Pause");
+
 // ---------------------------------- //
 // Destroy layer
 Layers::Destroy("Info");
 ***
+
+// ---------------------------------- //
+/** Set the pause status
+ *
+ *	@param		_PauseStatus		The new pause status
+ */
+Void SetPause(Boolean _PauseStatus) {
+	G_Pause_Status = _PauseStatus;
+	declare netwrite Boolean Net_Combo_PauseStatus for Teams[0];
+	Net_Combo_PauseStatus = G_Pause_Status;
+	
+	if (G_Pause_Status) {
+		// Save values
+		G_Pause_StartTime = Now;
+		G_Pause_CountdownEndTime = UIManager.UIAll.CountdownEndTime;
+		
+		// Pause values
+		UIManager.UIAll.CountdownEndTime = -1;
+		if (G_OffZoneIsActivated) {
+			OffZoneRadiusSpeed = 0.;
+		}
+		UsePvPCollisions = False;
+		UsePvPWeapons = False;
+		
+		// Messages
+		Message::CleanAllMessages();
+		Message::SetDefaultBigMessage(_("Game paused"));
+		Message::SetDefaultStatusMessage("");
+		
+		// Hide timer
+		UIManager.UIAll.OverlayHideCountdown = True;
+	} else {
+		// Restore values
+		declare PauseDuration = Now - G_Pause_StartTime + C_PauseInvincibilityDuration;
+		
+		// Messages
+		Message::CleanAllMessages();
+		Message::SetDefaultBigMessage("");
+		Message::SetDefaultStatusMessage("");
+		
+		// Combo timer
+		G_ComboNextTick += PauseDuration;
+		// Offzone activation timer
+		if (G_Pause_CountdownEndTime >= 0) {
+			UIManager.UIAll.CountdownEndTime = G_Pause_CountdownEndTime + PauseDuration;
+		}
+		// Offzone speed
+		if (G_OffZoneIsActivated) {
+			OffZoneRadiusSpeed = (C_OffZoneRadiusMax - C_OffZoneRadiusMin) / ML::ToReal(C_OffZoneDuration);
+			Message::SetDefaultStatusMessage(_("Direct elimination"));
+		}
+		// Items timers
+		declare netwrite Integer[Text] Net_Combo_ItemsRespawn for Teams[0];
+		foreach (MapLandmark in MapLandmarks_ObjectAnchor) {
+			declare ObjectSpawned for MapLandmark = False;
+			if (ObjectSpawned) continue;
+			
+			declare ObjectNextSpawn for MapLandmark = Now;
+			ObjectNextSpawn += PauseDuration;
+			
+			Net_Combo_ItemsRespawn["Marker_Object"^MapLandmark.Id] = ObjectNextSpawn;
+		}
+		// Armor reduction
+		foreach (Player in Players) {
+			declare NextArmorReduction for Player = -1;
+			if (NextArmorReduction >= 0) {
+				NextArmorReduction += PauseDuration;
+			}
+		}
+		// Invincibility timer
+		G_InvincibilityEndTime = Now + C_PauseInvincibilityDuration;
+		Message::SendStatusMessage(_("Players are invincible"), G_InvincibilityEndTime - Now, 1);
+		
+		// Show timer
+		UIManager.UIAll.OverlayHideCountdown = False;
+	}
+}
+
+// ---------------------------------- //
+/** Get the current pause status
+ *
+ *	@return		The current pause status
+ */
+Boolean GetPause() {
+	return G_Pause_Status;
+}
 
 // ---------------------------------- //
 /// Update the ModeStatusMessage
@@ -901,6 +1078,53 @@ Void UpdateModeStatusMessage() {
 	ModeStatusMessage = TL::Compose("%1\nRounds to win: %2 \\ Current Score: %3", BaseRules, RoundsToWinSetting, MatchScore);
 }
 
+// ---------------------------------- //
+/** Check if the spawn protection is active on a player
+ *
+ *	@param		_Player		The player to check
+ *
+ *	@return					True if the player is protected, False otherwise
+ */
+Boolean SpawnProtectionActive(CSmPlayer _Player) {
+	if (_Player == Null) return False;
+	if (S_SpawnProtectionTime <= 0) return False;
+	
+	return (_Player.StartTime + (S_SpawnProtectionTime * 1000) > Now);
+}
+
+// ---------------------------------- //
+/** Get the default armor max for the players
+ *
+ *	@return		The default armor max number
+ */
+Integer GetDefaultArmorMax() {
+	if (S_ArmorMax <= 1) return 100;
+	
+	return S_ArmorMax * 100;
+}
+
+// ---------------------------------- //
+/** Get the default armor for the players
+ *
+ *	@return		The default armor number
+ */
+Integer GetDefaultArmor() {
+	if (S_ArmorMax <= 1) return 100;
+	
+	declare Armor = ML::NearestInteger(C_Default_ArmorBase * S_ArmorMax) * 100;
+	if (Armor < 100) return 100;
+	
+	declare ArmorMax = GetDefaultArmorMax();
+	if (Armor > ArmorMax) return ArmorMax;
+	
+	return Armor;
+}
+
+// ---------------------------------- //
+/** Initialize player properties
+ *
+ *	@param	_Player		The player to initialize
+ */
 Void InitializePlayer(CSmPlayer _Player) {
 	SetPlayerClan(_Player, MM_GetRequestedClan(_Player));
 	
@@ -919,7 +1143,7 @@ Void InitializePlayer(CSmPlayer _Player) {
 	CurrentWeapon = C_Default_Weapon;
 	Weapons = C_Default_Weapons;
 	
-	_Player.ArmorMax = C_Default_ArmorMax;
+	_Player.ArmorMax = GetDefaultArmorMax();
 	_Player.AmmoGain = C_AmmoGain["Rocket"];
 	SetPlayerWeapon(_Player, C_Default_Weapon, False);
 	SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, Net_Combo_AmmoMax["Rocket"]);
@@ -1010,6 +1234,9 @@ declare CMlLabel[Integer] Labels_Timer;
 declare CMlQuad[Integer] Quads_Timer;
 
 Void UpdateTimers() {
+	declare netread Boolean Net_Combo_PauseStatus for Teams[0];
+	if (Net_Combo_PauseStatus) return;
+	
 	declare netread Integer[Text] Net_Combo_ItemsRespawn for Teams[0];
 	
 	foreach (Key => Label_Timer in Labels_Timer) {
@@ -1230,6 +1457,9 @@ declare CMlLabel[Integer] Labels_Timer;
 declare CMlQuad[Integer] Quads_Timer;
 
 Void UpdateTimers() {
+	declare netread Boolean Net_Combo_PauseStatus for Teams[0];
+	if (Net_Combo_PauseStatus) return;
+	
 	declare netread Integer[Text] Net_Combo_ItemsRespawn for Teams[0];
 	
 	foreach (Key => Label_Timer in Labels_Timer) {
@@ -1556,6 +1786,13 @@ Void AddAmmoMax(CSmPlayer _Player, Text _Weapon, Integer _Ammo) {
 	SetPlayerAmmoMax(_Player, Weapon, Net_Combo_AmmoMax[_Weapon]);
 }
 
+// ---------------------------------- //
+/** Get the order number of a weapon
+ *
+ *	@param	_Weapon		The weapon to check
+ *
+ *	@return				The order number if found, 0 otherwise
+ */
 Integer GetWeaponOrder(CSmMode::EWeapon _Weapon) {
 	switch (_Weapon) {
 		case CSmMode::EWeapon::Laser	: return 1;
@@ -1629,7 +1866,6 @@ Void PickUpObject(CSmPlayer _Player, CSmObject _Object) {
 	switch (Tag) {
 		case C_Object["Armor"]: {
 			_Player.Armor += C_Object_ArmorValue;
-			//ObjectNextSpawn = Now + C_Timers["Armor"];
 			if (_Player.Armor > C_ArmorReductionStart) {
 				declare NextArmorReduction for _Player = -1;
 				NextArmorReduction = Now + C_ArmorReductionPeriod;
