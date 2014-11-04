@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeV2Arena"
-#Const Version				"2014-07-29"
+#Const Version				"2014-11-04"
 #Const ScriptName			"Siege.Script.txt"
 
 /* @Arche
@@ -358,6 +358,7 @@ G_CapturingClan = InitialCapturingClan;
 G_Advantage = 0;
 G_AdvantageExplanation = "";
 
+MM_SetScores([ClanScores[1], ClanScores[2]]);
 InitLandmarks();
 InitWarmUp();
 
@@ -632,6 +633,7 @@ foreach (Player in Players) {
 	// ---------------------------------- //
 	// Spawn players
 	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+		if (MM_IsMatchServer() && !MM_PlayerIsValid(Player)) continue;
 		declare SpawnTicket for Player = 0;
 		if (SpawnTicket <= 0) continue;
 		
@@ -3316,6 +3318,7 @@ Void ActivateCheckpoint(CSmMapLandmark _Checkpoint) {
 		// Update scores
 		G_ClanRoundScores[MB_SectionRoundNb][G_CapturingClan] += 1;
 		ClanScores[G_CapturingClan] += 1;
+		MM_SetScores([ClanScores[1], ClanScores[2]]);
 		
 		// Update UI
 		UpdateScoresTableFooter();

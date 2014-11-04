@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-10-16"
+#Const	ModeSportVersion	"2014-11-04"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -314,6 +314,7 @@ foreach (Score in Scores) {
 }
 ClanScores[1] = 0;
 ClanScores[2] = 0;
+MM_SetScores([ClanScores[1], ClanScores[2]]);
 foreach (Player in AllPlayers) {
 	declare netwrite Net_LayerST_DefPoints for Player = 0;
 	declare netwrite Net_LayerST_AtkPoints for Player = 0;
@@ -436,8 +437,14 @@ Mode::Synchro_DoBarrier();
 SM::UnspawnAllPlayers();
 foreach (Player in AllPlayers) {
 	SetPlayerClan(Player, MM_GetRequestedClan(Player));
-	if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
-	else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+	
+	// Remove players not allowed by matchmaking
+	if (MM_IsMatchServer() && !MM_PlayerIsValid(Player)) {
+		WarmUp2::UnsetPlayerGroup(Player);
+	} else {
+		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
+		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+	}
 }
 Score::RoundBegin();
 InitUi();
@@ -1749,6 +1756,7 @@ Void UpgradeScore(Integer _iClan, Integer _iPlus) {
 			}
 		}
 	}
+	MM_SetScores([ClanScores[1], ClanScores[2]]);
 }
 
 // ---------------------------------- //
@@ -2070,6 +2078,7 @@ Void ManageCommand() {
 					else UpdateLayerScoresTable(C_SequencePlaying);
 					UpdateHeader();
 					CheckTieBreak();
+					MM_SetScores([ClanScores[1], ClanScores[2]]);
 				}
 				// ---------------------------------- //
 				case "Command_CurrentMapPointsClan2": {
@@ -2083,6 +2092,7 @@ Void ManageCommand() {
 					else UpdateLayerScoresTable(C_SequencePlaying);
 					UpdateHeader();
 					CheckTieBreak();
+					MM_SetScores([ClanScores[1], ClanScores[2]]);
 				}
 				// ---------------------------------- //
 				case "Command_PreviousMapsPointsClan1": {
