@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-10-14"
+#Const	Version				"2014-11-04"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -19,6 +19,7 @@
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/BalancedWeapons.Script.txt" as BalancedWeapons
 #Include "Libs/Nadeo/ShootMania/BeginnersWelcome.Script.txt" as Beginners
+#Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
 
 // ---------------------------------- //
 // Settings
@@ -35,8 +36,9 @@
 #Setting 	S_AllowBeginners		False	as _("Is a Beginners Welcome server")
 //#Setting 	S_AutoManageAFK			True	//as _("Switch inactive players to spectators")
 #Setting	S_ArmorPoints			2		as _("Armor points")
-#Setting	S_NbPlayersPerTeamMax	5		as _("Number of players per team in matchmaking")	///< Number of players per team when the matchmaking is enabled
-#Setting	S_NbPlayersPerTeamMin	2		as _("Minimum number of players per team in matchmaking")	///< Minimum number of players in each team in matchmaking
+#Setting	S_WarmUpDuration		0		as _("Warm up duration (sec.)")							///< Duration of the warm up round (0 = no warmup)
+#Setting	S_NbPlayersPerTeamMax	0		as _("Maximum number of players per team (0: no max)")	///< Do not spawn players beyond this limit, 0=no limit
+#Setting	S_NbPlayersPerTeamMin	1		as _("Minumum number of players per team")			///< Wait until this minimum is reach
 
 
 // Clublinks settings
@@ -122,6 +124,7 @@ MB_LogVersion(Top::GetScriptName(), Top::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
 MB_LogVersion(Layers::GetScriptName(), Layers::GetScriptVersion());
 MB_LogVersion(Victory::GetScriptName(), Victory::GetScriptVersion());
+MB_LogVersion(WarmUp2::GetScriptName(), WarmUp2::GetScriptVersion());
 MB_LogVersion(Interface::GetScriptName(), Interface::GetScriptVersion());
 MB_LogVersion(Tabs::GetScriptName(), Tabs::GetScriptVersion());
 MB_LogVersion(SpawnScreen::GetScriptName(), SpawnScreen::GetScriptVersion());
@@ -149,7 +152,7 @@ declare RematchNb = 0;		///< Number of consecutive rematch
 
 ***Reinit***
 ***
-MB_Log("Battle: Initialize Server");
+//MB_Log("Battle: Initialize Server");
 //MB_UseLogging = True;
 ---LoadBeginnersLib---
 
@@ -241,6 +244,8 @@ CreateRulesReminderLayer();
 
 ***StartServer***
 ***
+WarmUp2::Load();
+
 // ---------------------------------- //
 // Matchmaking mode
 if (MM_IsMatchServer()) {
@@ -292,13 +297,13 @@ Score::MatchBegin(False);
 BalancedWeapons::MatchBegin();
 Victory::MatchBegin();
 
-if (S_AutoBalance && !MM_IsMatchmakingServer()) Mode::AutoTeamBalance();
 Mode::Ladder_OpenMatch_All();
 G_PolesIndice = Integer[Ident];
 +++MatchBegin+++
 // Reset clan scores
 ClanScores[1] = 0;
 ClanScores[2] = 0;
+MM_SetScores([ClanScores[1], ClanScores[2]]);
 ***
 
 
@@ -338,11 +343,24 @@ SpawnScreen::SetModeName("Battle");
 SpawnScreen::CreateScores("Score.Points + Score.RoundPoints");
 Top::ResetAll();
 
+InitWarmUp();
+
 // ---------------------------------- //
 // Wait players when using matchmaking
 if (MM_IsMatchServer() && !IsRematch) {
 	MM_MatchWait();
 	MM_VoteForNextMap(True);
+} else if (S_WarmUpDuration > 0 && S_NbPlayersPerTeamMax > 0) {
+	MB_CurrentSection = "WarmUp";
+	DoWarmUp();
+	MB_CurrentSection = "StartMap";
+} else {
+	MB_CurrentSection = "WarmUp";
+	WaitForPlayers(S_NbPlayersPerTeamMin, S_WarmUpDuration);
+	MB_CurrentSection = "StartMap";
+	
+	// Team balance
+	if (S_AutoBalance && !MM_IsMatchmakingServer()) Mode::AutoTeamBalance();
 }
 IsRematch = False;
 
@@ -782,6 +800,19 @@ if(S_BattleWaves) {
 // Spawning players
 foreach (Player in Players) {
 	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !Player.RequestsSpectate) {
+		// Skip invalid player in matchmaking
+		if (MM_IsMatchServer() && !MM_PlayerIsValid(Player)) continue;
+		
+		// Set player clan
+		SetPlayerClan(Player, MM_GetRequestedClan(Player));
+		if (SpawnIsLimited()) {
+			WarmUp2::Clean();
+			if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
+			else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+			WarmUp2::Fill();
+		}
+		if (!IsSpawnable(Player)) continue;
+		
 		//declare Integer ClublinkClan for Player; 
 		//if (ClublinkClan == 0)	continue;
 		BalancedWeapons::SetPlayerWeapon(Player, True);
@@ -819,7 +850,6 @@ foreach (Player in Players) {
 		declare Integer Battle_ScoreCombo for Player.Score;
 		Battle_ScoreCombo = 0;
 		
-		SetPlayerClan(Player, MM_GetRequestedClan(Player));
 		SM::SpawnPlayer(Player, Player.CurrentClan, G_ClanSpawnAnchors[Player.CurrentClan].PlayerSpawn, Now + S_RespawnTime);
 		
 		Interface::HideSlider(Player, 5000);
@@ -1421,8 +1451,8 @@ Void InitializePlayer(CSmPlayer Player, Integer NbPolesByClan, CUILayer LayerMar
 	Battle_ServToUIShowFrame = ! Battle_ServToUIShowFrame;
 	Battle_UIRoundPhase = C_RoundPhase_Playing;
 	
-	UI.MarkersXML = PoleMarkers;	
-	Tabs::UseTabs(UI, "ScoresTab");	
+	UI.MarkersXML = PoleMarkers;
+	Tabs::UseTabs(UI, "ScoresTab");
 	UpdateScoreTeamsUI(Player);
 }
 
@@ -1505,6 +1535,7 @@ if (Victory::IsRoundWinner(1)) {
 } else {
 	UIManager.UIAll.BigMessage = _("Draw round");
 }
+MM_SetScores([ClanScores[1], ClanScores[2]]);
 // UIManager.UIAll.ScoreSummary_Points1 = Clan1Score;
 // UIManager.UIAll.ScoreSummary_Points2 = Clan2Score;
 ---UpdateTeamsScoresUI---
@@ -1644,6 +1675,7 @@ Victory::MatchEnd();
 ***
 // Destroy layers
 UIManager.UILayerDestroy(LayerRoundInfo);
+WarmUp2::Unload();
 ***
 
 
@@ -2635,4 +2667,211 @@ Void CreateRulesReminderLayer() {
 	
 	Layers::Create("RulesReminder", MLText);
 	Layers::Attach("RulesReminder");
+}
+
+// ---------------------------------- //
+/// Initialize the warm up properties
+Void InitWarmUp() {
+	if (S_NbPlayersPerTeamMax > 0) {
+		if (WarmUp2::GroupExists("Clan1")) WarmUp2::SetSlotsNb("Clan1", S_NbPlayersPerTeamMax);
+		else WarmUp2::CreateGroup("Clan1", S_NbPlayersPerTeamMax);
+		if (WarmUp2::GroupExists("Clan2")) WarmUp2::SetSlotsNb("Clan2", S_NbPlayersPerTeamMax);
+		else WarmUp2::CreateGroup("Clan2", S_NbPlayersPerTeamMax);
+		WarmUp2::DisplayClanSelection(True);
+	} else {
+		WarmUp2::DestroyGroup("Clan1");
+		WarmUp2::DestroyGroup("Clan2");
+		WarmUp2::DisplayClanSelection(False);
+	}
+}
+
+// ---------------------------------- //
+/** Check if the spawns of the players are limited to a specific list
+ *
+ *	@return		True if the player spawns are limited, False otherwise
+ */
+Boolean SpawnIsLimited() {
+	if (WarmUp2::GroupExists("Clan1") && WarmUp2::GroupExists("Clan2")) return True;
+	return False;
+}
+
+// ---------------------------------- //
+/** Check if a player is spawnable
+ *
+ *	@param	_Player		The player to check
+ *
+ *	@return		True if the player is spawnable, false otherwise
+ */
+Boolean IsSpawnable(CSmPlayer _Player) {
+	if (_Player == Null) return False;
+	if (_Player.RequestsSpectate) return False;
+	if (!SpawnIsLimited()) return True;
+	
+	if (WarmUp2::GetPlayerSlot(_Player) <= 0) return False;
+	if (_Player.CurrentClan == 1 && WarmUp2::GetPlayerGroup(_Player) == "Clan1") return True;
+	if (_Player.CurrentClan == 2 && WarmUp2::GetPlayerGroup(_Player) == "Clan2") return True;
+	
+	return False;
+}
+
+
+// ---------------------------------- //
+/** Wait for enough players to play
+ *
+ *	@param	_Duration			Duration of the warm up
+ *	@param	_MinimumNbPlayers	The number of players to wait in each clan before starting the map if there's no duration
+ */
+Void WaitForPlayers(Integer _MinimumNbPlayers, Integer _Duration) {
+	declare OldSequence = UIManager.UIAll.UISequence;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Warning;
+	StartTime = Now;
+	if (_Duration > 0) {
+		UIManager.UIAll.CountdownEndTime = Now + (_Duration * 1000);
+		UIManager.UIAll.BigMessage = _("Warm up");
+	} else {
+		UIManager.UIAll.BigMessage = _("Waiting for players in each team...");
+	}
+	
+	foreach (Player in AllPlayers) {
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI != Null) Tabs::UseTabs(UI, "ScoresTab");
+	}
+	
+	while (!ServerShutdownRequested && !MatchEndRequested) {
+		MM_Yield();
+		
+		if (_Duration > 0) {
+			if (Now >= UIManager.UIAll.CountdownEndTime) break;
+		} else {
+			if (ClansNbPlayers[1] >= _MinimumNbPlayers && ClansNbPlayers[2] >= _MinimumNbPlayers) break;
+		}
+		
+		SM::UnspawnPlayersChangingClan();
+		foreach(Player in Players) {
+			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+				declare Clan = MM_GetRequestedClan(Player);
+				declare Spawn <=> Map::GetPlayerSpawn("Spawn", Clan);
+				if (Spawn != Null) SM::SpawnPlayer(Player, Clan, Spawn);
+			}
+		}
+		
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
+				declare UI <=> UIManager.GetUI(Event.Player);
+				if (UI != Null) Tabs::UseTabs(UI, "ScoresTab");
+			}
+		}
+		
+		WarmUp2::ManageEvents();
+	}
+	
+	SM::UnspawnAllPlayers();
+	StartTime = -1;
+	UIManager.UIAll.CountdownEndTime = -1;
+	UIManager.UIAll.BigMessage = "";
+	UIManager.UIAll.UISequence = OldSequence;
+	
+	// ---------------------------------- //
+	// Update the players clublinks
+	if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
+	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
+}
+
+Void DoWarmUp() {
+	XmlRpc::BeginWarmUp();
+	
+	// Shutdown the poles during warmup
+	foreach (Goal in MapLandmarks_Gauge) {
+		Goal.Gauge.Clan = 0;
+		Goal.Gauge.Speed = 0;
+		Goal.Gauge.Value = 0;
+		Goal.Gauge.Max = 1000;
+		Goal.Gauge.Captured = False;
+	}
+	
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::PhaseChange;
+	UIManager.UIAll.BigMessageSoundVariant = 0;
+	UIManager.UIAll.StatusMessage = _("Press F6 once you're ready.");
+	UIManager.UIAll.BigMessage = TL::Compose("$f90%1", _("Warm-up"));
+	
+	// Wait players sycnhro
+	Mode::Synchro_DoBarrier();
+	SM::UnspawnAllPlayers();
+	foreach (Player in AllPlayers) {
+		SetPlayerClan(Player, MM_GetRequestedClan(Player));
+		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
+		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+		
+		declare UI <=> UIManager.GetUI(Player);
+		if (UI != Null) Tabs::UseTabs(UI, "ScoresTab");
+	}
+	
+	WarmUp2::Clean();
+	WarmUp2::Begin();
+	WarmUp2::Fill();
+	
+	declare PrevWarmUpDuration = S_WarmUpDuration-1;
+	
+	while (!WarmUp2::Stop()) {
+		MM_Yield();
+		
+		// Let the server sleep if there's no players on it
+		if (PlayersNbTotal <= 0) continue;
+		
+		foreach (Player in Players) {
+			declare RequestedClan = MM_GetRequestedClan(Player);
+			if (Player.CurrentClan != RequestedClan) {
+				UnspawnPlayer(Player);
+				SetPlayerClan(Player, RequestedClan);
+				if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
+				else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
+			}
+		}
+		
+		if (PrevWarmUpDuration != S_WarmUpDuration) {
+			PrevWarmUpDuration = S_WarmUpDuration;
+			
+			declare LongTimer = S_WarmUpDuration*1000;
+			declare ShortTimer = 5000;
+			if (LongTimer <= 0) { LongTimer = 0; ShortTimer = 0; }
+			
+			WarmUp2::SetGroupTimers("Clan1", [ShortTimer => [-1, S_NbPlayersPerTeamMin], LongTimer => [1, S_NbPlayersPerTeamMin]]);
+			WarmUp2::SetGroupTimers("Clan2", [ShortTimer => [-1, S_NbPlayersPerTeamMin], LongTimer => [1, S_NbPlayersPerTeamMin]]);
+		}
+		
+		WarmUp2::Fill();
+		WarmUp2::Loop();
+		
+		foreach(Player in Players) {
+			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+				declare Spawn <=> Map::GetPlayerSpawn("Spawn", MM_GetRequestedClan(Player));
+				if (Spawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, Spawn);
+			}
+		}
+		
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
+				declare UI <=> UIManager.GetUI(Event.Player);
+				if (UI != Null) Tabs::UseTabs(UI, "ScoresTab");
+			}
+		}
+		
+		WarmUp2::ManageEvents();
+	}
+	
+	WarmUp2::End();
+	
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	UIManager.UIAll.StatusMessage = "";
+	UIManager.UIAll.BigMessage = "";
+	SM::UnspawnAllPlayers();
+	
+	// ---------------------------------- //
+	// Update the players clublinks
+	if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
+	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
+	
+	XmlRpc::EndWarmUp();
 }
