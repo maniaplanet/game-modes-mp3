@@ -1,3 +1,57 @@
+<a id="2014-11-xx">2014-11-xx</a>
+---------------------------------
+
+[Diff from previous release]()
+
+### Modes
+
+#### ShootMania/Battle
+* Warm up system :
+  - S_WarmUpDuration and S_NbPlayersPerTeamMax are superior to 0 : classic warm up mode, with clan and slot selection.
+  - S_WarmUpDuration is superior to 0 : wait for S_WarmUpDuration seconds at the beginning of the map.
+  - S_NbPlayersPerTeamMin is superior to 0 : wait until there's S_NbPlayersPerTeamMin players in each team.
+* Matchmaking fix : Don't allow a player to join a match until the matchmaking api sent the players list to the server. [see](http://forum.maniaplanet.com/viewtopic.php?p=232611#p232611)
+* Send the scores of the map to the matchmaking api.
+
+#### ShootMania/Combo
+* New setting `S_RespawnAmmo` : set the amount of ammo reloaded when respawning.
+* Matchmaking fix : Don't allow a player to join a match until the matchmaking api sent the players list to the server. [see](http://forum.maniaplanet.com/viewtopic.php?p=232611#p232611)
+* Send the scores of the map to the matchmaking api.
+
+#### ShootMania/ModeMatchmaking
+* New api version : v8
+* Improvements on the progressive matchmaking. It will activate only if there's not a lot of players on the matchmaking infrastructure or if the players are waiting in the lobby for more than 90 seconds without enough players.
+* Wait for the API response at the end of the match before sending player back to the lobby. This will help to fix the bug where players were sent back to the lobby at the end of the match but forced to join the match server again.
+* Display the score of the match when a player is selected to be a substitute. [see](http://forum.maniaplanet.com/viewtopic.php?f=10&t=29433#p230921)
+* Don't use the spectator status to decide if the player is ready or not in the lobby. This fix the autoready bug that occured when there were'nt any spectator slots left on the lobby. [see](http://forum.maniaplanet.com/viewtopic.php?f=10&t=29433#p230921)
+* New callbacks and methods : Matchmaking_GetReadyState, Matchmaking_SetReadyState and Matchmaking_ReadyState allow to manage the ready state of the players.
+* New setting S_LobbyDisableUI allows to hide the lobby UI.
+* Display the names of the players voting for a rematch.
+* Global variables now use a better prefix to avoid name collision.
+* Fix : players canceling a substitute won't received a penalty anymore.
+* More debug information.
+
+
+#### ShootMania/ModeSport
+* Matchmaking fix : Don't allow a player to join a match until the matchmaking api sent the players list to the server. [see](http://forum.maniaplanet.com/viewtopic.php?p=232611#p232611)
+* Send the scores of the map to the matchmaking api.
+
+#### ShootMania/Elite
+* Use the new .webm video to explain the rules of the mode instead of the old .bik video. [see](http://forum.maniaplanet.com/viewtopic.php?f=10&t=29433&p=232328#p232323)
+* Don't access to G_Match_Id from ModeMatchmaking.Script.txt directly, use the MM_GetMatchId() function instead.
+
+#### ShootMania/Siege
+* Matchmaking fix : Don't allow a player to join a match until the matchmaking api sent the players list to the server. [see](http://forum.maniaplanet.com/viewtopic.php?p=232611#p232611)
+* Send the scores of the map to the matchmaking api.
+
+### Librairies
+
+#### ShootMania/XmlRpc
+* New method and callback `LibXmlRpc_GetWarmUp` and `LibXmlRpc_WarmUp` allowing to get the current state of the warm up. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443&start=10#p232132)
+
+---------------------------------
+
+
 <a id="2014-10-16">2014-10-16</a>
 ---------------------------------
 
