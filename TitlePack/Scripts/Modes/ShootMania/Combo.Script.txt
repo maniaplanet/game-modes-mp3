@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2014-10-15"
+#Const	Version				"2014-11-04"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -25,6 +25,7 @@
 #Setting S_UseArmorReduction	False	as _("Reduce the armor of players above two armor points")
 #Setting S_ArmorMax				4		as _("Maximum number of armors a player can have")
 #Setting S_SpawnProtectionTime	0		as _("Invincibility time after spawn")
+#Setting S_RespawnAmmo			0.5		as _("Ratio of ammo reloaded at respawn")
 // Clublinks settings
 #Setting S_UsePlayerClublinks	False	as _("Use players Clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1	""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
@@ -286,6 +287,7 @@ foreach (Score in Scores) {
 ST2::ClearScores();
 ST2::SetFooterText(TL::Compose("%1 "^S_PointsLimit, _("Points limit : ")));
 
+MM_SetScores([ClanScores[1], ClanScores[2]]);
 UpdateScoresHeader();
 
 // ---------------------------------- //
@@ -434,6 +436,7 @@ if (MB_SectionRoundNb % 2 == 0) {
 foreach (Player in Players) {
 	if (!G_ClansPlayers.existskey(Player.CurrentClan)) continue;
 	if (!G_ClansPlayers[Player.CurrentClan].exists(Player.Id)) continue;
+	if (MM_IsMatchServer() && !MM_PlayerIsValid(Player)) continue;
 	
 	declare CSmMapPlayerSpawn MapLandmark_PlayerSpawn;
 	if (Player.CurrentClan == 1) {
@@ -731,6 +734,7 @@ foreach (Player in Players) {
 			SetPlayerClan(Player, MM_GetRequestedClan(Player));
 			if (!G_ClansPlayers.existskey(Player.CurrentClan)) continue;
 			if (!G_ClansPlayers[Player.CurrentClan].exists(Player.Id)) continue;
+			if (MM_IsMatchServer() && !MM_PlayerIsValid(Player)) continue;
 			
 			Player.ArmorMax = GetDefaultArmorMax();
 			
@@ -745,10 +749,14 @@ foreach (Player in Players) {
 			if (MapLandmark_PlayerSpawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, GetDefaultArmor(), MapLandmark_PlayerSpawn, Now);
 			
 			declare netwrite Net_Combo_AmmoMax for Player = C_AmmoMax;
-			SetPlayerAmmo(Player, CSmMode::EWeapon::Rocket, Net_Combo_AmmoMax["Rocket"]/2);
-			SetPlayerAmmo(Player, CSmMode::EWeapon::Laser, Net_Combo_AmmoMax["Laser"]/2);
-			SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, Net_Combo_AmmoMax["Nucleus"]/2);
-			SetPlayerAmmo(Player, CSmMode::EWeapon::Arrow, Net_Combo_AmmoMax["Arrow"]/2);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Rocket, 0);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Laser, 0);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, 0);
+			SetPlayerAmmo(Player, CSmMode::EWeapon::Arrow, 0);
+			AddPlayerAmmo(Player, CSmMode::EWeapon::Rocket, Net_Combo_AmmoMax["Rocket"]*S_RespawnAmmo);
+			AddPlayerAmmo(Player, CSmMode::EWeapon::Laser, Net_Combo_AmmoMax["Laser"]*S_RespawnAmmo);
+			AddPlayerAmmo(Player, CSmMode::EWeapon::Nucleus, Net_Combo_AmmoMax["Nucleus"]*S_RespawnAmmo);
+			AddPlayerAmmo(Player, CSmMode::EWeapon::Arrow, Net_Combo_AmmoMax["Arrow"]*S_RespawnAmmo);
 			
 			if (Player.Armor > C_ArmorReductionStart) {
 				declare NextArmorReduction for Player = -1;
@@ -850,6 +858,7 @@ if (ClanScores.existskey(RoundWinnerClan)) {
 		Message::SendBigMessage(TL::Compose(_("$<%1$> wins the round"), Teams[RoundWinnerClan - 1].ColorizedName), 3000, 1);
 	}
 }
+MM_SetScores([ClanScores[1], ClanScores[2]]);
 UpdateScoresHeader();
 UpdateModeStatusMessage();
 
