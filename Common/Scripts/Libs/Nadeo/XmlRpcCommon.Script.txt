@@ -1,7 +1,7 @@
 /**
  *	XmlRpc lib common
  */
-#Const	Version		"2014-10-16"
+#Const	Version		"2014-11-05"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -255,9 +255,12 @@ Void Unload() {
 	UnregisterCallback("LibXmlRpc_EndWarmUp");
 	
 	declare Text[Text] LibXmlRpc_CallbacksRegistered for This;
-	declare Text[] LibXmlRpc_CallbacksBlocked for This;
 	LibXmlRpc_CallbacksRegistered.clear();
+	
+	/* Don't unblock callbacks at load, let the user do it himself if he needs it
+	declare Text[] LibXmlRpc_CallbacksBlocked for This;
 	LibXmlRpc_CallbacksBlocked.clear();
+	*/
 }
 
 // ---------------------------------- //
