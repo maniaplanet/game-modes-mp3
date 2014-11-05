@@ -23,10 +23,10 @@
 * Improvements on the progressive matchmaking. It will activate only if there's not a lot of players on the matchmaking infrastructure or if the players are waiting in the lobby for more than 90 seconds without enough players.
 * Wait for the API response at the end of the match before sending player back to the lobby. This will help to fix the bug where players were sent back to the lobby at the end of the match but forced to join the match server again.
 * Display the score of the match when a player is selected to be a substitute. [see](http://forum.maniaplanet.com/viewtopic.php?f=10&t=29433#p230921)
-* Don't use the spectator status to decide if the player is ready or not in the lobby. This fix the autoready bug that occured when there were'nt any spectator slots left on the lobby. [see](http://forum.maniaplanet.com/viewtopic.php?f=10&t=29433#p230921)
+* Don't use the spectator status to decide if the player is ready or not in the lobby. This fix the autoready bug that occurred when there weren't any spectator slots left on the lobby. [see](http://forum.maniaplanet.com/viewtopic.php?f=10&t=29433#p230921)
 * New callbacks and methods : Matchmaking_GetReadyState, Matchmaking_SetReadyState and Matchmaking_ReadyState allow to manage the ready state of the players.
-* New setting S_LobbyDisableUI allows to hide the lobby UI.
 * Display the names of the players voting for a rematch.
+* New setting S_LobbyDisableUI allows to hide the lobby UI.
 * Global variables now use a better prefix to avoid name collision.
 * Fix : players canceling a substitute won't received a penalty anymore.
 * More debug information.
@@ -46,8 +46,17 @@
 
 ### Librairies
 
+#### XmlRpcCommon
+* Restore the blocked callbacks after a map restart. [see](http://forum.maniaplanet.com/viewtopic.php?p=232113#p232113)
+
+#### ScoresTable2
+* Restore the scores table style after a map restart. [see](http://forum.maniaplanet.com/viewtopic.php?p=232113#p232113)
+
 #### ShootMania/XmlRpc
 * New method and callback `LibXmlRpc_GetWarmUp` and `LibXmlRpc_WarmUp` allowing to get the current state of the warm up. [see](http://forum.maniaplanet.com/viewtopic.php?f=279&t=29443&start=10#p232132)
+
+#### TrackMania/UI
+* Restore the UI properties after a map restart. [see](http://forum.maniaplanet.com/viewtopic.php?p=232113#p232113)
 
 ---------------------------------
 
