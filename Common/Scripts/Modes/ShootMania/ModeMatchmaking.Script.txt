@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-11-04"
+#Const ModeMatchmakingVersion		"2014-11-06"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -37,6 +37,9 @@
 #Setting S_MatchmakingLogAPIDebug	False		as "<hidden>"	///< Log all the api requests and responses
 #Setting S_MatchmakingLogMiscDebug	False		as "<hidden>"	///< Log different kinds of debug info
 
+#Setting S_ProgressiveActivation_WaitingTime	180000	as "<hidden>"	///< Average waiting time before progressive matchmaking activate
+#Setting S_ProgressiveActivation_PlayersNbRatio	2		as "<hidden>"	///< Multiply the required players nb by this, if there's less player in the lobby activate progressive
+
 // ---------------------------------- //
 // Constant
 // ---------------------------------- //
@@ -57,9 +60,6 @@
 #Const C_Lobby_ReconnectDuration	5000	///< Duration before sending back a player to the match he left
 #Const C_Lobby_MastersNb			20		///< Number of masters displayed
 #Const C_Lobby_BotsNb				0		///< Number of bots in the lobby
-
-#Const C_ProgressiveActivation_WaitingTime		90000	///< Average waiting time before progressive matchmaking activate
-#Const C_ProgressiveActivation_PlayersNbRatio	2	///< Multiply the required players nb by this, if there's less player in the lobby activate progressive
 
 #Const C_MatchStatus_Waiting	0	///< Waiting for a match to start
 #Const C_MatchStatus_Starting	1	///< Match starting
@@ -94,6 +94,9 @@
 
 #Const C_MissingInfo_Clan	0	///< Clan of the missing player
 #Const C_MissingInfo_Kicked	1	///< Kick status of the missing player
+#Const C_MissingInfo_Since	2	///< Time when the player gone missing
+
+#Const C_MissingPlayerGracePeriod	90000	///< Time before searching a substitute for a missing player
 
 #Const C_Request_GetPlayers		0	///< /lobby-server/player-connection?login=somelogin&lobbylogin=anotherlogin
 #Const C_Request_PostPlayers	1	///< /lobby-server/matchmaking-live
@@ -997,8 +1000,8 @@ if (Http.SlotsAvailable > 0) {
 			if (
 				AvailablePlayersNb < RequiredPlayersNb 
 				&& (
-					AverageWaitingTimeTotal >= C_ProgressiveActivation_WaitingTime 
-					|| Net_Lobby_PlayersNb < RequiredPlayersNb * C_ProgressiveActivation_PlayersNbRatio
+					AverageWaitingTimeTotal >= S_ProgressiveActivation_WaitingTime 
+					|| Net_Lobby_PlayersNb < RequiredPlayersNb * S_ProgressiveActivation_PlayersNbRatio
 				)
 			) {
 				declare PlayingNb = 0;
@@ -2134,10 +2137,11 @@ Void Private_MM_PostMatchStatus() {
 	if (Http.SlotsAvailable > 0) {
 		declare MissingPlayers = "";
 		if ((G_MMMatch_Status == C_MatchStatus_Substitute || G_MMMatch_Status == C_MatchStatus_Playing) && G_MMMatch_MissingPlayers.count > 0) {
-			declare NotFirst = False;
 			foreach (Login => MissingInfo in G_MMMatch_MissingPlayers) {
-				if (NotFirst) MissingPlayers ^= ",";
-				else NotFirst = True;
+				// Skip players that are missing since less than 90 seconds
+				if (MissingInfo[C_MissingInfo_Since] + C_MissingPlayerGracePeriod > Now) continue;
+				
+				if (MissingPlayers != "") MissingPlayers ^= ",";
 				
 				declare PlayerKicked = "false";
 				if (MissingInfo[C_MissingInfo_Kicked] != 0) PlayerKicked = "true";
@@ -2315,19 +2319,24 @@ Void Private_MM_ManagePlayers() {
 						Kicked = 1;
 					}
 					declare PlayerClan = PlayerInfo[C_PlayerInfo_Clan];
-					G_MMMatch_MissingPlayers[Login] = [C_MissingInfo_Clan => PlayerClan, C_MissingInfo_Kicked => Kicked];
+					G_MMMatch_MissingPlayers[Login] = [C_MissingInfo_Clan => PlayerClan, C_MissingInfo_Kicked => Kicked, C_MissingInfo_Since => Now];
 					G_MMMatch_NewMissingPlayers = True;
 				}
 			}
 		}
 	//}
 	
+	declare MissingPlayersCount = 0;
+	foreach (Login => MissingInfo in G_MMMatch_MissingPlayers) {
+		if (MissingInfo[C_MissingInfo_Since] + C_MissingPlayerGracePeriod <= Now) MissingPlayersCount += 1;
+	}
+	
 	// Change match status
 	declare ApiInformed = False;
-	if (G_MMMatch_MissingPlayers.count <= 0 && G_MMMatch_Status == C_MatchStatus_Substitute) {
+	if (MissingPlayersCount <= 0 && G_MMMatch_Status == C_MatchStatus_Substitute) {
 		Private_MM_SetMatchStatus(C_MatchStatus_Playing);
 		ApiInformed = True;
-	} else if (G_MMMatch_MissingPlayers.count > 0 && G_MMMatch_Status == C_MatchStatus_Playing && G_MMMatch_AllowSubstitutes) {
+	} else if (MissingPlayersCount > 0 && G_MMMatch_Status == C_MatchStatus_Playing && G_MMMatch_AllowSubstitutes) {
 		Private_MM_SetMatchStatus(C_MatchStatus_Substitute);
 		ApiInformed = True;
 	}
