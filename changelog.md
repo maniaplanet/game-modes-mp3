@@ -21,6 +21,7 @@
 #### ShootMania/ModeMatchmaking
 * New api version : v8
 * Improvements on the progressive matchmaking. It will activate only if there's not a lot of players on the matchmaking infrastructure or if the players are waiting in the lobby for more than 90 seconds without enough players.
+* When a player leaves a match, wait 90 seconds before marking him as missing and searching a substitute.
 * Wait for the API response at the end of the match before sending player back to the lobby. This will help to fix the bug where players were sent back to the lobby at the end of the match but forced to join the match server again.
 * Display the score of the match when a player is selected to be a substitute. [see](http://forum.maniaplanet.com/viewtopic.php?f=10&t=29433#p230921)
 * Don't use the spectator status to decide if the player is ready or not in the lobby. This fix the autoready bug that occurred when there weren't any spectator slots left on the lobby. [see](http://forum.maniaplanet.com/viewtopic.php?f=10&t=29433#p230921)
