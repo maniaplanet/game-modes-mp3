@@ -6,16 +6,9 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeV2Arena"
-#Const Version				"2014-11-04"
+#Const Version				"2014-11-14"
 #Const ScriptName			"Siege.Script.txt"
 
-/* @Arche
-#Include "Libs/Nadeo/ShootMania/Archetype.Script.txt" as Archetype
-	#Include "Libs/Nadeo/ShootMania/Skill.Script.txt" as Skill
-	#Include "Libs/Nadeo/ShootMania/Store.Script.txt" as Store
-	#Include "Libs/Nadeo/ShootMania/Inventory.Script.txt" as Inventory
-	#Include "Libs/Nadeo/ShootMania/BattleSystem.Script.txt" as BattleSystem
-*/
 #Include "Libs/Nadeo/CustomUI.Script.txt" as CustomUI
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
@@ -39,10 +32,8 @@
 #Setting S_NbPlayersPerTeamMax	0		as _("Maximum number of players per team (0: no max)")	///< Do not spawn players beyond this limit, 0=no limit
 #Setting S_UseSuddenDeathMode	True	as _("Do not allow a team to win on first turn")		///< Do not allow a team to win on first turn
 #Setting S_AutoBalance			True	as _("Use autobalance")									///< Use auto balance at the start of the map
-#Setting S_WeaponMode			2		as _("Weapon selection mode")							///< 0: Rocket vs Laser, 1: WeaponSelection, 2: WeaponSwitch, 3: Store
-// @Arche #Setting S_SpawnCreditsOnMap	False	as _("Spawn Credits on the map")						///< Spawn Credits on the map if it was placed in the map editor
+#Setting S_WeaponMode			2		as _("Weapon selection mode")							///< 0: Rocket vs Laser, 1: WeaponSelection, 2: WeaponSwitch
 #Setting S_UseOldCaptureMode	False	as _("Use the old capture system")						///< Use the old capture system
-//#Setting S_DefCanRevertCapture	False	as _("Defenders can revert the capture")				///< If true the defender can revert the capture by stepping on the gate
 #Setting S_AtkNbIncreaseCaptureSpeed	False	as _("Attackers number increase capture speed")	///< More attackers on gate means faster capture
 #Setting S_CaptureThreshold		300		as _("Time (in ms) before the activation of the capture")///< Time before the activation/annulation of the capture
 #Setting S_GatesStopDefenders	True	as _("Defenders can not go through the gates")			///< Don't let defenders go through the gates
@@ -57,8 +48,6 @@
 // Constant
 // ---------------------------------- //
 #Const C_InitialCapturingClan		0		///< Clan that will start in capture first at the beginning of the match, 0 is random
-#Const C_ClassSelectionDuration		30000	///< Duration of the class selection screen
-#Const C_StoreDuration				15000	///< Duration of the store screen
 #Const C_WeaponSelectionDuration	7000	///< Duration of the weapon selection screen
 #Const C_StartTurnDuration			3000	///< Duration of the start turn screen
 #Const C_EndTurnDuration			5000	///< Duration of the end turn screen
@@ -70,7 +59,6 @@
 #Const C_WeaponMode_RvL			0
 #Const C_WeaponMode_Selection	1
 #Const C_WeaponMode_Switch		2
-#Const C_WeaponMode_Store		3
 
 #Const C_SpawnType_BeginTurn	0
 #Const C_SpawnType_Capture		1
@@ -118,23 +106,6 @@
 	CSmMode::EWeapon::Rocket => 4
 ]
 
-#Const C_ItemId_Credits		"Storm/Siege/GoldenOrb.Item.gbx"
-#Const C_ItemName_Credits	"GoldenOrb"
-#Const C_ItemDropLifetime	30000
-
-#Const C_RolesBonuses [
-	"Attacker" => [0.4, 0.],
-	"Neutral" => [0.2, 0.2],
-	"Defender" => [0., 0.4]
-]
-
-#Const C_CreditsMap			10
-#Const C_CreditsElimination 50
-#Const C_StartingCredits	1000
-
-#Const C_Credits_Attack		0
-#Const C_Credits_Defense	1
-
 #Const C_Debug False	///< Show debug
 
 // ---------------------------------- //
@@ -151,7 +122,6 @@ declare Ident[][Integer]			G_CaptureInfo;				///< Describe how each Gate/Goal wa
 declare Integer[Integer]			G_CaptureTime;				///< Time to capture the checkpoints during the round for each clan
 declare Integer						G_Advantage;				///< The clan with the advantage on the map
 declare Text						G_AdvantageExplanation;		///< Explanation of the advantage
-declare Ident[Text]					G_ItemsIds;					///< Contains the model id of the items
 
 // ---------------------------------- //
 // Extend
@@ -163,13 +133,8 @@ MB_LogVersion(SM::GetScriptName(), SM::GetScriptVersion());
 MB_LogVersion(Map::GetScriptName(), Map::GetScriptVersion());
 MB_LogVersion(Debug::GetScriptName(), Debug::GetScriptVersion());
 MB_LogVersion(Score::GetScriptName(), Score::GetScriptVersion());
-// @Arche MB_LogVersion(Skill::GetScriptName(), Skill::GetScriptVersion());
-// @Arche MB_LogVersion(Store::GetScriptName(), Store::GetScriptVersion());
 MB_LogVersion(WarmUp2::GetScriptName(), WarmUp2::GetScriptVersion());
 MB_LogVersion(CustomUI::GetScriptName(), CustomUI::GetScriptVersion());
-// @Arche MB_LogVersion(Archetype::GetScriptName(), Archetype::GetScriptVersion());
-// @Arche MB_LogVersion(Inventory::GetScriptName(), Inventory::GetScriptVersion());
-// @Arche MB_LogVersion(BattleSystem::GetScriptName(), BattleSystem::GetScriptVersion());
 MB_LogVersion(WeaponSwitch::GetScriptName(), WeaponSwitch::GetScriptVersion());
 MB_LogVersion(WeaponSelection::GetScriptName(), WeaponSelection::GetScriptVersion());
 ***
@@ -197,13 +162,6 @@ declare RematchNb = 0;				///< Number of consecutive rematch
 ***
 WarmUp2::Load();
 CustomUI::Load();
-/* @Arche
-Store::Load();
-Skill::Load();
-Inventory::Load();
-BattleSystem::Load();
-Archetype::Load();
-*/
 
 // ---------------------------------- //
 // CustomUI config
@@ -219,29 +177,6 @@ if (GetWeaponMode() == C_WeaponMode_Switch) {
 	WeaponSwitch::SetEffectOnSwitch(-1);
 } else if (GetWeaponMode() == C_WeaponMode_Selection) {
 	WeaponSelection::Load();
-}
-
-if (GetWeaponMode() == C_WeaponMode_Store) {
-	// ---------------------------------- //
-	// Load items
-	G_ItemsIds.clear();
-	ItemList_Begin();
-	G_ItemsIds[C_ItemName_Credits] = ItemList_Add(C_ItemId_Credits);
-	ItemList_End();
-
-	// ---------------------------------- //
-	// Load classes
-	/* @Arche
-	Archetype::SetImportFolder("/Siege");
-	Archetype::ImportClass("Fighter");
-	Archetype::ImportClass("Tactic");
-	Archetype::ImportClass("Collector");
-	Archetype::ImportClass("Support");
-	Archetype::LoadSkillsActions();
-	foreach (Role => Bonuses in C_RolesBonuses) {
-		Archetype::CreateRole(Role, Role);
-	}
-	*/
 }
 
 // ---------------------------------- //
@@ -390,12 +325,6 @@ else if (S_WarmUpDuration > 0 && S_NbPlayersPerTeamMax > 0) {
 IsRematch = False;
 
 // ---------------------------------- //
-// Class selection
-if (GetWeaponMode() == C_WeaponMode_Store) {
-	ClassSelection();
-}
-
-// ---------------------------------- //
 // Update UI
 Layers::Attach("Interlude");
 Layers::Update("Interlude", GetMLInterlude());
@@ -404,21 +333,6 @@ Layers::Hide("Interlude");
 Layers::Attach("Progression");
 Layers::Hide("Progession");
 MM_PlayersPresentationSequence();
-
-// ---------------------------------- //
-// Initialize players in store mode
-if (GetWeaponMode() == C_WeaponMode_Store) {
-	foreach (Player in Players) {
-		/* @Arche
-		Archetype::InitPlayer(Player);
-		Archetype::ResetSkillsLevels(Player);
-		*/
-	}
-	foreach (User in Users) {
-		declare Integer[Integer] Credits for User;
-		Credits.clear();
-	}
-}
 
 // ---------------------------------- //
 // Matchmaking : allow substitutes
@@ -432,18 +346,6 @@ if (MM_IsMatchServer()) {
 G_ClanRoundScores[MB_SectionRoundNb] = [1 => 0, 2 => 0];
 G_CaptureInfo = Ident[][Integer];
 G_CaptureTime = [1 => 0, 2 => 0];
-
-// ---------------------------------- //
-// Set attackers starting armors
-if (GetWeaponMode() == C_WeaponMode_Store) {
-	declare PlayerArmorMax = C_StartingArmor + ((MB_SectionRoundNb - 1) * 100);
-	/* @Arche
-	Archetype::SetBaseStats("Fighter", "Attack", """<armormax set="{{{PlayerArmorMax}}}" />""");
-	Archetype::SetBaseStats("Tactic", "Attack", """<armormax set="{{{PlayerArmorMax}}}" />""");
-	Archetype::SetBaseStats("Collector", "Attack", """<armormax set="{{{PlayerArmorMax}}}" />""");
-	Archetype::SetBaseStats("Support", "Attack", """<armormax set="{{{PlayerArmorMax}}}" />""");
-	*/
-}
 ***
 
 ***InitTurn***
@@ -477,7 +379,6 @@ UpdateBasesColors();
 UpdateHeader();
 UpdateProgressionsUI();
 UpdateScoresTableFooter();
-SpawnItems();
 
 // ---------------------------------- //
 // Init players clan and spawnability
@@ -515,38 +416,19 @@ Layers::Hide("Interlude");
 // ---------------------------------- //
 // Init players armor, spawn ticket, class, ...
 foreach (Player in AllPlayers) {
-	if (GetWeaponMode() != C_WeaponMode_Store) {
-		if (Player.CurrentClan == G_CapturingClan) {
-			Player.ArmorMax = C_StartingArmor + ((MB_SectionRoundNb - 1) * 100);
-		} else {
-			Player.ArmorMax = C_StartingArmor;
-		}
-		
-		declare SpawnArmor for Player = C_StartingArmor;
-		SpawnArmor = Player.ArmorMax;
+	if (Player.CurrentClan == G_CapturingClan) {
+		Player.ArmorMax = C_StartingArmor + ((MB_SectionRoundNb - 1) * 100);
 	} else {
-		declare Integer[Integer] Credits for Player.User;
-		if (Player.CurrentClan == G_CapturingClan) {
-			if (!Credits.existskey(C_Credits_Attack)) Credits[C_Credits_Attack] = C_StartingCredits;
-			SetCredits(Player, Credits[C_Credits_Attack]);
-			// @Arche Archetype::SetSubclass(Player, "Attack");
-		} else {
-			if (!Credits.existskey(C_Credits_Defense)) Credits[C_Credits_Defense] = C_StartingCredits;
-			SetCredits(Player, Credits[C_Credits_Defense]);
-			// @Arche Archetype::SetSubclass(Player, "Defense");
-		}
+		Player.ArmorMax = C_StartingArmor;
 	}
+	
+	declare SpawnArmor for Player = C_StartingArmor;
+	SpawnArmor = Player.ArmorMax;
 	
 	declare SpawnTicket for Player = 0;
 	declare SpawnType for Player = C_SpawnType_BeginTurn;
 	if (IsSpawnable(Player)) SpawnTicket = 1;
 	SpawnType = C_SpawnType_BeginTurn;
-}
-
-// ---------------------------------- //
-// Display the store
-if (GetWeaponMode() == C_WeaponMode_Store) {
-	OpenStore();
 }
 
 // ---------------------------------- //
@@ -612,8 +494,6 @@ foreach (Event in XmlRpc.PendingEvents) {
 ***
 if (GetWeaponMode() == C_WeaponMode_Switch) {
 	WeaponSwitch::Loop();
-} else if (GetWeaponMode() == C_WeaponMode_Store) {
-	// @Arche Archetype::LoopInventory();
 }
 
 // ---------------------------------- //
@@ -903,10 +783,6 @@ foreach (Event in PendingEvents) {
 				if (RemainingPlayers.existskey(Event.Victim.CurrentClan)) RemainingPlayers[Event.Victim.CurrentClan] -= 1;
 				SendEliminationMessage(Event.Victim, RemainingPlayers);
 				
-				if (Event.Victim.CurrentClan == 3 - G_CapturingClan) {
-					DropItem(Event.Shooter, Event.Victim, C_ItemName_Credits,  C_CreditsElimination);
-				}
-				
 				XmlRpc::OnArmorEmpty(Event);
 				PassOn(Event);
 			}
@@ -924,10 +800,6 @@ foreach (Event in PendingEvents) {
 			else {
 				if (RemainingPlayers.existskey(Event.Player.CurrentClan)) RemainingPlayers[Event.Player.CurrentClan] -= 1;
 				SendEliminationMessage(Event.Player, RemainingPlayers);
-				
-				if (Event.Player.CurrentClan == 3 - G_CapturingClan) {
-					DropItem(Null, Event.Player, C_ItemName_Credits,  C_CreditsElimination);
-				}
 				
 				XmlRpc::OnPlayerRequestRespawn(Event);
 				PassOn(Event);
@@ -957,16 +829,6 @@ foreach (Event in PendingEvents) {
 	// Capture
 	else if (Event.Type == CSmModeEvent::EType::OnCapture) {
 		Discard(Event);
-	} 
-	// ---------------------------------- //
-	// Pick up item
-	else if (Event.Type == CSmModeEvent::EType::OnPlayerTouchesObject) {
-		if (Event.Player != Null && Event.Player.CurrentClan == G_CapturingClan) {
-			PickUpItem(Event.Player, Event.Object);
-			PassOn(Event);
-		} else {
-			Discard(Event);
-		}
 	}
 	// ---------------------------------- //
 	// Switch weapon
@@ -1005,8 +867,6 @@ if (Win_TimeLimit || Win_PoleCaptured || Win_AttackersEliminated) {
 EndTime = -1;
 UIManager.UIAll.CountdownEndTime = -1;
 UIManager.UIAll.CountdownCoord = <0., 110.>;
-
-UnspawnItems();
 
 // ---------------------------------- //
 // Save last weapon used
@@ -1334,13 +1194,6 @@ if (GetWeaponMode() == C_WeaponMode_Switch) {
 	WeaponSelection::Unload();
 }
 if (C_Debug) Debug::Unload();
-/* @Arche
-Store::Unload();
-Skill::Unload();
-Inventory::Unload();
-BattleSystem::Unload();
-Archetype::Unload();
-*/
 CustomUI::Unload();
 WarmUp2::Unload();
 ***
@@ -1360,7 +1213,6 @@ Integer GetWeaponMode() {
 		case C_WeaponMode_RvL		: return C_WeaponMode_RvL;
 		case C_WeaponMode_Selection	: return C_WeaponMode_Selection;
 		case C_WeaponMode_Switch	: return C_WeaponMode_Switch;
-		// @Arche case C_WeaponMode_Store		: return C_WeaponMode_Store;
 	}
 	
 	return C_WeaponMode_Switch;
@@ -1459,28 +1311,6 @@ Void InitLandmarks() {
 			MapLandmark.Gauge.Speed = 0;
 			MapLandmark.Gauge.Captured = True;
 		}
-		
-		// Create items
-		/* @Arche
-		if (GetWeaponMode() == C_WeaponMode_Store && S_SpawnCreditsOnMap && MapLandmark.ObjectAnchor != Null) {
-			if (G_ItemsIds.existskey(MapLandmark.Tag)) {
-				declare Object <=> ObjectCreate(G_ItemsIds[MapLandmark.Tag]);
-				declare AnchorId for Object = NullId;
-				declare DestructionTime for Object = -1;
-				declare Name for Object = "";
-				declare Value for Object = 0;
-				AnchorId = MapLandmark.Id;
-				Name = MapLandmark.Tag;
-				DestructionTime = -1;
-				
-				if (MapLandmark.Tag == C_ItemName_Credits) {
-					Value =  C_CreditsMap;
-				} else {
-					Value = 0;
-				}
-			}
-		}
-		*/
 	}
 	
 	G_Capturables = G_Capturables.sortkey();
@@ -1528,150 +1358,6 @@ Void InitCapturables() {
 	declare netwrite Integer[] Net_GatesCaptured for Teams[0];
 	Net_GatesCaptured.clear();
 	Net_GatesCapturedUpdate = Now;
-}
-
-// ---------------------------------- //
-/**	Set the Credits amount of a player
- *
- *	@param	_Player		The player to update
- *	@param	_Amount		The amount to set
- */
-Void SetCredits(CSmPlayer _Player, Integer _Amount) {
-	if (_Player == Null || _Player.User == Null) return;
-	
-	declare Integer[Integer] Credits for _Player.User;
-	if (_Player.CurrentClan == G_CapturingClan) {
-		Credits[C_Credits_Attack] = _Amount;
-	} else {
-		Credits[C_Credits_Defense] = _Amount;
-	}
-	// @Arche Archetype::SetCredits(_Player, _Amount);
-	
-	declare UI <=> UIManager.GetUI(_Player);
-	if (UI != Null) {
-		declare netwrite  Net_Siege_CreditsAmount for UI = 0;
-		Net_Siege_CreditsAmount = _Amount;
-	}
-}
-
-// ---------------------------------- //
-/**	Add Credits to a player
- *
- *	@param	_Player		The player to update
- *	@param	_Amount		The amount to add
- */
-Void AddCredits(CSmPlayer _Player, Integer _Amount) {
-	if (_Player == Null || _Player.User == Null) return;
-	
-	declare Role = ""; // @Arche Archetype::GetRole(_Player);
-	declare IsAtk = (_Player.CurrentClan == G_CapturingClan);
-	declare Bonus = 0.;
-	
-	if (C_RolesBonuses.existskey(Role)) {
-		if (IsAtk) Bonus = C_RolesBonuses[Role][0];
-		else Bonus = C_RolesBonuses[Role][1];
-	}
-	
-	declare Amount = _Amount + ML::NearestInteger(_Amount * Bonus);
-	
-	declare Integer[Integer] Credits for _Player.User;
-	if (_Player.CurrentClan == G_CapturingClan) {
-		Credits[C_Credits_Attack] += Amount;
-		// @Arche Archetype::SetCredits(_Player, Credits[C_Credits_Attack]);
-	} else {
-		Credits[C_Credits_Defense] += Amount;
-		// @Arche Archetype::SetCredits(_Player, Credits[C_Credits_Defense]);
-	}
-	
-	declare UI <=> UIManager.GetUI(_Player);
-	if (UI != Null) {
-		declare netwrite  Net_Siege_CreditsAmount for UI = 0;
-		// @Arche Net_Siege_CreditsAmount = Archetype::GetCredits(_Player);
-	}
-}
-
-// ---------------------------------- //
-/**	Get the Credits amount of a player
- *
- *	@param	_Player		The player to get
- */
-Integer GetCredits(CSmPlayer _Player) {
-	if (_Player == Null || _Player.User == Null) return 0;
-	
-	// @Arche return Archetype::GetCredits(_Player);
-	return 0;
-}
-
-// ---------------------------------- //
-/// Spawn items
-Void SpawnItems() {
-	foreach (Object in Objects) {
-		declare AnchorId for Object = NullId;
-		if (AnchorId != NullId && MapLandmarks_ObjectAnchor.existskey(AnchorId)) {
-			Object.SetAnchor(MapLandmarks_ObjectAnchor[AnchorId].ObjectAnchor);
-		}
-	}
-}
-
-// ---------------------------------- //
-/// Unspawn items
-Void UnspawnItems() {
-	foreach (Object in Objects) {
-		Object.SetUnspawned();
-	}
-}
-
-// ---------------------------------- //
-/**	Pick up an items
- *
- *	@param	_Player		The player who picked up the item
- *	@param	_Object		The item picked up
- */
-Void PickUpItem(CSmPlayer _Player, CSmObject _Object) {
-	if (_Player == Null || _Object == Null) return;
-	
-	_Object.SetUnspawned();
-	
-	declare Name for _Object = "";
-	declare Value for _Object = 0;
-	if (Name == C_ItemName_Credits) {
-		foreach (Player in Players) {
-			if (Player.CurrentClan != _Player.CurrentClan) continue;
-			 AddCredits(_Player, Value);
-		}
-	}
-}
-
-// ---------------------------------- //
-/**	Drop an item from a player
- *
- *	@param	_Shooter	The player who eliminated the other player
- *	@param	_Victim		The player who'll drop the item
- *	@param	_ItemName	The name of the item to drop
- *	@param	_ItemValue	The value of the item
- */
-Void DropItem(CSmPlayer _Shooter, CSmPlayer _Victim, Text _ItemName, Integer _ItemValue) {
-	if (GetWeaponMode() != C_WeaponMode_Store || _Victim == Null || !G_ItemsIds.existskey(_ItemName)) return;
-	
-	declare Object <=> ObjectCreate(G_ItemsIds[_ItemName]);
-	if (Object == Null) return;
-	declare DestructionTime for Object = -1;
-	declare Name for Object = "";
-	declare Value for Object = 0;
-	DestructionTime = Now + C_ItemDropLifetime;
-	Name = C_ItemName_Credits;
-	Value = _ItemValue;
-	
-	declare Vec3 ShooterPos;
-	if (_Shooter != Null) ShooterPos = _Shooter.Position;
-	declare VictimPos = _Victim.Position;
-	
-	declare Vel = VictimPos - ShooterPos;
-	declare DropForce = 10.;
-	declare VelNorm = ML::Sqrt((Vel.X*Vel.X) + (Vel.Y*Vel.Y) + (Vel.Z*Vel.Z));
-	Vel = ((DropForce/VelNorm) * Vel)  + <0., 5., 0.>;
-	declare Pos = VictimPos + <0., 3., 0.>;
-	Object.SetPositionAndVel(Pos, Vel);
 }
 
 // ---------------------------------- //
@@ -1789,26 +1475,6 @@ Boolean IsSpawnable(CSmPlayer _Player) {
 }
 
 // ---------------------------------- //
-/** Get the weapons available to a player
- *
- *	@param	_Player		The player to setup
- */
-CSmMode::EWeapon[] GetAvailableWeapons(CSmPlayer _Player) {
-	declare Weapons = CSmMode::EWeapon[];
-	/* @Arche
-	declare WeaponsText = Archetype::GetWeapons(_Player);
-	foreach (Weapon in WeaponsText) {
-		switch (Weapon) {
-			case "Laser"	: Weapons.add(CSmMode::EWeapon::Laser);
-			case "Nucleus"	: Weapons.add(CSmMode::EWeapon::Nucleus);
-			case "Rocket"	: Weapons.add(CSmMode::EWeapon::Rocket);
-		}
-	}
-	*/
-	return Weapons;
-}
-
-// ---------------------------------- //
 /** Setup a player skills
  *
  *	@param	_Player		The player to setup
@@ -1818,29 +1484,9 @@ Void SetupSkills(CSmPlayer _Player) {
 	
 	declare IsAtk = (_Player.CurrentClan == G_CapturingClan);
 	
-	if (GetWeaponMode() == C_WeaponMode_Store) {
-		// Select skill group
-		if (IsAtk) {
-			// @Arche Archetype::SetSubclass(_Player, "Attack");
-		} else {
-			// @Arche Archetype::SetSubclass(_Player, "Defense");
-		}
-		
-		// Update starting armor
-		declare SpawnType for _Player = C_SpawnType_BeginTurn;
-		if (SpawnType == C_SpawnType_BeginTurn) {
-			declare SpawnArmor for _Player = C_StartingArmor;
-			SpawnArmor = _Player.ArmorMax;
-		}
-		
-		declare AvailaibleWeapons = GetAvailableWeapons(_Player);
-		foreach (Weapon in AvailaibleWeapons) {
-			
-		}
-	}
 	// ---------------------------------- //
 	// Use store or weapon switch
-	else if (GetWeaponMode() == C_WeaponMode_Switch) {
+	if (GetWeaponMode() == C_WeaponMode_Switch) {
 		declare Weapons = Real[CSmMode::EWeapon];
 		declare AmmoMax = Integer[CSmMode::EWeapon];
 		
@@ -2326,7 +1972,6 @@ Text GetMLProgression() {
 	declare Text Team1ColorText = TL::SubString(Teams[1].ColorText, 1, 4);
 	
 	declare HideCredits = 1;
-	if (GetWeaponMode() == C_WeaponMode_Store) HideCredits = 0;
 	
 	return """
 <manialink version="1" name="Siege:Progression">
@@ -2802,7 +2447,6 @@ Text GetMLInterlude() {
  */
 Text GetMLRulesReminder() {
 	if (!S_DisplayRulesReminder) return "";
-	if (GetWeaponMode() == C_WeaponMode_Store) return "";
 
 	declare Text ImgBaseDir			= "file://Media/Manialinks/Shootmania/Common/";
 	declare Text WelcomeBgImage		= ImgBaseDir^"topsBg.dds";
@@ -3407,52 +3051,11 @@ Void SelectWeapons() {
 }
 
 // ---------------------------------- //
-/// Open store for all players
-Void OpenStore() {
-	UIManager.UIAll.CountdownEndTime = Now + C_StoreDuration;
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
-	/* @Arche
-	Archetype::OpenStore();
-	
-	while (UIManager.UIAll.CountdownEndTime > Now && !Archetype::CanCloseStore()) {
-		MM_Yield();
-		Archetype::LoopStore();
-	}
-	
-	Archetype::CloseStore();
-	*/
-	foreach (Player in AllPlayers) {
-		SetCredits(Player, GetCredits(Player));
-	}
-	
-	UIManager.UIAll.CountdownEndTime = -1;
-}
-
-// ---------------------------------- //
-/// Manage class selection at the beginning of the map
-Void ClassSelection() {
-	UIManager.UIAll.CountdownEndTime = Now + C_ClassSelectionDuration;
-	/* @Arche
-	Archetype::OpenClassSelection();
-	
-	while (UIManager.UIAll.CountdownEndTime > Now && !Archetype::CanCloseClassSelection()) {
-		MM_Yield();
-		Archetype::LoopClassSelection();
-	}
-	
-	Archetype::CloseClassSelection();
-	*/
-	UIManager.UIAll.CountdownEndTime = -1;
-}
-
-// ---------------------------------- //
 /** Wait for enough players to play
  *
  * @param	_MinimumNbPlayers	The number of players to wait in each clan before starting the map
  */
 Void WaitForPlayers(Integer _MinimumNbPlayers) {
-	SpawnItems();
-	
 	declare OldSequence = UIManager.UIAll.UISequence;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Warning;
@@ -3482,13 +3085,10 @@ Void WaitForPlayers(Integer _MinimumNbPlayers) {
 	// Update the players clublinks
 	if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
 	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
-	
-	UnspawnItems();
 }
 
 Void DoWarmUp() {
 	XmlRpc::BeginWarmUp();
-	SpawnItems();
 	
 	// Shutdown the poles during warmup
 	foreach (Goal in MapLandmarks_Gauge) {
@@ -3574,6 +3174,5 @@ Void DoWarmUp() {
 	if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTeamAuto();
 	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 	
-	UnspawnItems();
 	XmlRpc::EndWarmUp();
 }
