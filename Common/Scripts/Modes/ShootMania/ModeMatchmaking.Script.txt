@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-11-06"
+#Const ModeMatchmakingVersion		"2014-11-13"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -38,7 +38,7 @@
 #Setting S_MatchmakingLogMiscDebug	False		as "<hidden>"	///< Log different kinds of debug info
 
 #Setting S_ProgressiveActivation_WaitingTime	180000	as "<hidden>"	///< Average waiting time before progressive matchmaking activate
-#Setting S_ProgressiveActivation_PlayersNbRatio	2		as "<hidden>"	///< Multiply the required players nb by this, if there's less player in the lobby activate progressive
+#Setting S_ProgressiveActivation_PlayersNbRatio	1		as "<hidden>"	///< Multiply the required players nb by this, if there's less player in the lobby activate progressive
 
 // ---------------------------------- //
 // Constant
@@ -997,10 +997,11 @@ if (Http.SlotsAvailable > 0) {
 			 * or players are waiting since a long time
 			 * We try to find the format that would allow a maximum of players to play
 			 */
+			declare AverageWaitingTime = AverageWaitingTimeTotal / AverageWaitingTimeCount;
 			if (
 				AvailablePlayersNb < RequiredPlayersNb 
 				&& (
-					AverageWaitingTimeTotal >= S_ProgressiveActivation_WaitingTime 
+					AverageWaitingTime >= S_ProgressiveActivation_WaitingTime 
 					|| Net_Lobby_PlayersNb < RequiredPlayersNb * S_ProgressiveActivation_PlayersNbRatio
 				)
 			) {
