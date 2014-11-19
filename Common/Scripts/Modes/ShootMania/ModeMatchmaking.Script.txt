@@ -3483,7 +3483,7 @@ Void MM_Synchro_DoBarrier() {
 // ---------------------------------- //
 /** Wait for all players to be ready on the server
  *
- *	@param	_MaxDuration	Maximum duration of the synchro
+ *	@param	_MaxDuration	Maximum duration of the synchro (ms)
  */
 Void MM_WaitPlayers(Integer _MaxDuration) {
 	StartTime = Now;
