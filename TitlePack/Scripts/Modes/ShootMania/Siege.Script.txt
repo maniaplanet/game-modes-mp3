@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeV2Arena"
-#Const Version				"2014-11-14"
+#Const Version				"2014-11-17"
 #Const ScriptName			"Siege.Script.txt"
 
 #Include "Libs/Nadeo/CustomUI.Script.txt" as CustomUI
@@ -310,6 +310,8 @@ if (MM_IsMatchServer()) {
 	if (MB_SectionMapNb <= 1 && !IsRematch) {
 		MM_MatchWait();
 		MM_VoteForNextMap(True);
+	} else {
+		MM_WaitPlayers(15000);
 	}
 }
 // ---------------------------------- //
@@ -1092,10 +1094,16 @@ SuddentDeathMode = False;
 ***
 // ---------------------------------- //
 // Calculate LP
-if (MM_IsMatchServer()) {
+if (MM_IsMatchServer() && (ClansNbPlayers[1] == 0 || ClansNbPlayers[2] == 0 || MM_RestartMatchmaking) && MB_SectionRoundNb <= 1) {
 	MM_SetLadderMatchId();
+	Score::MatchEnd(False);
+	MB_Log("Cancel match and don't give LP because one of the team left the match.");
+} else {
+	if (MM_IsMatchServer()) {
+		MM_SetLadderMatchId();
+	}
+	Score::MatchEnd();
 }
-Score::MatchEnd();
 
 Layers::Detach("Interlude");
 // ---------------------------------- //
@@ -1158,21 +1166,27 @@ InitialCapturingClan = 3 - InitialCapturingClan;
 // ---------------------------------- //
 // Send match result and transfert players back to the lobby
 if (MM_IsMatchServer()) {
-	if (MB_StopMatch) {
-		if (RematchNb < S_MatchmakingRematchNbMax) {
-			IsRematch = MM_VoteForRematch();
-			RematchNb += 1;
-		}
-		
-		if (!IsRematch) {
-			RematchNb = 0;
-			MM_MatchEnd("");
-			MM_MatchToLobby();
+	if (!MM_RestartMatchmaking && ClansNbPlayers[1] > 0 && ClansNbPlayers[2] > 0) {
+		if (MB_StopMatch) {
+			if (RematchNb < S_MatchmakingRematchNbMax) {
+				IsRematch = MM_VoteForRematch();
+				RematchNb += 1;
+			}
+			
+			if (!IsRematch) {
+				RematchNb = 0;
+				MM_MatchEnd("");
+				MM_MatchToLobby();
+			} else {
+				MM_VoteForNextMap(False);
+			}
 		} else {
 			MM_VoteForNextMap(False);
 		}
 	} else {
-		MM_VoteForNextMap(False);
+		RematchNb = 0;
+		MM_MatchEnd("");
+		MM_MatchToLobby();
 	}
 }
 ***

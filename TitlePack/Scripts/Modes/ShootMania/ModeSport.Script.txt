@@ -6,7 +6,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"EliteArena, HeroesArena"
-#Const	ModeSportVersion	"2014-11-04"
+#Const	ModeSportVersion	"2014-11-17"
 #Const	ModeSportScriptName	"ModeSport.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -377,6 +377,8 @@ if (MM_IsMatchServer()) {
 		MM_MatchWait();
 		MM_VoteForNextMap(True);
 		PrepareMatch();
+	} else {
+		MM_WaitPlayers(15000);
 	}
 }
 MapSkipped = False;
@@ -1394,8 +1396,17 @@ if (MB_UseScriptCallbacks && S_UseLegacyCallback && XmlRpc::CallbackIsAllowed("E
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 
 // ---------------------------------- //
+// Cancel Ladder Points
+if (MM_IsMatchServer() && (WinByForfeit || MM_RestartMatchmaking) && MB_SectionTurnNb <= 2) {
+	Ladder_SetResultsVersion(1);
+	MM_SetLadderMatchId();
+	Score::MatchEnd(False);
+	MB_Log("Cancel match and don't give LP because one of the team left the match.");
+} 
 // Give Ladder Points
----LadderPoints---
+else {
+	---LadderPoints---
+}
 
 // ---------------------------------- //
 // Find the Master
@@ -1527,21 +1538,27 @@ UIManager.UIAll.StatusMessage = "";
 UIManager.UIAll.BigMessage = "";
 
 if (MM_IsMatchServer()) {
-	if (MB_StopMatch) {
-		if (RematchNb < S_MatchmakingRematchNbMax) {
-			IsRematch = MM_VoteForRematch();
-			RematchNb += 1;
-		}
-		
-		if (!IsRematch) {
-			RematchNb = 0;
-			MM_MatchEnd(MasterLogin);
-			MM_MatchToLobby();
+	if (!MM_RestartMatchmaking && ClansNbPlayers[1] > 0 && ClansNbPlayers[2] > 0) {
+		if (MB_StopMatch) {
+			if (RematchNb < S_MatchmakingRematchNbMax) {
+				IsRematch = MM_VoteForRematch();
+				RematchNb += 1;
+			}
+			
+			if (!IsRematch) {
+				RematchNb = 0;
+				MM_MatchEnd(MasterLogin);
+				MM_MatchToLobby();
+			} else {
+				MM_VoteForNextMap(False);
+			}
 		} else {
 			MM_VoteForNextMap(False);
 		}
 	} else {
-		MM_VoteForNextMap(False);
+		RematchNb = 0;
+		MM_MatchEnd(MasterLogin);
+		MM_MatchToLobby();
 	}
 }
 ***
