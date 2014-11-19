@@ -135,7 +135,7 @@ foreach (Event in XmlRpc.PendingEvents) {
 		foreach (Point in Event.ParamArray2) {
 			PointsRepartition.add(TL::ToInteger(Point));
 		}
-		if (PointsRepartition.count > 1) MB_PointsRepartition = PointsRepartition;
+		if (PointsRepartition.count >= 1) MB_PointsRepartition = PointsRepartition;
 	} else if (Event.Param1 == "Rounds_GetPointsRepartition") {
 		declare PointsRepartition = Text[];
 		foreach (Point in MB_PointsRepartition) {

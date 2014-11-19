@@ -1,3 +1,16 @@
+<a id="xxxx-xx-xx">xxxx-xx-xx</a>
+---------------------------------
+
+[Diff from previous release]()
+
+### Modes
+
+#### TrackMania/RoundsBase
+* Fix : The `Rounds_SetPointsRepartition` XmlRpc method now accepts array with only 1 item.
+
+---------------------------------
+
+
 <a id="2014-11-xx">2014-11-19</a>
 ---------------------------------
 
