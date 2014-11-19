@@ -21,7 +21,7 @@
  *	- LibST_SMWithLegends, add a space for columns legends in the header
  */
 
-#Const Version		"2014-05-30"
+#Const Version		"2014-11-05"
 #Const ScriptName	"ScoresTable.Script.txt"
 
 #Include "TextLib" as TL
@@ -1196,15 +1196,520 @@ Void FilterLogins(Text[] _Logins) {
 }
 
 // ---------------------------------- //
+/**	Use a predefined style for the scores table
+ *
+ *	Available styles are:
+ *	- LibST_Base, add basic columns: avatar, name, ManiaStars and tools
+ *	- LibST_Reset, remove all the previous styles
+ *	- LibST_TMBaseSolo, basic free for all scores table for TrackMania
+ *	- LibST_TMBaseTeam, basic teams scores table for TrackMania
+ *	- LibST_TMWithLegends, add a space for columns legends in the header
+ *	- LibST_SMBaseSolo, basic free for all scores table for ShootMania
+ *	- LibST_SMBaseTeams, basic teams scores table for ShootMania
+ *	- LibST_SMBaseOneColumn, same as LibST_SMBaseSolo but with only one players column
+ *	- LibST_SMBasePoints, add the RoundPoints and Points columns
+ *	- LibST_SMWithLegends, add a space for columns legends in the header
+ *
+ *	@param	_Style		The name of the style to use
+ */
+Void SetStyle(Text _Style) {
+	if (_Style == "") return;
+	
+	if (_Style == "LibST_Base") {
+		CreateCol("LibST_Avatar", "", "", 3., 10.);
+		CreateCol("LibST_Name", "", "", 16., 20.);
+		CreateCol("LibST_Tags", "", "", 4., 25.);
+		CreateCol("LibST_ManiaStars", "", "", 3., 30.);
+		CreateCol("LibST_Tools", "", "", 2., 40.);
+		SetColTextAlign("LibST_Name", CMlControl::AlignHorizontal::Left);
+	} else if (_Style == "LibST_Reset") {
+		Reset();
+	} else if (_Style == "LibST_TMBaseSolo") {
+		SetStyle("LibST_Base");
+		SetFormat(2, 5);
+		SetColWidth("LibST_Avatar", 4.);
+		SetSize(<58., 9.>, <156., 60.>, <-1., 17.7>);
+		SetBackgroundImage("file://Media/Manialinks/Trackmania/ScoresTable/bg-canyon.dds", <0., 5.>, <195., 100.>);
+		SetBackgroundCollection([
+			"Canyon"	=> "file://Media/Manialinks/Trackmania/ScoresTable/bg-canyon.dds",
+			"Valley"	=> "file://Media/Manialinks/Trackmania/ScoresTable/bg-valley.dds",
+			"Stadium"	=> "file://Media/Manialinks/Trackmania/ScoresTable/bg-stadium.dds"
+		]);
+		SetPlayerCardImages(
+			"file://Media/Manialinks/Trackmania/ScoresTable/playerline-square.dds",
+			"file://Media/Manialinks/Trackmania/ScoresTable/playerline-left.dds",
+			"file://Media/Manialinks/Trackmania/ScoresTable/playerline-right.dds"
+		);
+	} else if (_Style == "LibST_TMBaseTeams") {
+		SetStyle("LibST_TMBaseSolo");
+		SetSize(<160., -1.>, <-1., -1.>, <-1., -1.>);
+		SetTeamImage(1, "file://Media/Manialinks/Trackmania/ScoresTable/teamversus-left.dds", <0., 3.2>, <97.5, 24.4>);
+		SetTeamImage(2, "file://Media/Manialinks/Trackmania/ScoresTable/teamversus-right.dds", <0., 3.2>, <97.5, 24.4>);
+		SetTeamsMode(True);
+	} else if (_Style == "LibST_TMWithLegends") {
+		SetSize(<-1., 10.6>, <-1., -1.>, <-1., 16.1>);
+	} else if (_Style == "LibST_SMBaseSolo") {
+		SetStyle("LibST_Base");
+		SetFormat(2, 5);
+		SetPos(<0., 39.2, 20.>);
+		SetSize(<68., 8.>, <182., 60.>, <184., 16.>);
+		SetBackgroundImage("file://Media/Manialinks/Shootmania/ScoresTable/bg-storm.dds", <0., 5.>, <228., 98.>);
+		SetPlayerCardImages(
+			"file://Media/Manialinks/Shootmania/ScoresTable/playerline-square.dds",
+			"file://Media/Manialinks/Shootmania/ScoresTable/playerline-left.dds",
+			"file://Media/Manialinks/Shootmania/ScoresTable/playerline-right.dds"
+		);
+		SetPlayerDarkening(True);
+		SetColWidth("LibST_ManiaStars", 2.6);
+	} else if (_Style == "LibST_SMBaseTeams") {
+		SetStyle("LibST_SMBaseSolo");
+		SetSize(<187.6, -1.>, <-1., -1.>, <-1., -1.>);
+		SetTeamImage(1, "file://Media/Manialinks/Shootmania/ScoresTable/teamversus-left.dds", <0., 3.8>, <114.1, 26.>);
+		SetTeamImage(2, "file://Media/Manialinks/Shootmania/ScoresTable/teamversus-right.dds", <0., 3.8>, <113.9, 26.>);
+		SetTeamsMode(True);
+		SetTeamsScoresVisibility(False);
+		SetPlayerDarkening(True);
+	} else if (_Style == "LibST_SMBaseOneColumn") {
+		SetStyle("LibST_SMBaseSolo");
+		SetBackgroundImage("file://Media/Manialinks/Shootmania/ScoresTable/bg-storm.dds", <0., 5.>, <190., 98.>);
+		SetSize(<55., -1.>, <150., -1.>, <152., -1.>);
+		SetFormat(1, 4);
+		SetColWidth("LibST_Avatar", 2.);
+		SetColWidth("LibST_ManiaStars", 1.5);
+		SetColWidth("LibST_Tools", 1.1);
+		SetColTextSize("LibST_Name", 3.);
+	} else if (_Style == "LibST_SMBasePoints") {
+		CreateCol("LibST_SMRoundPoints", "", "0", 3., 100.);
+		SetColTextAlign("LibST_SMRoundPoints", CMlControl::AlignHorizontal::Right);
+		CreateCol("LibST_SMPoints", "", "0", 3., 110.);
+		SetColTextAlign("LibST_SMPoints", CMlControl::AlignHorizontal::Right);
+		SetColTextSize("LibST_SMPoints", 3.);
+	} else if (_Style == "LibST_SMWithLegends") {
+		SetSize(<-1., 11.>, <-1., 58.>, <-1., 15.>);
+	}
+}
+
+// ---------------------------------- //
+/**	Read the XML file and set the style
+ *
+ *	@param	_Xml		The XML file
+ *	@param	_SafeMode	Allow or not scripts to be added to the scores table
+ */
+Void Private_ReadXml(CXmlDocument _Xml, Boolean _SafeMode) {
+	if (_Xml == Null) return;
+	if (_Xml.Root == Null) return;
+	if (_Xml.Root.Name != "scorestable") return;
+	
+	// Save last xml style applied
+	declare LibST_XmlStyleBackUp for This = "";
+	LibST_XmlStyleBackUp = _Xml.TextContents;
+	
+	// ---------------------------------- //
+	// Styles
+	declare NodeStyles <=> _Xml.Root.GetFirstChild("styles");
+	if (NodeStyles != Null) {
+		foreach (NodeStyle in NodeStyles.Children) {
+			declare StyleId = NodeStyle.GetAttributeText("id", "");
+			SetStyle(StyleId);
+		}
+	}
+	
+	// ---------------------------------- //
+	// Properties
+	declare NodeProperties <=> _Xml.Root.GetFirstChild("properties");
+	if (NodeProperties != Null) {
+		foreach (NodeProperty in NodeProperties.Children) {
+			switch (NodeProperty.Name) {
+				case "position": {
+					declare PosX = NodeProperty.GetAttributeReal("x", 0.);
+					declare PosY = NodeProperty.GetAttributeReal("y", 0.);
+					declare PosZ = NodeProperty.GetAttributeReal("z", 0.);
+					SetPos(<PosX, PosY, PosZ>);
+				}
+				case "globalscale": {
+					declare Scale = NodeProperty.GetAttributeReal("scale", 1.);
+					SetScale(Scale);
+				}
+				case "textscale": {
+					declare Scale = NodeProperty.GetAttributeReal("scale", 1.);
+					SetTextScale(Scale);
+				}
+				case "headersize": {
+					declare Size = Vec3;
+					Size.X = NodeProperty.GetAttributeReal("x", 1.);
+					Size.Y = NodeProperty.GetAttributeReal("y", 1.);
+					SetSize(<Size.X, Size.Y>, <-1., -1.>, <-1., -1.>);
+				}
+				case "modeicon": {
+					declare Path = NodeProperty.GetAttributeText("icon", "");
+					SetModeIcon(Path);
+				}
+				case "tablesize": {
+					declare Size = Vec3;
+					Size.X = NodeProperty.GetAttributeReal("x", 1.);
+					Size.Y = NodeProperty.GetAttributeReal("y", 1.);
+					SetSize(<-1., -1.>, <Size.X, Size.Y>, <-1., -1.>);
+				}
+				case "taleformat": {
+					declare ColumnsNb = NodeProperty.GetAttributeInteger("columns", 1);
+					declare LinesNb = NodeProperty.GetAttributeInteger("lines", 1);
+					SetFormat(ColumnsNb, LinesNb);
+				}
+				case "footersize": {
+					declare Size = Vec3;
+					Size.X = NodeProperty.GetAttributeReal("x", 1.);
+					Size.Y = NodeProperty.GetAttributeReal("y", 1.);
+					SetSize(<-1., -1.>, <-1., -1.>, <Size.X, Size.Y>);
+				}
+				case "footertext": {
+					declare FooterText = NodeProperty.GetAttributeText("text", "");
+					SetFooterText(FooterText);
+				}
+				case "tabname": {
+					declare TabName = NodeProperty.GetAttributeText("name", "");
+					SetTabName(TabName);
+				}
+			}
+		}
+	}
+	
+	// ---------------------------------- //
+	// Settings
+	declare NodeSettings <=> _Xml.Root.GetFirstChild("settings");
+	if (NodeSettings != Null) {
+		foreach (NodeSetting in NodeSettings.Children) {
+			switch (NodeSetting.GetAttributeText("name", "")) {
+				case "TeamsMode": {
+					declare UseTeamsMode = NodeSetting.GetAttributeBoolean("value", C_LibST_UseTeamsMode);
+					SetTeamsMode(UseTeamsMode);
+				}
+				case "TeamsScoresVisibility": {
+					declare TeamsScoresVisibile = NodeSetting.GetAttributeBoolean("value", C_LibST_TeamsScoresVisible);
+					SetTeamsScoresVisibility(TeamsScoresVisibile);
+				}
+				case "RevertPlayerCardInTeamsMode": {
+					declare UseRevert = NodeSetting.GetAttributeBoolean("value", C_LibST_UseRevert);
+					SetRevertPlayerCardInTeamsMode(UseRevert);
+				}
+				case "PlayerDarkening": {
+					declare UsePlayerDarkening = NodeSetting.GetAttributeBoolean("value", C_LibST_UsePlayerDarkening);
+					SetPlayerDarkening(UsePlayerDarkening);
+				}
+				case "PlayerInfoVisibility": {
+					declare PlayerInfoVisible = NodeSetting.GetAttributeBoolean("value", C_LibST_PlayerInfoVisible);
+					SetPlayerInfoVisibility(PlayerInfoVisible);
+				}
+				case "ServerNameVisibility": {
+					declare ServerNameVisible = NodeSetting.GetAttributeBoolean("value", C_LibST_ServerNameVisible);
+					SetServerNameVisibility(ServerNameVisible);
+				}
+			}
+		}
+	}
+	
+	// ---------------------------------- //
+	// Columns
+	declare NodeColumns <=> _Xml.Root.GetFirstChild("columns");
+	if (NodeColumns != Null) {
+		foreach (NodeColumn in NodeColumns.Children) {
+			declare ColumnId = NodeColumn.GetAttributeText("id", "");
+			declare Action = NodeColumn.GetAttributeText("action", "");
+			if (ColumnId != "" && Action != "") {
+				// Create
+				if (Action == "create") {
+					CreateCol(ColumnId, "", "", 10., 0.);
+				} 
+				// Create / Update
+				if (Action == "create" || Action == "update") {
+					foreach (NodeColumnProperty in NodeColumn.Children) {
+						switch (NodeColumnProperty.Name) {
+							case "legend": {
+								SetColLegend(ColumnId, NodeColumnProperty.TextContents);
+							}
+							case "defaultvalue": {
+								SetColDefaultValue(ColumnId, NodeColumnProperty.TextContents);
+							}
+							case "width": {
+								SetColWidth(ColumnId, TL::ToReal(NodeColumnProperty.TextContents));
+							}
+							case "weight": {
+								SetColWeight(ColumnId, TL::ToReal(NodeColumnProperty.TextContents));
+							}
+							case "textstyle": {
+								SetColTextStyle(ColumnId, NodeColumnProperty.TextContents);
+							}
+							case "textsize": {
+								SetColTextSize(ColumnId, TL::ToReal(NodeColumnProperty.TextContents));
+							}
+							case "textalign": {
+								declare HAlign = CMlControl::AlignHorizontal::HCenter;
+								switch (NodeColumnProperty.TextContents) {
+									case "left": HAlign = CMlControl::AlignHorizontal::Left;
+									case "center": HAlign = CMlControl::AlignHorizontal::HCenter;
+									case "right": HAlign = CMlControl::AlignHorizontal::Right;
+								}
+								SetColTextAlign(ColumnId, HAlign);
+							}
+						}
+					}
+				}
+				// Destroy
+				if (Action == "destroy") {
+					DestroyCol(ColumnId);
+				}
+			}
+		}
+	}
+	
+	// ---------------------------------- //
+	// Images
+	declare NodeImages <=> _Xml.Root.GetFirstChild("images");
+	if (NodeImages != Null) {
+		foreach (NodeImage in NodeImages.Children) {
+			if (NodeImage.Name == "playercard") continue;
+			
+			declare Path = "";
+			declare Position = <0., 0.>;
+			declare Size = <100., 100.>;
+			declare Color = "";
+			declare Collection = Text[Text];
+			
+			switch (NodeImage.Name) {
+				case "background": {
+					Path = G_LibST_CustomImagePath[-1];
+					Position = G_LibST_CustomImagePos[-1];
+					Size = G_LibST_CustomImageSize[-1];
+				}
+				case "foreground": {
+					Path = G_LibST_CustomImagePath[0];
+					Position = G_LibST_CustomImagePos[0];
+					Size = G_LibST_CustomImageSize[0];
+				}
+				case "team1": {
+					Path = G_LibST_CustomImagePath[1];
+					Position = G_LibST_CustomImagePos[1];
+					Size = G_LibST_CustomImageSize[1];
+				}
+				case "team2": {
+					Path = G_LibST_CustomImagePath[2];
+					Position = G_LibST_CustomImagePos[2];
+					Size = G_LibST_CustomImageSize[2];
+				}
+			}
+			
+			foreach (NodeImageProperty in NodeImage.Children) {
+				switch (NodeImageProperty.Name) {
+					case "image": {
+						Path = NodeImageProperty.GetAttributeText("path", "");
+					}
+					case "position": {
+						Position.X = NodeImageProperty.GetAttributeReal("x", 0.);
+						Position.Y = NodeImageProperty.GetAttributeReal("y", 0.);
+					}
+					case "size": {
+						Size.X = NodeImageProperty.GetAttributeReal("width", 100.);
+						Size.Y = NodeImageProperty.GetAttributeReal("height", 100.);
+					}
+					case "colorize": {
+						Color = NodeImageProperty.GetAttributeText("color", "");
+					}
+					case "collection": {
+						foreach (NodeCollection in NodeImageProperty.Children) {
+							declare CollectionEnvironment = NodeCollection.GetAttributeText("environment", "");
+							declare CollectionPath = NodeCollection.GetAttributeText("path", "");
+							if (CollectionEnvironment != "" && CollectionPath != "") {
+								Collection[CollectionEnvironment] = CollectionPath;
+							}
+						}
+					}
+				}
+			}
+			
+			switch (NodeImage.Name) {
+				case "background": {
+					SetBackgroundImage(Path, Position, Size, Color);
+					if (Collection.count > 0) SetBackgroundCollection(Collection);
+				}
+				case "foreground": {
+					SetForegroundImage(Path, Position, Size, Color);
+					if (Collection.count > 0) SetForegroundCollection(Collection);
+				}
+				case "team1": {
+					SetTeamImage(1, Path, Position, Size);
+					if (Collection.count > 0) SetTeamCollection(1, Collection);
+				}
+				case "team2": {
+					SetTeamImage(2, Path, Position, Size);
+					if (Collection.count > 0) SetTeamCollection(2, Collection);
+				}
+			}
+		}
+		
+		declare NodePlayerCard <=> NodeImages.GetFirstChild("playercard");
+		if (NodePlayerCard != Null) {
+			declare PathQuad = " ";
+			declare PathLeft = " ";
+			declare PathRight = " ";
+			
+			foreach (NodePlayerCardProperty in NodePlayerCard.Children) {
+				switch (NodePlayerCardProperty.Name) {
+					case "quad": {
+						PathQuad = NodePlayerCardProperty.GetAttributeText("path", "");
+					}
+					case "left": {
+						PathLeft = NodePlayerCardProperty.GetAttributeText("path", "");
+					}
+					case "right": {
+						PathRight = NodePlayerCardProperty.GetAttributeText("path", "");
+					}
+				}
+			}
+			
+			SetPlayerCardImages(PathQuad, PathLeft, PathRight);
+		}
+	}
+	
+	if (!_SafeMode) {
+		declare NodeScripts <=> _Xml.Root.GetFirstChild("scripts");
+		if (NodeScripts != Null) {
+			foreach (NodeScript in NodeScripts.Children) {
+				switch (NodeScript.Name) {
+					case "column": {
+						declare Id = NodeScript.GetAttributeText("id", "");
+						declare Script = NodeScript.TextContents;
+						SetColScript(Id, Script);
+					}
+					case "footer": {
+						declare Script = NodeScript.TextContents;
+						SetFooterScript(Script);
+					}
+				}
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
+/**	Create a request for the XML style file
+ *
+ *	@param	_Style		The path to the XML file to use
+ *
+ *	@return				True if the request was created, false otherwise
+ */
+Boolean RequestStyleFromXml(Text _XmlPath) {
+	log(Now^"> LibScoresTable > RequestStyleFromXml() > Try to load XML : "^_XmlPath);	
+	// Destroy an ongoing request
+	if (G_LibST_RequestId != NullId && Http.Requests.existskey(G_LibST_RequestId)) Http.Destroy(Http.Requests[G_LibST_RequestId]);
+	G_LibST_RequestId = NullId;
+	G_LibST_RequestEndTime = -1;
+	
+	if (!Http.IsValidUrl(_XmlPath)) {
+		log(Now^"> LibScoresTable > RequestStyleFromXml() > Failed : url is not valid");
+		return False;
+	}
+	
+	declare Req <=> Http.CreateGet(_XmlPath);
+	if (Req == Null) {
+		log(Now^"> LibScoresTable > RequestStyleFromXml() > Failed : can't create a request");
+		return False;
+	}
+	
+	G_LibST_RequestId = Req.Id;
+	G_LibST_RequestEndTime = Now + C_LibST_RequestTimeout;
+	
+	return True;
+}
+
+// ---------------------------------- //
+/**	Wait for a response to the request
+ *
+ *	@return				True if the request is not completed, false otherwise
+ */
+Boolean WaitStyleFromXml() {
+	if (Now >= G_LibST_RequestEndTime) return False;
+	if (G_LibST_RequestId == NullId) return False;
+	if (!Http.Requests.existskey(G_LibST_RequestId)) return False;
+	if (Http.Requests[G_LibST_RequestId].IsCompleted) return False;
+	
+	return True;
+}
+
+// ---------------------------------- //
+/**	Read the XML file and set the style from it
+ *
+ *	@param	_SafeMode	Allow or not scripts to be added to the scores table
+ *
+ *	@return				True if the style was applied, false otherwise
+ */
+Boolean SetStyleFromXml(Boolean _SafeMode) {
+	if (!Http.Requests.existskey(G_LibST_RequestId)) {
+		log(Now^"> LibScoresTable > SetStyleFromXml() > Failed : can't find the request");
+		return False;
+	}
+	
+	declare Req <=> Http.Requests[G_LibST_RequestId];
+	
+	if (!Req.IsCompleted || Req.StatusCode != 200) {
+		log(Now^"> LibScoresTable > SetStyleFromXml() > Failed : request failed to complete with error code "^Req.StatusCode);
+		return False;
+	}
+	
+	declare StyleXml <=> Xml.Create(Req.Result);
+	Http.Destroy(Req);
+	G_LibST_RequestId = NullId;
+	G_LibST_RequestEndTime = -1;
+	
+	if (StyleXml == Null) {
+		log(Now^"> LibScoresTable > SetStyleFromXml() > Failed : the file is not a valid xml file");
+		return False;
+	}
+	
+	Private_ReadXml(StyleXml, _SafeMode);
+	Xml.Destroy(StyleXml);
+	StyleXml <=> Null;
+	
+	log(Now^"> LibScoresTable > SetStyleFromXml() > XML file loaded");
+	return True;
+}
+
+// ---------------------------------- //
+/// Restore the previous xml scores table style
+Void RestoreStyleFromXml() {
+	declare LibST_XmlStyleBackUp for This = "";
+	if (LibST_XmlStyleBackUp == "") return;
+	
+	declare StyleXml <=> Xml.Create(LibST_XmlStyleBackUp);
+	
+	if (StyleXml == Null) {
+		log(Now^"> LibScoresTable > RestoreStyleFromXml() > Failed : the file is not a valid xml file");
+	} else {
+		Private_ReadXml(StyleXml, True);
+		Xml.Destroy(StyleXml);
+		StyleXml <=> Null;
+		log(Now^"> LibScoresTable > RestoreStyleFromXml() > XML file loaded");
+	}
+}
+
+// ---------------------------------- //
+/// Reset the previous xml scores table style
+Void ResetStyleFromXml() {
+	declare LibST_XmlStyleBackUp for This = "";
+	LibST_XmlStyleBackUp = "";
+}
+
+// ---------------------------------- //
 /** Build the scores table manialink
  *	/!\ Use with care, this function uses a lot of resources
  *	/!\ Rebuild the scores table only when necessary
  *
  *	@param	_Game	Choose between SM and TM
  */
-Void Build(Text _Game) {
+Void Build(Text _Game, Boolean _Restore) {
 	declare LayerScoresTable = GetLayer();
 	if (LayerScoresTable == Null) return;
+	
+	// Try to restore the latest style set from xml
+	if (_Restore) RestoreStyleFromXml();
 	
 	// Disable the default scores table
 	UIManager.UIAll.ScoreTableOnlyManialink = True;
@@ -2743,476 +3248,9 @@ main() {
 }
 
 // ---------------------------------- //
-/**	Use a predefined style for the scores table
- *
- *	Available styles are:
- *	- LibST_Base, add basic columns: avatar, name, ManiaStars and tools
- *	- LibST_Reset, remove all the previous styles
- *	- LibST_TMBaseSolo, basic free for all scores table for TrackMania
- *	- LibST_TMBaseTeam, basic teams scores table for TrackMania
- *	- LibST_TMWithLegends, add a space for columns legends in the header
- *	- LibST_SMBaseSolo, basic free for all scores table for ShootMania
- *	- LibST_SMBaseTeams, basic teams scores table for ShootMania
- *	- LibST_SMBaseOneColumn, same as LibST_SMBaseSolo but with only one players column
- *	- LibST_SMBasePoints, add the RoundPoints and Points columns
- *	- LibST_SMWithLegends, add a space for columns legends in the header
- *
- *	@param	_Style		The name of the style to use
- */
-Void SetStyle(Text _Style) {
-	if (_Style == "") return;
-	
-	if (_Style == "LibST_Base") {
-		CreateCol("LibST_Avatar", "", "", 3., 10.);
-		CreateCol("LibST_Name", "", "", 16., 20.);
-		CreateCol("LibST_Tags", "", "", 4., 25.);
-		CreateCol("LibST_ManiaStars", "", "", 3., 30.);
-		CreateCol("LibST_Tools", "", "", 2., 40.);
-		SetColTextAlign("LibST_Name", CMlControl::AlignHorizontal::Left);
-	} else if (_Style == "LibST_Reset") {
-		Reset();
-	} else if (_Style == "LibST_TMBaseSolo") {
-		SetStyle("LibST_Base");
-		SetFormat(2, 5);
-		SetColWidth("LibST_Avatar", 4.);
-		SetSize(<58., 9.>, <156., 60.>, <-1., 17.7>);
-		SetBackgroundImage("file://Media/Manialinks/Trackmania/ScoresTable/bg-canyon.dds", <0., 5.>, <195., 100.>);
-		SetBackgroundCollection([
-			"Canyon"	=> "file://Media/Manialinks/Trackmania/ScoresTable/bg-canyon.dds",
-			"Valley"	=> "file://Media/Manialinks/Trackmania/ScoresTable/bg-valley.dds",
-			"Stadium"	=> "file://Media/Manialinks/Trackmania/ScoresTable/bg-stadium.dds"
-		]);
-		SetPlayerCardImages(
-			"file://Media/Manialinks/Trackmania/ScoresTable/playerline-square.dds",
-			"file://Media/Manialinks/Trackmania/ScoresTable/playerline-left.dds",
-			"file://Media/Manialinks/Trackmania/ScoresTable/playerline-right.dds"
-		);
-	} else if (_Style == "LibST_TMBaseTeams") {
-		SetStyle("LibST_TMBaseSolo");
-		SetSize(<160., -1.>, <-1., -1.>, <-1., -1.>);
-		SetTeamImage(1, "file://Media/Manialinks/Trackmania/ScoresTable/teamversus-left.dds", <0., 3.2>, <97.5, 24.4>);
-		SetTeamImage(2, "file://Media/Manialinks/Trackmania/ScoresTable/teamversus-right.dds", <0., 3.2>, <97.5, 24.4>);
-		SetTeamsMode(True);
-	} else if (_Style == "LibST_TMWithLegends") {
-		SetSize(<-1., 10.6>, <-1., -1.>, <-1., 16.1>);
-	} else if (_Style == "LibST_SMBaseSolo") {
-		SetStyle("LibST_Base");
-		SetFormat(2, 5);
-		SetPos(<0., 39.2, 20.>);
-		SetSize(<68., 8.>, <182., 60.>, <184., 16.>);
-		SetBackgroundImage("file://Media/Manialinks/Shootmania/ScoresTable/bg-storm.dds", <0., 5.>, <228., 98.>);
-		SetPlayerCardImages(
-			"file://Media/Manialinks/Shootmania/ScoresTable/playerline-square.dds",
-			"file://Media/Manialinks/Shootmania/ScoresTable/playerline-left.dds",
-			"file://Media/Manialinks/Shootmania/ScoresTable/playerline-right.dds"
-		);
-		SetPlayerDarkening(True);
-		SetColWidth("LibST_ManiaStars", 2.6);
-	} else if (_Style == "LibST_SMBaseTeams") {
-		SetStyle("LibST_SMBaseSolo");
-		SetSize(<187.6, -1.>, <-1., -1.>, <-1., -1.>);
-		SetTeamImage(1, "file://Media/Manialinks/Shootmania/ScoresTable/teamversus-left.dds", <0., 3.8>, <114.1, 26.>);
-		SetTeamImage(2, "file://Media/Manialinks/Shootmania/ScoresTable/teamversus-right.dds", <0., 3.8>, <113.9, 26.>);
-		SetTeamsMode(True);
-		SetTeamsScoresVisibility(False);
-		SetPlayerDarkening(True);
-	} else if (_Style == "LibST_SMBaseOneColumn") {
-		SetStyle("LibST_SMBaseSolo");
-		SetBackgroundImage("file://Media/Manialinks/Shootmania/ScoresTable/bg-storm.dds", <0., 5.>, <190., 98.>);
-		SetSize(<55., -1.>, <150., -1.>, <152., -1.>);
-		SetFormat(1, 4);
-		SetColWidth("LibST_Avatar", 2.);
-		SetColWidth("LibST_ManiaStars", 1.5);
-		SetColWidth("LibST_Tools", 1.1);
-		SetColTextSize("LibST_Name", 3.);
-	} else if (_Style == "LibST_SMBasePoints") {
-		CreateCol("LibST_SMRoundPoints", "", "0", 3., 100.);
-		SetColTextAlign("LibST_SMRoundPoints", CMlControl::AlignHorizontal::Right);
-		CreateCol("LibST_SMPoints", "", "0", 3., 110.);
-		SetColTextAlign("LibST_SMPoints", CMlControl::AlignHorizontal::Right);
-		SetColTextSize("LibST_SMPoints", 3.);
-	} else if (_Style == "LibST_SMWithLegends") {
-		SetSize(<-1., 11.>, <-1., 58.>, <-1., 15.>);
-	}
-}
-
-// ---------------------------------- //
-/**	Read the XML file and set the style
- *
- *	@param	_Xml		The XML file
- *	@param	_SafeMode	Allow or not scripts to be added to the scores table
- */
-Void Private_ReadXml(CXmlDocument _Xml, Boolean _SafeMode) {
-	if (_Xml == Null) return;
-	if (_Xml.Root == Null) return;
-	if (_Xml.Root.Name != "scorestable") return;
-	
-	// ---------------------------------- //
-	// Styles
-	declare NodeStyles <=> _Xml.Root.GetFirstChild("styles");
-	if (NodeStyles != Null) {
-		foreach (NodeStyle in NodeStyles.Children) {
-			declare StyleId = NodeStyle.GetAttributeText("id", "");
-			SetStyle(StyleId);
-		}
-	}
-	
-	// ---------------------------------- //
-	// Properties
-	declare NodeProperties <=> _Xml.Root.GetFirstChild("properties");
-	if (NodeProperties != Null) {
-		foreach (NodeProperty in NodeProperties.Children) {
-			switch (NodeProperty.Name) {
-				case "position": {
-					declare PosX = NodeProperty.GetAttributeReal("x", 0.);
-					declare PosY = NodeProperty.GetAttributeReal("y", 0.);
-					declare PosZ = NodeProperty.GetAttributeReal("z", 0.);
-					SetPos(<PosX, PosY, PosZ>);
-				}
-				case "globalscale": {
-					declare Scale = NodeProperty.GetAttributeReal("scale", 1.);
-					SetScale(Scale);
-				}
-				case "textscale": {
-					declare Scale = NodeProperty.GetAttributeReal("scale", 1.);
-					SetTextScale(Scale);
-				}
-				case "headersize": {
-					declare Size = Vec3;
-					Size.X = NodeProperty.GetAttributeReal("x", 1.);
-					Size.Y = NodeProperty.GetAttributeReal("y", 1.);
-					SetSize(<Size.X, Size.Y>, <-1., -1.>, <-1., -1.>);
-				}
-				case "modeicon": {
-					declare Path = NodeProperty.GetAttributeText("icon", "");
-					SetModeIcon(Path);
-				}
-				case "tablesize": {
-					declare Size = Vec3;
-					Size.X = NodeProperty.GetAttributeReal("x", 1.);
-					Size.Y = NodeProperty.GetAttributeReal("y", 1.);
-					SetSize(<-1., -1.>, <Size.X, Size.Y>, <-1., -1.>);
-				}
-				case "taleformat": {
-					declare ColumnsNb = NodeProperty.GetAttributeInteger("columns", 1);
-					declare LinesNb = NodeProperty.GetAttributeInteger("lines", 1);
-					SetFormat(ColumnsNb, LinesNb);
-				}
-				case "footersize": {
-					declare Size = Vec3;
-					Size.X = NodeProperty.GetAttributeReal("x", 1.);
-					Size.Y = NodeProperty.GetAttributeReal("y", 1.);
-					SetSize(<-1., -1.>, <-1., -1.>, <Size.X, Size.Y>);
-				}
-				case "footertext": {
-					declare FooterText = NodeProperty.GetAttributeText("text", "");
-					SetFooterText(FooterText);
-				}
-				case "tabname": {
-					declare TabName = NodeProperty.GetAttributeText("name", "");
-					SetTabName(TabName);
-				}
-			}
-		}
-	}
-	
-	// ---------------------------------- //
-	// Settings
-	declare NodeSettings <=> _Xml.Root.GetFirstChild("settings");
-	if (NodeSettings != Null) {
-		foreach (NodeSetting in NodeSettings.Children) {
-			switch (NodeSetting.GetAttributeText("name", "")) {
-				case "TeamsMode": {
-					declare UseTeamsMode = NodeSetting.GetAttributeBoolean("value", C_LibST_UseTeamsMode);
-					SetTeamsMode(UseTeamsMode);
-				}
-				case "TeamsScoresVisibility": {
-					declare TeamsScoresVisibile = NodeSetting.GetAttributeBoolean("value", C_LibST_TeamsScoresVisible);
-					SetTeamsScoresVisibility(TeamsScoresVisibile);
-				}
-				case "RevertPlayerCardInTeamsMode": {
-					declare UseRevert = NodeSetting.GetAttributeBoolean("value", C_LibST_UseRevert);
-					SetRevertPlayerCardInTeamsMode(UseRevert);
-				}
-				case "PlayerDarkening": {
-					declare UsePlayerDarkening = NodeSetting.GetAttributeBoolean("value", C_LibST_UsePlayerDarkening);
-					SetPlayerDarkening(UsePlayerDarkening);
-				}
-				case "PlayerInfoVisibility": {
-					declare PlayerInfoVisible = NodeSetting.GetAttributeBoolean("value", C_LibST_PlayerInfoVisible);
-					SetPlayerInfoVisibility(PlayerInfoVisible);
-				}
-				case "ServerNameVisibility": {
-					declare ServerNameVisible = NodeSetting.GetAttributeBoolean("value", C_LibST_ServerNameVisible);
-					SetServerNameVisibility(ServerNameVisible);
-				}
-			}
-		}
-	}
-	
-	// ---------------------------------- //
-	// Columns
-	declare NodeColumns <=> _Xml.Root.GetFirstChild("columns");
-	if (NodeColumns != Null) {
-		foreach (NodeColumn in NodeColumns.Children) {
-			declare ColumnId = NodeColumn.GetAttributeText("id", "");
-			declare Action = NodeColumn.GetAttributeText("action", "");
-			if (ColumnId != "" && Action != "") {
-				// Create
-				if (Action == "create") {
-					CreateCol(ColumnId, "", "", 10., 0.);
-				} 
-				// Create / Update
-				if (Action == "create" || Action == "update") {
-					foreach (NodeColumnProperty in NodeColumn.Children) {
-						switch (NodeColumnProperty.Name) {
-							case "legend": {
-								SetColLegend(ColumnId, NodeColumnProperty.TextContents);
-							}
-							case "defaultvalue": {
-								SetColDefaultValue(ColumnId, NodeColumnProperty.TextContents);
-							}
-							case "width": {
-								SetColWidth(ColumnId, TL::ToReal(NodeColumnProperty.TextContents));
-							}
-							case "weight": {
-								SetColWeight(ColumnId, TL::ToReal(NodeColumnProperty.TextContents));
-							}
-							case "textstyle": {
-								SetColTextStyle(ColumnId, NodeColumnProperty.TextContents);
-							}
-							case "textsize": {
-								SetColTextSize(ColumnId, TL::ToReal(NodeColumnProperty.TextContents));
-							}
-							case "textalign": {
-								declare HAlign = CMlControl::AlignHorizontal::HCenter;
-								switch (NodeColumnProperty.TextContents) {
-									case "left": HAlign = CMlControl::AlignHorizontal::Left;
-									case "center": HAlign = CMlControl::AlignHorizontal::HCenter;
-									case "right": HAlign = CMlControl::AlignHorizontal::Right;
-								}
-								SetColTextAlign(ColumnId, HAlign);
-							}
-						}
-					}
-				}
-				// Destroy
-				if (Action == "destroy") {
-					DestroyCol(ColumnId);
-				}
-			}
-		}
-	}
-	
-	// ---------------------------------- //
-	// Images
-	declare NodeImages <=> _Xml.Root.GetFirstChild("images");
-	if (NodeImages != Null) {
-		foreach (NodeImage in NodeImages.Children) {
-			if (NodeImage.Name == "playercard") continue;
-			
-			declare Path = "";
-			declare Position = <0., 0.>;
-			declare Size = <100., 100.>;
-			declare Color = "";
-			declare Collection = Text[Text];
-			
-			switch (NodeImage.Name) {
-				case "background": {
-					Path = G_LibST_CustomImagePath[-1];
-					Position = G_LibST_CustomImagePos[-1];
-					Size = G_LibST_CustomImageSize[-1];
-				}
-				case "foreground": {
-					Path = G_LibST_CustomImagePath[0];
-					Position = G_LibST_CustomImagePos[0];
-					Size = G_LibST_CustomImageSize[0];
-				}
-				case "team1": {
-					Path = G_LibST_CustomImagePath[1];
-					Position = G_LibST_CustomImagePos[1];
-					Size = G_LibST_CustomImageSize[1];
-				}
-				case "team2": {
-					Path = G_LibST_CustomImagePath[2];
-					Position = G_LibST_CustomImagePos[2];
-					Size = G_LibST_CustomImageSize[2];
-				}
-			}
-			
-			foreach (NodeImageProperty in NodeImage.Children) {
-				switch (NodeImageProperty.Name) {
-					case "image": {
-						Path = NodeImageProperty.GetAttributeText("path", "");
-					}
-					case "position": {
-						Position.X = NodeImageProperty.GetAttributeReal("x", 0.);
-						Position.Y = NodeImageProperty.GetAttributeReal("y", 0.);
-					}
-					case "size": {
-						Size.X = NodeImageProperty.GetAttributeReal("width", 100.);
-						Size.Y = NodeImageProperty.GetAttributeReal("height", 100.);
-					}
-					case "colorize": {
-						Color = NodeImageProperty.GetAttributeText("color", "");
-					}
-					case "collection": {
-						foreach (NodeCollection in NodeImageProperty.Children) {
-							declare CollectionEnvironment = NodeCollection.GetAttributeText("environment", "");
-							declare CollectionPath = NodeCollection.GetAttributeText("path", "");
-							if (CollectionEnvironment != "" && CollectionPath != "") {
-								Collection[CollectionEnvironment] = CollectionPath;
-							}
-						}
-					}
-				}
-			}
-			
-			switch (NodeImage.Name) {
-				case "background": {
-					SetBackgroundImage(Path, Position, Size, Color);
-					if (Collection.count > 0) SetBackgroundCollection(Collection);
-				}
-				case "foreground": {
-					SetForegroundImage(Path, Position, Size, Color);
-					if (Collection.count > 0) SetForegroundCollection(Collection);
-				}
-				case "team1": {
-					SetTeamImage(1, Path, Position, Size);
-					if (Collection.count > 0) SetTeamCollection(1, Collection);
-				}
-				case "team2": {
-					SetTeamImage(2, Path, Position, Size);
-					if (Collection.count > 0) SetTeamCollection(2, Collection);
-				}
-			}
-		}
-		
-		declare NodePlayerCard <=> NodeImages.GetFirstChild("playercard");
-		if (NodePlayerCard != Null) {
-			declare PathQuad = " ";
-			declare PathLeft = " ";
-			declare PathRight = " ";
-			
-			foreach (NodePlayerCardProperty in NodePlayerCard.Children) {
-				switch (NodePlayerCardProperty.Name) {
-					case "quad": {
-						PathQuad = NodePlayerCardProperty.GetAttributeText("path", "");
-					}
-					case "left": {
-						PathLeft = NodePlayerCardProperty.GetAttributeText("path", "");
-					}
-					case "right": {
-						PathRight = NodePlayerCardProperty.GetAttributeText("path", "");
-					}
-				}
-			}
-			
-			SetPlayerCardImages(PathQuad, PathLeft, PathRight);
-		}
-	}
-	
-	if (!_SafeMode) {
-		declare NodeScripts <=> _Xml.Root.GetFirstChild("scripts");
-		if (NodeScripts != Null) {
-			foreach (NodeScript in NodeScripts.Children) {
-				switch (NodeScript.Name) {
-					case "column": {
-						declare Id = NodeScript.GetAttributeText("id", "");
-						declare Script = NodeScript.TextContents;
-						SetColScript(Id, Script);
-					}
-					case "footer": {
-						declare Script = NodeScript.TextContents;
-						SetFooterScript(Script);
-					}
-				}
-			}
-		}
-	}
-}
-
-// ---------------------------------- //
-/**	Create a request for the XML style file
- *
- *	@param	_Style		The path to the XML file to use
- *
- *	@return				True if the request was created, false otherwise
- */
-Boolean RequestStyleFromXml(Text _XmlPath) {
-	log(Now^"> LibScoresTable > RequestStyleFromXml() > Try to load XML : "^_XmlPath);	
-	// Destroy an ongoing request
-	if (G_LibST_RequestId != NullId && Http.Requests.existskey(G_LibST_RequestId)) Http.Destroy(Http.Requests[G_LibST_RequestId]);
-	G_LibST_RequestId = NullId;
-	G_LibST_RequestEndTime = -1;
-	
-	if (!Http.IsValidUrl(_XmlPath)) {
-		log(Now^"> LibScoresTable > RequestStyleFromXml() > Failed : url is not valid");
-		return False;
-	}
-	
-	declare Req <=> Http.CreateGet(_XmlPath);
-	if (Req == Null) {
-		log(Now^"> LibScoresTable > RequestStyleFromXml() > Failed : can't create a request");
-		return False;
-	}
-	
-	G_LibST_RequestId = Req.Id;
-	G_LibST_RequestEndTime = Now + C_LibST_RequestTimeout;
-	
-	return True;
-}
-
-// ---------------------------------- //
-/**	Wait for a response to the request
- *
- *	@return				True if the request is not completed, false otherwise
- */
-Boolean WaitStyleFromXml() {
-	if (Now >= G_LibST_RequestEndTime) return False;
-	if (G_LibST_RequestId == NullId) return False;
-	if (!Http.Requests.existskey(G_LibST_RequestId)) return False;
-	if (Http.Requests[G_LibST_RequestId].IsCompleted) return False;
-	
-	return True;
-}
-
-// ---------------------------------- //
-/**	Read the XML file and set the style from it
- *
- *	@param	_SafeMode	Allow or not scripts to be added to the scores table
- *
- *	@return				True if the style was applied, false otherwise
- */
-Boolean SetStyleFromXml(Boolean _SafeMode) {
-	if (!Http.Requests.existskey(G_LibST_RequestId)) {
-		log(Now^"> LibScoresTable > SetStyleFromXml() > Failed : can't find the request");
-		return False;
-	}
-	
-	declare Req <=> Http.Requests[G_LibST_RequestId];
-	
-	if (!Req.IsCompleted || Req.StatusCode != 200) {
-		log(Now^"> LibScoresTable > SetStyleFromXml() > Failed : request failed to complete with error code "^Req.StatusCode);
-		return False;
-	}
-	
-	declare StyleXml <=> Xml.Create(Req.Result);
-	Http.Destroy(Req);
-	G_LibST_RequestId = NullId;
-	G_LibST_RequestEndTime = -1;
-	
-	if (StyleXml == Null) {
-		log(Now^"> LibScoresTable > SetStyleFromXml() > Failed : the file is not a valid xml file");
-		return False;
-	}
-	
-	Private_ReadXml(StyleXml, _SafeMode);
-	Xml.Destroy(StyleXml);
-	StyleXml <=> Null;
-	
-	log(Now^"> LibScoresTable > SetStyleFromXml() > XML file loaded");
-	return True;
+/// Build() function overload
+Void Build(Text _Game) {
+	Build(_Game, True);
 }
 
 // ---------------------------------- //
@@ -3238,7 +3276,7 @@ Void XmlRpcLoop() {
 				Private_ReadXml(StyleXml, True);
 				Xml.Destroy(StyleXml);
 				StyleXml <=> Null;
-				Build(Game);
+				Build(Game, False);
 				log(Now^"> LibScoresTable > SetStyleFromXml() > XML file loaded");
 			}
 		}

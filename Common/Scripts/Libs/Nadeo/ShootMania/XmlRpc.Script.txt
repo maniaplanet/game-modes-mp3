@@ -3,12 +3,17 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2014-10-16"
+#Const	Version		"2014-10-23"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 #Include "Libs/Nadeo/XmlRpcCommon.Script.txt" as XmlRpc
+
+// ---------------------------------- //
+// Globales
+// ---------------------------------- //
+declare Boolean G_IsInWarmUp;
 
 // ---------------------------------- //
 // Functions
@@ -152,6 +157,7 @@ Void Unload() {
 	UnregisterCallback("LibXmlRpc_OnCapture");
 	UnregisterCallback("LibXmlRpc_OnPlayerRequestRespawn");
 	UnregisterCallback("WarmUp_Status");
+	UnregisterCallback("LibXmlRpc_WarmUp");
 	UnregisterCallback("Royal_UpdatePoints");
 	UnregisterCallback("Royal_SpawnPlayer");
 	UnregisterCallback("Royal_RoundWinner");
@@ -237,6 +243,12 @@ RegisterCallback("WarmUp_Status", """
 * Data : An array with one value saying if the mode use a warm up or not
 * Example : ["True"]
 * Note : This callback is sent after using the `WarmUp_GetStatus` method
+""");
+
+RegisterCallback("LibXmlRpc_WarmUp", """
+* Data : An array with a boolean to indicate if the mode is in warm up or not.
+* Example : ["True"]
+* Note : This callback is sent when the script receives the `LibXmlRpc_GetWarmUp` trigger.
 """);
 
 RegisterCallback("Royal_UpdatePoints", """
@@ -393,6 +405,19 @@ Void SendScores() {
 		TL::ToText(MapPoints1), 
 		TL::ToText(MapPoints2)
 	]);
+}
+
+// ---------------------------------- //
+/** Send the warm up status
+ *	Data:
+ *	[IsInWarmUp]
+ */
+Void SendIsInWarmUp() {
+	if (!CallbackIsAllowed("LibXmlRpc_WarmUp")) return;
+	
+	declare IsInWarmUp = "False";
+	if (G_IsInWarmUp) IsInWarmUp = "True";
+	SendCallbackArray("LibXmlRpc_WarmUp", [IsInWarmUp]);
 }
 
 // ---------------------------------- //
@@ -678,12 +703,14 @@ Void EndPodium() {
 // ---------------------------------- //
 /// Callback sent at the beginning of the warmup
 Void BeginWarmUp() {
+	G_IsInWarmUp = True;
 	XmlRpc::BeginWarmUp();
 }
 
 // ---------------------------------- //
 /// Callback sent at the end of the warmup
 Void EndWarmUp() {
+	G_IsInWarmUp = False;
 	XmlRpc::EndWarmUp();
 }
 
@@ -837,6 +864,7 @@ Void Loop() {
 				case "LibXmlRpc_DisableAltMenu"		: Private_ToggleAltMenu(False, Event.Param2);
 				case "LibXmlRpc_EnableAltMenu"		: Private_ToggleAltMenu(True, Event.Param2);
 				case "WarmUp_GetStatus"				: SendWarmUpStatus();
+				case "LibXmlRpc_GetWarmUp"			: SendIsInWarmUp();
 			}
 		}
 	}

@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2014-07-21"
+#Const Version    "2014-11-18"
 #Const ScriptName "EliteEndSequence.Script.txt"
 
 // ---------------------------------- //
@@ -245,8 +245,9 @@ Text Private_CreateLayerEndSequence() {
 			 	 posn="29
 				       {{{V1_SizeY_Gauge_PlayerEchelon+9}}}
 				       1" />
-				<label id="Label_PlayerName" text="B'Side.Eole" {{{AlignBr}}} style="TextRaceMessage"
+				<label id="Label_PlayerName" {{{AlignBr}}} style="TextRaceMessage"
 				 textsize="{{{V1_SizeRatio_Label_PlayerName}}}"
+				 sizen="90 10"
 				 posn="{{{V1_SizeX_Gauge_PlayerEchelon -0.75}}}
 					   {{{V1_SizeY_Gauge_PlayerEchelon +0.25}}}
 					   1" />
