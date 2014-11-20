@@ -7,6 +7,12 @@
 
 #### TrackMania/RoundsBase
 * Fix : The `Rounds_SetPointsRepartition` XmlRpc method now accepts array with only 1 item.
+* Restore the round points repartition after a map restart if it was changed through XmlRpc.
+
+### Librairies
+
+#### TrackMania/UI
+* It's now possible to hide the endmap ladder recap and multilap info.
 
 ---------------------------------
 
