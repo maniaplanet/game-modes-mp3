@@ -4,7 +4,7 @@
 
 #RequireContext CTmMode
 
-#Const	ModeBaseVersion		"2014-10-16"
+#Const	ModeBaseVersion		"2014-11-19"
 #Const	ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
