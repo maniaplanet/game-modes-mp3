@@ -5,6 +5,10 @@
 
 ### Modes
 
+#### ShootMania/ModeMatchmaking
+* Added a safe time of 15 seconds after a server transfer request that prevents players to be listed as ready if the transer is too slow. It fixes the random players suspensions and incomplete matches. [see](http://forum.maniaplanet.com/viewtopic.php?p=234284#p234284)
+- Fix : division by 0 on the average waiting time.
+
 #### TrackMania/RoundsBase
 * Fix : The `Rounds_SetPointsRepartition` XmlRpc method now accepts array with only 1 item.
 * Restore the round points repartition after a map restart if it was changed through XmlRpc.
