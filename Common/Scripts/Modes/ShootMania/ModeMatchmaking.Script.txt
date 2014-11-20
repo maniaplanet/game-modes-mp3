@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-11-13"
+#Const ModeMatchmakingVersion		"2014-11-20"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -56,6 +56,7 @@
 #Const C_Lobby_Playing		0	///< Playing phase
 #Const C_Lobby_Matchmaking	1	///< Matchmaking phase
 
+#Const C_Lobby_TransfertSafeTime	15000	///< Minimum time after a transfert before a player can be listed as ready
 #Const C_Lobby_WarnPenalty			False	///< Warn player that they will be penalize if they cancel
 #Const C_Lobby_ReconnectDuration	5000	///< Duration before sending back a player to the match he left
 #Const C_Lobby_MastersNb			20		///< Number of masters displayed
@@ -938,6 +939,7 @@ if (Http.SlotsAvailable > 0) {
 			declare Integer Lobby_ReadySince for Player = -1;
 			declare Integer[Ident] Lobby_Allies for Player.User;
 			declare Lobby_AlliesAreReady for Player = False;
+			declare Lobby_LastTransfertTime for Player.User = -1;
 			
 			// Only ready players
 			// @specstart valid
@@ -945,14 +947,20 @@ if (Http.SlotsAvailable > 0) {
 			if (!Private_Lobby_IsReady(Player.User)) continue;
 			// @specend
 			
-			// If one of the player ally is not ready don't send him in a match
-			if (Lobby_Allies.count > 0 && !Lobby_AlliesAreReady) continue;
-			
 			// Update averate waiting time on the lobby
 			if (Lobby_ReadySince > 0) {
 				AverageWaitingTimeTotal += Now - Lobby_ReadySince;
 				AverageWaitingTimeCount += 1;
 			}
+			
+			// Wait a bit of time before listing a player as ready when he was transfered to a server
+			if (Lobby_LastTransfertTime > 0 && Now - Lobby_LastTransfertTime < C_Lobby_TransfertSafeTime) {
+				if (S_MatchmakingLogMiscDebug) MB_Log("[SERVER] "^Player.Login^" > Skip ready, waiting transfert since "^Now - Lobby_LastTransfertTime^"ms");
+				continue;
+			}
+			
+			// If one of the player ally is not ready don't send him in a match
+			if (Lobby_Allies.count > 0 && !Lobby_AlliesAreReady) continue;
 			
 			if (FirstPlayer) FirstPlayer = False;
 			else PlayersList ^= ",";
@@ -997,7 +1005,8 @@ if (Http.SlotsAvailable > 0) {
 			 * or players are waiting since a long time
 			 * We try to find the format that would allow a maximum of players to play
 			 */
-			declare AverageWaitingTime = AverageWaitingTimeTotal / AverageWaitingTimeCount;
+			declare AverageWaitingTime = 0;
+			if (AverageWaitingTimeCount != 0) AverageWaitingTime = AverageWaitingTimeTotal / AverageWaitingTimeCount;
 			if (
 				AvailablePlayersNb < RequiredPlayersNb 
 				&& (
@@ -1691,6 +1700,10 @@ Void MM_PenalizePlayer(CUser _User, Integer _Duration) {
  */
 Void MM_SendToServer(CPlayer _Player, Text _ServerLogin) {
 	if (_Player == Null || _ServerLogin == "") return;
+	
+	declare Lobby_LastTransfertTime for _Player.User = -1;
+	Lobby_LastTransfertTime = Now;
+	
 	declare UI <=> UIManager.GetUI(_Player);
 	if (UI == Null) return;
 	
