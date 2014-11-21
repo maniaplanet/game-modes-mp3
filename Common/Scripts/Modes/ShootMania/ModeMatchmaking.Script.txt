@@ -5,7 +5,7 @@
  */
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-11-20"
+#Const ModeMatchmakingVersion		"2014-11-21"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -131,6 +131,7 @@ declare Integer		G_MMLobby_Phase;				///< Current lobby phase : playing/matchmak
 declare Boolean		G_MMLobby_MatchmakingEnabled;	///< Is the the matchmaking enabled?
 declare Integer		G_MMMatch_Status;				///< Current match status
 declare Integer[][Text] G_MMMatch_Players;			///< Logins, clans and order of the allowed players in the match
+declare Integer[Text] G_MMMatch_Clans;				///< Clans assigned to the players by the matchmaking
 declare Text		G_MMMatch_Id;					///< Id of the match
 declare Text		G_MMMatch_LobbyLogin;			///< Login of the lobby server where to send back the players
 declare Integer		G_MMMatch_NextPing;				///< Time of the next ping of the match server to the API
@@ -2415,11 +2416,13 @@ Void Private_MM_SetupMatch(Text _MatchXml) {
 						declare Order = NodePlayer.GetAttributeInteger("order", -1);
 						declare Replaced = NodePlayer.GetAttributeBoolean("replaced", False);
 						
+						if (G_Matchmaking_CurrentFormat.count > 1) Clan += 1;
+						if (Login != "" && Clan >= 0) G_MMMatch_Clans[Login] = Clan;
+						
 						if (Replaced) {
 							declare Removed = G_MMMatch_MissingPlayers.removekey(Login);
 							Removed = G_MMMatch_GhostPlayers.removekey(Login);
 						} else {
-							if (G_Matchmaking_CurrentFormat.count > 1) Clan += 1;
 							if (Login != "" && Clan >= 0) {
 								MatchPlayers[Login] = [Clan, Order];
 								if (MM_MatchmakingIsProgressive() && GhostPlayersCount.existskey(Clan)) {
@@ -2445,6 +2448,7 @@ Void Private_MM_SetupMatch(Text _MatchXml) {
 						for (I, 1, PlayersNb) {
 							declare GhostLogin = Private_MM_CreateGhostPlayer(Clan);
 							G_MMMatch_Players[GhostLogin] = [Clan, -1];
+							G_MMMatch_Clans[GhostLogin] = Clan;
 						}
 					}
 				}
@@ -2500,11 +2504,13 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
 							declare Order = NodePlayer.GetAttributeInteger("order", -1);
 							declare Replaced = NodePlayer.GetAttributeBoolean("replaced", False);
 							
+							if (G_Matchmaking_CurrentFormat.count > 1) Clan += 1;
+							if (Login != "" && Clan >= 0) G_MMMatch_Clans[Login] = Clan;
+						
 							if (Replaced) {
 								declare Removed = G_MMMatch_MissingPlayers.removekey(Login);
 								Removed = G_MMMatch_GhostPlayers.removekey(Login);
 							} else {
-								if (G_Matchmaking_CurrentFormat.count > 1) Clan += 1;
 								if (Login != "" && Clan >= 0) {
 									MatchPlayers[Login] = [Clan, Order];
 								}
@@ -2517,6 +2523,7 @@ Void Private_MM_SetupSubstitute(Text _MatchXml) {
 					if (MM_MatchmakingIsProgressive()) {
 						foreach (GhostLogin => GhostClan in G_MMMatch_GhostPlayers) {
 							G_MMMatch_Players[GhostLogin] = [GhostClan, -1];
+							G_MMMatch_Clans[GhostLogin] = GhostClan;
 						}
 					}
 				}
@@ -3450,6 +3457,23 @@ Integer MM_GetRequestedClan(CSmPlayer _Player) {
 }
 
 // ---------------------------------- //
+/** Get the clan selected by the matchmaking for a login
+ *
+ *	@param	_Login		The login to check
+ *
+ *	@return		The matchmaking clan of the login
+ */
+Integer MM_GetAssignedClan(Text _Login) {
+	if (MM_IsMatchServer()) {
+		if (G_MMMatch_Clans.existskey(_Login)) {
+			return G_MMMatch_Clans[_Login];
+		}
+	}
+	
+	return -1;
+}
+
+// ---------------------------------- //
 /** Get the slot selected by the matchmaking for the player
  *
  *	@param	_Player		The player to check
@@ -3620,6 +3644,7 @@ Void Private_MM_MatchPrepare() {
 /// Wait for a new match
 Void MM_MatchWait() {
 	G_MMMatch_Players.clear();
+	G_MMMatch_Clans.clear();
 	G_MMMatch_Id = "";
 	G_MMMatch_LobbyLogin = "";
 	G_MMMatch_MissingPlayers.clear();
@@ -4213,11 +4238,12 @@ main() {
  *	@return		The manialink
  */
 Text Private_Lobby_GetMLGaugeTimer() {
-	if (S_LobbyDisableUI) return "";
+	declare Hidden = "0";
+	if (S_LobbyDisableUI) Hidden = "1";
 	
 	return """
 <manialink version="1" name="ModeMatchmaking:GaugeTimer">
-<frame posn="0 69 2">
+<frame posn="0 69 2" hidden="{{{Hidden}}}">
 	<gauge posn="0 6.3" sizen="90 7" halign="center" valign="center" drawbg="false" id="Gauge_Timer" />
 	<label posn="0 0" sizen="90 7" halign="center" valign="center" style="TextRaceChrono" textsize="6" textcolor="f90d" id="Label_WaitTime" />
 </frame>
@@ -4296,6 +4322,9 @@ main() {
  *	@return		The manialink
  */
 Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
+	declare Hidden = "0";
+	if (S_LobbyDisableUI) Hidden = "1";
+	
 	declare SizeX = 141.;
 	declare SizeY = 99.;
 	
@@ -4357,6 +4386,7 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 		<quad posn="0 0" sizen="80 20" scriptevents="1" id="Button_Player" />
 	</frame>
 </framemodel>
+<frame hidden="{{{Hidden}}}">
 <frame posn="0 0 10" id="Frame_Global">
 	<quad sizen="{{{SizeX}}} {{{SizeY}}} -1" halign="center" valign="center" image="{{{Background_Global}}}" />
 	<label posn="0 38" sizen="{{{SizeX}}} 4" scale="0.9" halign="center" valign="top" textsize="5" textemboss="1" autonewline="1" maxline="2" opacity="0.9" id="Label_Title" />
@@ -4382,6 +4412,7 @@ Text Private_Lobby_GetMLWaitingScreen(Boolean _DisplayRules) {
 		<label sizen="48 12" halign="center" valign="center2" style="TextRaceMessageBig" opacity="0.8" textsize="2.5" text="{{{_("Ready (F6)")}}}" />
 	</frame>
 	<quad posn="0 -90" sizen="80 20" halign="center" valign="bottom" id="Quad_Logo" />
+</frame>
 </frame>
 <script><!--
 #Include "TextLib" as TL
@@ -5332,7 +5363,8 @@ main() {
  *	@return		The manialink
  */
 Text Private_Lobby_GetMLHeader() {
-	if (S_LobbyDisableUI) return "";
+	declare Hidden = "0";
+	if (S_LobbyDisableUI) Hidden = "1";
 	
 	declare SizeX = 91.;
 	declare SizeY = 27.;
@@ -5341,7 +5373,7 @@ Text Private_Lobby_GetMLHeader() {
 	
 	return """
 <manialink version="1" name="ModeMatchmaking:Header">
-<frame posn="0 86" id="Frame_Global">
+<frame posn="0 86" id="Frame_Global" hidden="{{{Hidden}}}">
 	<quad posn="0 0 -1" sizen="{{{SizeX}}} {{{SizeY}}}" halign="center" image="{{{Background}}}" />
 	<label posn="0 -4" sizen="{{{SizeX-7}}} {{{SizeY}}}" halign="center" style="TextRaceMessage" textsize="3" id="Label_ServerName" />
 	<label posn="{{{SizeX/2.-5.}}} -16" sizen="{{{SizeX/3.}}} 4" halign="right" valign="center" style="TextRaceMessage" textsize="2" opacity="0.75" id="Label_WaitingTime" />
@@ -6116,6 +6148,9 @@ main() {
  *	@return		The manialink
  */
 Text Private_Lobby_GetMLRooms() {
+	declare Hidden = "0";
+	if (S_LobbyDisableUI) Hidden = "1";
+	
 	declare SizeX = 141.;
 	declare SizeY = 99.;
 	
@@ -6169,6 +6204,7 @@ Text Private_Lobby_GetMLRooms() {
 		<quad posn="0 0" sizen="80 20" scriptevents="1" class="Button_OccupiedSlot" />
 	</frame>
 </framemodel>
+<frame hidden="{{{Hidden}}}">
 <frame posn="0 0 10" id="Frame_Global">
 	<quad sizen="{{{SizeX}}} {{{SizeY}}} -1" halign="center" valign="center" image="{{{Background_Global}}}" />
 	<frame posn="{{{SizeX*0.37}}} {{{SizeY*0.47}}} -2" id="Frame_ShowHide">
@@ -6204,6 +6240,7 @@ Text Private_Lobby_GetMLRooms() {
 		<quad sizen="48 12" halign="center" valign="center" image="{{{ButtonBottomOff}}}" imagefocus="{{{ButtonBottomOn}}}" scriptevents="1" id="Button_Bottom" />
 		<label sizen="48 12" halign="center" valign="center2" style="TextRaceMessageBig" opacity="0.8" textsize="2.5" id="Label_ButtonBottom" />
 	</frame>
+</frame>
 </frame>
 <script><!--
 #Include "TextLib" as TL
@@ -6796,8 +6833,6 @@ main() {
  *	@return		The manialink
  */
 Text Private_Lobby_GetMLLobbyScreen(Boolean _DisplayRules) {
-	if (S_LobbyDisableUI) return "";
-	
 	if (MM_IsUniversalServer()) {
 		return Private_Lobby_GetMLRooms();
 	} else {
