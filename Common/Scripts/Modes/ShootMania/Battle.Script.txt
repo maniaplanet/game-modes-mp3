@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-11-19"
+#Const	Version				"2014-11-24"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -329,7 +329,30 @@ else MB_UseIntro = True;
 G_CurrentRoundIndex = 0;
 Users_SetNbFakeUsers(C_Battle_BlueBots, C_Battle_RedBots); // add bots for debug purpose
 
-foreach(Player in Players) {
+ComputeCaptureMaxValue();
+ResetMapRunnersRanking();
+
+foreach (Score in Scores) {
+	Score.Clear();
+	
+	declare Integer Battle_ScoreDefenseBonus	for Score;
+	declare Integer Battle_ScoreAttackBonus  	for Score;
+	declare Integer Battle_ScoreAlternative		for Score;
+	declare Integer Battle_ScoreHit 			for Score;
+	declare Integer Battle_TotalCaptureTime		for Score;
+	declare Integer Battle_TotalDenyTime 		for Score;
+	Battle_ScoreDefenseBonus = 0;
+	Battle_ScoreAttackBonus = 0;
+	Battle_ScoreAlternative = 0;
+	Battle_ScoreHit = 0;
+	Battle_TotalCaptureTime = 0;
+	Battle_TotalDenyTime = 0;
+	
+	Score.Points = 0;
+	Score.RoundPoints = 0;
+}
+
+foreach (Player in AllPlayers) {
 	// reset map tops
 	declare Integer MapHit 		for Player = 0;
 	declare Integer MapCombo	for Player = 0;
@@ -344,8 +367,19 @@ foreach(Player in Players) {
 	
 	declare Integer Battle_RoundIndex for Player.Score = -1;
 	Battle_RoundIndex = 0;
+	
+	declare Integer RoundCombo for Player = 0;
+	RoundCombo = 0;
+	
+	declare Integer Battle_ScoreCapture for Player;
+	declare Integer Battle_ScoreDefense for Player;
+	declare Integer Battle_ScoreAttack  for Player;
+	Battle_ScoreCapture = 0;
+	Battle_ScoreDefense = 0;
+	Battle_ScoreAttack = 0;
+		
+	InitializePlayer(Player, "");
 }
-ResetMapRunnersRanking();
 
 SpawnScreen::CreateMapInfo();
 SpawnScreen::SetModeName("Battle");
@@ -529,13 +563,16 @@ Net_RoundTop_CaptureTimeRecordsUpdate = Now;
 foreach (Score in Scores) {
 	declare Integer[Ident] RoundTop_CaptureTime for Score;
 	RoundTop_CaptureTime.clear();
+	
+	declare Integer Battle_ScoreCombo for Score;
+	Battle_ScoreCombo = 0;
 }
 
 foreach (Player in AllPlayers) {
-	InitializePlayer(Player, NbPolesByClan, LayerMarkers, PoleMarkers);
-	
 	declare Integer RoundCombo for Player = 0;
 	RoundCombo = 0;
+	
+	InitializePlayer(Player, PoleMarkers);
 }
 
 // ---------------------------------- //
@@ -572,7 +609,7 @@ ST2::SetFooterText(TextLib::Compose("%1 "^S_RoundsToWin, _("Points limit : ")));
 
 ***OnNewPlayer***
 ***
-InitializePlayer(Player, NbPolesByClan, LayerMarkers, PoleMarkers);
+InitializePlayer(Player, PoleMarkers);
 // Show welcome window to beginners
 if(S_AllowBeginners) {
 	Beginners::NotifyNewPlayer(Player);
@@ -584,7 +621,7 @@ Interface::ShowSlider(Player, 0);
 
 ***OnNewSpectator***
 ***
-InitializePlayer(Spectator, NbPolesByClan, LayerMarkers, PoleMarkers);
+InitializePlayer(Spectator, PoleMarkers);
 if (Now > StartTime + 10) UpdateLayerScoresTable = True;
 
 Interface::ShowSlider(Spectator, 0);
@@ -953,7 +990,11 @@ for (Clan, 1, 2) {
 			foreach (PlayerId in Pole.Sector.PlayersIds) {
 				if (!Players.existskey(PlayerId)) continue;
 				declare Player <=> Players[PlayerId];
-				declare Ident[] RoundTop_TouchedPoles for Player;
+				
+				// We can only touch the poles of the opponent
+				if (Player.CurrentClan == Clan) continue;
+				
+				declare Ident[] RoundTop_TouchedPoles for Player;										
 				if (RoundTop_TouchedPoles.exists(Pole.Id)) continue;
 				RoundTop_TouchedPoles.add(Pole.Id);
 				
@@ -1037,9 +1078,12 @@ for (Clan, 1, 2) {
 			Pole.Gauge.Speed = NumberOfPlayerCapturing;
 			
 			
-			if(NumberOfPlayerCapturing > 0) {
+			if (NumberOfPlayerCapturing > 0) {
 				DoUpdateScore = True;
-				CaptureOngoing = True;
+				
+				if (!Pole.Gauge.Captured) {
+					CaptureOngoing = True;
+				}
 			}
 			
 		} else {
@@ -1765,8 +1809,12 @@ Void UpdateBasesColors() {
 Void UpdatePlayerScore(CSmPlayer Player, Integer CaptureMaxValue) {
 	if(Player.Score == Null) return;
 	
-	declare Real ScoreCaptureFactor = S_PointsPerPole 			 / CaptureMaxValue;
-	declare Real ScoreDenyFactor	= S_DefPointOnDenyForOnePole / CaptureMaxValue;
+	declare Real ScoreCaptureFactor = 1.;
+	declare Real ScoreDenyFactor	= 1.; 
+	if (CaptureMaxValue != 0) {
+		ScoreCaptureFactor = S_PointsPerPole / CaptureMaxValue;
+		ScoreDenyFactor = S_DefPointOnDenyForOnePole / CaptureMaxValue;
+	}
 	
 	declare Integer Battle_ScoreDefenseBonus	for Player.Score;
 	declare Integer Battle_ScoreAttackBonus  	for Player.Score;
@@ -1810,7 +1858,7 @@ Void SendCaptureTime(CSmPlayer _Player) {
 	Net_RoundTop_CaptureTimeUpdate = Now;
 }
 
-Void InitializePlayer(CSmPlayer Player, Integer NbPolesByClan, CUILayer LayerMarkers, Text PoleMarkers) {
+Void InitializePlayer(CSmPlayer Player, Text PoleMarkers) {
 	SetPlayerClan(Player, MM_GetRequestedClan(Player));
 	
 	if(Player.Score == Null) return;
@@ -2038,10 +2086,10 @@ Void CreateRoundInfoUI(CUILayer LayerRoundInfo, CSmMapLandmark[][Integer] ClanPo
 					Page.GetClassChildren("ClanSpecific", Page.MainFrame, True);
 					foreach (Control in Page.GetClassChildren_Result) {
 						if (Control.HasClass("Clan1")) {
-							if (InputPlayer.CurrentClan == 1) Control.Visible = True;
+							if (InputPlayer.CurrentClan == 1 || IsSpectatorMode) Control.Visible = True;
 							else Control.Visible = False;
 						} else if (Control.HasClass("Clan2")) {
-							if (InputPlayer.CurrentClan == 2) Control.Visible = True;
+							if (InputPlayer.CurrentClan == 2 || IsSpectatorMode) Control.Visible = True;
 							else Control.Visible = False;
 						}
 					}
