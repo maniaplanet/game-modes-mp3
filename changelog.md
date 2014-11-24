@@ -1,3 +1,42 @@
+<a id="2014-11-24">2014-11-24</a>
+---------------------------------
+
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-11-19...ManiaPlanet_Update_2014-11-24)
+
+### Modes
+
+#### ShootMania/ModeMatchmaking
+* Added a safe time of 15 seconds after a server transfer request that prevents players to be listed as ready if the transer is too slow. It fixes the random players suspensions and incomplete matches. [see](http://forum.maniaplanet.com/viewtopic.php?p=234284#p234284)
+* Fix : division by 0 on the average waiting time.
+
+#### ShootMania/Battle
+* Fix : better initialization of the scores and tops at the beginning of the map.
+* Fix : players can't touch a captured pole to win the overtime anymore.
+* Display the capture times of the two teams when spectating.
+
+#### ShootMania/Elite
+* Fix : double check the LadderClan of all scores at the end of the map in matchmaking.
+
+#### TrackMania/RoundsBase
+* Fix : The `Rounds_SetPointsRepartition` XmlRpc method now accepts array with only 1 item.
+* Restore the round points repartition after a map restart if it was changed through XmlRpc.
+
+### Librairies
+
+#### VoteMap
+* New style for the UI matching the Shootmania style.
+* Adapt the number of columns according to the number of maps in the playlist.
+
+#### Window
+* New library.
+* Allow to easily create resizable window background from custom images.
+
+#### TrackMania/UI
+* It's now possible to hide the endmap ladder recap and multilap info.
+
+---------------------------------
+
+
 <a id="2014-11-xx">2014-11-19</a>
 ---------------------------------
 

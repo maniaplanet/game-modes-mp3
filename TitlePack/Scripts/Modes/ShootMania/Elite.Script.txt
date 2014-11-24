@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-10-27"
+#Const Version		"2014-11-21"
 #Const ScriptName	"Elite.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -1994,6 +1994,12 @@ DestroyPlayersLists();
 ***LadderPoints***
 ***
 foreach (Score in Scores) {
+	// Check player clan
+	if (MM_IsMatchServer() && Score.LadderClan == 0) {
+		declare Clan = MM_GetAssignedClan(Score.User.Login);
+		if (Clan > 0) Score.LadderClan = Clan;
+	}
+	
 	declare PrevPoints for Score = 0;
 	PrevPoints = Score.Points;
 	declare NbHit for Score = 0;
