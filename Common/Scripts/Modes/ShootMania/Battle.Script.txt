@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-11-24"
+#Const	Version				"2014-11-26"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -25,7 +25,6 @@
 // Settings
 // ---------------------------------- //
 #Setting S_RespawnTime			6001	as _("Respawn time")		///< Time before respawn
-#Setting S_AutoBalance			True	as _("Use autobalance")		///< Use auto balance at the start of the map
 #Setting S_RoundsToWin			2		as _("Rounds to win")		///< Number of rounds to win a map
 #Setting S_RoundGapToWin		1		as _("Round gap to win")	///< Minimum gap between the two leaders to win a map
 #Setting S_RoundsLimit			3		as _("Rounds limit")		///< Point limit on map
@@ -54,7 +53,10 @@
 #Setting S_DisplayTopsMap		True	as _("Display the tops at the end of the map")
 #Setting S_DisplayTopsOnlyShooter False	as _("Only display the shooter top")
 #Setting S_DisplayPoleRecords	True	as _("Display pole running time record")
-
+// Auto balance
+#Setting S_AutoBalance			True	as _("Use map autobalance")		///< Use auto balance at the start of the map
+#Setting S_AutoBalanceRound		True	as _("Use round autobalance")	///< Use auto balance at the end of the round
+#Setting S_AutoBalanceDelta		2		as _("Maximum clan players number difference")	///< Maximum difference of players number before autobalance
 
 // Score Constants (used to be settings)
 #Const S_HotSpotsRadius				20.
@@ -353,7 +355,6 @@ foreach (Score in Scores) {
 }
 
 foreach (Player in AllPlayers) {
-	// reset map tops
 	declare Integer MapHit 		for Player = 0;
 	declare Integer MapCombo	for Player = 0;
 	declare Integer MapCapture 	for Player = 0;
@@ -377,6 +378,9 @@ foreach (Player in AllPlayers) {
 	Battle_ScoreCapture = 0;
 	Battle_ScoreDefense = 0;
 	Battle_ScoreAttack = 0;
+	
+	declare Battle_BalanceClan for Player = -1;
+	Battle_BalanceClan = -1;
 		
 	InitializePlayer(Player, "");
 }
@@ -873,7 +877,7 @@ foreach (Player in Players) {
 		if (MM_IsMatchServer() && !MM_PlayerIsValid(Player)) continue;
 		
 		// Set player clan
-		SetPlayerClan(Player, MM_GetRequestedClan(Player));
+		SetPlayerClan(Player, Battle_GetRequestedClan(Player));
 		if (SpawnIsLimited()) {
 			WarmUp2::Clean();
 			if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
@@ -1482,12 +1486,21 @@ if (S_AlternativePoints) {
 		Score.RoundPoints = Battle_ScoreAlternative;
 	}
 }
-Score::RoundEnd();
-BalancedWeapons::RoundEnd();
 Victory::RoundEnd();
 
+// Match / Map win
+if (!Victory::NoMatchWinner() || MatchEndRequested) {
+	MB_StopMatch = True;
+} else {
+	// Autoround balance
+	if (S_AutoBalanceRound && !MM_IsMatchmakingServer()) {
+		AutoTeamBalanceRound();
+	}
+}
 
-if(!Victory::NoMatchWinner() || MatchEndRequested) MB_StopMatch = True;
+Score::RoundEnd();
+BalancedWeapons::RoundEnd();
+
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 ResetAllUIs();
 // LayerMarkers.ManialinkPage = ""; // Crash.
@@ -1677,6 +1690,29 @@ if(S_BattleWaves) {
 UpdateModeStatusMessage();
 SpawnScreen::CreatePrettyRules(ModeName);
 ***
+// ---------------------------------- //
+/** Get the requested clan of a player
+ *
+ *	@param	_Player		The player to check
+ *
+ *	@return				The requested clan of the player
+ */
+Integer Battle_GetRequestedClan(CSmPlayer _Player) {
+	if (MM_IsMatchServer()) {
+		return MM_GetRequestedClan(_Player);
+	} else {
+		if (_Player == Null) return 0;
+		
+		declare Battle_BalanceClan for _Player = -1;
+		if (S_AutoBalanceRound && (Battle_BalanceClan == 1 || Battle_BalanceClan == 2)) {
+			return Battle_BalanceClan;
+		} else {
+			return _Player.RequestedClan;
+		}
+	}
+	
+	return 0;
+}
 
 // ---------------------------------- //
 /** Turn on/off the overtime
@@ -1859,7 +1895,7 @@ Void SendCaptureTime(CSmPlayer _Player) {
 }
 
 Void InitializePlayer(CSmPlayer Player, Text PoleMarkers) {
-	SetPlayerClan(Player, MM_GetRequestedClan(Player));
+	SetPlayerClan(Player, Battle_GetRequestedClan(Player));
 	
 	if(Player.Score == Null) return;
 	
@@ -3166,7 +3202,7 @@ Void WaitForPlayers(Integer _MinimumNbPlayers, Integer _Duration) {
 		SM::UnspawnPlayersChangingClan();
 		foreach(Player in Players) {
 			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
-				declare Clan = MM_GetRequestedClan(Player);
+				declare Clan = Battle_GetRequestedClan(Player);
 				declare Spawn <=> Map::GetPlayerSpawn("Spawn", Clan);
 				if (Spawn != Null) SM::SpawnPlayer(Player, Clan, Spawn);
 			}
@@ -3216,7 +3252,7 @@ Void DoWarmUp() {
 	Mode::Synchro_DoBarrier();
 	SM::UnspawnAllPlayers();
 	foreach (Player in AllPlayers) {
-		SetPlayerClan(Player, MM_GetRequestedClan(Player));
+		SetPlayerClan(Player, Battle_GetRequestedClan(Player));
 		if (Player.CurrentClan == 1) WarmUp2::SetPlayerGroup(Player, "Clan1");
 		else if (Player.CurrentClan == 2) WarmUp2::SetPlayerGroup(Player, "Clan2");
 		
@@ -3237,7 +3273,7 @@ Void DoWarmUp() {
 		if (PlayersNbTotal <= 0) continue;
 		
 		foreach (Player in Players) {
-			declare RequestedClan = MM_GetRequestedClan(Player);
+			declare RequestedClan = Battle_GetRequestedClan(Player);
 			if (Player.CurrentClan != RequestedClan) {
 				UnspawnPlayer(Player);
 				SetPlayerClan(Player, RequestedClan);
@@ -3262,7 +3298,7 @@ Void DoWarmUp() {
 		
 		foreach(Player in Players) {
 			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
-				declare Spawn <=> Map::GetPlayerSpawn("Spawn", MM_GetRequestedClan(Player));
+				declare Spawn <=> Map::GetPlayerSpawn("Spawn", Battle_GetRequestedClan(Player));
 				if (Spawn != Null) SM::SpawnPlayer(Player, Player.CurrentClan, Spawn);
 			}
 		}
@@ -3290,6 +3326,128 @@ Void DoWarmUp() {
 	else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 	
 	XmlRpc::EndWarmUp();
+}
+
+// ---------------------------------- //
+/** Transfert player for auto team balance
+ *
+ *	@param	_CountClan1		Number of players in clan 1
+ *	@param	_CountClan2		Number of players in clan 2
+ *	@param	_HitClan1		Number of hits in clan 1
+ *	@param	_HitClan2		Number of hits in clan 2
+ *
+ *	@return					True if a player was transfered, False otherwise
+ */
+Boolean AutoTeamBalanceRound_Recursive(Integer _CountClan1, Integer _CountClan2, Integer _HitClan1, Integer _HitClan2) {
+	if (_CountClan1 > _CountClan2) {
+		declare Diff = (_HitClan1 - _HitClan2) / 2;
+		if (Diff < 0) Diff = 0;
+		declare MinDiff = -1;
+		declare CSmPlayer TransfertPlayer;
+		
+		foreach (Player in Players) {
+			if (Player.Score == Null || Player.CurrentClan != 1) continue;
+			declare CurDiff = MathLib::Abs(Diff - Player.Score.RoundPoints);
+			if (MinDiff < 0 || CurDiff < MinDiff) {
+				MinDiff = CurDiff;
+				TransfertPlayer <=> Player;
+				if (MinDiff == 0) break;
+			}
+		}
+		
+		if (TransfertPlayer != Null) {
+			declare Battle_BalanceClan for TransfertPlayer = -1;
+			Battle_BalanceClan = 2;
+			
+			UnspawnPlayer(TransfertPlayer);
+			SetPlayerClan(TransfertPlayer, Battle_BalanceClan);
+			
+			return True;
+		}
+	} else if (_CountClan2 > _CountClan1) {
+		declare Diff = (_HitClan2 - _HitClan1) / 2;
+		if (Diff < 0) Diff = 0;
+		declare MinDiff = -1;
+		declare CSmPlayer TransfertPlayer;
+		
+		foreach (Player in Players) {
+			if (Player.Score == Null || Player.CurrentClan != 2) continue;
+			declare CurDiff = MathLib::Abs(Diff - Player.Score.RoundPoints);
+			if (MinDiff < 0 || CurDiff < MinDiff) {
+				MinDiff = CurDiff;
+				TransfertPlayer <=> Player;
+				if (MinDiff == 0) break;
+			}
+		}
+		
+		if (TransfertPlayer != Null) {
+			declare Battle_BalanceClan for TransfertPlayer = -1;
+			Battle_BalanceClan = 1;
+			
+			UnspawnPlayer(TransfertPlayer);
+			SetPlayerClan(TransfertPlayer, Battle_BalanceClan);
+		
+			return True;
+		}
+	}
+		
+	return False;
+}
+
+// ---------------------------------- //
+/// Auto team balance depending on hit and players number
+Void AutoTeamBalanceRound() {
+	declare IterationCount = 0;
+	
+	// Set the player in the clan they requested before doing the balance
+	foreach (Player in Players) {
+		declare Battle_BalanceClan for Player = -1;
+		declare Battle_PrevClan for Player = -1;
+		Battle_BalanceClan = -1;
+		Battle_PrevClan = Player.CurrentClan;
+		
+		UnspawnPlayer(Player);
+		SetPlayerClan(Player, Battle_GetRequestedClan(Player));
+	}
+	
+	while (True) {
+		IterationCount += 1;
+		if (IterationCount > 128) break;
+		
+		declare CountClan1 = 0;
+		declare CountClan2 = 0;
+		declare HitClan1 = 0;
+		declare HitClan2 = 0;
+		
+		foreach (Player in Players) {
+			if (Player.CurrentClan == 1) {
+				CountClan1 += 1;
+				if (Player.Score != Null) HitClan1 += Player.Score.RoundPoints;
+			} else if (Player.CurrentClan == 2) {
+				CountClan2 += 1;
+				if (Player.Score != Null) HitClan2 += Player.Score.RoundPoints;
+			}
+		}
+		
+		declare CountDiff = MathLib::Abs(CountClan1 - CountClan2);
+		if (CountDiff < S_AutoBalanceDelta || CountDiff < 2) break;
+	
+		declare Transfered = AutoTeamBalanceRound_Recursive(CountClan1, CountClan2, HitClan1, HitClan2);
+		if (!Transfered) break;
+		
+		MM_Yield();
+	}
+	
+	foreach (Player in Players) {
+		declare Battle_PrevClan for Player = -1;
+		if (Battle_PrevClan >= 0 && Battle_PrevClan != Player.CurrentClan && (Player.CurrentClan == 1 || Player.CurrentClan == 2)) {
+			declare UI <=> UIManager.GetUI(Player);
+			if (UI != Null) UI.SendChat(TextLib::Compose(
+				_("|%1 is the name of the team|Auto team balance, you are transfered to the $<%1$> team."), 
+				Teams[Player.CurrentClan-1].ColorizedName)
+			);
+		}
+	}
 }
 
 // ---------------------------------- //

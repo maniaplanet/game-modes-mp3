@@ -5,6 +5,9 @@
 
 ### Modes
 
+#### ShootMania/Battle
+* New auto balance system at the end of the round. Check the [documentation](http://doc.maniaplanet.com/modes/battle.html#Round-auto-balance).
+
 ### Libraries
 
 ---------------------------------
