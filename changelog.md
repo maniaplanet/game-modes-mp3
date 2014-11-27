@@ -1,3 +1,16 @@
+<a id="2014-11-27">2014-11-27</a>
+---------------------------------
+
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-11-24...ManiaPlanet_Update_2014-11-27)
+
+### Modes
+
+#### ShootMania/Battle
+* New auto balance system at the end of the round. Check the [documentation](http://doc.maniaplanet.com/modes/shootmania/battle.html#Round-auto-balance).
+
+---------------------------------
+
+
 <a id="2014-11-24">2014-11-24</a>
 ---------------------------------
 
@@ -18,21 +31,21 @@
 * Fix : double check the LadderClan of all scores at the end of the map in matchmaking.
 
 #### TrackMania/RoundsBase
-* Fix : The `Rounds_SetPointsRepartition` XmlRpc method now accepts array with only 1 item.
-* Restore the round points repartition after a map restart if it was changed through XmlRpc.
+* Fix : The `Rounds_SetPointsRepartition` XmlRpc method now accepts array with only 1 item. [see](http://forum.maniaplanet.com/viewtopic.php?p=234178#p234178)
+* Restore the round points repartition after a map restart if it was changed through XmlRpc. [see](http://forum.maniaplanet.com/viewtopic.php?p=233384#p233384)
 
 ### Librairies
 
 #### VoteMap
-* New style for the UI matching the Shootmania style.
-* Adapt the number of columns according to the number of maps in the playlist.
+* New style for the UI matching the Shootmania style. [see](http://forum.maniaplanet.com/viewtopic.php?p=233778#p233778)
+* Adapt the number of columns according to the number of maps in the playlist. [see](http://forum.maniaplanet.com/viewtopic.php?p=233778#p233778)
 
 #### Window
 * New library.
 * Allow to easily create resizable window background from custom images.
 
 #### TrackMania/UI
-* It's now possible to hide the endmap ladder recap and multilap info.
+* It's now possible to hide the endmap ladder recap and multilap info. [see](http://forum.maniaplanet.com/viewtopic.php?p=229002#p229002)
 
 ---------------------------------
 
