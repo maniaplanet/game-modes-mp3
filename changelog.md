@@ -1,14 +1,12 @@
-<a id="xxxx-xx-xx">xxxx-xx-xx</a>
+<a id="2014-11-27">2014-11-27</a>
 ---------------------------------
 
-[Diff from previous release]()
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-11-24...ManiaPlanet_Update_2014-11-27)
 
 ### Modes
 
 #### ShootMania/Battle
-* New auto balance system at the end of the round. Check the [documentation](http://doc.maniaplanet.com/modes/battle.html#Round-auto-balance).
-
-### Libraries
+* New auto balance system at the end of the round. Check the [documentation](http://doc.maniaplanet.com/modes/shootmania/battle.html#Round-auto-balance).
 
 ---------------------------------
 
