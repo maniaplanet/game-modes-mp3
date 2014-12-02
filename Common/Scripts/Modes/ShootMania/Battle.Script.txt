@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-11-26"
+#Const	Version				"2014-12-02"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -1097,6 +1097,13 @@ for (Clan, 1, 2) {
 	}
 }
 
+// Overtime, disadvantaged clan touch an active pole, stop countdown decrease
+if (GetOvertimeAdvantage() != CurrentAckClan) {
+	if (CaptureOngoing) {
+		DurationBeforePivot += Period;
+	}
+}
+
 if (Now >= EndTime) DoUpdateScore = True;
 
 // Update UI
@@ -1202,8 +1209,6 @@ if(S_BattleWaves) {
 						}
 					}
 					DurationBeforePivot = WavesDuration * 1000;	//< Reset the atk countdown
-				} else {
-					DurationBeforePivot += Period; //< Stop the atk countdown
 				}
 			}
 		}

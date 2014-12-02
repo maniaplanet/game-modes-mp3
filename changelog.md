@@ -1,3 +1,16 @@
+<a id="xxxx-xx-xx">xxxx-xx-xx</a>
+---------------------------------
+
+[Diff from previous release]()
+
+### Modes
+
+#### ShootMania/Battle
+* Fix : don't increase the attack countdown when the disadvantaged clan capture several poles at the same time during the overtime.
+
+---------------------------------
+
+
 <a id="2014-11-27">2014-11-27</a>
 ---------------------------------
 
