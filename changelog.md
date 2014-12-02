@@ -8,6 +8,11 @@
 #### ShootMania/Battle
 * Fix : don't increase the attack countdown when the disadvantaged clan capture several poles at the same time during the overtime.
 
+#### Librairies
+
+#### ShootMania/WaitingQueue
+Fix : clamp the team name to 30 characters. [see](http://forum.live.maniaplanet.com/viewtopic.php?p=235007&sid=9b6145ffeaf2d8a6f8e740746641353f#p235007)
+
 ---------------------------------
 
 
