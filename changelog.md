@@ -5,6 +5,9 @@
 
 ### Modes
 
+#### Matchmaking
+* Better save and restoration of allies when joining the lobby. [see](https://forum.maniaplanet.com/viewtopic.php?p=234752#p234752)
+
 #### ShootMania/Battle
 * Fix : don't increase the attack countdown when the disadvantaged clan capture several poles at the same time during the overtime.
 
