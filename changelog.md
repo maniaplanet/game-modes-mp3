@@ -11,10 +11,15 @@
 #### ShootMania/Battle
 * Fix : don't increase the attack countdown when the disadvantaged clan capture several poles at the same time during the overtime.
 
+#### ShootMania/Combo
+* The automatic spectating mode (Numpad 0) will always target a player of the team with the least spawned players. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
+* Remember the display state of the items respawn timers and markers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
+* Better styling of the items respawn timers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
+
 #### Librairies
 
 #### ShootMania/WaitingQueue
-Fix : clamp the team name to 30 characters. [see](http://forum.live.maniaplanet.com/viewtopic.php?p=235007&sid=9b6145ffeaf2d8a6f8e740746641353f#p235007)
+Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/viewtopic.php?p=235007#p235007)
 
 ---------------------------------
 
@@ -114,7 +119,7 @@ Fix : clamp the team name to 30 characters. [see](http://forum.live.maniaplanet.
 * Global variables now use a better prefix to avoid name collision.
 * Fix : players canceling a substitute won't received a penalty anymore.
 * No rematch vote if one of the team doesn't have any players left.
-* Cancel LP attribution if a match was won by forfeit after only a few rounds. [see](http://forum.maniaplanet.com/viewtopic.php?p=233551&sid=72485e13c044c707add7e3544a9e176b#p233551)
+* Cancel LP attribution if a match was won by forfeit after only a few rounds. [see](https://forum.maniaplanet.com/viewtopic.php?p=233551#p233551)
 * Wait for players connection/loading during 15 seconds at the beginning of each new map.
 * More debug information.
 
