@@ -8,18 +8,54 @@
 #### Matchmaking
 * Better save and restoration of allies when joining the lobby. [see](https://forum.maniaplanet.com/viewtopic.php?p=234752#p234752)
 
-#### ShootMania/Battle
-* Fix : don't increase the attack countdown when the disadvantaged clan capture several poles at the same time during the overtime.
-
-#### ShootMania/Combo
+#### Shootmania/Combo
 * The automatic spectating mode (Numpad 0) will always target a player of the team with the least spawned players. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 * Remember the display state of the items respawn timers and markers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 * Better styling of the items respawn timers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 
 #### Librairies
 
-#### ShootMania/WaitingQueue
+#### Shootmania/WaitingQueue
 Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/viewtopic.php?p=235007#p235007)
+
+---------------------------------
+
+<a id="2015-02-10">2015-02-10</a>
+---------------------------------
+
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2014-11-27...ManiaPlanet_Update_2015-02-10)
+
+### Modes
+
+#### Matchmaking
+* The matchmaking now works with Trackmania.
+
+#### Trackmania/Chase
+* New game mode.
+
+#### Trackmania/Cup
+* Matchmaking compatibility.
+
+#### Trackmania/Team
+* Matchmaking compatibility.
+
+#### Shootmania/Battle
+* Fix : don't increase the attack countdown when the disadvantaged clan capture several poles at the same time during the overtime.
+* Hide some of the settings to the players.
+* Gladiator mode : reload one armor on hit.
+
+#### Librairies
+
+#### VoteMap
+* Animations on the vote map UI. [see](https://forum.maniaplanet.com/viewtopic.php?p=236199#p236199)
+
+#### Trackmania/TM2
+* New functions to get information about the clan of the players.
+* New EndRace() function with an additional argument to display or not the scores table.
+* New EndRaceAll() function to end the race of all the players at once.
+
+#### Trackmania/UI
+* Fix : hide the small scores table during the podium sequence.
 
 ---------------------------------
 
