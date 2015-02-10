@@ -5,12 +5,13 @@
  *	each map with a vote has a chance top be selected.
  *	Maps with more votes have a higher probability to be selected.
  */
-#Const	Version		"2014-11-21"
+#Const	Version		"2014-12-31"
 #Const	ScriptName	"VoteMap.Script.txt"
 
 #Include "MathLib" as ML
 #Include "Libs/Nadeo/CustomUI.Script.txt" as CustomUI
 #Include "Libs/Nadeo/Window.Script.txt" as Window
+#Include "Libs/Nadeo/Manialink.Script.txt" as Manialink
 
 // ---------------------------------- //
 // Constants
@@ -20,6 +21,8 @@
 #Const C_LibVoteMap_SequenceNone			0		///< Vote not started
 #Const C_LibVoteMap_SequenceVote			1		///< Vote sequence
 #Const C_LibVoteMap_SequenceResult			2		///< Result sequence
+#Const C_LibVoteMap_SequenceAnim			3		///< Anim sequence
+#Const C_LibVoteMap_AnimDuration			450		///< Duration of the animations
 
 // ---------------------------------- //
 // Globales
@@ -29,6 +32,7 @@ declare Integer G_LibVoteMap_ResultDuration;	///< Result display duration
 declare CMapInfo[] G_LibVoteMap_AvailableMaps;	///< List of maps available for the vote
 declare Integer G_LibVoteMap_Sequence;			///< Current sequence
 declare Text G_LibVoteMap_Style;				///< Style of the UI
+declare Boolean G_LibVoteMap_UseAnimations;		///< Use animations to show/hide the vote UI
 
 // ---------------------------------- //
 // Functions
@@ -95,7 +99,7 @@ Text Private_CreateMLVoteMap(Text _Style, Integer _MapsCount) {
 	<label posn="2 0 2" sizen="{{{MapWidth*0.8}}} 11" halign="left" valign="center2" textsize="3" translate="0" id="Label_Name" />
 	<label posn="{{{MapWidth-2}}} 0 0" sizen="{{{MapWidth*0.15}}} 5" halign="right" valign="center2" style="TextRaceMessageBig" textsize="6" id="Label_Vote" />
 </framemodel>
-<frame posn="0 -10 10" id="Frame_Global">
+<frame posn="0 160 10" id="Frame_Global" hidden="1">
 	<frame id="Frame_Background">
 		{{{BgStyle}}}
 	</frame>
@@ -129,6 +133,9 @@ Text Private_CreateMLVoteMap(Text _Style, Integer _MapsCount) {
 </frame>
 <script><!--
 #Include "TextLib" as TL
+#Include "MathLib" as ML
+
+{{{Manialink::Animations(["EaseOutExp"])}}}
 
 declare Integer G_MapCardsNb;
 declare Integer G_CurrentPage;
@@ -252,6 +259,17 @@ Void SelectMap(Integer _MapKey) {
 	Net_LibVoteMap_Validate = Now;
 }
 
+Void PlayAnim(Text _AnimId) {
+	if (_AnimId == "SlideIn") {
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 -10" id="Frame_Global" />""")}}}, {{{C_LibVoteMap_AnimDuration}}}, "EaseOutExp");
+	} else if(_AnimId == "SlideOut") {
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 160" id="Frame_Global" />""")}}}, {{{C_LibVoteMap_AnimDuration}}}, "EaseOutExp");
+	} else {
+		Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
+		Frame_Global.RelativePosition.Y = -10.;
+	}
+}
+
 main() {
 	Frame_Global		<=> (Page.GetFirstChild("Frame_Global")				as CMlFrame);
 	Frame_Vote			<=> (Page.GetFirstChild("Frame_Vote")				as CMlFrame);
@@ -278,16 +296,29 @@ main() {
 	declare netwrite Integer Net_LibVoteMap_SynchroClient for UI;
 	declare netread Integer Net_LibVoteMap_MapListUpdate for Teams[0];
 	declare netread Integer Net_LibVoteMap_ResultUpdate for Teams[0];
+	declare netread Integer Net_LibVoteMap_AnimUpdate for Teams[0];
+	declare netread Text Net_LibVoteMap_Anim for Teams[0];
 	declare netwrite Integer Net_LibVoteMap_Validate for UI;
 	Net_LibVoteMap_Validate = -1;
 	
 	declare PrevSequence = -1;
 	declare PrevMapListUpdate = -1;
 	declare PrevResultUpdate = -1;
+	declare PrevAnimUpdate = -1;
+	
+	while (InputPlayer == Null) yield;
+	Frame_Global.Visible = True;
 	
 	while (True) {
 		yield;
 		if (!PageIsVisible || InputPlayer == Null) continue;
+		
+		LibManialink_AnimLoop();
+		
+		if (PrevAnimUpdate != Net_LibVoteMap_AnimUpdate) {
+			PrevAnimUpdate = Net_LibVoteMap_AnimUpdate;
+			PlayAnim(Net_LibVoteMap_Anim);
+		}
 		
 		if (PrevSequence != Net_LibVoteMap_Sequence) {
 			PrevSequence = Net_LibVoteMap_Sequence;
@@ -372,6 +403,8 @@ Integer Private_GetSequence() {
 	return G_LibVoteMap_Sequence;
 }
 
+// ---------------------------------- //
+/// Synchronize the client with the server
 Void Private_Synchro() {
 	declare LibVoteMap_SynchroServer for This = 0;
 	LibVoteMap_SynchroServer += 1;
@@ -379,6 +412,18 @@ Void Private_Synchro() {
 	
 	declare netwrite Integer Net_LibVoteMap_SynchroServer for Teams[0];
 	Net_LibVoteMap_SynchroServer = LibVoteMap_SynchroServer;
+}
+
+// ---------------------------------- //
+/** Anim the vote map manialink
+ *
+ *	@param	_AnimeId		The name of the animation to play
+ */
+Void Private_AnimVoteMap(Text _AnimId) {
+	declare netwrite Integer Net_LibVoteMap_AnimUpdate for Teams[0];
+	declare netwrite Text Net_LibVoteMap_Anim for Teams[0];
+	Net_LibVoteMap_Anim = _AnimId;
+	Net_LibVoteMap_AnimUpdate = Now;
 }
 
 // ---------------------------------- //
@@ -412,6 +457,7 @@ Void Unload() {
 		UIManager.UILayerDestroy(LayerVoteMap);
 	}
 	
+	G_LibVoteMap_UseAnimations = True;
 	G_LibVoteMap_ResultDuration = -1;
 	G_LibVoteMap_Style = "";
 	G_LibVoteMap_AvailableMaps.clear();
@@ -444,12 +490,21 @@ Void SetStyle(Text _Style) {
 }
 
 // ---------------------------------- //
-/**Get the selected style of UI
+/**	Get the selected style of UI
  *
  *	@return		The selected style
  */
 Text GetStyle() {
 	return G_LibVoteMap_Style;
+}
+
+// ---------------------------------- //
+/**	Use animations to show/hide the vote UI
+ *
+ *	@param	_UseAnimations		True to use animations, False otherwise
+ */
+Void UseAnimations(Boolean _UseAnimations) {
+	G_LibVoteMap_UseAnimations = _UseAnimations;
 }
 
 // ---------------------------------- //
@@ -499,6 +554,8 @@ Void Begin(CMapInfo[] _Maps, Integer _VoteDuration, Integer _ResultDuration) {
 		}
 		
 		LayerVoteMap.ManialinkPage = Private_CreateMLVoteMap(G_LibVoteMap_Style, Net_LibVoteMap_MapList.count);
+		if (G_LibVoteMap_UseAnimations) Private_AnimVoteMap("SlideIn");
+		else Private_AnimVoteMap("Reset");
 	}
 	
 	if (_VoteDuration >= 0) {
@@ -534,6 +591,7 @@ Boolean CanStop() {
 // ---------------------------------- //
 /// Update the vote process and receive the choices of the players
 Void Loop() {
+	// Vote
 	if (Private_GetSequence() == C_LibVoteMap_SequenceVote) {
 		declare AllPlayersVoted = True;
 		
@@ -622,6 +680,17 @@ Void Loop() {
 			Net_LibVoteMap_Result = [MapName, MapAuthor, MapComment];
 			Net_LibVoteMap_ResultUpdate = Now;
 		}
+	} 
+	// Result
+	else if (Private_GetSequence() == C_LibVoteMap_SequenceResult) {
+		if (Now >= UIManager.UIAll.CountdownEndTime) {
+			Private_SetSequence(C_LibVoteMap_SequenceAnim);
+			UIManager.UIAll.CountdownEndTime = Now + C_LibVoteMap_AnimDuration;
+			
+			// Anim layer
+			if (G_LibVoteMap_UseAnimations) Private_AnimVoteMap("SlideOut");
+			else Private_AnimVoteMap("Reset");
+		}
 	}
 }
 
@@ -653,4 +722,13 @@ CMapInfo GetNextMapInfo() {
 	}
 	
 	return MapInfo;
+}
+
+// ---------------------------------- //
+/** Get the duration of the vote
+ *
+ *	@return		The duration of the vote
+ */
+Integer GetVoteDuration() {
+	return UIManager.UIAll.CountdownEndTime;
 }
