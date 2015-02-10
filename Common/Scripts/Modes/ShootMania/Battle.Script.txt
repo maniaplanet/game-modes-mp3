@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-12-02"
+#Const	Version				"2014-11-26"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -24,34 +24,35 @@
 // ---------------------------------- //
 // Settings
 // ---------------------------------- //
-#Setting S_RespawnTime			6001	as _("Respawn time")		///< Time before respawn
+#Setting S_RespawnTime			6001	as "<hidden>" //_("Respawn time")		///< Time before respawn
 #Setting S_RoundsToWin			2		as _("Rounds to win")		///< Number of rounds to win a map
 #Setting S_RoundGapToWin		1		as _("Round gap to win")	///< Minimum gap between the two leaders to win a map
 #Setting S_RoundsLimit			3		as _("Rounds limit")		///< Point limit on map
-#Setting S_TimeLimit			300 	as _("Time limit (seconds)")///< Time limit (seconds)
+#Setting S_TimeLimit			300 	as "<hidden>" //_("Time limit (seconds)")///< Time limit (seconds)
 #Setting S_UseOvertime			True	as _("Use overtime")		///< Activate the overtime system
 #Setting S_CaptureMaxValue		30000	as _("Capture time (milliseconds)") ///< Pole capture time (milliseconds)
-#Setting S_AlternativePoints	False	as _("Use atk and def points as score")
-#Setting S_AllowBeginners		False	as _("Is a Beginners Welcome server")
+#Setting S_AlternativePoints	False	as "<hidden>" //_("Use atk and def points as score")
+#Setting S_AllowBeginners		False	as "<hidden>" //_("Is a Beginners Welcome server")
 //#Setting 	S_AutoManageAFK		True	as _("Switch inactive players to spectators")
 #Setting S_ArmorPoints			2		as _("Armor points")
 #Setting S_WarmUpDuration		0		as _("Warm up duration (sec.)")							///< Duration of the warm up round (0 = no warmup)
-#Setting S_NbPlayersPerTeamMax	0		as _("Maximum number of players per team (0: no max)")	///< Do not spawn players beyond this limit, 0=no limit
-#Setting S_NbPlayersPerTeamMin	1		as _("Minumum number of players per team")			///< Wait until this minimum is reach
+#Setting S_NbPlayersPerTeamMax	0		as "<hidden>" //_("Maximum number of players per team (0: no max)")	///< Do not spawn players beyond this limit, 0=no limit
+#Setting S_NbPlayersPerTeamMin	1		as "<hidden>" //_("Minumum number of players per team")			///< Wait until this minimum is reach
 // Waves Settings
-#Setting S_BattleWaves					True	as _("Use Waves Mode")
+#Setting S_BattleWaves					True	as "<hidden>" //_("Use Waves Mode")
 #Setting S_TimeLimitForFirstCapture		300		as _("Time limit for first capture") // en s
 #Setting S_TimeLimitAfterFirstCapture	600		as _("Time limit after first capture") // en s
 #Setting S_WaveDuration					15		as _("Wave duration") // en s
 #Setting S_StayInAttackOnCapture		True	as _("Reset timer when a pole is beeing captured")
+#Setting S_GladiatorMode				False	as "<hidden>" ///< Give bonus on hit
 // Clublinks settings
-#Setting S_UsePlayerClublinks	False	as _("Use players clublinks")	///< Use the players clublinks, or otherwise use the default teams
+#Setting S_UsePlayerClublinks	False	as "<hidden>" //_("Use players clublinks")	///< Use the players clublinks, or otherwise use the default teams
 #Setting S_ForceClublinkTeam1	""		as "<hidden>"	///< Force the Clublink of team 1 (format: http://www.example.com/MyTeam.Club.xml)
 #Setting S_ForceClublinkTeam2	""		as "<hidden>"	///< Force the Clublink of team 2 (format: http://www.example.com/MyTeam.Club.xml)
 // UI setting
 #Setting S_DisplayTopsRound		True	as _("Display the tops at the end of the round")
 #Setting S_DisplayTopsMap		True	as _("Display the tops at the end of the map")
-#Setting S_DisplayTopsOnlyShooter False	as _("Only display the shooter top")
+#Setting S_DisplayTopsOnlyShooter False	as "<hidden>" //_("Only display the shooter top")
 #Setting S_DisplayPoleRecords	True	as _("Display pole running time record")
 // Auto balance
 #Setting S_AutoBalance			True	as _("Use map autobalance")		///< Use auto balance at the start of the map
@@ -313,7 +314,6 @@ G_PolesIndice = Integer[Ident];
 // Reset clan scores
 ClanScores[1] = 0;
 ClanScores[2] = 0;
-MM_SetScores([ClanScores[1], ClanScores[2]]);
 ***
 
 
@@ -328,6 +328,8 @@ else MB_UseIntro = True;
 
 ***StartMap***
 ***
+MM_SetScores([ClanScores[1], ClanScores[2]]);
+
 G_CurrentRoundIndex = 0;
 Users_SetNbFakeUsers(C_Battle_BlueBots, C_Battle_RedBots); // add bots for debug purpose
 
@@ -420,6 +422,7 @@ IsRematch = False;
 // ---------------------------------- //
 // Matchmaking : allow substitutes
 if (MM_IsMatchServer()) MM_AllowSubstitutes(True);
+MM_SetScores([ClanScores[1], ClanScores[2]]);
 
 // ---------------------------------- //
 // Create tops slider
@@ -765,6 +768,16 @@ foreach (Event in PendingEvents) {
 					}
 				}
 				
+				// Gladiator mode
+				if (S_GladiatorMode) {
+					if (Event.Shooter.Armor < Event.Shooter.ArmorMax) {
+						Event.Shooter.Armor += 100;
+						if (Event.Shooter.Armor > Event.Shooter.ArmorMax) {
+							Event.Shooter.Armor = Event.Shooter.ArmorMax;
+						}
+					}
+				}
+
 				+++SetCustomScoreHit+++
 			}
 			XmlRpc::OnHit(Event);
@@ -826,8 +839,8 @@ if(S_BattleWaves) {
 				declare PlayerClan = Player.CurrentClan;
 				if (EngageClan < 0) {
 					EngageClan = PlayerClan;
-					EngageName = Player.Name;
-					EngageLogin = Player.Login;
+					EngageName = Player.User.Name;
+					EngageLogin = Player.User.Login;
 				} else if (EngageClan != PlayerClan) {
 					// 2 diff clans on the pole : no capture
 					EngageClan = -1;
@@ -872,7 +885,7 @@ if(S_BattleWaves) {
 
 // Spawning players
 foreach (Player in Players) {
-	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !Player.RequestsSpectate) {
+	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !Player.User.RequestsSpectate) {
 		// Skip invalid player in matchmaking
 		if (MM_IsMatchServer() && !MM_PlayerIsValid(Player)) continue;
 		
@@ -990,7 +1003,7 @@ for (Clan, 1, 2) {
 		}
 		
 		// Capture time record
-		if (Pole.Sector.PlayersIds.count > 0) {
+		if (S_DisplayPoleRecords && Pole.Sector.PlayersIds.count > 0) {
 			foreach (PlayerId in Pole.Sector.PlayersIds) {
 				if (!Players.existskey(PlayerId)) continue;
 				declare Player <=> Players[PlayerId];
@@ -1712,7 +1725,7 @@ Integer Battle_GetRequestedClan(CSmPlayer _Player) {
 		if (S_AutoBalanceRound && (Battle_BalanceClan == 1 || Battle_BalanceClan == 2)) {
 			return Battle_BalanceClan;
 		} else {
-			return _Player.RequestedClan;
+			return _Player.User.RequestedClan;
 		}
 	}
 	
@@ -3146,7 +3159,7 @@ Boolean SpawnIsLimited() {
  */
 Boolean IsSpawnable(CSmPlayer _Player) {
 	if (_Player == Null) return False;
-	if (_Player.RequestsSpectate) return False;
+	if (_Player.User.RequestsSpectate) return False;
 	if (!SpawnIsLimited()) return True;
 	
 	if (WarmUp2::GetPlayerSlot(_Player) <= 0) return False;
@@ -3475,7 +3488,7 @@ Integer[Text] GetRunnersRanking(Text _Level) {
 		declare Integer[Ident] RoundTop_CaptureTime for Player.Score;
 		foreach (PoleId => CaptureTime in RoundTop_CaptureTime) {
 			if (!CaptureTimeRanking.existskey(PoleId)) CaptureTimeRanking[PoleId] = Integer[Text];
-			CaptureTimeRanking[PoleId][Player.Login] = CaptureTime;
+			CaptureTimeRanking[PoleId][Player.User.Login] = CaptureTime;
 		}
 	}
 	
@@ -3551,6 +3564,9 @@ Void LaunchTop5Sequence(Text _Level) {
 	Layers::Show("Top5");
 	
 	declare Tops = ["Runners", "Attack", "Defense", "Capture", "Hits"];
+	if (!S_DisplayPoleRecords) {
+		declare Removed = Tops.remove("Runners");
+	}
 	if (S_DisplayTopsOnlyShooter) Tops = ["Hits"];
 	foreach (Top in Tops) {
 		declare Integer[Text] Ranking;
@@ -3568,13 +3584,13 @@ Void LaunchTop5Sequence(Text _Level) {
 				if (_Level == "round") {
 					foreach (Player in AllPlayers) {
 						declare Integer Battle_ScoreAttack for Player;
-						Ranking[Player.Login] = -Battle_ScoreAttack;
+						Ranking[Player.User.Login] = -Battle_ScoreAttack;
 					}
 					UIManager.UIAll.StatusMessage = _("Best attacker of the round");
 				} else {
 					foreach (Player in AllPlayers) {
 						declare Integer MapAttack for Player;
-						Ranking[Player.Login] = -MapAttack;
+						Ranking[Player.User.Login] = -MapAttack;
 					}
 					UIManager.UIAll.StatusMessage = _("Best attacker of the map");
 				}
@@ -3583,13 +3599,13 @@ Void LaunchTop5Sequence(Text _Level) {
 				if (_Level == "round") {
 					foreach (Player in AllPlayers) {
 						declare Integer Battle_ScoreDefense for Player;
-						Ranking[Player.Login] = -Battle_ScoreDefense;
+						Ranking[Player.User.Login] = -Battle_ScoreDefense;
 					}
 					UIManager.UIAll.StatusMessage = _("Best defender of the round");
 				} else {
 					foreach (Player in AllPlayers) {
 						declare Integer MapDefense for Player;
-						Ranking[Player.Login] = -MapDefense;
+						Ranking[Player.User.Login] = -MapDefense;
 					}
 					UIManager.UIAll.StatusMessage = _("Best defender of the map");
 				}
@@ -3598,13 +3614,13 @@ Void LaunchTop5Sequence(Text _Level) {
 				if (_Level == "round") {
 					foreach (Player in AllPlayers) {
 						declare Integer Battle_ScoreCapture for Player;
-						Ranking[Player.Login] = -Battle_ScoreCapture;
+						Ranking[Player.User.Login] = -Battle_ScoreCapture;
 					}
 					UIManager.UIAll.StatusMessage = _("Best capturer of the round");
 				} else {
 					foreach (Player in AllPlayers) {
 						declare Integer MapCapture for Player;
-						Ranking[Player.Login] = -MapCapture;
+						Ranking[Player.User.Login] = -MapCapture;
 					}
 					UIManager.UIAll.StatusMessage = _("Best capturer of the map");
 				}
@@ -3613,13 +3629,13 @@ Void LaunchTop5Sequence(Text _Level) {
 				if (_Level == "round") {
 					foreach (Player in AllPlayers) {
 						declare Integer Battle_ScoreHit for Player.Score;
-						Ranking[Player.Login] = -Battle_ScoreHit;
+						Ranking[Player.User.Login] = -Battle_ScoreHit;
 					}
 					UIManager.UIAll.StatusMessage = _("Best shooter of the round");
 				} else {
 					foreach (Player in AllPlayers) {
 						declare Integer MapHit for Player;
-						Ranking[Player.Login] = -MapHit;
+						Ranking[Player.User.Login] = -MapHit;
 					}
 					UIManager.UIAll.StatusMessage = _("Best shooter of the map");
 				}
