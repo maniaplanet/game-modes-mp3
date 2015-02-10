@@ -31,75 +31,52 @@ Void Private_CreatePlaySoundLayer() {
 	
 	main() {
 		
-		declare netwrite Integer 	Net_PreloadTriggerBack 	for UI;
 		declare netwrite Integer 	Net_SoundTriggerBack 	for UI;
-
-		declare netread Integer 	Net_PreloadTrigger 	for UI;
-		declare netread Text[] 		Net_PreloadUrl 		for UI;
 		
 		declare netread Integer 	Net_SoundTrigger 	for UI;
 		declare netread Text[] 		Net_SoundsUrl 		for UI;
 		declare netread Integer[] 	Net_SoundsDelay 	for UI;
 		declare netread Real[] 		Net_SoundsVolume 	for UI;
 		
-		declare 		Text[] 		SoundsUrl;
-		declare 		Integer[] 	SoundsDelay;
-		declare 		Real[] 		SoundsVolume;
-		declare 		Integer[]	SoundsKeysToRemove;
+		declare Text[] 		SoundsUrl;
+		declare Integer[] 	SoundsDelay;
+		declare Real[] 		SoundsVolume;
+		declare Integer[]	SoundsKeysToRemove;
 		
-		declare 		Integer 	Previous_PreloadTrigger = Net_PreloadTrigger;
-		declare 		Integer 	Previous_SoundTrigger 	= Net_SoundTrigger;
-		declare 		Text[] 		Previous_SoundUrl;
-		declare 		Integer[] 	Previous_SoundDelay;
+		declare Integer Previous_SoundTrigger = Net_SoundTrigger;
+		declare Text[] Previous_SoundUrl;
+		declare Integer[] Previous_SoundDelay;
 		
 		while(True) {
 			yield;
 			
-			if(Previous_PreloadTrigger != Net_PreloadTrigger) 
-			{
-				Previous_PreloadTrigger = Net_PreloadTrigger;
-				Net_PreloadTriggerBack  = Now;				
-				foreach(Sound in Net_PreloadUrl) 
-				{
-					Audio.CreateSound(Sound);
-				}
-				
-			}
-			
-			if(Previous_SoundTrigger != Net_SoundTrigger) 
-			{
+			if(Previous_SoundTrigger != Net_SoundTrigger) {
 				Previous_SoundTrigger = Net_SoundTrigger;
-				Net_SoundTriggerBack  = Now;				
-				for(I, 0, Net_SoundsUrl.count-1) 
-				{
+				Net_SoundTriggerBack = Now;				
+				for(I, 0, Net_SoundsUrl.count-1) {
 					SoundsUrl		.add(Net_SoundsUrl[I]);
 					SoundsDelay		.add(Now + Net_SoundsDelay[I]);
 					SoundsVolume	.add(Net_SoundsVolume[I]);
 				}
 			}
 			
-			if(SoundsUrl.count > 0) 
-			{
-				for(I, 0, SoundsUrl.count-1) 
-				{
-					if(Now > SoundsDelay[I]) 
-					{
+			if(SoundsUrl.count > 0) {
+				for(I, 0, SoundsUrl.count-1) {
+					if(Now > SoundsDelay[I]) {
 						declare Integer KeyToTest = Previous_SoundUrl.keyof(SoundsUrl[I]);
-						if(KeyToTest == -1 || SoundsDelay[I] >= Previous_SoundDelay[KeyToTest] + {{{C_MaxDuplicateInterval}}}) 
-						{
-							Audio				.PlaySoundEvent	(SoundsUrl[I], SoundsVolume[I]);
-							Previous_SoundUrl	.removekey		(KeyToTest);
-							Previous_SoundDelay	.removekey		(KeyToTest);
-							Previous_SoundUrl	.add			(SoundsUrl[I]);
-							Previous_SoundDelay	.add			(SoundsDelay[I]);
+						if(KeyToTest == -1 || SoundsDelay[I] >= Previous_SoundDelay[KeyToTest] + {{{C_MaxDuplicateInterval}}}) {
+							Audio.PlaySoundEvent(SoundsUrl[I], SoundsVolume[I]);
+							Previous_SoundUrl.removekey(KeyToTest);
+							Previous_SoundDelay.removekey(KeyToTest);
+							Previous_SoundUrl.add(SoundsUrl[I]);
+							Previous_SoundDelay.add(SoundsDelay[I]);
 						}
 						SoundsKeysToRemove.add(I);
 					}
 				}
 			}
 			
-			while(SoundsKeysToRemove.count > 0) 
-			{
+			while(SoundsKeysToRemove.count > 0) {
 				SoundsUrl			.removekey(SoundsKeysToRemove[SoundsKeysToRemove.count - 1]);
 				SoundsDelay			.removekey(SoundsKeysToRemove[SoundsKeysToRemove.count - 1]);
 				SoundsVolume		.removekey(SoundsKeysToRemove[SoundsKeysToRemove.count - 1]);
@@ -240,7 +217,8 @@ Void Private_SetLimitMusicVolumedB(Boolean _UseLatestVolumeChange, Real _Volume,
 }
 
 Void Private_SetLimitMusicVolumedB(Boolean _UseLatestVolumeChange, Real _Volume, Integer _Delay, Integer _Fade) {
-	foreach (Player in AllPlayers) Private_SetLimitMusicVolumedB(_UseLatestVolumeChange, _Volume, _Delay, _Fade, Player);
+	foreach (Player in AllPlayers)
+		Private_SetLimitMusicVolumedB(_UseLatestVolumeChange, _Volume, _Delay, _Fade, Player);
 }
 // ---------------------------------- //
 // Public
@@ -366,39 +344,6 @@ Void Attach() {
 
 
 // ---------------------------------- //
-/** Preload some custom sounds to a specific player with delay and volume attenuation
- *	@param	_SoundUrl		Custom Sounds URL
- */
- 
-Void PreloadSounds(Text[] _SoundsToPreloadUrl, CPlayer _Player) {
-
-	declare UI <=> UIManager.GetUI(_Player);
-	if(UI == Null) return;
-	
-	declare netread 	Integer 	Net_PreloadTriggerBack 			for UI;
-	
-	declare  		 	Integer 	Net_PreviousPreloadTriggerBack 	for UI;
-	
-	declare netwrite 	Integer 	Net_PreloadTrigger 				for UI;
-	declare netwrite 	Text[] 		Net_PreloadUrl 					for UI;
-	
-	if(Net_PreviousPreloadTriggerBack != Net_PreloadTriggerBack) {
-		Net_PreviousPreloadTriggerBack = Net_PreloadTriggerBack;
-		Net_PreloadUrl.clear();
-	}
-	
-	foreach(Sound in _SoundsToPreloadUrl) Net_PreloadUrl.add(Sound);
-	Net_PreloadTrigger = Now;
-}
-
-Void PreloadSounds(Text[] _SoundsToPreloadUrl) {
-	foreach(Player in AllPlayers) PreloadSounds(_SoundsToPreloadUrl, Player);
-}
-
-
-
-
-// ---------------------------------- //
 /** Play a custom sound to a specific player with delay and volume attenuation
  *	@param	_SoundUrl		Custom Sound URL
  *	@param	_Volume			Volume in dB : from -oo (min) to 0. dB (max) Example : -6.
@@ -451,28 +396,32 @@ Void PlaySound(Text _SoundUrl, CPlayer _Player) {
  */
 
 Void PlaySound(Text _SoundUrl) {
-	foreach(Player in AllPlayers) PlaySound(_SoundUrl, Player);
+	foreach(Player in AllPlayers)
+	PlaySound(_SoundUrl, Player);
 }
 
 // ---------------------------------- //
 /** Overload : Play a custom sound to all the players on the server with volume attenuation and delay
  */
 Void PlaySound(Text _SoundUrl, Real _Volume, Integer _Delay) {
-	foreach(Player in AllPlayers) PlaySound(_SoundUrl, _Volume, _Delay, Player);
+	foreach(Player in AllPlayers)
+		PlaySound(_SoundUrl, _Volume, _Delay, Player);
 }
 
 // ---------------------------------- //
 /** Overload : Play a custom sound to all the players on the server with volume attenuation
  */
 Void PlaySound(Text _SoundUrl, Real _Volume) {
-	foreach(Player in AllPlayers) PlaySound(_SoundUrl, _Volume, 0, Player);
+	foreach(Player in AllPlayers)
+		PlaySound(_SoundUrl, _Volume, 0, Player);
 }
 
 // ---------------------------------- //
 /** Overload : Play a custom sound to all the players on the server with delay
  */
 Void PlaySound(Text _SoundUrl, Integer _Delay) {
-	foreach(Player in AllPlayers) PlaySound(_SoundUrl, C_DefaultVolume_PlaySound, _Delay, Player);
+	foreach(Player in AllPlayers)
+		PlaySound(_SoundUrl, C_DefaultVolume_PlaySound, _Delay, Player);
 }
 
 
@@ -500,28 +449,31 @@ Void SetLimitMusicVolumedB(Real _Volume, CPlayer _Player) {
 /** Overload : Set the limit music volume for all players on the server without any delay
  */
 Void SetLimitMusicVolumedB(Real _Volume) {
-	foreach(Player in AllPlayers) SetLimitMusicVolumedB(_Volume, 0, 0, Player);
+	foreach(Player in AllPlayers)
+		SetLimitMusicVolumedB(_Volume, 0, 0, Player);
 }
 
 // ---------------------------------- //
 /** Overload : Set the limit music volume for all players on the server without any delay
  */
 Void SetLimitMusicVolumedB(Real _Volume, Integer _Delay, Integer _Fade) {
-	foreach(Player in AllPlayers) SetLimitMusicVolumedB(_Volume, _Delay, _Fade, Player);
+	foreach(Player in AllPlayers)
+		SetLimitMusicVolumedB(_Volume, _Delay, _Fade, Player);
 }
 
 // ---------------------------------- //
 /** Set the limit music volume for a specific player on the server after a specific delay
  */
 Void SetLimitMusicVolumedBDelay(Real _Volume, Integer _Delay, CPlayer _Player) {
-	SetLimitMusicVolumedB(_Volume, _Delay, 0, _Player);
+		SetLimitMusicVolumedB(_Volume, _Delay, 0, _Player);
 }
 
 // ---------------------------------- //
 /** Set the limit music volume for all players on the server after a specific delay
  */
 Void SetLimitMusicVolumedBDelay(Real _Volume, Integer _Delay) {
-	foreach(Player in AllPlayers) SetLimitMusicVolumedBDelay(_Volume, _Delay, Player);
+	foreach(Player in AllPlayers)
+		SetLimitMusicVolumedBDelay(_Volume, _Delay, Player);
 }
 
 // ---------------------------------- //
@@ -535,7 +487,8 @@ Void SetLimitMusicVolumedBFade(Real _Volume, Integer _Fade, CPlayer _Player) {
 /** Set the limit music volume for all players on the server after a fade
  */
 Void SetLimitMusicVolumedBFade(Real _Volume, Integer _Fade) {
-	foreach(Player in AllPlayers) SetLimitMusicVolumedBFade(_Volume, _Fade, Player);
+	foreach(Player in AllPlayers)
+		SetLimitMusicVolumedBFade(_Volume, _Fade, Player);
 }
 
 
@@ -576,6 +529,7 @@ Void SetLimitMusicVolumedBFull(CPlayer _Player) {
 /** Bring the limit music volume back to the maximum for all players on the server
  */
 Void SetLimitMusicVolumedBFull() {
-	foreach(Player in AllPlayers) SetLimitMusicVolumedBFull(Player);
+	foreach(Player in AllPlayers)
+		SetLimitMusicVolumedBFull(Player);
 }
 
