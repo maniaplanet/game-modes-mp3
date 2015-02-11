@@ -2,7 +2,7 @@
 //   Waiting Queue Lib
 //////////////////////////////////////////
 
-#Const Version 				"2013-05-04"
+#Const Version 				"2014-12-02"
 #Const ScriptName			"WaitingQueue.Script.txt"
 
 #Const DEBUG				False						///< Active debug mode
@@ -404,13 +404,14 @@ Boolean UpdateTeamName() {
 		if(UI == Null) continue;
 		declare netread Net_TeamName for UI = "";
 		declare OldTeamName for UI = "";
-		if(Net_TeamName != "" && OldTeamName != Net_TeamName && TeamName.existskey(TeamId) 
-			&& TeamName[TeamId] != Net_TeamName) {
-			if(IsValidTeamName(Net_TeamName)) {
-				TeamName[TeamId] = Net_TeamName;
+		declare ShortName = TL::SubText(Net_TeamName, 0, 30);
+		if(ShortName != "" && OldTeamName != ShortName && TeamName.existskey(TeamId) 
+			&& TeamName[TeamId] != ShortName) {
+			if(IsValidTeamName(ShortName)) {
+				TeamName[TeamId] = ShortName;
 				Return = True;
 			}
-			OldTeamName = Net_TeamName;
+			OldTeamName = ShortName;
 		}
 	}
 	return Return;
