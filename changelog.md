@@ -8,6 +8,12 @@
 #### Matchmaking
 * Better save and restoration of allies when joining the lobby. [see](https://forum.maniaplanet.com/viewtopic.php?p=234752#p234752)
 
+### Trackmania/ModeMatchmaking
+* Wait a bit before respawning a player while he's being transferred to its match server.
+
+### Trackmania/Chase
+* Better display of what the player must do and who can cross the next checkpoint.
+
 #### Shootmania/Combo
 * The automatic spectating mode (Numpad 0) will always target a player of the team with the least spawned players. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 * Remember the display state of the items respawn timers and markers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
@@ -17,6 +23,10 @@
 
 #### Shootmania/WaitingQueue
 Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/viewtopic.php?p=235007#p235007)
+
+#### Lib/MatchmakingLobby
+* Display the scores table in the lobby for Trackmania.
+* Fix : Moved upwards the lobby panels in Trackmania to not hide the chat and the ranking.
 
 ---------------------------------
 
