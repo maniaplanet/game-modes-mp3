@@ -5,7 +5,7 @@
  */
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
-#Const ModeMatchmakingVersion		"2014-12-31"
+#Const ModeMatchmakingVersion		"2015-02-12"
 #Const ModeMatchmakingScriptName	"ModeMatchmaking.Script.txt"
 
 #Include "TextLib" as TL
@@ -678,6 +678,8 @@ Void Private_Lobby_SpawnPlayers() {
 			}
 			
 			SpawnThePlayer = !MMLobby::IsOnVersusScreen(Player);
+			
+			if (SpawnThePlayer) SpawnThePlayer = !MMLobby::IsBeingTransferred(Player);
 			
 			if (SpawnThePlayer || UI == Null) {
 				TM2::StartRace(Player);
