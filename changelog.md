@@ -13,7 +13,7 @@
 
 ### Trackmania/Chase
 * Better display of what the player must do and who can cross the next checkpoint.
-* New setting S_DisplayWarning, True by default. Display a big red message in the middle of the screen of the player that crosses a checkpoint when it wasn't it's turn.
+* New setting S_DisplayWarning, True by default. Display a big red message in the middle of the screen of the player that crosses a checkpoint when it wasn't its turn.
 * Fix : force the message displaying what to do at the bottom of the screen to be updated each time a player crosses a checkpoint.
 
 #### Shootmania/Combo
