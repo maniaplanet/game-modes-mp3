@@ -13,6 +13,8 @@
 
 ### Trackmania/Chase
 * Better display of what the player must do and who can cross the next checkpoint.
+* New setting S_DisplayWarning, True by default. Display a big red message in the middle of the screen of the player that crosses a checkpoint when it wasn't it's turn.
+* Fix : force the message displaying what to do at the bottom of the screen to be updated each time a player crosses a checkpoint.
 
 #### Shootmania/Combo
 * The automatic spectating mode (Numpad 0) will always target a player of the team with the least spawned players. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
@@ -20,6 +22,9 @@
 * Better styling of the items respawn timers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 
 #### Librairies
+
+#### MatchmakingMatch
+* Force the players to ping back the server before considering them as ready for the match.
 
 #### Shootmania/WaitingQueue
 Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/viewtopic.php?p=235007#p235007)
