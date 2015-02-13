@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/ModeMatchmaking.Script.txt"
 
 #Const  CompatibleMapTypes  "Race"
-#Const	Version		"2015-02-11"
+#Const	Version		"2015-02-13"
 #Const	ScriptName	"Chase.Script.txt"
 
 // ---------------------------------- //
@@ -18,6 +18,7 @@
 #Setting S_MinPlayersNb			3		as _("Minimum number of players in a team :")
 #Setting S_ForceLapsNb			5		as _("Number of Laps :")
 #Setting S_FinishTimeout		-1		as _("Finish timeout :")
+#Setting S_DisplayWarning		True	as _("Display a warning message when relay fails :")
 #Setting S_UsePlayerClublinks	False	as _("Use Clublinks :")
 // Matchmaking
 #Setting S_NbPlayersPerTeamMax	3		as _("Maximum number of players per team in matchmaking")
@@ -394,6 +395,9 @@ foreach (Event in PendingEvents) {
 		
 		// New checkpoint
 		if (NewCheckpoint) {
+			declare WarningMessage = "";
+			if (S_DisplayWarning) WarningMessage = _("|Chase mode|Wait for your teammates");
+							
 			// Check order
 			foreach (Clan => Laps in CurrentCheckpoint) {
 				if (!RoundPlayers.existskey(Clan) || Event.Player.CurrentClan != Clan) continue;
@@ -409,14 +413,29 @@ foreach (Event in PendingEvents) {
 								Net_Chase_RoundPoints[Event.Player.CurrentClan] += 1;
 								Net_Chase_PointsGap = S_PointsGap;
 								
-								SendMessage(TL::Compose("$0c0%1", _("|Chase mode|Relay successful")), "", Event.Player.CurrentClan);
+								SendMessage(
+									TL::Compose("$0c0%1", _("|Chase mode|Relay successful")), 
+									"", 
+									Event.Player.CurrentClan, 
+									NullId
+								);
 							}
 							// Relay failed
 							else {
-								SendMessage(TL::Compose("$f00%1", _("|Chase mode|Relay failed")), "", Event.Player.CurrentClan);
+								SendMessage(
+									TL::Compose("$f00%1", _("|Chase mode|Relay failed")),
+									TL::Compose("$f00%1", WarningMessage), 
+									Event.Player.CurrentClan, 
+									Event.Player.Id
+								);
 							}
 						} else {
-							SendMessage(TL::Compose("$f00%1", _("|Chase mode|Relay failed")), "", Event.Player.CurrentClan);
+							SendMessage(
+								TL::Compose("$f00%1", _("|Chase mode|Relay failed")),
+								TL::Compose("$f00%1", WarningMessage), 
+								Event.Player.CurrentClan, 
+								Event.Player.Id
+							);
 						}
 					}
 				}
@@ -443,9 +462,11 @@ foreach (Event in PendingEvents) {
 				RoundPlayers.existskey(Event.Player.CurrentClan) && 
 				RoundPlayers[Event.Player.CurrentClan].count <= CurrentCheckpoint[Event.Player.CurrentClan][Event.Player.CurrentNbLaps][Event.BlockId].count
 			) {
-				if (!Event.IsEndRace) SendMessage(_("|Chase mode|Next checkpoint"), Event.Player.User.Name, Event.Player.CurrentClan);
+				if (!Event.IsEndRace) SendMessage(_("|Chase mode|Next checkpoint"), Event.Player.User.Name, Event.Player.CurrentClan, NullId);
 				SetNextCheckpointPlayer(Event.Player.CurrentClan, Event.Player.User.Name, Event.CheckpointInRace + 1);
 				UpdateMarkers(Event.Player, True);
+			} else {
+				UpdateNextCheckpointPlayer();
 			}
 		}
 	}
@@ -818,30 +839,40 @@ Void SetLapsNb(Integer _LapsNb, Integer _StartTime) {
  *	@param _StatusMessage	The status message
  *	@param _BigMessage		The big message
  *	@param _StartTime		The clan that will receive the message
+ *	@param _PlayerId		The id of the player that will see the big message
  */
-Void SendMessage(Text _StatusMessage, Text _BigMessage, Integer _Clan) {
+Void SendMessage(Text _StatusMessage, Text _BigMessage, Integer _Clan, Ident _PlayerId) {
 	if (_BigMessage == "" && _StatusMessage == "") return;
 	
 	foreach (Player in AllPlayers) {
+		declare Clan = -1;
 		// Spectators
 		if (Player.User.RequestsSpectate) {
 			declare UI <=> UIManager.GetUI(Player);
 			if (UI != Null) {
 				declare netread Integer Net_Chase_SpectatingClan for UI;
-				if (Net_Chase_SpectatingClan == _Clan) {
-					if (_StatusMessage != "") Message::SendStatusMessage(Player, _StatusMessage, 3000, 1);
-					if (_BigMessage != "") Message::SendBigMessage(Player, _BigMessage, 3000, 1);
-				}
+				Clan = Net_Chase_SpectatingClan;
 			}
 		} 
 		// Players
 		else {
-			if (Player.CurrentClan == _Clan) {
-				if (_StatusMessage != "") Message::SendStatusMessage(Player, _StatusMessage, 3000, 1);
-				if (_BigMessage != "") Message::SendBigMessage(Player, _BigMessage, 3000, 1);
+			Clan = Player.CurrentClan;
+		}
+		
+		if (Clan == _Clan) {
+			if (_StatusMessage != "") Message::SendStatusMessage(Player, _StatusMessage, 3000, 1);
+			if (_BigMessage != "") {
+				if (_PlayerId == NullId || _PlayerId == Player.Id) Message::SendBigMessage(Player, _BigMessage, 3000, 1);
 			}
 		}
 	}
+}
+
+// ---------------------------------- //
+/// Force an update in the UI displaying the next checkpoint player
+Void UpdateNextCheckpointPlayer() {
+	declare netwrite Integer Net_Chase_NextPlayerUpdate for Teams[0];
+	Net_Chase_NextPlayerUpdate = Now;
 }
 
 // ---------------------------------- //
