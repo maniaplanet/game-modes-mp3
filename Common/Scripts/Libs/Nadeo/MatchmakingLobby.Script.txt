@@ -2,7 +2,7 @@
  *	Matchmaking lobby library
  */
 
-#Const Version		"2015-02-06"
+#Const Version		"2015-02-18"
 #Const ScriptName	"MatchmakingLobby.Script.txt"
 
 #Include "TextLib" as TL
@@ -442,6 +442,20 @@ Void UpdateReady(CPlayer _Player) {
 			}
 		}
 	}
+}
+
+// ---------------------------------- //
+/** Check if a player is being transferred
+ *
+ *	@param	_Player		The player to check
+ *
+ *	@return				True if the transfer is ongoing, False otherwise
+ */
+Boolean IsBeingTransferred(CPlayer _Player) {
+	if (_Player == Null) return False;
+	
+	declare LastTransfertTime = MMCommon::GetLastTransfertTime(_Player.User);
+	return (LastTransfertTime > 0 && Now - LastTransfertTime < C_TransfertSafeTime);
 }
 
 // ---------------------------------- //
@@ -2425,12 +2439,16 @@ Void MM_StartMap() {
 	Message::CleanBigMessages();
 	UIManager.UIAll.AlliesLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
 	UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenVisible;
-	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
 	UIManager.UIAll.OverlayHideCountdown = True;
 	UIManager.UIAll.AltMenuNoCustomScores = True;
 	UIManager.UIAll.AltMenuNoDefaultScores = True;
 	UIManager.UIAll.OverlayHideSpectatorInfos = True;
 	UIManager.UIAll.OverlayHideSpectatorControllers = True;
+	if (This is CTmMode) {
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	} else {
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
+	}
 	
 	// ---------------------------------- //
 	// Synchro UI
@@ -2969,6 +2987,9 @@ Text GetMLPlayersList() {
 	declare SizeX = 52.;
 	declare SizeY = 127.;
 	
+	declare PanelPosY = 0.;
+	if (This is CTmMode) PanelPosY = 14.;
+	
 	declare Background = "file://Media/Manialinks/Common/Lobbies/side-frame.png";
 	declare Echelon0 = "file://Media/Manialinks/Common/Echelons/echelon0.dds";
 	declare ButtonHideOn = "file://Media/Manialinks/Common/Lobbies/button-hide-on.png";
@@ -2996,10 +3017,10 @@ Text GetMLPlayersList() {
 		<label posn="0 -10" sizen="10 10" halign="center" valign="center" style="TextRaceMessageBig" text="0" id="Label_Echelon" />
 	</frame>
 </framemodel>
-<frame posn="164 0 10" id="Frame_Global">
+<frame posn="164 {{{PanelPosY}}} 10" id="Frame_Global">
 	<quad posn="0 0 -1" sizen="{{{SizeX}}} {{{SizeY}}}" halign="right" valign="center" image="{{{Background}}}" />
 	<frame posn="{{{-SizeX*0.99}}} {{{SizeY*0.42}}} -2" id="Frame_ShowHide">
-		<quad sizen="5 6" rot="180" image="{{{ButtonHideOff}}}" imagefocus="{{{ButtonHideOn}}}" scriptevents="1" id="Button_ShowHide" />
+		<quad sizen="5 6" valign="center" rot="180" image="{{{ButtonHideOff}}}" imagefocus="{{{ButtonHideOn}}}" scriptevents="1" id="Button_ShowHide" />
 	</frame>
 	<frame posn="{{{-SizeX/2.-1.}}} {{{SizeY/2.}}}">
 		<frame id="Frame_Title">
@@ -3198,11 +3219,11 @@ Void DisplayFrame(Boolean _Displayed) {
 	if (_Displayed) {
 		Button_ShowHide.ImageUrl = "{{{ButtonHideOff}}}";
 		Button_ShowHide.ImageUrlFocus = "{{{ButtonHideOn}}}";
-		LibManialink_Anim({{{Manialink::Inject("""<frame posn="164 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="164 {{{PanelPosY}}} 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
 	} else {
 		Button_ShowHide.ImageUrl = "{{{ButtonShowOff}}}";
 		Button_ShowHide.ImageUrlFocus = "{{{ButtonShowOn}}}";
-		LibManialink_Anim({{{Manialink::Inject("""<frame posn="210 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="210 {{{PanelPosY}}} 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
 	}
 }
 
@@ -3291,6 +3312,9 @@ Text GetMLMastersList() {
 	declare SizeX = 52.;
 	declare SizeY = 127.;
 	
+	declare PanelPosY = 0.;
+	if (This is CTmMode) PanelPosY = 14.;
+	
 	declare Background = "file://Media/Manialinks/Common/Lobbies/side-frame.png";
 	declare Echelon0 = "file://Media/Manialinks/Common/Echelons/echelon0.dds";
 	declare ButtonHideOn = "file://Media/Manialinks/Common/Lobbies/button-hide-on.png";
@@ -3318,10 +3342,10 @@ Text GetMLMastersList() {
 		<label posn="0 -10" sizen="10 10" halign="center" valign="center" style="TextRaceMessageBig" text="0" id="Label_Echelon" />
 	</frame>
 </framemodel>
-<frame posn="-165 0 10" id="Frame_Global">
+<frame posn="-164 {{{PanelPosY}}} 10" id="Frame_Global">
 	<quad posn="0 0 -1" sizen="{{{SizeX}}} {{{SizeY}}}" valign="center" image="{{{Background}}}" />
 	<frame posn="{{{SizeX*0.99}}} {{{SizeY*0.42}}} -2" id="Frame_ShowHide">
-		<quad sizen="5 6" image="{{{ButtonHideOff}}}" imagefocus="{{{ButtonHideOn}}}" scriptevents="1" id="Button_ShowHide" />
+		<quad sizen="5 6" valign="center" image="{{{ButtonHideOff}}}" imagefocus="{{{ButtonHideOn}}}" scriptevents="1" id="Button_ShowHide" />
 	</frame>
 	<frame posn="{{{SizeX/2.+1.}}} {{{SizeY/2.}}}">
 		<frame id="Frame_Title">
@@ -3381,11 +3405,11 @@ Void DisplayFrame(Boolean _Displayed) {
 	if (_Displayed) {
 		Button_ShowHide.ImageUrl = "{{{ButtonHideOff}}}";
 		Button_ShowHide.ImageUrlFocus = "{{{ButtonHideOn}}}";
-		LibManialink_Anim({{{Manialink::Inject("""<frame posn="-164 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="-164 {{{PanelPosY}}} 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
 	} else {
 		Button_ShowHide.ImageUrl = "{{{ButtonShowOff}}}";
 		Button_ShowHide.ImageUrlFocus = "{{{ButtonShowOn}}}";
-		LibManialink_Anim({{{Manialink::Inject("""<frame posn="-210 0 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="-210 {{{PanelPosY}}} 10" id="Frame_Global" />""")}}}, 300, "EaseOutExp");
 	}
 }
 
@@ -3861,6 +3885,7 @@ main() {
 						declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
 						MM_FrameIsDisplayed["WaitingScreen"] = !MM_FrameIsDisplayed["WaitingScreen"];
 						DisplayFrame(MM_FrameIsDisplayed["WaitingScreen"]);
+						if (!MM_FrameIsDisplayed["WaitingScreen"]) Lobby_RulesAreVisible = False;
 					}
 				}
 			} else if (Event.Type == CMlEvent::Type::KeyPress) {

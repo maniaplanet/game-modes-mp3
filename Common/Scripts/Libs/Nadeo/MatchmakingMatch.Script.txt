@@ -2,7 +2,7 @@
  *	Matchmaking match library
  */
 
-#Const Version		"2014-12-31"
+#Const Version		"2015-02-18"
 #Const ScriptName	"MatchmakingMatch.Script.txt"
 
 #Include "TextLib" as TL
@@ -1112,13 +1112,17 @@ Void WaitPlayers_End() {
 /** Begin the prepare match sequence
  *
  *	@param	_StartTime		Start time of the sequence
+ *	@param	_WaitingTime	Waiting time duration
  *
  *	@return					The end time of the sequence
  */
-Integer PrepareMatch_Begin(Integer _StartTime) {
+Integer PrepareMatch_Begin(Integer _StartTime, Integer _WaitingTime) {
+	declare WaitingTime = _WaitingTime * 1000;
+	if (WaitingTime <= 0) WaitingTime = C_PreparationDuration;
+	
 	declare Integer MMMatch_PrepareMatch_EndTime for This;
 	declare Integer MMMatch_PrepareMatch_ReqPlayersNb for This;
-	MMMatch_PrepareMatch_EndTime = _StartTime + C_PreparationDuration;
+	MMMatch_PrepareMatch_EndTime = _StartTime + WaitingTime;
 	MMMatch_PrepareMatch_ReqPlayersNb = 0;
 	
 	declare CurrentMatchFormat = MMCommon::GetCurrentMatchFormat();
@@ -1128,6 +1132,10 @@ Integer PrepareMatch_Begin(Integer _StartTime) {
 	declare netwrite Integer Net_MM_ReadyPlayersMax for Teams[0];
 	Net_MM_ReadyPlayersNb = 0;
 	Net_MM_ReadyPlayersMax = MMMatch_PrepareMatch_ReqPlayersNb;
+	
+	declare netwrite Integer Net_MM_ReadyPlayersSynchroServer for Teams[0] = 10;
+	Net_MM_ReadyPlayersSynchroServer += 1;
+	if (Net_MM_ReadyPlayersSynchroServer > 10000) Net_MM_ReadyPlayersSynchroServer = 10;
 	
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::RollingBackgroundIntro;
 	
@@ -1150,7 +1158,28 @@ Void PrepareMatch_Loop() {
 	foreach (Player in AllPlayers) {
 		declare Matchmaking_PlayerStatus for Player = C_PlayerStatus_Waiting;
 		if (Matchmaking_PlayerStatus == C_PlayerStatus_Valid) {
-			ReadyPlayersNb += 1;
+			declare Connected = False;
+			if (Player.User.IsFakeUser) {
+				Connected = True;
+			} else {
+				declare UI <=> UIManager.GetUI(Player);
+				if (UI != Null) {
+					if (Player.User.IsFakeUser) {
+						Connected = True;
+					} else {
+						declare netread Integer Net_MM_ReadyPlayersSynchroClient for UI;
+						declare netwrite Integer Net_MM_ReadyPlayersSynchroServer for Teams[0];
+						if (Net_MM_ReadyPlayersSynchroClient == Net_MM_ReadyPlayersSynchroServer) {
+							declare netread Boolean Net_MM_ReadyPlayersConnected for UI;
+							Connected = Net_MM_ReadyPlayersConnected;
+						}
+					}
+				} else {
+					Connected = True;
+				}
+			}
+			
+			if (Connected) ReadyPlayersNb += 1;
 		}
 	}
 	
@@ -1430,9 +1459,17 @@ main() {
 	declare PrevReadyPlayersNb = -1;
 	declare PrevReadyPlayersMax = -1;
 	
+	declare netwrite Integer Net_MM_ReadyPlayersSynchroClient for UI;
+	declare netread Integer Net_MM_ReadyPlayersSynchroServer for Teams[0];
+	declare netwrite Boolean Net_MM_ReadyPlayersConnected for UI;
+	Net_MM_ReadyPlayersConnected = False;
+	
 	while (True) {
 		yield;
 		if (InputPlayer == Null || !PageIsVisible) continue;
+		
+		if (!Net_MM_ReadyPlayersConnected) Net_MM_ReadyPlayersConnected = True;
+		if (Net_MM_ReadyPlayersSynchroClient != Net_MM_ReadyPlayersSynchroServer) Net_MM_ReadyPlayersSynchroClient = Net_MM_ReadyPlayersSynchroServer;
 		
 		if (PrevReadyPlayersMax != Net_MM_ReadyPlayersMax) {
 			PrevReadyPlayersMax = Net_MM_ReadyPlayersMax;
