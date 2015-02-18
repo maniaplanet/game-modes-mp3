@@ -2,7 +2,7 @@
  *	Matchmaking lobby library
  */
 
-#Const Version		"2015-02-12"
+#Const Version		"2015-02-18"
 #Const ScriptName	"MatchmakingLobby.Script.txt"
 
 #Include "TextLib" as TL
@@ -3885,6 +3885,7 @@ main() {
 						declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
 						MM_FrameIsDisplayed["WaitingScreen"] = !MM_FrameIsDisplayed["WaitingScreen"];
 						DisplayFrame(MM_FrameIsDisplayed["WaitingScreen"]);
+						if (!MM_FrameIsDisplayed["WaitingScreen"]) Lobby_RulesAreVisible = False;
 					}
 				}
 			} else if (Event.Type == CMlEvent::Type::KeyPress) {
