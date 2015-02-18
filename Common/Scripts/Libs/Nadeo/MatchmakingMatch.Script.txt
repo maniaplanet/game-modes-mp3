@@ -2,7 +2,7 @@
  *	Matchmaking match library
  */
 
-#Const Version		"2015-02-13"
+#Const Version		"2015-02-18"
 #Const ScriptName	"MatchmakingMatch.Script.txt"
 
 #Include "TextLib" as TL
@@ -1112,13 +1112,17 @@ Void WaitPlayers_End() {
 /** Begin the prepare match sequence
  *
  *	@param	_StartTime		Start time of the sequence
+ *	@param	_WaitingTime	Waiting time duration
  *
  *	@return					The end time of the sequence
  */
-Integer PrepareMatch_Begin(Integer _StartTime) {
+Integer PrepareMatch_Begin(Integer _StartTime, Integer _WaitingTime) {
+	declare WaitingTime = _WaitingTime * 1000;
+	if (WaitingTime <= 0) WaitingTime = C_PreparationDuration;
+	
 	declare Integer MMMatch_PrepareMatch_EndTime for This;
 	declare Integer MMMatch_PrepareMatch_ReqPlayersNb for This;
-	MMMatch_PrepareMatch_EndTime = _StartTime + C_PreparationDuration;
+	MMMatch_PrepareMatch_EndTime = _StartTime + WaitingTime;
 	MMMatch_PrepareMatch_ReqPlayersNb = 0;
 	
 	declare CurrentMatchFormat = MMCommon::GetCurrentMatchFormat();
