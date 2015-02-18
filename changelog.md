@@ -8,32 +8,67 @@
 #### Matchmaking
 * Better save and restoration of allies when joining the lobby. [see](https://forum.maniaplanet.com/viewtopic.php?p=234752#p234752)
 
-### Trackmania/ModeMatchmaking
-* Wait a bit before respawning a player while he's being transferred to its match server.
-
-### Trackmania/Chase
-* Better display of what the player must do and who can cross the next checkpoint.
-* New setting S_DisplayWarning, True by default. Display a big red message in the middle of the screen of the player that crosses a checkpoint when it wasn't its turn.
-* Fix : force the message displaying what to do at the bottom of the screen to be updated each time a player crosses a checkpoint.
-
 #### Shootmania/Combo
 * The automatic spectating mode (Numpad 0) will always target a player of the team with the least spawned players. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 * Remember the display state of the items respawn timers and markers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 * Better styling of the items respawn timers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 
-#### Librairies
-
-#### MatchmakingMatch
-* Force the players to ping back the server before considering them as ready for the match.
+### Librairies
 
 #### Shootmania/WaitingQueue
 Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/viewtopic.php?p=235007#p235007)
 
-#### Lib/MatchmakingLobby
+---------------------------------
+
+
+<a id="2015-02-19">2015-02-19</a>
+---------------------------------
+
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2015-02-10...ManiaPlanet_Update_2015-02-19)
+
+### Modes
+
+#### Trackmania/ModeBase
+* Play the intro of the map sooner to avoid the overview of the map after the loading.
+
+#### Trackmania/ModeMatchmaking
+* Wait a bit before respawning a player while he's being transferred to its match server.
+* New setting S_MatchmakingWaitingTime to customize the waiting time duration at the beginning of the matches. Default value: 45 seconds.
+
+#### Trackmania/Chase
+* Better display of what the players must do and who can cross the next checkpoint.
+* Display the name of the players only above the cars of our team.
+* Fix : the game mode didn't give LP at the end of the match.
+* Fix : sometimes when two players were crossing a checkpoint in less than 10ms the game mode wasn't selecting the right player for the next checkpoint. [see](https://forum.maniaplanet.com/viewtopic.php?p=239549#p239549)
+* Display the duration of the relay when it's fast (less than 1000ms).
+* Better management of the 2vs3 situation. Now if three players play against a team of two players, the second player crossing a checkpoint will have to cross the next one first in both team. 
+* New settings: 
+  * S_TimeLimit default value is now 900 seconds instead of 600.
+  * S_PointsLimit renamed into S_MapPointsLimit.
+  * S_PointsGap renamed into S_RoundPointsGap
+  * New setting S_RoundPointsLimit allows to set a points limit for the round. When a team reach this points limit, it wins the round. A positive value will be the limit and 0 disable the limit. A negative value will use the number of checkpoints on the map to compute the points limit -> (-S_RoundPointsLimit * (NumberOfCheckpoints + 1)). Default value is -5.
+  * It's possible to disable the laps number limit by setting S_ForceLapsNb to 0. Default value is 10.
+  * New setting S_DisplayWarning. Display a big red message in the middle of the screen of the player that crosses a checkpoint when it wasn't its turn. Defautl value is True.
+
+### Librairies
+
+#### MatchmakingLobby
 * Display the scores table in the lobby for Trackmania.
 * Fix : Moved upwards the lobby panels in Trackmania to not hide the chat and the ranking.
+* Hide the rules from the lobby window when sliding it down. [see](https://forum.maniaplanet.com/viewtopic.php?p=239549#p239549)
+
+#### MatchmakingMatch
+* Force the players to ping back the server before considering them as ready for the match.
+* Possibility to wait for the players for a custom duration at the beginning of the match.
+
+#### Trackmania/TM2
+* Functions to reset the scores of the players without removing them from the ladder.
+
+#### Trackmania/UI
+* Use the team color of the player as background color for his card in the time gap widget. [see](https://forum.maniaplanet.com/viewtopic.php?p=239346#p239346)
 
 ---------------------------------
+
 
 <a id="2015-02-10">2015-02-10</a>
 ---------------------------------
@@ -59,7 +94,7 @@ Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/
 * Hide some of the settings to the players.
 * Gladiator mode : reload one armor on hit.
 
-#### Librairies
+### Librairies
 
 #### VoteMap
 * Animations on the vote map UI. [see](https://forum.maniaplanet.com/viewtopic.php?p=236199#p236199)
