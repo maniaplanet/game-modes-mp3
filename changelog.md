@@ -15,8 +15,11 @@
 
 ### Librairies
 
+#### ScoresTable2
+* Added two settings to sort the spectators and/or the disconnected players at the end of the scores table. [see](https://forum.maniaplanet.com/viewtopic.php?p=239503#p239503)
+
 #### Shootmania/WaitingQueue
-Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/viewtopic.php?p=235007#p235007)
+* Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/viewtopic.php?p=235007#p235007)
 
 ---------------------------------
 
