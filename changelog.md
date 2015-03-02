@@ -13,6 +13,9 @@
 * Remember the display state of the items respawn timers and markers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 * Better styling of the items respawn timers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 
+#### Shootmania/Royal
+* New setting S_ResetScoreLeavers, default False. At the end of the round reset the score of any player that left the game or is in spectator mode.
+
 ### Librairies
 
 #### ScoresTable2
