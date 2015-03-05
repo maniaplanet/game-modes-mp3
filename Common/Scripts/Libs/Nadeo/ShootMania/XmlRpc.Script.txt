@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2014-10-23"
+#Const	Version		"2015-03-05"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -733,7 +733,7 @@ Void OnShoot(CSmModeEvent _Event) {
 // ---------------------------------- //
 /** Callback sent when a player is hit
  *	Data:
- *	[Shooter login, Victim login, Damage, Weapon number, Shooter points]
+ *	[Shooter login, Victim login, Damage, Weapon number, Shooter points, Distance, Shooter position, Victim position, Shooter aim direction, Victim aim direction]
  *
  *	Damage: the total damage inflicted to the victim on hit
  *	Weapon number: 1 -> Laser, 2 -> Rocket, 3 -> Nucleus
@@ -745,12 +745,24 @@ Void OnHit(CSmModeEvent _Event) {
 	declare ShooterLogin = "Null";
 	declare VictimLogin = "Null";
 	declare Distance = "0.";
-	if (_Event.Shooter != Null) ShooterLogin = _Event.Shooter.Login;
-	if (_Event.Victim != Null) VictimLogin = _Event.Victim.Login;
+	declare ShooterPosition = "0.,0.,0.";
+	declare VictimPosition = "0.,0.,0.";
+	declare ShooterAimDirection = "0.,0.,0.";
+	declare VictimAimDirection = "0.,0.,0.";
+	if (_Event.Shooter != Null) {
+		ShooterLogin = _Event.Shooter.Login;
+		ShooterPosition = _Event.Shooter.Position.X^","^_Event.Shooter.Position.Y^","^_Event.Shooter.Position.Z;
+		ShooterAimDirection = _Event.Shooter.AimDirection.X^","^_Event.Shooter.AimDirection.Y^","^_Event.Shooter.AimDirection.Z;
+	}
+	if (_Event.Victim != Null) {
+		VictimLogin = _Event.Victim.Login;
+		VictimPosition = _Event.Victim.Position.X^","^_Event.Victim.Position.Y^","^_Event.Victim.Position.Z;
+		VictimAimDirection = _Event.Victim.AimDirection.X^","^_Event.Victim.AimDirection.Y^","^_Event.Victim.AimDirection.Z;
+	}
 	if (_Event.Shooter != Null && _Event.Victim != Null) {
 		Distance = TL::ToText(ML::Distance(_Event.Victim.Position, _Event.Shooter.Position));
 	}
-	declare Data = [ShooterLogin, VictimLogin, TL::ToText(_Event.Damage), TL::ToText(_Event.WeaponNum), TL::ToText(_Event.ShooterPoints), Distance];
+	declare Data = [ShooterLogin, VictimLogin, TL::ToText(_Event.Damage), TL::ToText(_Event.WeaponNum), TL::ToText(_Event.ShooterPoints), Distance, ShooterPosition, VictimPosition, ShooterAimDirection, VictimAimDirection];
 	SendCallbackArray("LibXmlRpc_OnHit", Data);
 }
 

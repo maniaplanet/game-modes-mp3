@@ -24,6 +24,9 @@
 #### Shootmania/WaitingQueue
 * Fix : clamp the team name to 30 characters. [see](https://forum.maniaplanet.com/viewtopic.php?p=235007#p235007)
 
+#### Shootmania/XmlRpc
+* Added the shooter and victim positions and aim directions to the LibXmlRpc_OnHit callback. [see](https://forum.maniaplanet.com/viewtopic.php?p=240641#p240641)
+
 ---------------------------------
 
 
