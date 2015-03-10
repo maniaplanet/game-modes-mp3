@@ -30,6 +30,50 @@
 ---------------------------------
 
 
+<a id="2015-03-10">2015-03-10</a>
+---------------------------------
+
+[Diff from previous release](https://github.com/maniaplanet/game-modes/compare/ManiaPlanet_Update_2015-02-19...ManiaPlanet_Update_2015-03-10)
+
+### Modes
+
+#### Trackmania/Chase
+* New setting S_CompetitiveMode, default value: False. In this mode only players that take a slot in a team during the warm up can play, the others will have to spec until they can get a free slot in a team. The match can be paused using a command, players are sent back into warm up and the match can restart only when both teams are ready. This mode also applies stricter rules than in matchmaking. If a team has less players than the other team, it lose the round and the match is paused until both teams have enough players. The scores can be set using a command and a round can be stopped before the end the same way. [see](https://forum.maniaplanet.com/viewtopic.php?p=241250#p241250)
+* New setting S_WaypointEventDelay, default value: 500ms. Put the waypoint events in a buffer for 500ms to avoid errors in the checkpoint order check. [see](https://forum.maniaplanet.com/viewtopic.php?p=241250#p241250)
+* New setting S_PauseBetweenRound, default value: 15s. Allow to set a pause between the rounds. [see](https://forum.maniaplanet.com/viewtopic.php?p=240242#p240242)
+* New setting S_WaitingTimeMax, default value: 600s. Allow the players who are waiting for a match to play on different maps. [see](https://forum.maniaplanet.com/viewtopic.php?p=240234#p240234)
+* New commands Command_RoundPointsClan1 and Command_RoundPointsClan2. Allow to force the scores of the teams. [see](https://forum.maniaplanet.com/viewtopic.php?p=240223#p240223)
+* New command Command_SetPause. Allow to start a pause before the next round. [see](https://forum.maniaplanet.com/viewtopic.php?p=240223#p240223)
+* New command Command_ForceEndRound. Allow to force the end of the current round. [see](https://forum.maniaplanet.com/viewtopic.php?p=240223#p240223)
+* Fix : S_MinPlayersNb can't be set to less than 2. [see](https://forum.maniaplanet.com/viewtopic.php?p=240377#p240377)
+* Fix : force the right default labels visibility.
+* Fix : the UI sometimes crashed at the end of the race because of the scoring gauges.
+
+### Librairies
+
+#### MatchmakingLobby
+* Force the rules to be displayed the first time a player joins a lobby on a mode he never played before.
+* Fix : sometime a player was selected for a match but not displayed in the versus screen because the other players didn't received info about him yet, giving the impression of a 3vs2 match by example. Now the versus screen will at least display the login of this player.
+
+#### MatchmakingMatch
+* Check only the ready status of the players and not spectators at the beginning of the matches.
+
+#### ScoresTable2
+* Added two settings to sort the spectators and/or the disconnected players at the end of the scores table. [see](https://forum.maniaplanet.com/viewtopic.php?p=239503#p239503)
+
+#### WarmUp2Common
+* Convert the WarmUp2 library from Shootmania into a common library working also for Trackmania.
+
+#### XmlRpcCommon
+* New generic methods and callbacks to control the pause system in different game modes : `LibXmlRpc_SetPause`, `LibXmlRpc_GetPause` and `LibXmlRpc_Pause`.
+* Send the map UID in the `LibXmlRpc_LoadingMap` and `LibXmlRpc_UnloadingMap` callbacks. [see](https://forum.maniaplanet.com/viewtopic.php?p=240056#p240056)
+
+#### Shootmania/XmlRpc
+* Added the shooter and victim positions and aim directions to the LibXmlRpc_OnHit callback. [see](https://forum.maniaplanet.com/viewtopic.php?p=240641#p240641)
+
+---------------------------------
+
+
 <a id="2015-02-19">2015-02-19</a>
 ---------------------------------
 
