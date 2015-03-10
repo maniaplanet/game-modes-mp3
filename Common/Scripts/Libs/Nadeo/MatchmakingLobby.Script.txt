@@ -2,7 +2,7 @@
  *	Matchmaking lobby library
  */
 
-#Const Version		"2015-02-18"
+#Const Version		"2015-03-03"
 #Const ScriptName	"MatchmakingLobby.Script.txt"
 
 #Include "TextLib" as TL
@@ -2762,7 +2762,7 @@ Void MM_EndServer() {
 // ---------------------------------- //
 /** Create the header manialink
  *
- *	@return		The manialink
+ *	@return						The manialink
  */
 Text GetMLHeader() {
 	declare Hidden = "0";
@@ -2942,7 +2942,7 @@ Text GetMLRules(Text _Rules) {
 	if (_Rules == "") return "";
 	
 	return """
-<manialink version="1" name="ModeMatchmaking:Rules">
+<manialink version="2" name="ModeMatchmaking:Rules">
 <frame posn="0 0 30" hidden="1" id="Frame_Global">
 	{{{_Rules}}}
 </frame>
@@ -2950,8 +2950,14 @@ Text GetMLRules(Text _Rules) {
 main() {
 	declare Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
 	
+	declare persistent Lobby_RulesForced for This = Boolean[Text];
 	declare Lobby_RulesAreVisible for UI = False;
-	Lobby_RulesAreVisible = False;
+	
+	if (!Lobby_RulesForced.existskey(CurrentServerModeName)) {
+		Lobby_RulesForced[CurrentServerModeName] = True;
+	}
+	Lobby_RulesAreVisible = Lobby_RulesForced[CurrentServerModeName];
+	Lobby_RulesForced[CurrentServerModeName] = False;
 	
 	declare PrevRulesAreVisible = False;
 	
@@ -3779,7 +3785,6 @@ main() {
 	G_PlayersMax = {{{SlotsNb}}};
 	
 	declare Lobby_RulesAreVisible for UI = False;
-	Lobby_RulesAreVisible = False;
 	
 	declare PrevIsReady = False;
 	declare PrevFormatUpdate = -1;
@@ -4553,7 +4558,7 @@ Text GetMLVersus() {
 	<frame posn="0 0 -1">
 		<quad sizen="190 190" halign="center" valign="center" image="{{{Background}}}" />
 	</frame>
-	<frame>
+	<frame posn="0 0 5">
 		<label posn="0 40" sizen="200 20" halign="center" valign="center2" style="TextRaceMessageBig" textsize="2" id="Label_Info" />
 		<label posn="0 40" sizen="200 20" halign="center" valign="center2" style="TextRaceMessageBig" textsize="2" text="{{{_("You are being transferred. Please wait.")}}}" id="Label_Transfert" />
 		<frame posn="-45 25" id="Frame_Clan1">
@@ -4610,10 +4615,10 @@ Text GetEchelonPath(CUser::EEchelon _Echelon) {
 	return "file://Media/Manialinks/Common/Echelons/echelon"^GetEchelon(_Echelon)^".dds";
 }
 
-Void UpdatePlayerSlot(CMlFrame _Frame, CUser _User) {
+Void UpdatePlayerSlot(CMlFrame _Frame, Text _Login) {
 	if (_Frame == Null) return;
 	
-	if (_User == Null) {
+	if (_Login == "") {
 		_Frame.Visible = False;
 		return;
 	} else {
@@ -4628,22 +4633,36 @@ Void UpdatePlayerSlot(CMlFrame _Frame, CUser _User) {
 	declare Label_Echelon		<=> (_Frame.GetFirstChild("Label_Echelon")		as CMlLabel);
 	declare Frame_Ally			<=> (_Frame.GetFirstChild("Frame_Ally")			as CMlFrame);
 	
-	if (Quad_Avatar != Null)		Quad_Avatar.ImageUrl = "file://Avatars/"^_User.Login^"/Default";
-	if (Label_Name != Null)			Label_Name.Value = _User.Name;
-	if (Quad_CountryFlag != Null)	Quad_CountryFlag.ImageUrl = _User.CountryFlagUrl;
-	if (Quad_Echelon != Null)		Quad_Echelon.ImageUrl = GetEchelonPath(_User.Echelon);
-	if (Label_Echelon != Null)		Label_Echelon.Value = TL::ToText(GetEchelon(_User.Echelon));
-	if (Label_Rank != Null) {
-		declare Zone = _("Other");
-		declare ZoneArray = TL::Split("|", _User.LadderZoneName);
-		if (ZoneArray.existskey(2)) Zone = ZoneArray[2];
-		if (_User.LadderRank > 0) Label_Rank.Value = TL::Compose("%1: %2", Zone, TL::ToText(_User.LadderRank));
-		else Label_Rank.Value = TL::Compose("%1: %2", Zone, _("Not ranked"));
+	
+	declare User <=> GetUser(_Login);
+	if (User != Null) {
+		if (Quad_Avatar != Null)		Quad_Avatar.ImageUrl = "file://Avatars/"^User.Login^"/Default";
+		if (Label_Name != Null)			Label_Name.Value = User.Name;
+		if (Quad_CountryFlag != Null)	Quad_CountryFlag.ImageUrl = User.CountryFlagUrl;
+		if (Quad_Echelon != Null)		Quad_Echelon.ImageUrl = GetEchelonPath(User.Echelon);
+		if (Label_Echelon != Null)		Label_Echelon.Value = TL::ToText(GetEchelon(User.Echelon));
+		if (Label_Rank != Null) {
+			declare Zone = _("Other");
+			declare ZoneArray = TL::Split("|", User.LadderZoneName);
+			if (ZoneArray.existskey(2)) Zone = ZoneArray[2];
+			if (User.LadderRank > 0) Label_Rank.Value = TL::Compose("%1: %2", Zone, TL::ToText(User.LadderRank));
+			else Label_Rank.Value = TL::Compose("%1: %2", Zone, _("Not ranked"));
+		}
+	} else {
+		if (Quad_Avatar != Null)		Quad_Avatar.ImageUrl = "";
+		if (Label_Name != Null)			Label_Name.Value = _Login;
+		if (Quad_CountryFlag != Null)	Quad_CountryFlag.ImageUrl = "";
+		if (Quad_Echelon != Null)		Quad_Echelon.ImageUrl = GetEchelonPath(CUser::EEchelon::None);
+		if (Label_Echelon != Null)		Label_Echelon.Value = "0";
+		if (Label_Rank != Null) {
+			declare Zone = _("Other");
+			Label_Rank.Value = TL::Compose("%1: %2", Zone, _("Not ranked"));
+		}
 	}
 	
 	declare netread Boolean[Text] Net_Lobby_VersusAllied for Teams[0];
-	if (Net_Lobby_VersusAllied.existskey(_User.Login)) {
-		if (Net_Lobby_VersusAllied[_User.Login]) {
+	if (Net_Lobby_VersusAllied.existskey(_Login)) {
+		if (Net_Lobby_VersusAllied[_Login]) {
 			Frame_Ally.Visible = True;
 		} else {
 			Frame_Ally.Visible = False;
@@ -4656,21 +4675,19 @@ Void UpdatePlayerSlot(CMlFrame _Frame, CUser _User) {
 Void UpdatePlayersList() {
 	declare netread Integer[Text] Net_Lobby_VersusPlayers for UI;
 	
-	declare ClansUsers = Real[CUser][Integer];
+	declare ClansLogins = Real[Text][Integer];
 	foreach (Login => Clan in Net_Lobby_VersusPlayers) {
-		if (!ClansUsers.existskey(Clan)) ClansUsers[Clan] = Real[CUser];
+		if (!ClansLogins.existskey(Clan)) ClansLogins[Clan] = Real[Text];
 		declare CUser User;
 		declare Real LadderPoints;
 		
 		User <=> GetUser(Login);
 		if (User != Null) {
 			LadderPoints = User.LadderPoints;
-			
-			// @Debug
 			if (User.IsFakeUser) LadderPoints = GetEchelon(User.Echelon) * 10000.;
-			
-			ClansUsers[Clan][User] = -LadderPoints;
 		}
+		
+		ClansLogins[Clan][Login] = -LadderPoints;
 	}
 	
 	declare Frames_Clan = [
@@ -4679,21 +4696,21 @@ Void UpdatePlayersList() {
 	];
 	
 	for (I, 0, 1) {
-		if (!ClansUsers.existskey(I+1)) continue;
+		if (!ClansLogins.existskey(I+1)) continue;
 		
-		declare ClansUsersSorted = ClansUsers[I+1].sort();
+		declare ClansLoginsSorted = ClansLogins[I+1].sort();
 		
-		declare ClanUsers = CUser[];
-		foreach (User => LadderPoints in ClansUsersSorted) {
-			ClanUsers.add(User);
+		declare ClanLogins = Text[];
+		foreach (Login => LadderPoints in ClansLoginsSorted) {
+			ClanLogins.add(Login);
 		}
 		
 		foreach (Control in Frames_Clan[I].Controls) {
 			declare Frame_PlayerCard <=> ((Control as CMlFrame).GetFirstChild("Frame_PlayerCard") as CMlFrame);
 			declare Slot = G_PageStart + TL::ToInteger(Control.ControlId);
 			
-			if (ClanUsers.existskey(Slot)) UpdatePlayerSlot(Frame_PlayerCard, ClanUsers[Slot]);
-			else UpdatePlayerSlot(Frame_PlayerCard, Null);
+			if (ClanLogins.existskey(Slot)) UpdatePlayerSlot(Frame_PlayerCard, ClanLogins[Slot]);
+			else UpdatePlayerSlot(Frame_PlayerCard, "");
 		}
 	}
 	
