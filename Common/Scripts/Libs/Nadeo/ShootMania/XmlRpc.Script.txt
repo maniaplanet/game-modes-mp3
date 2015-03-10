@@ -425,8 +425,17 @@ Void SendIsInWarmUp() {
  *	Data:
  *	[Number of the map]
  */
+Void LoadingMap(Integer _Number, Boolean _Restarted) {
+	XmlRpc::LoadingMap(_Number, _Restarted);
+}
+
+// ---------------------------------- //
+/** Callback sent when starting to load the map
+ *	Data:
+ *	[Number of the map]
+ */
 Void LoadingMap(Integer _Number) {
-	XmlRpc::LoadingMap(_Number);
+	XmlRpc::LoadingMap(_Number, False);
 }
 
 // ---------------------------------- //
@@ -712,6 +721,33 @@ Void BeginWarmUp() {
 Void EndWarmUp() {
 	G_IsInWarmUp = False;
 	XmlRpc::EndWarmUp();
+}
+
+// ---------------------------------- //
+/// Callback sent at the beginning of the pause
+Void BeginPause() {
+	XmlRpc::BeginPause();
+}
+
+// ---------------------------------- //
+/// Callback sent at the end of the pause
+Void EndPause() {
+	XmlRpc::EndPause();
+}
+
+// ---------------------------------- //
+/** Check if a pause is requested
+ *
+ *	@return		True if a pause is requested, False otherwise
+ */
+Boolean PauseRequested() {
+	return XmlRpc::PauseRequested();
+}
+
+// ---------------------------------- //
+/// Callback sent when the scores are ready to be used
+Void ScoresReady() {
+	XmlRpc::ScoresReady();
 }
 
 // ---------------------------------- //
