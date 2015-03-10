@@ -2,7 +2,7 @@
  *	Matchmaking match library
  */
 
-#Const Version		"2015-02-18"
+#Const Version		"2015-02-24"
 #Const ScriptName	"MatchmakingMatch.Script.txt"
 
 #Include "TextLib" as TL
@@ -1155,7 +1155,7 @@ Boolean PrepareMatch_IsRunning() {
 /// Update the prepare match sequence
 Void PrepareMatch_Loop() {
 	declare ReadyPlayersNb = 0;
-	foreach (Player in AllPlayers) {
+	foreach (Player in Players) {
 		declare Matchmaking_PlayerStatus for Player = C_PlayerStatus_Waiting;
 		if (Matchmaking_PlayerStatus == C_PlayerStatus_Valid) {
 			declare Connected = False;
@@ -1283,8 +1283,8 @@ Text VoteForRematch_Loop() {
 						if (Logins[Vote] != "") Logins[Vote] ^= ",";
 						Logins[Vote] ^= User.Login;
 					}
-					
-					NewVotes = """<frame posn="0 6 10"><playerlist posn="-37 0" scale="0.8" halign="center" substyle="Medium" logins="{{{Logins[True]}}}" lines="50" columns="1" /><playerlist posn="37.5 0" scale="0.8" halign="center" substyle="Medium" logins="{{{Logins[False]}}}" lines="50" columns="1" /></frame>""";
+				
+				NewVotes = """<frame posn="0 6 10"><playerlist posn="-37 0" scale="0.8" halign="center" substyle="Medium" logins="{{{Logins[True]}}}" lines="50" columns="1" /><playerlist posn="37.5 0" scale="0.8" halign="center" substyle="Medium" logins="{{{Logins[False]}}}" lines="50" columns="1" /></frame>""";
 				}
 			}
 		}

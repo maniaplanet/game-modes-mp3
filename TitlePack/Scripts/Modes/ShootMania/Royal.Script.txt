@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2014-07-25"
+#Const Version				"2015-03-02"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -38,6 +38,7 @@
 #Setting S_MultiClans				True	as _("Allow multi clans mode")
 #Setting S_MinPlayersNbPerClan		3		as _("Minimum number of players per clan")
 #Setting S_AllowBeginners			False	as _("Is a Beginners Welcome server")
+#Setting S_ResetScoreLeavers		False	as "<hidden>"
 //#Setting S_AutoManageAFK			True	//as _("Switch inactive players to spectators")
 
 #Const C_OffZoneMinRadius		16.		///< Minimum size of the OffZone at the end
@@ -982,7 +983,7 @@ foreach (Event in PendingEvents) {
 						
 						// Use notices to display several messages one after the other
 						UIManager.UIAll.SendNotice(
-							TextLib::Compose(_("$<%1$> captured the pole."), Player.Name), 
+							TextLib::Compose(_("$<%1$> captured the pole."), Player.User.Name), 
 							CUIConfig::ENoticeLevel::MatchInfo, Null, 
 							CUIConfig::EAvatarVariant::Default, 
 							CUIConfig::EUISound::StartRound, 0
@@ -1286,6 +1287,14 @@ UIManager.UIAll.BigMessage = "";
 // Map end conditions
 declare MaxPoints = 0;
 foreach (Score in Scores) {
+	// Reset score of leavers
+	if (S_ResetScoreLeavers) {
+		declare Player <=> SM::GetPlayer(Score.User.Login);
+		if (Player == Null || Player.RequestsSpectate) {
+			Score.Points = 0;
+		}
+	}
+	
 	if (Score.Points >= MaxPoints) {
 		if (Score.Points > MaxPoints) {
 			MapWinnerPlayer = Score.User.Id;
@@ -1563,7 +1572,7 @@ Text UpdateLayerSpawnQueue(Integer[Ident] _PlayersSpawnQueue) {
 	
 	foreach (PlayerId => SpawnOrder in _PlayersSpawnQueue) {
 		declare Name = "Player";
-		if (Players.existskey(PlayerId)) Name = TextLib::MLEncode(Players[PlayerId].Name);
+		if (Players.existskey(PlayerId)) Name = TextLib::MLEncode(Players[PlayerId].User.Name);
 		SpawnQueue[J] = Name;
 		J += 1;
 	}

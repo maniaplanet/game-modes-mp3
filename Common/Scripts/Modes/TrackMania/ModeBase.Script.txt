@@ -4,7 +4,7 @@
 
 #RequireContext CTmMode
 
-#Const	ModeBaseVersion		"2015-02-18"
+#Const	ModeBaseVersion		"2015-02-19"
 #Const	ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -504,6 +504,12 @@ main() {
 	MB_XmlRpcCheck();
 	MB_AllowRespawnCheck();
 	
+	// Default label visibility
+	UIManager.UIAll.TeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenInFrustum;
+	UIManager.UIAll.TeamLabelsShowNames = CUIConfig::EVisibility::ForcedVisible;
+	UIManager.UIAll.OpposingTeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenInFrustum;
+	UIManager.UIAll.OpposingTeamLabelsShowNames = CUIConfig::EVisibility::ForcedVisible;
+	
 	if (MB_UseLogging) MB_Log("StartServer");
 	
 	UI::Load();
@@ -577,14 +583,10 @@ main() {
 					if (UI != Null) UI.UISequence = CUIConfig::EUISequence::Intro;
 				}
 			}
-			foreach (Player in Players) {
-				Player.IsSpawned = True;
-			}
 			
 			// Load map
 			XmlRpc::LoadingMap(MB_SectionMapNb);
 			MB_LoadMap();
-			
 			
 			if (MB_UseLogging) MB_Log("StartMap");
 			
@@ -598,10 +600,6 @@ main() {
 				---MapIntro---
 			}
 			MB_Synchro_DoBarrier();
-			
-			foreach (Player in AllPlayers) {
-				Player.IsSpawned = False;
-			}
 			
 			+++StartMap+++
 			XmlRpc::BeginMapStop(MB_SectionMapNb, MB_MapRestarted);

@@ -430,7 +430,7 @@ main() {
 			
 			+++BeforeLoadMap+++
 			
-			XmlRpc::LoadingMap(MB_SectionMapNb);
+			XmlRpc::LoadingMap(MB_SectionMapNb, MB_MapRestarted);
 			MB_LoadMap();
 			
 			if (MB_UseLogging) MB_Log("StartMap");
