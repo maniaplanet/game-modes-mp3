@@ -4,10 +4,11 @@
 
 #RequireContext CTmMode
 
-#Const	ModeBaseVersion		"2015-02-19"
+#Const	ModeBaseVersion		"2015-02-26"
 #Const	ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
+#Include "Libs/Nadeo/Window.Script.txt" as Window
 #Include "Libs/Nadeo/ScoresTable2.Script.txt" as ST2
 #Include "Libs/Nadeo/Clublink.Script.txt" as Clublink
 #Include "Libs/Nadeo/TrackMania/UI.Script.txt" as UI
@@ -40,6 +41,7 @@ MB_LogVersion(ModeBaseScriptName, ModeBaseVersion);
 MB_LogVersion(UI::GetScriptName(), UI::GetScriptVersion());
 MB_LogVersion(TM2::GetScriptName(), TM2::GetScriptVersion());
 MB_LogVersion(Mode::GetScriptName(), Mode::GetScriptVersion());
+MB_LogVersion(Window::GetScriptName(), Window::GetScriptVersion());
 MB_LogVersion(XmlRpc::GetScriptName(), XmlRpc::GetScriptVersion());
 MB_LogVersion(WarmUp::GetScriptName(), WarmUp::GetScriptVersion());
 MB_LogVersion(Clublink::GetScriptName(), Clublink::GetScriptVersion());
@@ -512,6 +514,7 @@ main() {
 	
 	if (MB_UseLogging) MB_Log("StartServer");
 	
+	Window::Load();
 	UI::Load();
 	TM2::Load();
 	WarmUp::Load();
@@ -585,7 +588,7 @@ main() {
 			}
 			
 			// Load map
-			XmlRpc::LoadingMap(MB_SectionMapNb);
+			XmlRpc::LoadingMap(MB_SectionMapNb, MB_MapRestarted);
 			MB_LoadMap();
 			
 			if (MB_UseLogging) MB_Log("StartMap");
@@ -836,6 +839,7 @@ main() {
 	TM2::Unload();
 	WarmUp::Unload();
 	UI::Unload();
+	Window::Unload();
 	XmlRpc::EndServerStop();
 	XmlRpc::Unload();
 }
