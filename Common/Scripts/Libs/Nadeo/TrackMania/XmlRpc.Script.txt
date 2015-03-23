@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2015-03-18"
+#Const	Version		"2015-03-23"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -806,7 +806,7 @@ Void OnStartLine(CTmModeEvent _Event) {
  *	@param	_Event		The event to handle
  */
 Void OnPlayerFinish(CTmModeEvent _Event) {
-	if (!_Event.IsEndRace) return;
+	if (!_Event.IsEndRace && !(IndependantLaps && _Event.IsEndLap)) return;
 	
 	// Disallow the respawn and giveup callback
 	declare LibXmlRpc_CanRespawn for _Event.Player = False;
@@ -814,7 +814,10 @@ Void OnPlayerFinish(CTmModeEvent _Event) {
 		
 	if (!CallbackIsAllowed("LibXmlRpc_OnPlayerFinish")) return;
 	
-	SendCallbackArray("LibXmlRpc_OnPlayerFinish", [_Event.Player.Login, ""^_Event.BlockId, TL::ToText(_Event.RaceTime)]);
+	declare RaceTime = _Event.RaceTime;
+	if (IndependantLaps) RaceTime = _Event.LapTime;
+	
+	SendCallbackArray("LibXmlRpc_OnPlayerFinish", [_Event.Player.Login, ""^_Event.BlockId, TL::ToText(RaceTime)]);
 }
 
 // ---------------------------------- //
