@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2015-03-02"
+#Const Version				"2015-04-09"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -31,14 +31,19 @@
 #Setting S_OffZoneAutoStartTime		90		as _("Time before auto activation of the tornado")
 #Setting S_OffZoneTimeLimit			50		as _("Tornado shrink duration")
 #Setting S_OffZoneMaxSpeed			1.25	as _("Maximum speed multiplier for the tornado")
+#Setting S_OffzoneSize				1.		as "<hidden>" ///< Initial size of the tornado
 #Setting S_EndRoundTimeLimit		60		as _("Time limit after the tornado is completly shrunk")
 #Setting S_SpawnInterval			5		as _("Time between each wave of spawns")
 #Setting S_UseEarlyRespawn			True	as _("Allow early respawn")
 #Setting S_EndMapChatTime			20		as _("End map chat time")
 #Setting S_MultiClans				True	as _("Allow multi clans mode")
 #Setting S_MinPlayersNbPerClan		3		as _("Minimum number of players per clan")
-#Setting S_AllowBeginners			False	as _("Is a Beginners Welcome server")
-#Setting S_ResetScoreLeavers		False	as "<hidden>"
+#Setting S_ReloadSpeed				1.		as _("Reload speed")
+#Setting S_StartingArmor			2		as _("Starting armor amount")
+#Setting S_ResetScoreLeavers		False	as "<hidden>" ///< Reset the score of the leavers
+#Setting S_DisableWidgets			False	as "<hidden>"	///< Disable the "tops" and "players remaining" UI widgets
+#Setting S_AllowBeginners			False	as "<hidden>"
+
 //#Setting S_AutoManageAFK			True	//as _("Switch inactive players to spectators")
 
 #Const C_OffZoneMinRadius		16.		///< Minimum size of the OffZone at the end
@@ -478,7 +483,7 @@ if(S_AllowBeginners) {
 	Beginners::NotifyNewPlayer(Player);
 }
 
-Slider::ShowSlider(Player, 0);
+if (!S_DisableWidgets) Slider::ShowSlider(Player, 0);
 
 // hide rules reminder
 if(UI != Null) {
@@ -507,7 +512,7 @@ if (UI!= Null) {
 	PlayerTabPaneId = G_TabPaneID;
 }
 
-Slider::ShowSlider(Spectator, 0);
+if (!S_DisableWidgets) Slider::ShowSlider(Spectator, 0);
 ***
 
 ***Yield***
@@ -591,12 +596,11 @@ switch (GameplaySequence) {
 								declare Player <=> Players[PlayerId];
 								declare CanEarlyRespawn for Player = False;
 								declare LastLocationSpawn for Player <=> CSmMapLandmark;
-								declare AutoBalance_ReloadSpeedBonus for Player.User = 1.;
 								declare CaptureSpeedBonus for Player = 1.;
 								CanEarlyRespawn = False;
 								LastLocationSpawn <=> LandmarkPlayerSpawn;
-								Player.AmmoGain = AutoBalance_ReloadSpeedBonus;
-								Player.ArmorMax = C_ArmorMax;
+								Player.AmmoGain = GetAmmoGain(Player);
+								Player.ArmorMax = GetArmorMax();
 								CaptureSpeedBonus = C_CaptureSpeedBonus;
 								
 								if(S_AllowBeginners) {
@@ -655,7 +659,7 @@ switch (GameplaySequence) {
 				_("The pole can now be captured."), OffZoneAutoStartTime, 1, CUIConfig::EUISound::PhaseChange, 0
 			);
 			Layers::Detach("SpawnQueue");
-			Layers::Attach("RoundInfo");		
+			if (!S_DisableWidgets) Layers::Attach("RoundInfo");		
 			UpdateLayerInfo(PlayersNbAlive);
 			GameplaySequence = 2;
 			
@@ -759,9 +763,8 @@ if (S_UseEarlyRespawn && EarlyRespawnAllowed) {
 				LastLocationSpawn <=> MapLandmarks_PlayerSpawn[MathLib::Rand(0, MapLandmarks_PlayerSpawn.count - 1)];
 			}
 			
-			declare AutoBalance_ReloadSpeedBonus for Player.User = 1.;
 			declare CaptureSpeedBonus for Player = 1.;
-			Player.AmmoGain = AutoBalance_ReloadSpeedBonus;
+			Player.AmmoGain = GetAmmoGain(Player);
 			CaptureSpeedBonus = C_CaptureSpeedBonus;
 			
 			+++OnPlayerSpawn+++
@@ -958,7 +961,7 @@ foreach (Event in PendingEvents) {
 		}
 		
 		XmlRpc::OnArmorEmpty(Event);
-		Slider::ShowSlider(Event.Victim, 0);
+		if (!S_DisableWidgets) Slider::ShowSlider(Event.Victim, 0);
 		PassOn(Event);
 	} 
 	// ---------------------------------- //
@@ -1038,7 +1041,7 @@ foreach (Event in PendingEvents) {
 			// ---------------------------------- //
 			// Active OffZone
 			if (GameplaySequence == 2) {			
-				OffZoneRadius = C_OffZoneDefaultRadius;
+				OffZoneRadius = C_OffZoneDefaultRadius * S_OffzoneSize;
 				OffZoneStartingRadiusSpeed = (C_OffZoneDefaultRadius - C_OffZoneMinRadius) / (OffZoneTimeLimit/1000);
 				OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed;
 				Event.Landmark.Gauge.Speed = 0; 
@@ -1087,7 +1090,7 @@ foreach (Event in PendingEvents) {
 				DisplayFirstElimMessage(FirstElimId, True);
 			}
 		}
-		Slider::ShowSlider(Event.Player, 0);
+		if (!S_DisableWidgets) Slider::ShowSlider(Event.Player, 0);
 		
 		PassOn(Event);
 	} 
@@ -1197,7 +1200,7 @@ foreach (Player in Players) {
 		+++EndRoundAlivePlayer+++
 	}
 	
-	Slider::ShowSlider(Player, 0);
+	if (!S_DisableWidgets) Slider::ShowSlider(Player, 0);
 }
 
 ---LastEliminationsBonus---
@@ -1239,6 +1242,7 @@ foreach (Score in Scores) {
 	if (EliminatedBy == "") EliminatedBy = "*";
 	if(MapBestRound < Score.RoundPoints) MapBestRound = Score.RoundPoints;
 }
+XmlRpc::ScoresReady();
 
 // ---------------------------------- //
 // Update round top
@@ -1369,6 +1373,41 @@ Color::Unload();
 	}
 ***
 
+// ---------------------------------- //
+/** Get the ammo gain of a player
+ *
+ *	@param	_Player				The player to check
+ *
+ *	@return						The ammo gain
+ */
+Real GetAmmoGain(CSmPlayer _Player) {
+	if (_Player == Null) return 1.;
+	
+	declare AutoBalance_ReloadSpeedBonus for _Player.User = 1.;
+	
+	declare AmmoGain = AutoBalance_ReloadSpeedBonus * S_ReloadSpeed;
+	if (AmmoGain < 0.) AmmoGain = 0.;
+	else if (AmmoGain > 10.) AmmoGain = 10.;
+	return AmmoGain;
+}
+
+// ---------------------------------- //
+/** Get the armor max
+ *
+ *	@return						The armor max
+ */
+Integer GetArmorMax() {
+	declare ArmorMax = S_StartingArmor * 100;
+	if (ArmorMax < 100) ArmorMax = 100;
+	return ArmorMax;
+}
+
+// ---------------------------------- //
+/** Update the footer stats
+ *
+ *	@param	Player				The player to update
+ *	@param	EliminatedByName	The name of the player who eliminated this player
+ */
 Void UpdateFooterStat(CSmPlayer Player, Text EliminatedByName) {
 	---UpdateFooterStat---
 }
