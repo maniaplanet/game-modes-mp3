@@ -12,6 +12,7 @@
 * The automatic spectating mode (Numpad 0) will always target a player of the team with the least spawned players. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 * Remember the display state of the items respawn timers and markers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
 * Better styling of the items respawn timers. [see](https://forum.maniaplanet.com/viewtopic.php?p=238440#p238440)
+* Fix: give the right weapons to the players who join an ongoing game.
 
 #### Shootmania/Royal
 * New setting S_ResetScoreLeavers, default False. At the end of the round reset the score of any player that left the game or is in spectator mode.
