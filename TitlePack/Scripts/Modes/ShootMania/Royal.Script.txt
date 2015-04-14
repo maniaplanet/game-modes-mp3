@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"RoyalArena"
-#Const Version				"2015-04-09"
+#Const Version				"2015-04-14"
 #Const ScriptName			"Royal.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -31,7 +31,7 @@
 #Setting S_OffZoneAutoStartTime		90		as _("Time before auto activation of the tornado")
 #Setting S_OffZoneTimeLimit			50		as _("Tornado shrink duration")
 #Setting S_OffZoneMaxSpeed			1.25	as _("Maximum speed multiplier for the tornado")
-#Setting S_OffzoneSize				1.		as "<hidden>" ///< Initial size of the tornado
+#Setting S_OffZoneMinRadius			16.		as "<hidden>" ///< Minimum size of the OffZone at the end
 #Setting S_EndRoundTimeLimit		60		as _("Time limit after the tornado is completly shrunk")
 #Setting S_SpawnInterval			5		as _("Time between each wave of spawns")
 #Setting S_UseEarlyRespawn			True	as _("Allow early respawn")
@@ -46,7 +46,6 @@
 
 //#Setting S_AutoManageAFK			True	//as _("Switch inactive players to spectators")
 
-#Const C_OffZoneMinRadius		16.		///< Minimum size of the OffZone at the end
 #Const C_OffZoneDefaultRadius	300.	///< Starting radius of the OffZone
 #Const C_ArmorMax				200		///< Maximum number of armor at spawn
 #Const C_ArmorRespawn			100		///< Armor after an early respawn
@@ -716,9 +715,9 @@ switch (GameplaySequence) {
 			} else Pole.Gauge.Speed = 0;
 		}
 		
-		if (OffZoneRadius <= C_OffZoneMinRadius) {
+		if (OffZoneRadius <= S_OffZoneMinRadius) {
 			OffZoneRadiusSpeed = 0.;
-			OffZoneRadius = C_OffZoneMinRadius;
+			OffZoneRadius = S_OffZoneMinRadius;
 			GameplaySequence = 4;
 		}
 	}
@@ -1041,8 +1040,8 @@ foreach (Event in PendingEvents) {
 			// ---------------------------------- //
 			// Active OffZone
 			if (GameplaySequence == 2) {			
-				OffZoneRadius = C_OffZoneDefaultRadius * S_OffzoneSize;
-				OffZoneStartingRadiusSpeed = (C_OffZoneDefaultRadius - C_OffZoneMinRadius) / (OffZoneTimeLimit/1000);
+				OffZoneRadius = C_OffZoneDefaultRadius;
+				OffZoneStartingRadiusSpeed = (C_OffZoneDefaultRadius - S_OffZoneMinRadius) / (OffZoneTimeLimit/1000);
 				OffZoneRadiusSpeed = OffZoneStartingRadiusSpeed;
 				Event.Landmark.Gauge.Speed = 0; 
 				
