@@ -3,12 +3,13 @@
  */
 
 #RequireContext CSmMode
-#Const ModeBaseVersion		"2014-10-16"
+#Const ModeBaseVersion		"2015-04-15"
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
 #Include "Libs/Nadeo/ScoresTable2.Script.txt" as ST2
 #Include "Libs/Nadeo/Clublink.Script.txt" as Clublink
+#Include "Libs/Nadeo/ShootMania/UI.Script.txt" as UI
 #Include "Libs/Nadeo/ShootMania/XmlRpc.Script.txt" as XmlRpc
 #Include "Libs/Nadeo/ShootMania/AFK.Script.txt" as AFK
 
@@ -26,6 +27,7 @@
 ***LogVersion***
 ***
 MB_LogVersion(ModeBaseScriptName, ModeBaseVersion);
+MB_LogVersion(UI::GetScriptName(), UI::GetScriptVersion());
 MB_LogVersion(Mode::GetScriptName(), Mode::GetScriptVersion());
 MB_LogVersion(AFK::GetScriptName(), AFK::GetScriptVersion());
 MB_LogVersion(XmlRpc::GetScriptName(), XmlRpc::GetScriptVersion());
@@ -139,6 +141,7 @@ Void MB_Yield() {
 	XmlRpc::Loop();
 	Clublink::Update();
 	ST2::XmlRpcLoop();
+	UI::XmlRpcLoop();
 	if (S_AutoManageAFK) {
 		if (MB_PrevAFKIdleTimeLimit != S_AFKIdleTimeLimit) {
 			MB_PrevAFKIdleTimeLimit = S_AFKIdleTimeLimit;
@@ -369,7 +372,8 @@ main() {
 	//UIManager.UIAll.UISequence_CanSkipIntroMT = True;
 	
 	if (MB_UseLogging) MB_Log("StartServer");
-
+	
+	UI::Load();
 	ST2::Load();
 	AFK::Load();
 	AFK::SetIdleTimeLimit(S_AFKIdleTimeLimit);
@@ -575,7 +579,7 @@ main() {
 									declare MB_NewSpectator for Player = True;
 									
 									if (MB_NewPlayer) {
-										if (MB_UseLogging) MB_Log("New player > Login: "^Player.Login);
+										if (MB_UseLogging) MB_Log("New player > Login: "^Player.User.Login);
 										MB_NewPlayer = False;
 										MB_NewSpectator = True;
 										+++OnNewPlayer+++
@@ -588,7 +592,7 @@ main() {
 									declare MB_NewSpectator for Spectator = True;
 									
 									if (MB_NewSpectator) {
-										if (MB_UseLogging) MB_Log("New spectator > Login: "^Spectator.Login);
+										if (MB_UseLogging) MB_Log("New spectator > Login: "^Spectator.User.Login);
 										MB_NewPlayer = True;
 										MB_NewSpectator = False;
 										+++OnNewSpectator+++
@@ -600,7 +604,7 @@ main() {
 									declare MB_NewBot for Bot = True;
 									
 									if (MB_NewBot) {
-										if (MB_UseLogging) MB_Log("New bot > Login: "^Bot.Login);
+										if (MB_UseLogging) MB_Log("New bot > Login: "^Bot.User.Login);
 										MB_NewBot = False;
 										+++OnNewBot+++
 									}
@@ -707,6 +711,7 @@ main() {
 	+++EndServer+++
 	AFK::Unload();
 	ST2::Unload();
+	UI::Unload();
 	XmlRpc::EndServerStop();
 	XmlRpc::Unload();
 }
