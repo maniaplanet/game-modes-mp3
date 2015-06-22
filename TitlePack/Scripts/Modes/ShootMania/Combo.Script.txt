@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2015-04-13"
+#Const	Version				"2015-06-22"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -103,6 +103,7 @@ declare Integer[Integer] G_ClanComboTimeLimit;	///< Timer max of the combo for e
 declare Ident[][Integer] G_ClansPlayers;		///< List of players allowed to play
 declare Integer G_InvincibilityEndTime;			///< End time of the players invincibility
 declare Integer[Text][Integer] G_ClansAmmo;		///< Ammo of the clans
+declare Boolean G_IsPlaying;					///< True when the round is being played
 
 declare Boolean G_Pause_Status;					///< Current pause status
 declare Integer G_Pause_StartTime;				///< Pause start time
@@ -167,6 +168,7 @@ SpawnScreen::CreatePrettyRules(ModeName);
 MB_UsePlayerClublinks	= S_UsePlayerClublinks;
 declare IsRematch = False;	///< Do the players want a rematch ?
 declare RematchNb = 0;		///< Number of consecutive rematch
+G_IsPlaying = False;
 ***
 
 ***StartServer***
@@ -477,6 +479,8 @@ G_InvincibilityEndTime = StartTime + C_RoundStartInvicibilityDuration;
 UsePvPCollisions = False;
 UsePvPWeapons = False;
 Message::SendStatusMessage(_("Players are invincible"), G_InvincibilityEndTime - Now, 1);
+
+G_IsPlaying = True;
 ***
 
 ***OnNewPlayer***
@@ -840,6 +844,8 @@ if (EndMap) MB_StopMap = True;
 
 ***EndRound***
 ***
+G_IsPlaying = False;
+
 UIManager.UIAll.StatusMessage = "";
 Message::CleanAllMessages();
 Message::SetDefaultStatusMessage("");
@@ -1222,6 +1228,9 @@ Void UpdateBasesColors() {
  *	@param	_NewComboClan	The clan who updated the combo
  */
 Void UpdateCombo(Integer _NewComboClan) {
+	// Skip combo if we're not playing a round
+	if (!G_IsPlaying) return;
+	
 	// Start combo
 	if (G_ComboClan == 0 || G_ComboClan == _NewComboClan) {
 		if (!G_OffZoneIsActivated) {
