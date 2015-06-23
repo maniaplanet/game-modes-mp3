@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const	CompatibleMapTypes	"ComboArena"
-#Const	Version				"2015-06-22"
+#Const	Version				"2015-06-23"
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
@@ -670,6 +670,11 @@ foreach (Event in PendingEvents) {
 			CycleWeapon(Event.Player, Event.ActionChange);
 			PassOn(Event);
 		}
+	}
+	// ---------------------------------- //
+	// On player shoot
+	else if (Event.Type == CSmModeEvent::EType::OnShoot) {
+		XmlRpc::OnShoot(Event);
 	}
 	// ---------------------------------- //
 	// Others
