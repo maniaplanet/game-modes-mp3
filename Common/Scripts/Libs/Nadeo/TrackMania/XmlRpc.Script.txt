@@ -3,7 +3,7 @@
  *	Simple commons callbacks
  *	And mode specific callbacks
  */
-#Const	Version		"2015-03-23"
+#Const	Version		"2015-08-20"
 #Const	ScriptName	"XmlRpc.Script.txt"
 
 #Include "TextLib" as TL
@@ -141,6 +141,7 @@ Void Unload() {
 	UnregisterCallback("LibXmlRpc_PlayersRanking");
 	UnregisterCallback("LibXmlRpc_PlayersScores");
 	UnregisterCallback("LibXmlRpc_PlayersTimes");
+	UnregisterCallback("LibXmlRpc_Scores");
 	UnregisterCallback("LibXmlRpc_TeamsScores");
 	UnregisterCallback("LibXmlRpc_WarmUp");
 	UnregisterCallback("LibXmlRpc_TeamsMode");
@@ -190,6 +191,12 @@ RegisterCallback("LibXmlRpc_PlayersTimes", """
 * Data : An array with the best time and login of the players.
 * Example : ["login1:12654", "login19:15684", "login48:25964", "login7:-1"]
 * Note : the login and the best time of the players are separated by a colon. This callback is sent when the script receives the `LibXmlRpc_GetPlayersTimes` trigger.
+""");
+
+RegisterCallback("LibXmlRpc_Scores", """
+* Data : An array with the match and map scores in team modes
+* Example : ["1", "0", "5", "6"]
+* Note : ["MatchScoreClan1", "MatchScoreClan2", "MapScoreClan1", "MapScoreClan2"]
 """);
 
 RegisterCallback("LibXmlRpc_TeamsScores", """
@@ -403,6 +410,22 @@ Void SendPlayersTimes() {
 	}
 	
 	SendCallbackArray("LibXmlRpc_PlayersTimes", PlayersTimes);
+}
+
+// ---------------------------------- //
+/** Send the current rankings
+ *	Data:
+ *	[Match Team 1, Match Team 2, Map Team 1, Map Team 2]
+ */
+Void SendScores() {
+	if (!CallbackIsAllowed("LibXmlRpc_Scores")) return;
+	
+	SendCallbackArray("LibXmlRpc_Scores", [
+		TL::ToText(0),
+		TL::ToText(0),
+		TL::ToText(ClanScores[1]), 
+		TL::ToText(ClanScores[2])
+	]);
 }
 
 // ---------------------------------- //

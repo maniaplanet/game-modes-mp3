@@ -4,7 +4,7 @@
 
 #RequireContext CTmMode
 
-#Const	ModeBaseVersion		"2015-02-26"
+#Const	ModeBaseVersion		"2015-08-20"
 #Const	ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -749,6 +749,7 @@ main() {
 							
 							XmlRpc::EndTurn(MB_SectionTurnNb);
 							+++EndTurn+++
+							XmlRpc::SendScores();
 							XmlRpc::EndTurnStop(MB_SectionTurnNb);
 						}
 					}
@@ -765,6 +766,7 @@ main() {
 						
 						XmlRpc::EndRound(MB_SectionRoundNb);
 						+++EndRound+++
+						XmlRpc::SendScores();
 						XmlRpc::EndRoundStop(MB_SectionRoundNb);
 					}
 				}
@@ -780,6 +782,7 @@ main() {
 					
 					XmlRpc::EndSubmatch(MB_SectionSubmatchNb);
 					+++EndSubmatch+++
+					XmlRpc::SendScores();
 					XmlRpc::EndSubmatchStop(MB_SectionSubmatchNb);
 				}
 			}
@@ -794,6 +797,8 @@ main() {
 			XmlRpc::EndMap(MB_SectionMapNb);
 			
 			+++EndMap+++
+			
+			XmlRpc::SendScores();
 			
 			// Play mediatracker podium
 			XmlRpc::BeginPodium();
@@ -821,6 +826,8 @@ main() {
 		
 		XmlRpc::EndMatch(MB_SectionMatchNb);
 		+++EndMatch+++
+		
+			XmlRpc::SendScores();
 		MB_MapRestarted = False;
 		XmlRpc::EndMatchStop(MB_SectionMatchNb);
 	}
