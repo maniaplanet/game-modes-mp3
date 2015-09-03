@@ -6,7 +6,7 @@
  *	- SmallScoresTable -> display the player ranking at the end of the round
  *	- Chrono -> display a chrono at the bottom of the screen
  */
-#Const	Version		"2015-02-16"
+#Const	Version		"2015-09-03"
 #Const	ScriptName	"UI.Script.txt"
 
 #Include "TextLib" as TL
@@ -23,6 +23,7 @@
 #Const C_LibUI_PrevBestTimePos <158., -61., 5.>
 #Const C_LibUI_SpeedAndDistancePos <158., -79.5, 5.>
 #Const C_LibUI_CountdownPos <154., -57., 5.>
+#Const C_LibUI_LapsPos <152., 49.5, 5.>
 #Const C_LibST_RequestTimeout 5000
 
 // ---------------------------------- //
@@ -1184,6 +1185,89 @@ main() {
 }
 
 // ---------------------------------- //
+/** Create the manialink for the laps module
+ *
+ *	@return		The manialink
+ */
+Text Private_CreateMLLaps() {
+	return """
+<manialink version="1" name="Lib_UI:Laps">
+<frame posn="{{{C_LibUI_LapsPos.X}}} {{{C_LibUI_LapsPos.Y}}} {{{C_LibUI_LapsPos.Z}}}" id="Frame_Global">
+	<quad posn="0 0.5" sizen="13 13" halign="center" valign="center" style="BgRaceScore2" substyle="Laps" />
+	<label posn="0 1" sizen="40 6" halign="center" valign="center2" textsize="2" style="TextRaceMessage" id="Label_CurrentLap" />
+	<label posn="0 -4.5" sizen="40 6" halign="center" valign="center2" textsize="1" style="TextRaceMessage" id="Label_NbLaps" />
+</frame>
+<script><!--
+#Include "TextLib" as TL
+
+main() {
+	declare Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
+	declare Label_CurrentLap <=> (Frame_Global.GetFirstChild("Label_CurrentLap") as CMlLabel);
+	declare Label_NbLaps <=> (Frame_Global.GetFirstChild("Label_NbLaps") as CMlLabel);
+	
+	declare netread Integer Net_LibUI_SettingsUpdate for Teams[0];
+	declare netread Text[Text] Net_LibUI_Settings for Teams[0];
+	
+	declare PrevSettingsUpdate = -1;
+	declare PrevLapsVisible = True;
+	
+	declare PrevCurrentLap = -1;
+	declare PrevNbLaps = -1;
+	
+	while (True) {
+		yield;
+		
+		if (!PageIsVisible || InputPlayer == Null) continue;
+		
+		if (PrevSettingsUpdate != Net_LibUI_SettingsUpdate) {
+			PrevSettingsUpdate = Net_LibUI_SettingsUpdate;
+			foreach (SettingName => SettingValue in Net_LibUI_Settings) {
+				switch (SettingName) {
+					case "Laps_Display": {
+						if (SettingValue == "True") {
+							PrevLapsVisible = True;
+							Frame_Global.Visible = True;
+						} else {
+							PrevLapsVisible = False;
+							Frame_Global.Visible = False;
+						}
+					}
+					case "Laps_Position": {
+						declare PositionSplit = TL::Split(" ", SettingValue);
+						Frame_Global.RelativePosition = <TL::ToReal(PositionSplit[0]), TL::ToReal(PositionSplit[1]), TL::ToReal(PositionSplit[2])>;
+					}
+				}
+			}
+		}
+		
+		if (PrevLapsVisible) {
+			if (NbLaps > 1 && GUIPlayer != Null && GUIPlayer.IsSpawned) {
+				if (!Frame_Global.Visible) Frame_Global.Visible = True;
+			} else if (Frame_Global.Visible) {
+				Frame_Global.Visible = False;
+			}
+		}
+		
+		if (!Frame_Global.Visible) continue;
+		
+		if (PrevNbLaps != NbLaps) {
+			PrevNbLaps = PrevNbLaps;
+			Label_NbLaps.Value = "/"^NbLaps;
+		}
+		
+		if (GUIPlayer != Null && PrevCurrentLap != GUIPlayer.CurrentNbLaps) {
+			PrevCurrentLap = GUIPlayer.CurrentNbLaps;
+			declare Lap = GUIPlayer.CurrentNbLaps + 1;
+			if (Lap > NbLaps) Lap = NbLaps;
+			Label_CurrentLap.Value = TL::ToText(Lap);
+		}
+	}
+}
+--></script>
+</manialink>""";
+}
+
+// ---------------------------------- //
 // Public
 // ---------------------------------- //
 // ---------------------------------- //
@@ -1220,6 +1304,7 @@ Void SetModuleVisibility(Text _ModuleName, Boolean _Display) {
 			case "CheckpointTime"	: UIManager.UIAll.OverlayHideCheckPointTime = True;
 			case "SpeedAndDistance"	: UIManager.UIAll.OverlayHideSpeedAndDist = True;
 			case "Countdown"		: UIManager.UIAll.OverlayHideCountdown = True;
+			case "Laps"				: UIManager.UIAll.OverlayHideMultilapInfos = True;
 		}
 		Private_SetModuleSetting(_ModuleName^"_Display", TL::ToText(_Display));
 	} else {
@@ -1231,6 +1316,7 @@ Void SetModuleVisibility(Text _ModuleName, Boolean _Display) {
 			case "CheckpointTime"	: UIManager.UIAll.OverlayHideCheckPointTime = !_Display;
 			case "SpeedAndDistance"	: UIManager.UIAll.OverlayHideSpeedAndDist = !_Display;
 			case "Countdown"		: UIManager.UIAll.OverlayHideCountdown = !_Display;
+			case "Laps"				: UIManager.UIAll.OverlayHideMultilapInfos = !_Display;
 		}
 	}
 	G_LibUI_ModuleVisibility[_ModuleName] = _Display;
@@ -1256,6 +1342,7 @@ Boolean GetModuleVisibility(Text _ModuleName) {
 		case "CheckpointTime"	: return !UIManager.UIAll.OverlayHideCheckPointTime;
 		case "SpeedAndDistance"	: return !UIManager.UIAll.OverlayHideSpeedAndDist;
 		case "Countdown"		: return !UIManager.UIAll.OverlayHideCountdown;
+		case "Laps"				: return !UIManager.UIAll.OverlayHideMultilapInfos;
 	}
 	
 	return False;
@@ -1294,6 +1381,7 @@ Vec3 GetModulePosition(Text _ModuleName) {
 		case "CheckpointTime"	: return C_LibUI_CheckpointTimePos;
 		case "SpeedAndDistance"	: return C_LibUI_SpeedAndDistancePos;
 		case "Countdown"		: return C_LibUI_CountdownPos;
+		case "Laps"				: return C_LibUI_LapsPos;
 	}
 	
 	return <0., 0., 0.>;
@@ -1398,7 +1486,7 @@ Void Private_SetVisibility(Text _Name, Text _Visible) {
 		case "personal_best_and_rank"	: SetModuleVisibility("PrevBestTime", !Hide);
 		case "warmup"					: WarmUp::SetLayerVisibility(!Hide);
 		case "endmap_ladder_recap"		: UIManager.UIAll.OverlayHideEndMapLadderRecap = Hide;
-		case "multilap_info"			: UIManager.UIAll.OverlayHideMultilapInfos = Hide;
+		case "multilap_info"			: SetModuleVisibility("Laps", !Hide);
 	}
 }
 
@@ -1427,6 +1515,7 @@ Void Private_SetPosition(Text _Name, Text _Position) {
 		case "chat"						: UIManager.UIAll.OverlayChatOffset = <Position.X, Position.Y>;
 		case "countdown"				: SetModulePosition("Countdown", Position);
 		case "warmup"					: WarmUp::SetLayerPosition(Position);
+		case "multilap_info"			: SetModulePosition("Laps", Position);
 	}
 }
 
@@ -1479,7 +1568,7 @@ Text Private_GetProperties() {
 	<chat_avatar visible="{{{Private_BooleanToText(!UIManager.UIAll.OverlayChatHideAvatar)}}}" />
 	<warmup visible="{{{Private_BooleanToText(WarmUp::GetLayerVisibility())}}}" pos="{{{Private_Vec3ToText(WarmUp::GetLayerPosition())}}}" />
 	<endmap_ladder_recap visible="{{{Private_BooleanToText(!UIManager.UIAll.OverlayHideEndMapLadderRecap)}}}" />
-	<multilap_info visible="{{{Private_BooleanToText(!UIManager.UIAll.OverlayHideMultilapInfos)}}}" />
+	<multilap_info visible="{{{Private_BooleanToText(GetModuleVisibility("Laps"))}}}" pos="{{{Private_Vec3ToText(GetModulePosition("Laps"))}}}" />
 </ui_properties>""";
 }
 
@@ -1562,6 +1651,11 @@ Void LoadModule(Text _ModuleId) {
 			Private_CreateModuleLayer(_ModuleId).ManialinkPage = Private_CreateMLCountdown();
 			SetModuleVisibility("Countdown", True);
 			SetModulePosition("Countdown", C_LibUI_CountdownPos);
+		}
+		case "Laps": {
+			Private_CreateModuleLayer(_ModuleId).ManialinkPage = Private_CreateMLLaps();
+			SetModuleVisibility("Laps", True);
+			SetModulePosition("Laps", C_LibUI_LapsPos);
 		}
 	}
 	
