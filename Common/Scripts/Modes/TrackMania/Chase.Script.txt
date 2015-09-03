@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/ModeMatchmaking.Script.txt"
 
 #Const  CompatibleMapTypes  "Race"
-#Const	Version		"2015-03-05"
+#Const	Version		"2015-09-03"
 #Const	ScriptName	"Chase.Script.txt"
 
 #Include "Libs/Nadeo/Trackmania/WarmUp2.Script.txt" as WarmUp2
@@ -25,7 +25,7 @@
 #Setting S_CompetitiveMode		False	as _("Use competitive mode :")
 #Setting S_PauseBetweenRound	15		as _("Pause duration between rounds :")
 #Setting S_WaitingTimeMax		600		as _("Maximum waiting time before next map :")
-#Setting S_WaypointEventDelay	500		as "<hidden>" // _("Waypoint event delay")
+#Setting S_WaypointEventDelay	500		as "<hidden>" // _("Waypoint event delay :")
 #Setting S_UsePlayerClublinks	False	as "<hidden>" // _("Use Clublinks :")
 // Matchmaking
 #Setting S_NbPlayersPerTeamMax	3		as "<hidden>" //_("Maximum number of players per team in matchmaking")
@@ -141,7 +141,7 @@ if (S_CompetitiveMode) {
 
 // ---------------------------------- //
 // Initialize UI
-UI::LoadModules(["TimeGap", "Chrono", "CheckpointTime", "PrevBestTime", "SpeedAndDistance", "Countdown"]);
+UI::LoadModules(["TimeGap", "Chrono", "CheckpointTime", "PrevBestTime", "SpeedAndDistance", "Countdown", "Laps"]);
 UI::DisplayTimeDiff(False);
 Layers::Create("ChaseInfo", GetMLChaseInfo());
 UIManager.UIAll.TeamLabelsVisibility = CUIConfig::ELabelsVisibility::WhenInFrustum;
@@ -1511,6 +1511,20 @@ Text GetMLChaseInfo() {
 		<quad sizen="7 7" halign="right" valign="center" style="Icons64x64_1" substyle="ClipPlay" id="Quad_NextPlayer" />
 		<label posn="-6 0.3" sizen="30 6" halign="right" valign="center2" style="TextValueSmallSm" textsize="5" textemboss="1" text="{{{C_NoNameCheckpoint}}}" id="Label_NextPlayer" />
 	</frame>
+	<frame posn="0 82" id="Frame_NextCheckpointSpectator">
+		<frame posn="-40 0">
+			<frame id="Frame_NextCheckpointTeam1">
+				<quad sizen="6 6" halign="right" valign="center" style="Icons64x64_1" substyle="ClipPlay" id="Quad_NextPlayer" />
+				<label posn="-6 0.3" sizen="30 6" halign="right" valign="center2" style="TextValueSmallSm" textsize="3" textemboss="1" text="{{{C_NoNameCheckpoint}}}" id="Label_NextPlayer" />
+			</frame>
+		</frame>
+		<frame posn="42 0">
+			<frame id="Frame_NextCheckpointTeam2">
+				<quad sizen="6 6" halign="right" valign="center" style="Icons64x64_1" substyle="ClipPlay" id="Quad_NextPlayer" />
+				<label posn="-6 0.3" sizen="30 6" halign="right" valign="center2" style="TextValueSmallSm" textsize="3" textemboss="1" text="{{{C_NoNameCheckpoint}}}" id="Label_NextPlayer" />
+			</frame>
+		</frame>
+	</frame>
 	<label posn="0 -68" sizen="200 6" halign="center" valign="center2" style="TextValueSmallSm" textsize="5" textemboss="1" id="Label_Distance" />
 	<frame posn="0 92" id="Frame_Score">
 		<quad sizen="30 14 -1" halign="right" style="UiSMSpectatorScoreBig" substyle="HandleLeft" id="Quad_Score1"/>
@@ -1529,6 +1543,31 @@ Text GetMLChaseInfo() {
 <script><!--
 #Include "TextLib" as TL
 #Include "MathLib" as ML
+
+#Const C_TeamSpectated	0
+#Const C_Team1			1
+#Const C_Team2			2
+
+Void UpdateNextCheckpoint(CMlFrame _Frame, Text _Name, Integer _CheckpointNb) {
+	declare Label_NextPlayer <=> (_Frame.GetFirstChild("Label_NextPlayer") as CMlLabel);
+	declare Quad_NextPlayer <=> (_Frame.GetFirstChild("Quad_NextPlayer") as CMlQuad);
+	
+	if (_Name != "{{{C_NoNameCheckpoint}}}") {
+		Quad_NextPlayer.Substyle = "ClipPlay";
+		Label_NextPlayer.Value = _Name;
+		Label_NextPlayer.TextColor = <1., 1., 1.>;
+	} else {
+		Quad_NextPlayer.Substyle = "ClipPlay";
+		Label_NextPlayer.Value = "-";
+		Label_NextPlayer.TextColor = <1., 1., 1.>;
+	}
+	
+	declare NameWidth = Label_NextPlayer.ComputeWidth(Label_NextPlayer.Value);
+	if (NameWidth > Label_NextPlayer.Size.X) NameWidth = Label_NextPlayer.Size.X;
+	declare Width = NameWidth + Quad_NextPlayer.Size.X;
+	_Frame.RelativePosition.X = Width / 2.;
+	_Frame.Visible = True;
+}
 
 Void UpdateNextCheckpoint(Text _Name, Integer _CheckpointNb) {
 	declare Frame_NextCheckpoint <=> (Page.GetFirstChild("Frame_NextCheckpoint") as CMlFrame);
@@ -1568,7 +1607,6 @@ Void UpdateNextCheckpoint(Text _Name, Integer _CheckpointNb) {
 		Frame_NextCheckpoint.RelativePosition.X = Width / 2.;
 		Frame_NextCheckpoint.Visible = True;
 	}
-	
 }
 
 Void UpdateGaugePoints() {
@@ -1604,8 +1642,6 @@ Void UpdateGaugePoints() {
 
 main() {
 	declare Frame_Global		<=> (Page.GetFirstChild("Frame_Global")					as CMlFrame);
-	declare Label_NextPlayer	<=> (Page.GetFirstChild("Label_NextPlayer")				as CMlLabel);
-	declare Label_Distance		<=> (Page.GetFirstChild("Label_Distance")				as CMlLabel);
 	declare Frame_Score			<=> (Page.GetFirstChild("Frame_Score")					as CMlFrame);
 	declare Quad_Score1			<=> (Frame_Score.GetFirstChild("Quad_Score1")			as CMlQuad);
 	declare Quad_Score2			<=> (Frame_Score.GetFirstChild("Quad_Score2")			as CMlQuad);
@@ -1616,6 +1652,13 @@ main() {
 	declare Gauge_Points1		<=> (Frame_Score.GetFirstChild("Gauge_Points1")			as CMlGauge);
 	declare Gauge_Points2		<=> (Frame_Score.GetFirstChild("Gauge_Points2")			as CMlGauge);
 	declare Label_RelayTime		<=> (Page.GetFirstChild("Label_RelayTime")				as CMlLabel);
+	
+	declare Frames_NextCheckpoint = [
+		C_TeamSpectated => (Page.GetFirstChild("Frame_NextCheckpoint") as CMlFrame),
+		C_Team1 => (Page.GetFirstChild("Frame_NextCheckpointTeam1") as CMlFrame),
+		C_Team2 => (Page.GetFirstChild("Frame_NextCheckpointTeam2") as CMlFrame)
+	];
+	declare Frame_NextCheckpointSpectator <=> (Page.GetFirstChild("Frame_NextCheckpointSpectator") as CMlFrame);
 	
 	declare netread Integer Net_Chase_NextPlayerUpdate for Teams[0];
 	declare netread Text[Integer] Net_Chase_NextPlayer for Teams[0];
@@ -1633,11 +1676,17 @@ main() {
 	declare PrevRoundPoints = [1 => 0, 2 => 0];
 	declare PrevMapPoints = [1 => 0, 2 => 0];
 	declare PrevPointsGap = -1;
+	declare PrevIsSpectatorMode = !IsSpectatorMode;
 	
 	while (True) {
 		sleep(250);
 		
 		if (!PageIsVisible || InputPlayer == Null) continue;
+		
+		if (PrevIsSpectatorMode != IsSpectatorMode) {
+			PrevIsSpectatorMode = IsSpectatorMode;
+			Frame_NextCheckpointSpectator.Visible = IsSpectatorMode;
+		}
 		
 		if (PrevNextPlayerUpdate != Net_Chase_NextPlayerUpdate) {
 			PrevNextPlayerUpdate = Net_Chase_NextPlayerUpdate;
@@ -1652,7 +1701,17 @@ main() {
 				UpdateNextCheckpoint("{{{C_NoNameCheckpoint}}}", -1);
 			}
 			
-		
+			for (Clan, 1, 2) {
+				if (
+					Net_Chase_NextPlayer.existskey(Clan) &&
+					Net_Chase_NextCheckpoint.existskey(Clan)
+				) {
+					UpdateNextCheckpoint(Frames_NextCheckpoint[Clan], Net_Chase_NextPlayer[Clan], Net_Chase_NextCheckpoint[Clan]);
+				} else {
+					UpdateNextCheckpoint(Frames_NextCheckpoint[Clan], "{{{C_NoNameCheckpoint}}}", -1);
+				}
+			}
+			
 			if (
 				GUIPlayer != Null &&
 				Net_Chase_RelayTime.existskey(GUIPlayer.CurrentClan) &&
