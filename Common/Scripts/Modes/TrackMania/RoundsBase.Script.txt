@@ -4,7 +4,7 @@
 
 #Extends "Modes/TrackMania/ModeMatchmaking.Script.txt"
 
-#Const	RoundsBaseVersion		"2014-12-31"
+#Const	RoundsBaseVersion		"2015-09-03"
 #Const	RoundsBaseScriptName	"RoundsBase.Script.txt"
 
 // ---------------------------------- //
@@ -44,6 +44,7 @@ declare RematchNb = 0;		///< Number of consecutive rematch
 // ---------------------------------- //
 // Initialize mode
 UiRounds = True;
+UiLaps = True;
 MB_UseSectionRound = True;
 declare Integer[] Rounds_PointsRepartitionBackUp for This;
 // Reload XmlRpc or load default values
@@ -53,7 +54,7 @@ if (Rounds_PointsRepartitionBackUp.count > 0) {
 	MB_PointsRepartition = C_PointsRepartition;
 }
 
-UI::LoadModules(["TimeGap", "SmallScoresTable", "Chrono", "CheckpointTime", "PrevBestTime", "SpeedAndDistance", "Countdown"]);
+UI::LoadModules(["TimeGap", "SmallScoresTable", "Chrono", "CheckpointTime", "PrevBestTime", "SpeedAndDistance", "Countdown", "Laps"]);
 UI::DisplayTimeDiff(S_DisplayTimeDiff);
 
 XmlRpc::RegisterCallback("Rounds_PointsRepartition", """
