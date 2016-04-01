@@ -5,7 +5,7 @@
  *	each map with a vote has a chance top be selected.
  *	Maps with more votes have a higher probability to be selected.
  */
-#Const	Version		"2014-12-31"
+#Const	Version		"2015-03-12"
 #Const	ScriptName	"VoteMap.Script.txt"
 
 #Include "MathLib" as ML
@@ -50,11 +50,10 @@ declare Boolean G_LibVoteMap_UseAnimations;		///< Use animations to show/hide th
  *	@return		The manialink text
  */
 Text Private_CreateMLVoteMap(Text _Style, Integer _MapsCount) {
-	declare MapsByCol = 6;
+	declare MapsByCol = 7;
 	declare ColsNb = ((_MapsCount - 1) / MapsByCol) + 1;
 	if (ColsNb > 3) ColsNb = 3;
 	else if (ColsNb < 1) ColsNb = 1;
-	declare RowsNb = 7;
 	
 	declare ColWidth = 100.;
 	declare Width = ColsNb * ColWidth;
@@ -64,7 +63,7 @@ Text Private_CreateMLVoteMap(Text _Style, Integer _MapsCount) {
 	declare MapsGrid = "";
 	for (Col, 1, ColsNb) {
 		declare PosnX = ((Col - 1) * (MapWidth + MapMargin)) + MapMargin;
-		for (Row, 1, RowsNb) {
+		for (Row, 1, MapsByCol) {
 			declare PosnY = (Row - 1) * -12.;
 			MapsGrid ^= """<frameinstance posn="{{{PosnX}}} {{{PosnY}}}" modelid="Framemodel_MapCard" />""";
 		}
@@ -77,6 +76,14 @@ Text Private_CreateMLVoteMap(Text _Style, Integer _MapsCount) {
 			BgStyle = """
 <frame posn="{{{-(Width+4.)/2.}}} 73.">
 	{{{Window::Create("SM", <Width+4., 138.>, 0.15)}}}
+</frame>
+<quad posn="0 47 1" sizen="{{{Width}}} 22" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle2" />
+""";
+		}
+		case "TM": {
+			BgStyle = """
+<frame posn="{{{-(Width+6.)/2.}}} 73.">
+	{{{Window::Create("TM", <Width+6., 138.>, 0.1)}}}
 </frame>
 <quad posn="0 47 1" sizen="{{{Width}}} 22" halign="center" valign="center" style="Bgs1InRace" substyle="BgTitle2" />
 """;
@@ -99,7 +106,7 @@ Text Private_CreateMLVoteMap(Text _Style, Integer _MapsCount) {
 	<label posn="2 0 2" sizen="{{{MapWidth*0.8}}} 11" halign="left" valign="center2" textsize="3" translate="0" id="Label_Name" />
 	<label posn="{{{MapWidth-2}}} 0 0" sizen="{{{MapWidth*0.15}}} 5" halign="right" valign="center2" style="TextRaceMessageBig" textsize="6" id="Label_Vote" />
 </framemodel>
-<frame posn="0 160 10" id="Frame_Global" hidden="1">
+<frame posn="0 160 15" id="Frame_Global" hidden="1">
 	<frame id="Frame_Background">
 		{{{BgStyle}}}
 	</frame>
@@ -261,9 +268,9 @@ Void SelectMap(Integer _MapKey) {
 
 Void PlayAnim(Text _AnimId) {
 	if (_AnimId == "SlideIn") {
-		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 -10" id="Frame_Global" />""")}}}, {{{C_LibVoteMap_AnimDuration}}}, "EaseOutExp");
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 -10 15" id="Frame_Global" />""")}}}, {{{C_LibVoteMap_AnimDuration}}}, "EaseOutExp");
 	} else if(_AnimId == "SlideOut") {
-		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 160" id="Frame_Global" />""")}}}, {{{C_LibVoteMap_AnimDuration}}}, "EaseOutExp");
+		LibManialink_Anim({{{Manialink::Inject("""<frame posn="0 160 15" id="Frame_Global" />""")}}}, {{{C_LibVoteMap_AnimDuration}}}, "EaseOutExp");
 	} else {
 		Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
 		Frame_Global.RelativePosition.Y = -10.;
@@ -464,16 +471,12 @@ Void Unload() {
 	Private_SetSequence(C_LibVoteMap_SequenceNone);
 	
 	Private_Synchro();
-	
-	Window::Unload();
 }
 
 // ---------------------------------- //
 /// Load the library
 Void Load() {
 	Unload();
-	
-	Window::Load();
 	
 	// Create the vote map layer
 	declare LayerVoteMap = UIManager.UILayerCreate();
@@ -549,8 +552,9 @@ Void Begin(CMapInfo[] _Maps, Integer _VoteDuration, Integer _ResultDuration) {
 		}
 		
 		// Try to find style automatically
-		if (GetStyle() == "" && Map != Null) {
-			if (Map.CollectionName == "Storm") SetStyle("SM");
+		if (GetStyle() == "") {
+			if (This is CSmMode) SetStyle("SM");
+			else if (This is CTmMode) SetStyle("TM");
 		}
 		
 		LayerVoteMap.ManialinkPage = Private_CreateMLVoteMap(G_LibVoteMap_Style, Net_LibVoteMap_MapList.count);
@@ -569,6 +573,10 @@ Void Begin(CMapInfo[] _Maps, Integer _VoteDuration, Integer _ResultDuration) {
 	} else {
 		G_LibVoteMap_ResultDuration = C_LibVoteMap_DefaultResultDuration;
 	}
+	
+	// Disable scores table and ladder ranking info window
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
+	UIManager.UIAll.OverlayHideEndMapLadderRecap = True;
 	
 	Private_SetSequence(C_LibVoteMap_SequenceVote);
 }
@@ -593,7 +601,7 @@ Boolean CanStop() {
 Void Loop() {
 	// Vote
 	if (Private_GetSequence() == C_LibVoteMap_SequenceVote) {
-		declare AllPlayersVoted = True;
+		declare AllPlayersVoted = (Players.count > 0);
 		
 		foreach (Player in Players) {
 			declare UI <=> UIManager.GetUI(Player);
@@ -702,6 +710,10 @@ Void End() {
 		declare LayerVoteMap = UIManager.UILayers[G_LibVoteMap_LayerVoteMapId];
 		declare Removed = UIManager.UIAll.UILayers.remove(LayerVoteMap);
 	}
+	
+	// Enable scores table and ladder ranking info window
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	UIManager.UIAll.OverlayHideEndMapLadderRecap = False;
 	
 	G_LibVoteMap_AvailableMaps.clear();
 	Private_SetSequence(C_LibVoteMap_SequenceNone);
