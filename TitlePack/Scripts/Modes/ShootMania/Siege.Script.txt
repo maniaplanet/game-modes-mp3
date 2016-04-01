@@ -6,11 +6,10 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
 
 #Const CompatibleMapTypes	"SiegeV2Arena"
-#Const Version				"2014-11-17"
+#Const Version				"2015-02-20"
 #Const ScriptName			"Siege.Script.txt"
 
 #Include "Libs/Nadeo/CustomUI.Script.txt" as CustomUI
-#Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Debug.Script.txt" as Debug
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
@@ -106,6 +105,9 @@
 	CSmMode::EWeapon::Rocket => 4
 ]
 
+#Const Description _("TYPE: Team vs Team\nOBJECTIVE:\nThe teams play alternatively in attack or defense. The attackers must capture a maximum of poles while the defenders must eliminate all the attackers.\nThe attackers can play with the Laser or the Rocket, the defenders with the Nucleus or the Rocket.\nAt each new round the attackers start with one additional armor.\nAfter a fixed number of round, the team who captured the more poles wins the map.")
+
+
 #Const C_Debug False	///< Show debug
 
 // ---------------------------------- //
@@ -149,6 +151,11 @@ if (S_NbPlayersPerTeamMax > S_NbPlayersPerTeamMin) {
 	}
 	MM_SetProgressiveFormats(Formats);
 }
+***
+
+***ManialinkRules***
+***
+ManialinkRules = """<label posn="-62.5 25" sizen="125 50" autonewline="1" maxline="10" textemboss="1" textsize="2" text="{{{Description}}}" />""";
 ***
 
 ***InitServer***
@@ -252,7 +259,7 @@ ST2::SetSize(<162., -1.>, <158., -1.>, <160., -1.>);
 ST2::SetBackgroundImage("file://Media/Manialinks/Shootmania/ScoresTable/bg-storm.dds", <0., 5.>, <197., 98.>);
 ST2::SetTeamImage(1, "file://Media/Manialinks/Shootmania/ScoresTable/teamversus-left.dds", <0., 3.8>, <98.5, 25.>);
 ST2::SetTeamImage(2, "file://Media/Manialinks/Shootmania/ScoresTable/teamversus-right.dds", <0., 3.8>, <98.4, 25.>);
-MM_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
 ST2::Build("SM");
 ***
 
@@ -334,7 +341,7 @@ UpdateInterludeUI();
 Layers::Hide("Interlude");
 Layers::Attach("Progression");
 Layers::Hide("Progession");
-MM_PlayersPresentationSequence();
+MB_PlayersPresentationSequence();
 
 // ---------------------------------- //
 // Matchmaking : allow substitutes
@@ -411,7 +418,7 @@ Layers::Show("Interlude");
 if (GetWeaponMode() == C_WeaponMode_Selection) {
 	SelectWeapons();
 } else {
-	MM_Sleep(C_StartTurnDuration);
+	MB_Sleep(C_StartTurnDuration);
 }
 Layers::Hide("Interlude");
 
@@ -923,7 +930,7 @@ if (MaxMapLandmark != Null) {
 	UIManager.UIAll.GaugeMessage = ML::FloorInteger(UIManager.UIAll.GaugeRatio*100) ^ "%";
 }
 
-MM_Sleep(2000);
+MB_Sleep(2000);
 SM::UnspawnAllPlayers();
 
 // ---------------------------------- //
@@ -943,6 +950,7 @@ Layers::Hide("Checkpoint");
 UIManager.UIAll.MarkersXML = "";
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UpdateHeader();
+XmlRpc::ScoresReady();
 
 // ---------------------------------- //
 // Reset timers
@@ -1014,7 +1022,7 @@ if (MB_SectionTurnNb >= 2) {
 Mode::PlaySound(CUIConfig::EUISound::EndRound, 0);
 UpdateInterludeUI();
 Layers::Show("Interlude");
-MM_Sleep(C_EndTurnDuration);
+MB_Sleep(C_EndTurnDuration);
 Layers::Hide("Interlude");
 Message::CleanAllMessages();
 Score::RoundEnd();
@@ -1152,10 +1160,10 @@ Message::SendBigMessage(EndMapBigMessage, 30000, 2, CUIConfig::EUISound::EndRoun
 // Display scores table and podium
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-MM_Sleep(ML::NearestInteger(C_EndMapDuration * 0.6));
+MB_Sleep(ML::NearestInteger(C_EndMapDuration * 0.6));
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
-MM_Sleep(ML::NearestInteger(C_EndMapDuration * 0.4));
+MB_Sleep(ML::NearestInteger(C_EndMapDuration * 0.4));
 
 Message::CleanAllMessages();
 
@@ -1725,14 +1733,14 @@ Void DisplayNearMissDistance(CSmModeEvent _Event) {
 			NearMissMessage = TL::Compose(
 				_("%1$<%2$> misses by %3cm."), 
 				Teams[_Event.Shooter.CurrentClan - 1].ColorText,
-				_Event.Shooter.Name, 
+				_Event.Shooter.User.Name, 
 				TL::ToText(1)
 			);
 		} else {
 			NearMissMessage = TL::Compose(
 				_("%1$<%2$> misses by %3cm."), 
 				Teams[_Event.Shooter.CurrentClan - 1].ColorText,
-				_Event.Shooter.Name, 
+				_Event.Shooter.User.Name, 
 				TL::ToText(ML::CeilingInteger(_Event.MissDist*100))
 			);
 		}
@@ -3037,7 +3045,7 @@ Void SelectWeapons() {
 	}
 	
 	while (Now < PreRoundEndTime && !ServerShutdownRequested && !MatchEndRequested) {
-		MM_Yield();
+		MB_Yield();
 		
 		foreach (Player in Players) {
 			if (!IsSpawnable(Player)) {
@@ -3060,7 +3068,7 @@ Void SelectWeapons() {
 	WeaponSelection::End();
 	
 	// Sleep a little to let the server receive all the selected weapon
-	MM_Sleep(1000);
+	MB_Sleep(1000);
 	WeaponSelection::Loop();
 }
 
@@ -3076,7 +3084,7 @@ Void WaitForPlayers(Integer _MinimumNbPlayers) {
 	StartTime = Now;
 	
 	while ((ClansNbPlayers[1] < _MinimumNbPlayers || ClansNbPlayers[2] < _MinimumNbPlayers) && !ServerShutdownRequested && !MatchEndRequested) {
-		MM_Yield();
+		MB_Yield();
 		
 		SM::UnspawnPlayersChangingClan();
 		foreach(Player in Players) {
@@ -3135,7 +3143,7 @@ Void DoWarmUp() {
 	declare PrevWarmUpDuration = S_WarmUpDuration-1;
 	
 	while (!WarmUp2::Stop()) {
-		MM_Yield();
+		MB_Yield();
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
