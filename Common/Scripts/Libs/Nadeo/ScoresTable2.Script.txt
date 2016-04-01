@@ -21,7 +21,7 @@
  *	- LibST_SMWithLegends, add a space for columns legends in the header
  */
 
-#Const Version		"2015-02-26"
+#Const Version		"2015-03-24"
 #Const ScriptName	"ScoresTable.Script.txt"
 
 #Include "TextLib" as TL
@@ -34,7 +34,7 @@
 // ---------------------------------- //
 #Const C_LibST_ScoresTablePos		<0., 38., 0.>
 #Const C_LibST_SizesRatio 			<1., 1.>
-#Const C_LibST_SizesOriginal		[<160., 9.>, <160., 74.>, <158., 6.>]
+#Const C_LibST_SizesDefault		[<160., 9.>, <160., 74.>, <158., 6.>]
 #Const C_LibST_Sizes				[<160., 9.>, <160., 74.>, <158., 6.>]
 #Const C_LibST_HeaderSize			<160., 9.>
 #Const C_LibST_TableSize			<160., 74.>
@@ -84,7 +84,7 @@ declare Real[Integer][Text]	G_LibST_ColsReal;	///< List of the Real columns prop
 // Scores table manialink properties
 declare Vec3 G_LibST_ScoresTablePos;			///< Position of the scores table
 declare Vec2 G_LibST_SizesRatios;				///< Sizes ratio
-declare Vec2[] G_LibST_SizesOriginales;			///< Sizes before ratio
+declare Vec2[] G_LibST_SizesDefault;			///< Sizes before ratio
 declare Vec2[] G_LibST_Sizes;					///< Sizes after ratio
 declare Integer G_LibST_TableColsNb;			///< Number of players columns
 declare Integer G_LibST_TableLinesNb;			///< Number of players lines
@@ -278,7 +278,7 @@ Void Load(Boolean _Full) {
 	// Initialize scores table properties
 	G_LibST_ScoresTablePos		= C_LibST_ScoresTablePos;
 	G_LibST_SizesRatios			= C_LibST_SizesRatio;
-	G_LibST_SizesOriginales		= C_LibST_SizesOriginal;
+	G_LibST_SizesDefault		= C_LibST_SizesDefault;
 	G_LibST_Sizes				= C_LibST_Sizes;
 	G_LibST_TableColsNb			= C_LibST_TableColsNb;
 	G_LibST_TableLinesNb		= C_LibST_TableLinesNb;
@@ -722,26 +722,26 @@ Void SetFooterScript(Text _Script) {
  */
 Void SetSize(Vec2 _HeaderSize, Vec2 _TableSize, Vec2 _FooterSize) {
 	if (_HeaderSize.X > 0) {
-		G_LibST_SizesOriginales[C_LibST_Header].X = _HeaderSize.X;
+		G_LibST_SizesDefault[C_LibST_Header].X = _HeaderSize.X;
 		G_LibST_Sizes[C_LibST_Header].X = _HeaderSize.X * G_LibST_SizesRatios.X;
 	} if (_HeaderSize.Y > 0) {
-		G_LibST_SizesOriginales[C_LibST_Header].Y = _HeaderSize.Y;
+		G_LibST_SizesDefault[C_LibST_Header].Y = _HeaderSize.Y;
 		G_LibST_Sizes[C_LibST_Header].Y = _HeaderSize.Y * G_LibST_SizesRatios.Y;
 	}
 	if (_TableSize.X > 0) {
-		G_LibST_SizesOriginales[C_LibST_Table].X = _TableSize.X;
+		G_LibST_SizesDefault[C_LibST_Table].X = _TableSize.X;
 		G_LibST_Sizes[C_LibST_Table].X = _TableSize.X * G_LibST_SizesRatios.X;
 	}
 	if (_TableSize.Y > 0) {
-		G_LibST_SizesOriginales[C_LibST_Table].Y = _TableSize.Y;
+		G_LibST_SizesDefault[C_LibST_Table].Y = _TableSize.Y;
 		G_LibST_Sizes[C_LibST_Table].Y = _TableSize.Y * G_LibST_SizesRatios.Y;
 	}
 	if (_FooterSize.X > 0) {
-		G_LibST_SizesOriginales[C_LibST_Footer].X = _FooterSize.X;
+		G_LibST_SizesDefault[C_LibST_Footer].X = _FooterSize.X;
 		G_LibST_Sizes[C_LibST_Footer].X = _FooterSize.X * G_LibST_SizesRatios.X;
 	}
 	if (_FooterSize.Y > 0) {
-		G_LibST_SizesOriginales[C_LibST_Footer].Y = _FooterSize.Y;
+		G_LibST_SizesDefault[C_LibST_Footer].Y = _FooterSize.Y;
 		G_LibST_Sizes[C_LibST_Footer].Y = _FooterSize.Y * G_LibST_SizesRatios.Y;
 	}
 }
@@ -1036,7 +1036,7 @@ Void SetTeamsScoresVisibility(Boolean _Visible) {
  */
 Void SetSizeRatio(Vec2 _Ratios) {
 	G_LibST_SizesRatios = _Ratios;
-	SetSize(G_LibST_SizesOriginales[C_LibST_Header], G_LibST_SizesOriginales[C_LibST_Table], G_LibST_SizesOriginales[C_LibST_Footer]);
+	SetSize(G_LibST_SizesDefault[C_LibST_Header], G_LibST_SizesDefault[C_LibST_Table], G_LibST_SizesDefault[C_LibST_Footer]);
 	SetBackgroundProperties(G_LibST_CustomImagePos[-1], G_LibST_CustomImageSizeOriginal[-1]);
 	SetForegroundProperties(G_LibST_CustomImagePos[0], G_LibST_CustomImageSizeOriginal[0]);
 	SetTeamProperties(1, G_LibST_CustomImagePos[1], G_LibST_CustomImageSizeOriginal[1]);
