@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes	"TimeAttackArena"
-#Const Version				"2014-07-25"
+#Const Version				"2015-02-26"
 #Const ScriptName			"TimeAttack.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -349,6 +349,7 @@ foreach (Score in Scores) {
 }
 
 Mode::Ladder_CloseMatch();
+XmlRpc::ScoresReady();
 
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
@@ -800,7 +801,7 @@ Void ActiveFinish(CSmPlayer _Player) {
 	}
 	
 	declare LayerUpdated = False;
-	Layers::Update("TopTimes", UpdateLayerTopTimes(_Player.Name, RunNew));
+	Layers::Update("TopTimes", UpdateLayerTopTimes(_Player.User.Name, RunNew));
 	
 	RestartPlayer(_Player);
 	
