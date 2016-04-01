@@ -124,7 +124,7 @@ Void Race_DoRound()
 				if (Index == NbContestants)		// last players gets no points.
 					ScoreInc = 0;				
 				
-				Table ^= """<score login="{{{Player.Login}}}" value="{{{Time}}}" inc="{{{ScoreInc}}}"/>""";		
+				Table ^= """<score login="{{{Player.User.Login}}}" value="{{{Time}}}" inc="{{{ScoreInc}}}"/>""";		
 			}
 			Table ^= """</scoretable>""";
 			UIManager.UIAll.SmallScoreTable = Table;
