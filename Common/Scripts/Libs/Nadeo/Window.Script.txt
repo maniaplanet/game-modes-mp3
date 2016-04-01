@@ -1,17 +1,12 @@
 /**
  *	Window library
  *
- *	Create custom window. Bundled with default styles : "SM"
+ *	Create custom window. Bundled with default styles : "SM" and "TM"
  */
-#Const	Version		"2014-11-21"
+#Const	Version		"2015-02-26"
 #Const	ScriptName	"Window.Script.txt"
 
 #Include "MathLib" as ML
-
-// ---------------------------------- //
-// Globales
-// ---------------------------------- //
-declare Vec2[Text][Text] G_LibWindow_Styles;	///< Stock the loaded styles
 
 // ---------------------------------- //
 // Functions
@@ -57,7 +52,8 @@ Text GetScriptName() {
 Void CreateStyle(Text _Name, Vec2[Text] _Images) {
 	if (_Images.count != 9) return;
 	
-	G_LibWindow_Styles[_Name] = _Images;
+	declare LibWindow_Styles for This = Vec2[Text][Text];
+	LibWindow_Styles[_Name] = _Images;
 }
 
 // ---------------------------------- //
@@ -66,7 +62,8 @@ Void CreateStyle(Text _Name, Vec2[Text] _Images) {
  *	@param	_Name		The name of the style to delete
  */
 Void DestroyStyle(Text _Name) {
-	declare Removed = G_LibWindow_Styles.removekey(_Name);
+	declare LibWindow_Styles for This = Vec2[Text][Text];
+	declare Removed = LibWindow_Styles.removekey(_Name);
 }
 
 // ---------------------------------- //
@@ -79,8 +76,9 @@ Void DestroyStyle(Text _Name) {
  *	@return				The manialink of the window
  */
 Text Create(Text _Style, Vec2 _WindowSize, Real _BorderRatio) {
-	if (!G_LibWindow_Styles.existskey(_Style)) return "";
-	declare Style = G_LibWindow_Styles[_Style];
+	declare LibWindow_Styles for This = Vec2[Text][Text];
+	if (!LibWindow_Styles.existskey(_Style)) return "";
+	declare Style = LibWindow_Styles[_Style];
 	
 	declare Size = Vec2[Integer];
 	declare Path = Text[Integer];
@@ -142,7 +140,8 @@ Text Create(Text _Style, Vec2 _WindowSize, Real _BorderRatio) {
 // ---------------------------------- //
 /// Unload the library
 Void Unload() {
-	G_LibWindow_Styles.clear();
+	declare LibWindow_Styles for This = Vec2[Text][Text];
+	LibWindow_Styles.clear();
 }
 
 // ---------------------------------- //
@@ -162,6 +161,20 @@ Void Load() {
 			Path^"Bottom.png" => <1., 403.>,
 			Path^"BottomLeft.png" => <88., 403.>,
 			Path^"Left.png" => <88., 1.>,
+			Path^"Center.png" => <1., 1.>
+		]
+	);
+	Path = "file://Media/Manialinks/Trackmania/Window/";
+	CreateStyle("TM",
+		[
+			Path^"TopLeft.png" => <55., 125.>,
+			Path^"Top.png" => <1., 125.>,
+			Path^"TopRight.png" => <55., 125.>,
+			Path^"Right.png" => <55., 1.>,
+			Path^"BottomRight.png" => <55., 125.>,
+			Path^"Bottom.png" => <1., 125.>,
+			Path^"BottomLeft.png" => <55., 125.>,
+			Path^"Left.png" => <55., 1.>,
 			Path^"Center.png" => <1., 1.>
 		]
 	);
