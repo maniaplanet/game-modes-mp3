@@ -2,7 +2,7 @@
  *	Matchmaking common library
  */
 
-#Const Version		"2014-12-08"
+#Const Version		"2015-05-26"
 #Const ScriptName	"MatchmakingCommon.Script.txt"
 
 // ---------------------------------- //
@@ -22,7 +22,8 @@
 #Const C_Request_PostResults	4	///< /match-server/result
 #Const C_Request_PostMatches	5	///< /lobby-server/match
 // Misc
-#Const C_MessagePrefix				"$000»$09f"	///< Prefix used before the messages sent in the chat by the matchmaking
+#Const C_MessagePrefix			"$000»$09f"	///< Prefix used before the messages sent in the chat by the matchmaking
+#Const C_PingInterval			5000	///< Interval between ping from the player
 
 // ---------------------------------- //
 // Functions
@@ -441,6 +442,8 @@ Text Private_GetMLSendToServer() {
 <script><!--
 declare netread Integer Net_Lobby_JoinLinkUpdate for UI;
 declare netread Text Net_Lobby_JoinLink for UI;
+declare netwrite Integer Net_Lobby_Ping for UI;
+Net_Lobby_Ping = -{{{C_PingInterval}}};
 
 declare PrevUpdate = Net_Lobby_JoinLinkUpdate;
 
@@ -452,12 +455,16 @@ while (True) {
 		PrevUpdate = Net_Lobby_JoinLinkUpdate;
 		
 		if ({{{GetLogDisplay("MiscDebug")}}}) {
-			log(Now^"> [CLIENT] "^InputPlayer.Login^" > OpenLink: "^Net_Lobby_JoinLink);
+			log(Now^"> [CLIENT] "^InputPlayer.User.Login^" > OpenLink: "^Net_Lobby_JoinLink);
 		}
 		
 		if (Net_Lobby_JoinLink != "") {
 			OpenLink(Net_Lobby_JoinLink, CMlScript::LinkType::ManialinkBrowser);
 		}
+	}
+	
+	if (Net_Lobby_Ping + {{{C_PingInterval}}} <= GameTime) {
+		Net_Lobby_Ping = GameTime;
 	}
 }
 --></script>
@@ -499,6 +506,35 @@ Void SendToServer(CPlayer _Player, Text _ServerLogin) {
 	declare netwrite Text Net_Lobby_JoinLink for UI;
 	Net_Lobby_JoinLinkUpdate = Now;
 	Net_Lobby_JoinLink = GetServerJoinLink(_ServerLogin);
+}
+
+// ---------------------------------- //
+/** Get the last ping of an user
+ *
+ *	@param	_User			The user to check
+ *
+ *	@return					The last ping of the user
+ */
+Integer GetLastPing(CUser _User) {
+	if (_User == Null) return 0;
+	declare UI <=> UIManager.GetUI(_User);
+	if (UI == Null) return 0;
+	declare netread Integer Net_Lobby_Ping for UI;
+	return Net_Lobby_Ping;
+}
+
+// ---------------------------------- //
+/** Inject the ping related functions
+ *
+ *	@return				The ping related functions
+ */
+Text InjectPingHelpers() {
+	return """
+Integer MMCommon_GetLastPing() {
+	declare netwrite Integer Net_Lobby_Ping for UI;
+	return Net_Lobby_Ping;
+}	
+""";
 }
 
 // ---------------------------------- //
