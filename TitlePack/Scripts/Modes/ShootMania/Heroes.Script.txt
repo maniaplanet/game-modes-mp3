@@ -4,7 +4,7 @@
 
 #Extends "Modes/ShootMania/ModeSport.Script.txt"
 
-#Const Version		"2014-07-25"
+#Const Version		"2015-02-20"
 #Const ScriptName	"Heroes.Script.txt"
 
 #Setting S_TurnWin				10	as _("Number of points to win a map")				///< Score to reach to win a map
@@ -372,8 +372,8 @@ if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) {
 				TextLib::Compose(
 					_("%1$<%2$> misses $<%3$> by %4cm."), 
 					Teams[G_AtkClan - 1].ColorText,
-					Event.Shooter.Name, 
-					Event.Victim.Name,
+					Event.Shooter.User.Name, 
+					Event.Victim.User.Name,
 					TextLib::ToText(1)
 				), 3000, 2
 			);
@@ -382,8 +382,8 @@ if (Event.WeaponNum == GetWeaponNum(CSmMode::EWeapon::Laser)) {
 				TextLib::Compose(
 					_("%1$<%2$> misses $<%3$> by %4cm."), 
 					Teams[G_AtkClan - 1].ColorText,
-					Event.Shooter.Name, 
-					Event.Victim.Name,
+					Event.Shooter.User.Name, 
+					Event.Victim.User.Name,
 					TextLib::ToText(MathLib::CeilingInteger(Event.MissDist*100))
 				), 3000, 2
 			);
@@ -821,8 +821,8 @@ for (I, 1, 2) {
 	foreach (Slot => Id in ClansOrders[I]) {
 		if (Players.existskey(Id)) {
 			declare Player <=> Players[Id];
-			Logins[Player.Login] = Slot + ((I-1) * C_RequiredPlayersNb);
-			if (Player.Id == G_AtkPlayerId) AttackerLogin = Player.Login;
+			Logins[Player.User.Login] = Slot + ((I-1) * C_RequiredPlayersNb);
+			if (Player.Id == G_AtkPlayerId) AttackerLogin = Player.User.Login;
 			
 			declare netwrite Net_LayerST_Ready for Player = False;
 			Net_LayerST_Ready = WarmUp2::IsReady(Player);
@@ -908,7 +908,7 @@ Void UpdateMarkers() {
 	UIManager.UIAll.MarkersXML = "";
 	
 	declare AtkPlayerLogin = "";
-	if (Players.existskey(G_AtkPlayerId)) AtkPlayerLogin = Players[G_AtkPlayerId].Login;
+	if (Players.existskey(G_AtkPlayerId)) AtkPlayerLogin = Players[G_AtkPlayerId].User.Login;
 	
 	declare ColorPoles = Teams[G_DefClan - 1].ColorText;
 	declare ColorNucleus = TextLib::SubString(Teams[G_AtkClan - 1].ColorText, 1, 3);
@@ -933,7 +933,7 @@ Void UpdateMarkers() {
 		declare UI <=> UIManager.GetUI(Player);
 		if (UI == Null) continue;
 		
-		if (Player.CurrentClan == G_AtkClan && Player.Login != AtkPlayerLogin) {
+		if (Player.CurrentClan == G_AtkClan && Player.User.Login != AtkPlayerLogin) {
 			UI.MarkersXML = NucleusMarker ^ PolesMarker;
 		} else {
 			UI.MarkersXML = PolesMarker;
