@@ -5,10 +5,8 @@
 #Extends "Modes/TrackMania/RoundsBase.Script.txt"
 
 #Const  CompatibleMapTypes  "Race"
-#Const	Version		"2014-12-31"
+#Const	Version		"2015-02-20"
 #Const	ScriptName	"Team.Script.txt"
-
-#Include "TextLib" as TL
 
 // ---------------------------------- //
 // Settings
@@ -222,11 +220,13 @@ CutOffTimeLimit = -1;
 
 if (ForceEndRound) {
 	ForcedEndRoundSequence();
+	XmlRpc::ScoresReady();
 } else {
 	// ---------------------------------- //
 	// Get the last round points
 	ComputeLatestRaceScores();
 	Scores_Sort(CTmMode::ETmScoreSortOrder::PrevRace_Time);
+	XmlRpc::ScoresReady();
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 	MB_Sleep(3000);
