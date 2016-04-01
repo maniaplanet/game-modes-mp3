@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"MeleeArena"
-#Const	Version				"2014-07-25"
+#Const	Version				"2015-02-26"
 #Const	ScriptName			"Melee.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -166,12 +166,12 @@ foreach (Event, PendingEvents) {
 				if (Gap > 0 && Gap <= 3) {
 					declare Variant = 3 - Gap;
 					declare Msg = "";
-					if (Gap > 1) Msg = TextLib::Compose(_("$<%1$> is %2 points from victory!"), Event.Shooter.Name, TextLib::ToText(Gap));
-					else Msg = TextLib::Compose(_("$<%1$> is 1 point from victory!"), Event.Shooter.Name);
+					if (Gap > 1) Msg = TextLib::Compose(_("$<%1$> is %2 points from victory!"), Event.Shooter.User.Name, TextLib::ToText(Gap));
+					else Msg = TextLib::Compose(_("$<%1$> is 1 point from victory!"), Event.Shooter.User.Name);
 					Message::SendBigMessage(Msg, 3000, 2, CUIConfig::EUISound::TieBreakPoint, Variant);
 				} else if (Gap <= 0) {
 					Message::SendBigMessage(
-						TextLib::Compose(_("$<%1$> gets the final hit!"), Event.Shooter.Name),
+						TextLib::Compose(_("$<%1$> gets the final hit!"), Event.Shooter.User.Name),
 						3000, 3, CUIConfig::EUISound::VictoryPoint, 0
 					);
 				} else {
@@ -274,8 +274,10 @@ foreach (Score in Scores) {
 foreach (Player in Players) {
 	if (Player.User != Winner) UnspawnPlayer(Player);
 }
+XmlRpc::ScoresReady();
 
 MB_Sleep(1000);
+StartTime = -1;
 Message::CleanBigMessages();
 UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 UIManager.UIAll.BigMessageSoundVariant = 0;
