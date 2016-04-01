@@ -1,11 +1,8 @@
 /** 
  *	MapType library
  */
-
-#Const Version		"2014-01-03"
+#Const Version		"2016-03-31"
 #Const ScriptName	"MapType.Script.txt"
-
-#Include "MathLib" as ML
 
 // ---------------------------------- //
 // Functions
@@ -43,8 +40,8 @@ Void EnterPlayground(Integer _NbPlayers) {
 		RequestEnterPlayground();
 	}
 	wait(IsSwitchedToPlayground);
-	wait(Mode != Null && Mode.Players.count >= 1);
-	assert(Mode.Players.count == _NbPlayers);
+	wait(Mode != Null && Mode.AllPlayers.count >= 1);
+	assert(Mode.AllPlayers.count == _NbPlayers);
 }
 
 // ---------------------------------- //
@@ -95,6 +92,15 @@ Void SetObjectivesFromAuthorTime(Integer _AuthorTime) {
 	
 	declare GoldTime = _AuthorTime + ML::NearestInteger(_AuthorTime * 0.05);
 	Map.TMObjective_GoldTime = GoldTime - (GoldTime % 1000);*/
+}
+
+// ---------------------------------- //
+// Reset the objectives of the map
+Void ResetObjectives() {
+	Map.TMObjective_AuthorTime = -1;
+	Map.TMObjective_BronzeTime = -1;
+	Map.TMObjective_SilverTime = -1;
+	Map.TMObjective_GoldTime = -1;
 }
 
 // ---------------------------------- //
