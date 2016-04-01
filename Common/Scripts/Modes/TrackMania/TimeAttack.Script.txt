@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"Race"
-#Const	Version		"2014-10-07"
+#Const	Version		"2015-02-20"
 #Const	ScriptName	"TimeAttack.Script.txt"
 
 #Include "TextLib" as TL
@@ -214,6 +214,7 @@ Scores_Sort(CTmMode::ETmScoreSortOrder::BestRace_Time);
 if (Scores.existskey(0) &&  Scores[0].BestRace.Time > 0) {
 	MB_VictoryMessage = TL::Compose(_("$<%1$> wins the map!"), Scores[0].User.Name);
 }
+XmlRpc::ScoresReady();
 ***
 
 // ---------------------------------- //
