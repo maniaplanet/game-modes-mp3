@@ -5,7 +5,7 @@
  *	It will be changed once it's possible to create a multi modes title pack
  */
 
-#Const Version    "2014-10-15"
+#Const Version    "2015-05-05"
 #Const ScriptName "ElitePractice.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
@@ -87,6 +87,14 @@ declare Boolean MB_LibEP_StopRound;
 declare Boolean MB_LibEP_StopTurn;
 // Options for XmlRpc
 declare Boolean MB_LibEP_UseScriptCallbacks;
+// Settings
+declare Boolean S_LibEP_UseScriptCallbacks;
+declare Text S_LibEP_NeutralEmblemUrl;
+declare Integer S_LibEP_MatchmakingMode;
+declare Integer S_LibEP_PracticeRoundLimit;
+declare Integer S_LibEP_TimeLimit;
+declare Integer S_LibEP_TimePole;
+declare Real S_LibEP_TimeCapture;
 
 declare Integer G_LibEP_LatestHitClanNb;		///< The clan who performed the latest hit (used for sound notice)
 declare Integer G_LibEP_LatestHitSoundVariant;	///< The sound variant used for the sound notice
@@ -124,8 +132,8 @@ Void Private_Log(Text _Message) {
 // ---------------------------------- //
 /// Check the status of the script callbacks
 Void Private_XmlRpcCheck() {
-	if (MB_LibEP_UseScriptCallbacks != S_UseScriptCallbacks) {
-		MB_LibEP_UseScriptCallbacks = S_UseScriptCallbacks;
+	if (MB_LibEP_UseScriptCallbacks != S_LibEP_UseScriptCallbacks) {
+		MB_LibEP_UseScriptCallbacks = S_LibEP_UseScriptCallbacks;
 		if (MB_LibEP_UseScriptCallbacks) XmlRpc::Enable();
 		else XmlRpc::Disable();
 		Private_Log("Enable script callbacks: "^MB_LibEP_UseScriptCallbacks);
@@ -135,7 +143,7 @@ Void Private_XmlRpcCheck() {
 // ---------------------------------- //
 /// Update the neutral emblem when necessary
 Void Private_NeutralEmblemUpdate() {
-	if (NeutralEmblemUrl != S_NeutralEmblemUrl) NeutralEmblemUrl = S_NeutralEmblemUrl;
+	if (NeutralEmblemUrl != S_LibEP_NeutralEmblemUrl) NeutralEmblemUrl = S_LibEP_NeutralEmblemUrl;
 }
 
 // ---------------------------------- //
@@ -255,7 +263,7 @@ Text Private_CreateLayerWaitConnection() {
 	
 	//if (S_Matchmaking) IdealPlayersNb = C_LibEP_IdealPlayersNb;
 	// @MM
-	if (S_MatchmakingMode == 2) IdealPlayersNb = C_LibEP_IdealPlayersNb;
+	if (S_LibEP_MatchmakingMode == 2) IdealPlayersNb = C_LibEP_IdealPlayersNb;
 	else IdealPlayersNb = C_LibEP_MinimumPlayersNb;
 		
 	declare Text	MLText = 
@@ -373,7 +381,7 @@ Void Private_WaitConnection(Boolean _CanSpawn) {
 		declare IdealPlayersNb = 0;
 		//if (S_Matchmaking) IdealPlayersNb = C_LibEP_IdealPlayersNb;
 		// @MM 
-		if (S_MatchmakingMode == 2) IdealPlayersNb = C_LibEP_IdealPlayersNb;
+		if (S_LibEP_MatchmakingMode == 2) IdealPlayersNb = C_LibEP_IdealPlayersNb;
 		else IdealPlayersNb = C_LibEP_MinimumPlayersNb;
 		
 		if (Net_ModeSport_PlayersNbTotal != PlayersNbTotal) {
@@ -1039,7 +1047,15 @@ Void CreateRulesReminderLayer() {
 // ---------------------------------- //
 // Main // Server start
 // ---------------------------------- //
-Void Run() {
+Void Run(Boolean _UseScriptCallbacks, Text _NeutralEmblemUrl, Integer _MatchmakingMode, Integer _PracticeRoundLimit, Integer _TimeLimit, Integer _PoleLimit, Real _TimeCapture) {
+	S_LibEP_UseScriptCallbacks = _UseScriptCallbacks;
+	S_LibEP_NeutralEmblemUrl = _NeutralEmblemUrl;
+	S_LibEP_MatchmakingMode = _MatchmakingMode;
+	S_LibEP_PracticeRoundLimit = _PracticeRoundLimit;
+	S_LibEP_TimeLimit = _TimeLimit;
+	S_LibEP_TimePole = _PoleLimit;
+	S_LibEP_TimeCapture = _TimeCapture;
+	
 	XmlRpc::Load();
 	
 	MB_LibEP_CurrentSection = "StartServer";
@@ -1198,7 +1214,9 @@ Void Run() {
 			Private_XmlRpcCheck();
 			Private_NeutralEmblemUpdate();
 			
-			XmlRpc::LoadingMap(MB_LibEP_SectionMapNb);
+			// Check for map restart
+			declare persistent MB_LibEP_MapRestarted = False;
+			XmlRpc::LoadingMap(MB_LibEP_SectionMapNb, MB_LibEP_MapRestarted);
 			Mode::LoadMap();
 			
 			if (MB_LibEP_UseLogging) Private_Log("StartMap");
@@ -1216,7 +1234,6 @@ Void Run() {
 			// ---------------------------------- //
 			
 			// Check for map restart
-			declare persistent MB_LibEP_MapRestarted = False;
 			XmlRpc::BeginMap(MB_LibEP_SectionMapNb, MB_LibEP_MapRestarted);
 			MB_LibEP_MapRestarted = True;
 			
@@ -1287,7 +1304,7 @@ Void Run() {
 			//Private_WaitConnection(!S_Matchmaking);
 			// @MM
 			declare MatchmakingActivated = False;
-			if (S_MatchmakingMode == 2) MatchmakingActivated = True;
+			if (S_LibEP_MatchmakingMode == 2) MatchmakingActivated = True;
 			Private_WaitConnection(!MatchmakingActivated);
 			
 			// ---------------------------------- //
@@ -1507,7 +1524,7 @@ Void Run() {
 								ScoresTableLogins.add(Player.Login);
 							}
 							CurrentTurn = ((MB_LibEP_SectionRoundNb - 1) * ActivePlayers.count) + AttackTurnsPlayed;
-							MaxTurn = S_PracticeRoundLimit * ActivePlayers.count;
+							MaxTurn = S_LibEP_PracticeRoundLimit * ActivePlayers.count;
 							
 							// ---------------------------------- //
 							// Filter the players displayed in the scores table
@@ -1535,8 +1552,8 @@ Void Run() {
 							// ---------------------------------- //
 							// Misc init
 							StartTime	= Now + 3000;
-							EndTime		= StartTime + (S_TimeLimit * 1000);
-							PoleTime	= StartTime + ((S_TimeLimit - S_TimePole) * 1000);
+							EndTime		= StartTime + (S_LibEP_TimeLimit * 1000);
+							PoleTime	= StartTime + ((S_LibEP_TimeLimit - S_LibEP_TimePole) * 1000);
 							UIManager.UIAll.CountdownEndTime = PoleTime;
 							UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 							UIManager.UIAll.NoticesFilter_LevelToShowAsBigMessage = CUIConfig::ENoticeLevel::MatchInfo;
@@ -1775,7 +1792,7 @@ Void Run() {
 									Pole.Gauge.Speed  = 0;
 									Pole.Gauge.Value  = 0;
 									if (Checkpoints.count <= 0) {
-										Pole.Gauge.Max = ML::NearestInteger(S_TimeCapture * 1000) * Poles.count;
+										Pole.Gauge.Max = ML::NearestInteger(S_LibEP_TimeCapture * 1000) * Poles.count;
 									} else {
 										Pole.Gauge.Max = ((Checkpoints.count - CheckpointsCapturedNb) * 1000) + 500;
 									}
@@ -2135,7 +2152,7 @@ Void Run() {
 						// ---------------------------------- //
 						// >>> +++EndRound+++
 						// ---------------------------------- //
-						if (MB_LibEP_SectionRoundNb >= S_PracticeRoundLimit) MB_LibEP_StopMap = True;
+						if (MB_LibEP_SectionRoundNb >= S_LibEP_PracticeRoundLimit) MB_LibEP_StopMap = True;
 						// ---------------------------------- //
 						// <<< +++EndRound+++
 						// ---------------------------------- //
@@ -2263,6 +2280,7 @@ Void Run() {
 			// <<< +++EndMap+++
 			// ---------------------------------- //
 			XmlRpc::SendScores();
+			XmlRpc::UnloadingMap(MB_LibEP_SectionMapNb);
 			MB_LibEP_MapRestarted = False;
 			Mode::UnloadMap();
 		}
