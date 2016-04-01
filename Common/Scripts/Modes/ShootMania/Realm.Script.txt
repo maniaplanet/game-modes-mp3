@@ -4,7 +4,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"RealmArena"
-#Const	Version				"2014-07-25"
+#Const	Version				"2015-02-20"
 #Const	ScriptName			"Realm.Script.txt"
 
 #Include "TextLib" as TL
@@ -603,6 +603,7 @@ if (MB_SectionTurnNb % 2 == 1) Turn1Winner = ClanTurnWinner;
 else Turn2Winner = ClanTurnWinner;
 UpdateRoundScores(ClanRoundScores);
 ST2::SetFooterText(TL::Compose("%1 "^S_MapPointsLimit, _("Points limit : ")));
+XmlRpc::ScoresReady();
 
 // ---------------------------------- //
 // Display result
