@@ -2,7 +2,7 @@
 
 #Extends "Modes/ShootMania/Royal.Script.txt"
 
-#Const DeluxeVersion 		"2012-09-27"
+#Const DeluxeVersion 		"2014-12-15"
 #Const DeluxeScriptName		"RoyalExp.Script.txt"
 
 #Include "Libs/Nadeo/ShootMania/RoyalExp/RoyalExpCharacter.Script.txt" as Character
