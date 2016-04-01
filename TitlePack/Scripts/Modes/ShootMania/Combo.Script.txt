@@ -8,7 +8,6 @@
 #Const	ScriptName			"Combo.Script.txt"
 
 #Include "Libs/Nadeo/Markers.Script.txt" as Markers
-#Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/WarmUp2.Script.txt" as WarmUp2
@@ -142,6 +141,11 @@ if (S_NbPlayersPerTeamMax > S_NbPlayersPerTeamMin) {
 }
 ***
 
+***ManialinkRules***
+***
+ManialinkRules = """<label posn="-62.5 25" sizen="125 50" autonewline="1" maxline="10" textemboss="1" textsize="2" text="{{{Description}}}" />""";
+***
+
 ***Rules***
 ***
 declare ModeName = "Combo";
@@ -209,7 +213,7 @@ ST2::SetColTextAlign("HitsPerWeapon", CMlControl::AlignHorizontal::Right);
 ST2::SetColLegend("LibST_SMRoundPoints", _("Hits"));
 ST2::SetColLegend("LibST_SMPoints", _("Score"));
 ST2::SetColWidth("LibST_Name", 15.);
-MM_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
 ST2::Build("SM");
 
 // ---------------------------------- //
@@ -533,6 +537,8 @@ foreach (Event in XmlRpc.PendingEvents) {
 				declare Boolean Combo_PauseStatus for This;
 				Combo_PauseStatus = PauseStatus;
 				if (XmlRpc::CallbackIsAllowed("Combo_Pause")) XmlRpc::SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
+				if (Combo_PauseStatus) XmlRpc::BeginPause();
+				else XmlRpc::EndPause();
 			}
 			case "Combo_GetPause": {
 				declare Boolean Combo_PauseStatus for This;
@@ -551,6 +557,8 @@ foreach (Event in PendingEvents) {
 				declare Boolean Combo_PauseStatus for This;
 				Combo_PauseStatus = Event.CommandValueBoolean;
 				if (XmlRpc::CallbackIsAllowed("Combo_Pause")) XmlRpc::SendCallbackArray("Combo_Pause", [TL::ToText(Combo_PauseStatus)]);
+				if (Combo_PauseStatus) XmlRpc::BeginPause();
+				else XmlRpc::EndPause();
 			}
 		}
 	}
@@ -579,8 +587,8 @@ foreach (Event in PendingEvents) {
 // ---------------------------------- //
 // Pause
 declare Boolean Combo_PauseStatus for This;
-if (GetPause() != Combo_PauseStatus) {
-	SetPause(Combo_PauseStatus);
+if (GetPause() != Combo_PauseStatus || XmlRpc::PauseRequested()) {
+	SetPause(Combo_PauseStatus || XmlRpc::PauseRequested());
 }
 if (GetPause()) {
 	+++Pause+++
@@ -871,6 +879,7 @@ if (ClanScores.existskey(RoundWinnerClan)) {
 MM_SetScores([ClanScores[1], ClanScores[2]]);
 UpdateScoresHeader();
 UpdateModeStatusMessage();
+XmlRpc::ScoresReady();
 
 // ---------------------------------- //
 // Save the current player clan for ladder ranking
@@ -894,16 +903,16 @@ if (S_Script_PointsLimit > 0) {
 if (EndMap) {
 	MB_StopMap = True;
 } else {
-	MM_Sleep(500);
+	MB_Sleep(500);
 	SM::UnspawnAllPlayers();
 	StartTime = -1;
-	MM_Sleep(2500);
+	MB_Sleep(2500);
 }
 ***
 
 ***EndMap***
 ***
-MM_Sleep(500);
+MB_Sleep(500);
 StartTime = -1;
 EndTime = -1;
 ObjectDestroyAll();
@@ -966,10 +975,10 @@ if (MapWinnerClan == 1 || MapWinnerClan == 2) {
 } else {
 	UIManager.UIAll.BigMessage = _("|Match|Draw");
 }
-MM_Sleep(C_SleepEndMap/2);
+MB_Sleep(C_SleepEndMap/2);
 UIManager.UIAll.UISequence				= CUIConfig::EUISequence::Podium;
 UIManager.UIAll.ScoreTableVisibility	= CUIConfig::EVisibility::Normal;
-MM_Sleep(C_SleepEndMap/2);
+MB_Sleep(C_SleepEndMap/2);
 UIManager.UIAll.BigMessage				= "";
 
 // ---------------------------------- //
@@ -2191,7 +2200,7 @@ Void WarmUp() {
 	declare PrevAllowUnbalancedTeams = !S_AllowUnbalancedTeams;
 	
 	while (!WarmUp2::Stop()) {
-		MM_Yield();
+		MB_Yield();
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
@@ -2256,7 +2265,7 @@ Void WarmUp() {
 	}
 	
 	SM::UnspawnAllPlayers();
-	MM_Sleep(3000);
+	MB_Sleep(3000);
 	ObjectDestroyAll();
 	UIManager.UIAll.BigMessage = "";
 	UIManager.UIAll.StatusMessage = "";
