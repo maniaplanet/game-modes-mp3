@@ -76,7 +76,7 @@
  *
  */
 
-#Const Version		"2014-03-17"
+#Const Version		"2016-03-31"
 #Const ScriptName	"Manialink.Script.txt"
 
 // ---------------------------------- //
@@ -926,11 +926,17 @@ Void LibManialink_Private_Anim(CMlControl _Control, Text _TargetXml, Integer _St
 	
 	if (Control == Null) {
 		declare ControlId = XmlDoc.Root.GetAttributeText("id", "");
-		if (ControlId == "") return;
+		if (ControlId == "") {
+			Xml.Destroy(XmlDoc);
+			return;
+		}
 		Control <=> Page.GetFirstChild(ControlId);
 	}
 	
-	if (Control == Null) return;
+	if (Control == Null) {
+		Xml.Destroy(XmlDoc);
+		return;
+	}
 	
 	declare Active		= [False, False, False, False, False, False, False, False, False, False];
 	declare Vec3 Position;
@@ -1017,6 +1023,8 @@ Void LibManialink_Private_Anim(CMlControl _Control, Text _TargetXml, Integer _St
 			else Visibility = "Show";
 		}
 	}
+	
+	Xml.Destroy(XmlDoc);
 	
 	LibManialink_Private_Anim(Control, Active, Position, Size, Scale, Rotation, Opacity, Colorize, BgColor, TextColor, Ratio, GaugeColor, _StartTime, _Duration, _Easing, Visibility, _Style);
 }
