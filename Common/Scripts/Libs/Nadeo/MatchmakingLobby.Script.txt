@@ -2,7 +2,7 @@
  *	Matchmaking lobby library
  */
 
-#Const Version		"2015-03-03"
+#Const Version		"2015-11-17"
 #Const ScriptName	"MatchmakingLobby.Script.txt"
 
 #Include "TextLib" as TL
@@ -41,13 +41,15 @@
 #Const C_WarnPenalty				False	///< Warn player that they will be penalize if they cancel
 // Misc
 #Const C_ReconnectDuration			5000		///< Duration before sending back a player to the match he left
-#Const C_TransfertSafeTime			15000		///< Minimum time after a transfert before a player can be listed as ready
+#Const C_TransfertSafeTime			25000		///< Minimum time after a transfert before a player can be listed as ready
+#Const C_TimeOutDuration			20000		///< Time since the last ping before considering the player as disconnected
 #Const C_RequestRandomDeviation		500			///< Random time margin applied to the live request of the match and lobby server
 
 // ---------------------------------- //
 // Globales
 // ---------------------------------- //
 declare Boolean G_LibMMLobby_DisableUI;					///< Disable the lobby UI
+declare Boolean G_LibMMLobby_KickTimedOutPlayers;		///< Kick timed out players
 declare Integer G_LibMMLobby_StartTime;					///< Startime of the lobby
 declare Integer G_LibMMLobby_EndTime;					///< EndTime of the lobby
 declare Integer	G_LibMMLobby_Phase;						///< Current lobby phase : playing/matchmaking
@@ -159,6 +161,7 @@ Void Unload() {
 	XmlRpc::UnregisterCallback("Matchmaking_ReadyState");
 	
 	G_LibMMLobby_DisableUI = False;
+	G_LibMMLobby_KickTimedOutPlayers = False;
 	G_LibMMLobby_StartTime = -1;
 	G_LibMMLobby_EndTime = -1;
 	G_LibMMLobby_Phase = C_Lobby_Playing;
@@ -187,6 +190,18 @@ Void Load() {
  */
 Void DisableUI(Boolean _DisableUI) {
 	G_LibMMLobby_DisableUI = _DisableUI;
+}
+
+// ---------------------------------- //
+/** Kick timed out players
+ *
+ *	@param	_Kick			Kick timed out players or not
+ */
+Void KickTimedOutPlayers(Boolean _Kick) {
+	G_LibMMLobby_KickTimedOutPlayers = _Kick;
+	
+	declare netwrite Net_LibMMLobby_KickTimedOutPlayers for Teams[0] = False;
+	Net_LibMMLobby_KickTimedOutPlayers = G_LibMMLobby_KickTimedOutPlayers;
 }
 
 // ---------------------------------- //
@@ -373,9 +388,6 @@ Void SetReady(CUser _User, Boolean _IsReady) {
 	// Don't let a blocked player getting ready
 	if (IsBlocked(_User) && _IsReady) return;
 	
-	declare netwrite Boolean Net_Lobby_Ready for UI;
-	Net_Lobby_Ready = _IsReady;
-	
 	declare CPlayer Player;
 	foreach (TmpPlayer in AllPlayers) {
 		if (TmpPlayer.Login == _User.Login) {
@@ -383,6 +395,12 @@ Void SetReady(CUser _User, Boolean _IsReady) {
 			break;
 		}
 	}
+	
+	// Don't let a spectator getting ready
+	if (_IsReady && Player != Null && Player.RequestsSpectate) return;
+	
+	declare netwrite Boolean Net_Lobby_Ready for UI;
+	Net_Lobby_Ready = _IsReady;
 	
 	if (Player != Null) {
 		declare netwrite Boolean Net_Lobby_Ready as ReadyForPlayer for Player;
@@ -408,6 +426,12 @@ Boolean IsReady(CUser _User) {
 	
 	declare UI <=> UIManager.GetUI(_User);
 	if (UI == Null) return False;
+	
+	// Player timed out
+	if (G_LibMMLobby_KickTimedOutPlayers) {
+		declare LastPing = MMCommon::GetLastPing(_User);
+		if (Now - LastPing >= C_TimeOutDuration) return False;
+	}
 	
 	declare netwrite Boolean Net_Lobby_Ready for UI;
 	return Net_Lobby_Ready;
@@ -465,6 +489,17 @@ Boolean IsBeingTransferred(CPlayer _Player) {
  */
 Text InjectReadyHelpers() {
 	return """
+{{{MMCommon::InjectPingHelpers()}}}
+
+Boolean Private_Lobby_TimedOut() {
+	declare netread Net_LibMMLobby_KickTimedOutPlayers for Teams[0] = False;
+	if (Net_LibMMLobby_KickTimedOutPlayers) {
+		if (GameTime - MMCommon_GetLastPing() > {{{C_TimeOutDuration}}}) return True;
+	}
+	
+	return False;
+}
+
 Void Private_Lobby_ToggleReady() {
 	declare netwrite Integer Net_Lobby_ReadySynchroClient for UI;
 	declare netread Integer Net_Lobby_ReadySynchroServer for Teams[0];
@@ -494,6 +529,11 @@ Boolean Private_Lobby_IsReady() {
 	
 	if (LocalUser.IsFakeUser) return True;
 	
+	if (Private_Lobby_TimedOut()) {
+		Private_Lobby_SetReady(False);
+		return False;
+	}
+	
 	declare netread Boolean Net_Lobby_Ready for UI;
 	return Net_Lobby_Ready;
 }
@@ -505,6 +545,11 @@ Boolean Private_Lobby_IsReady(CPlayer _Player) {
 	if (Net_Lobby_IsBlocked) return False;
 	
 	if (_Player.User.IsFakeUser) return True;
+	
+	if (Private_Lobby_TimedOut()) {
+		Private_Lobby_SetReady(False);
+		return False;
+	}
 	
 	declare netread Boolean Net_Lobby_Ready for _Player;
 	return Net_Lobby_Ready;
@@ -1098,6 +1143,7 @@ Void GetMatches(Text _MatchesXML) {
 			}
 		}
 	}
+	Xml.Destroy(XmlDoc);
 	
 	if (MMCommon::GetLogDisplay("APIDebug")) Private_Log("[API] Match to execute: "^MatchesLogins);
 	
@@ -1530,6 +1576,7 @@ Void SetupPlayer(Text _PlayerXml) {
 				}
 			}
 		}
+		Xml.Destroy(XmlDoc);
 	}
 	if (MMCommon::GetLogDisplay("APIDebug")) Private_Log("[API] Response: GET /lobby-server/player-connection?login="^TL::URLEncode(LogPlayerLogin)^"&lobbylogin="^TL::URLEncode(ServerLogin)^"\n<!--\n"^_PlayerXml^"\n-->");
 }
@@ -2404,13 +2451,15 @@ Void MatchmakerStop() {
 // ---------------------------------- //
 /** Start server in lobby mode
  *
- *	@param	_DisableUI			Disable the lobby UI
+ *	@param	_DisableUI				Disable the lobby UI
+ *	@param	_KickTimedOutPlayers	Kick timed out player
  */
-Void MM_StartServer(Boolean _DisableUI) {
+Void MM_StartServer(Boolean _DisableUI, Boolean _KickTimedOutPlayers) {
 	// ---------------------------------- //
 	// Config lobby
 	EnableMatchmaking(True);
 	DisableUI(_DisableUI);
+	KickTimedOutPlayers(_KickTimedOutPlayers);
 	
 	// ---------------------------------- //
 	// Clean the masters list
@@ -3851,7 +3900,9 @@ main() {
 		} else if (Net_Lobby_Penalty == 0) {
 			Label_Title.Value = "{{{_("You are suspended")}}}";
 		} else if (Net_Lobby_Penalty < 0) {
-			if (Net_Lobby_WarnPenalty && Net_Lobby_AllowMatchCancel && Net_Lobby_LobbyLimitMatchCancel >= 0) {
+			if (Private_Lobby_TimedOut()) {
+				Label_Title.Value = "{{{_("Connection timed out")}}}";
+			} else if (Net_Lobby_WarnPenalty && Net_Lobby_AllowMatchCancel && Net_Lobby_LobbyLimitMatchCancel >= 0) {
 				declare CancellationRemaing = Net_Lobby_LobbyLimitMatchCancel - Net_Lobby_MatchCancellation;
 				if (CancellationRemaing <= 0) {
 					Label_Title.Value = _("You will be suspended if you cancel your next match.");
@@ -4938,7 +4989,7 @@ main() {
 			Frame_Global.Visible = Net_Lobby_ShowSubstituteML;
 			
 			if (Net_Lobby_MatchScores == "") {
-				Label_SubMessage.Value = "{{{_("Please wait.")}}}";
+				Label_SubMessage.Value = "{{{_("Match not started yet.")}}}";
 			} else {
 				declare MatchScores = "";
 				declare MatchBestScore = "";
