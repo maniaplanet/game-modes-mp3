@@ -2,7 +2,7 @@
  *	Matchmaking match library
  */
 
-#Const Version		"2015-02-24"
+#Const Version		"2015-11-17"
 #Const ScriptName	"MatchmakingMatch.Script.txt"
 
 #Include "TextLib" as TL
@@ -576,7 +576,7 @@ Integer GetMatchPlayerClan(CPlayer _Player) {
 		}
 	}
 	
-	return _Player.User.RequestedClan;
+	return _Player.RequestedClan;
 }
 
 // ---------------------------------- //
@@ -879,6 +879,7 @@ Void SetupMatch(Text _MatchXml) {
 				}
 			}
 		}
+		Xml.Destroy(XmlDoc);
 	}
 	
 	// Kick all players from the server if there's no match starting
@@ -956,6 +957,7 @@ Void SetupSubstitute(Text _MatchXml) {
 				}
 			}
 		}
+		Xml.Destroy(XmlDoc);
 	}
 	
 	// Set invalid players
