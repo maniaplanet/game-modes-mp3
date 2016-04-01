@@ -5,7 +5,7 @@
 #Extends "Modes/TrackMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"Race"
-#Const	Version		"2014-10-07"
+#Const	Version		"2015-02-20"
 #Const	ScriptName	"TeamAttack.Script.txt"
 
 #Include "TextLib" as TL
@@ -287,7 +287,7 @@ foreach (Player in AllPlayers) {
 		foreach (OldPlayer in OldPlayers) {
 			if (!First) OldNames ^= ", ";
 			First = False;
-			OldNames ^= "$<"^OldPlayer.Name^"$>";
+			OldNames ^= "$<"^OldPlayer.User.Name^"$>";
 		}
 		OldNames ^= ")";
 	}
@@ -299,7 +299,7 @@ foreach (Player in AllPlayers) {
 		foreach (NewPlayer in NewPlayers) {
 			if (!First) NewNames ^= ", ";
 			First = False;
-			NewNames ^= "$<"^NewPlayer.Name^"$>";
+			NewNames ^= "$<"^NewPlayer.User.Name^"$>";
 		}
 		NewNames ^= ")";
 	}
@@ -307,13 +307,13 @@ foreach (Player in AllPlayers) {
 	// ---------------------------------- //
 	// Send a chat message
 	if (OldClan > 0 && NewClan > 0) {
-		UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> leaves team $<%2$> and joins team $<%3$>."), Player.Name, OldClan^OldNames, NewClan^NewNames));
+		UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> leaves team $<%2$> and joins team $<%3$>."), Player.User.Name, OldClan^OldNames, NewClan^NewNames));
 	} else {
 		if (OldClan > 0) {
-			UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> leaves team $<%2$>."), Player.Name, OldClan^OldNames));
+			UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> leaves team $<%2$>."), Player.User.Name, OldClan^OldNames));
 		}
 		if (NewClan > 0) {
-			UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> joins team $<%2$>."), Player.Name, NewClan^NewNames));
+			UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> joins team $<%2$>."), Player.User.Name, NewClan^NewNames));
 		}
 	}
 }
@@ -345,7 +345,7 @@ foreach (Score in Scores) {
 		if (ClanPlayer.User.Id == Score.User.Id) continue;
 		if (!First) OldNames ^= ", ";
 		First = False;
-		OldNames ^= "$<"^ClanPlayer.Name^"$>";
+		OldNames ^= "$<"^ClanPlayer.User.Name^"$>";
 	}
 	OldNames ^= ")";
 	
@@ -421,7 +421,7 @@ foreach (Event in PendingEvents) {
 			declare ClanPlayers = MultiClans::GetClanPlayers(Clan);
 			foreach (Player in ClanPlayers) {
 				TM2::WaitRace(Player);
-				Message::SendBigMessage(Player, TL::Compose(_("$<%1$> retired!"), Event.Player.Name), 3000, 1);
+				Message::SendBigMessage(Player, TL::Compose(_("$<%1$> retired!"), Event.Player.User.Name), 3000, 1);
 			}
 		} else {
 			TM2::WaitRace(Event.Player);
@@ -459,6 +459,7 @@ if (Scores.existskey(0) &&  Scores[0].Points > 0) {
 		MB_VictoryMessage = TL::Compose(_("$<%1 %2$> wins the map!"), _("Team"), TL::ToText(Net_TeamAttack_CurrentClan));
 	}
 }
+XmlRpc::ScoresReady();
 ***
 
 ***EndServer***
