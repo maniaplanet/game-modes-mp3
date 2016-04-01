@@ -7,6 +7,7 @@
 #Const ModeBaseScriptName	"ModeBase.Script.txt"
 
 #Include "Libs/Nadeo/Mode.Script.txt" as Mode
+#Include "Libs/Nadeo/Window.Script.txt" as Window
 #Include "Libs/Nadeo/ScoresTable2.Script.txt" as ST2
 #Include "Libs/Nadeo/Clublink.Script.txt" as Clublink
 #Include "Libs/Nadeo/ShootMania/UI.Script.txt" as UI
@@ -30,6 +31,7 @@ MB_LogVersion(ModeBaseScriptName, ModeBaseVersion);
 MB_LogVersion(UI::GetScriptName(), UI::GetScriptVersion());
 MB_LogVersion(Mode::GetScriptName(), Mode::GetScriptVersion());
 MB_LogVersion(AFK::GetScriptName(), AFK::GetScriptVersion());
+MB_LogVersion(Window::GetScriptName(), Window::GetScriptVersion());
 MB_LogVersion(XmlRpc::GetScriptName(), XmlRpc::GetScriptVersion());
 MB_LogVersion(Clublink::GetScriptName(), Clublink::GetScriptVersion());
 MB_LogVersion(ST2::GetScriptName(), ST2::GetScriptVersion());
@@ -343,6 +345,7 @@ Void MB_Ladder_CancelMatch() {
 // ---------------------------------- //
 main() {
 	XmlRpc::Load();
+	Window::Load();
 	
 	MB_CurrentSection = "StartServer";
 	
@@ -710,6 +713,7 @@ main() {
 	XmlRpc::EndServer();
 	+++EndServer+++
 	AFK::Unload();
+	Window::Unload();
 	ST2::Unload();
 	UI::Unload();
 	XmlRpc::EndServerStop();
