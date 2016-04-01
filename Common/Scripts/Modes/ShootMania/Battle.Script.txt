@@ -5,7 +5,7 @@
 #Extends "Modes/ShootMania/ModeMatchmaking.Script.txt"
  
 #Const	CompatibleMapTypes	"BattleArena"
-#Const	Version				"2014-11-26"
+#Const	Version				"2015-02-26"
 #Const	ScriptName			"Battle.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -14,7 +14,6 @@
 #Include "Libs/Nadeo/Interface.Script.txt" as Interface
 #Include "Libs/Nadeo/TabsServer.Script.txt" as Tabs
 #Include "Libs/Nadeo/Top2.Script.txt" as Top
-#Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Map.Script.txt" as Map
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/BalancedWeapons.Script.txt" as BalancedWeapons
@@ -35,9 +34,9 @@
 #Setting S_AllowBeginners		False	as "<hidden>" //_("Is a Beginners Welcome server")
 //#Setting 	S_AutoManageAFK		True	as _("Switch inactive players to spectators")
 #Setting S_ArmorPoints			2		as _("Armor points")
-#Setting S_WarmUpDuration		0		as _("Warm up duration (sec.)")							///< Duration of the warm up round (0 = no warmup)
+#Setting S_WarmUpDuration		0		as _("Warm up duration (sec.)") ///< Duration of the warm up round (0 = no warmup)
 #Setting S_NbPlayersPerTeamMax	0		as "<hidden>" //_("Maximum number of players per team (0: no max)")	///< Do not spawn players beyond this limit, 0=no limit
-#Setting S_NbPlayersPerTeamMin	1		as "<hidden>" //_("Minumum number of players per team")			///< Wait until this minimum is reach
+#Setting S_NbPlayersPerTeamMin	1		as "<hidden>" //_("Minumum number of players per team") ///< Wait until this minimum is reach
 // Waves Settings
 #Setting S_BattleWaves					True	as "<hidden>" //_("Use Waves Mode")
 #Setting S_TimeLimitForFirstCapture		300		as _("Time limit for first capture") // en s
@@ -150,10 +149,21 @@ if (S_NbPlayersPerTeamMax > S_NbPlayersPerTeamMin) {
 }
 ***
 
+***ManialinkRules***
+***
+ManialinkRules = """<label posn="-62.5 25" sizen="125 50" autonewline="1" maxline="10" textemboss="1" textsize="2" text="{{{Description}}}" />""";
+***
+
 ***InitServer***
 ***
 declare IsRematch = False;	///< Do the players want a rematch ?
 declare RematchNb = 0;		///< Number of consecutive rematch
+/*declare Weapons = [
+	GetWeaponNum(CSmMode::EWeapon::Laser) => CSmMode::EWeapon::Laser,
+	GetWeaponNum(CSmMode::EWeapon::Rocket) => CSmMode::EWeapon::Rocket,
+	GetWeaponNum(CSmMode::EWeapon::Nucleus) => CSmMode::EWeapon::Nucleus,
+	GetWeaponNum(CSmMode::EWeapon::Arrow) => CSmMode::EWeapon::Arrow
+];*/
 ***
 
 ***Reinit***
@@ -279,7 +289,7 @@ ST2::CreateCol("Attack", _("|Attack,Substantive|Atk"), "0", 3., 70.);
 ST2::CreateCol("Defense", _("|Defense|Def"), "0", 3., 80.);
 ST2::SetColLegend("LibST_SMRoundPoints", _("|Substantive|Hit"));
 ST2::SetColLegend("LibST_SMPoints", _("Score"));
-MM_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
 ST2::GetLayer().Type = CUILayer::EUILayerType::Normal;
 ST2::Build("SM");
 ***
@@ -588,7 +598,7 @@ if (S_ForceClublinkTeam1 == "" && S_ForceClublinkTeam2 == "") Clublink::DefineTe
 else Clublink::DefineTeamFromUrl(S_ForceClublinkTeam1, S_ForceClublinkTeam2);
 Clublink::SyncUpdate();
 
-MM_Sleep(1);
+MB_Sleep(1);
 CreateRoundInfoUI(LayerRoundInfo, ClanPoles);
 UIManager.UIAll.UILayers.add(LayerRoundInfo);
 
@@ -612,6 +622,9 @@ if(S_BattleWaves) {
 }
 
 ST2::SetFooterText(TextLib::Compose("%1 "^S_RoundsToWin, _("Points limit : ")));
+
+// Disable default bonus reload when playing in gladiator mode
+//UseAmmoBonusOnHit = !S_GladiatorMode;
 ***
 
 ***OnNewPlayer***
@@ -776,8 +789,13 @@ foreach (Event in PendingEvents) {
 							Event.Shooter.Armor = Event.Shooter.ArmorMax;
 						}
 					}
+					
+					/*if (Weapons.existskey(Event.WeaponNum)) {
+						declare Weapon = Weapons[Event.WeaponNum];
+						AddPlayerAmmo(Event.Shooter, Weapon, 1.);
+					}*/
 				}
-
+				
 				+++SetCustomScoreHit+++
 			}
 			XmlRpc::OnHit(Event);
@@ -885,7 +903,7 @@ if(S_BattleWaves) {
 
 // Spawning players
 foreach (Player in Players) {
-	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !Player.User.RequestsSpectate) {
+	if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !Player.RequestsSpectate) {
 		// Skip invalid player in matchmaking
 		if (MM_IsMatchServer() && !MM_PlayerIsValid(Player)) continue;
 		
@@ -1214,7 +1232,7 @@ if(S_BattleWaves) {
 								declare Time = "0";
 								if (TimeSplit.existskey(0)) Time = TimeSplit[0];
 								if (TimeSplit.existskey(1)) Time ^= "."^TL::SubText(TimeSplit[1], 0, 1);
-								declare Message = TL::Compose(_("|Battle: 1=Player name, 2=Time in seconds|$<%1$> restarts attack countdown (%2s)"), Player.Name, Time);
+								declare Message = TL::Compose(_("|Battle: 1=Player name, 2=Time in seconds|$<%1$> restarts attack countdown (%2s)"), Player.User.Name, Time);
 								Message::SendBigMessage(Message, 3000, 1);
 								break;
 							}
@@ -1457,7 +1475,7 @@ for (Clan, 1, 2) {
 	}
 }
 
-MM_Sleep(1700);
+MB_Sleep(1700);
 
 UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 if (TouchdownUserId != NullId && Users.existskey(TouchdownUserId)) {
@@ -1481,6 +1499,7 @@ MM_SetScores([ClanScores[1], ClanScores[2]]);
 
 ST2::SetFooterText(TextLib::Compose("%1 "^S_RoundsToWin, _("Points limit : ")));
 Victory::SetMatchWinnerFromScore(S_RoundsToWin, S_RoundGapToWin, S_RoundsLimit);
+XmlRpc::ScoresReady();
 
 foreach (Player in Players) {
 	UnspawnPlayer(Player);
@@ -1489,12 +1508,12 @@ foreach (Player in Players) {
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 if (S_DisplayTopsRound) {
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-	MM_Sleep(5000);
+	MB_Sleep(5000);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	LaunchTop5Sequence("round");
 } else {
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-	MM_Sleep(7*1000);
+	MB_Sleep(7*1000);
 }
 
 +++RoundEnd+++
@@ -1592,13 +1611,13 @@ if (S_DisplayTopsMap) {
 }
 UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-MM_Sleep(6*1000);
+MB_Sleep(6*1000);
 if (S_DisplayTopsMap) {
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	LaunchTop5Sequence("map");
 } else {
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;		
-	MM_Sleep(10*1000);
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
+	MB_Sleep(10*1000);
 }
 
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
@@ -1725,7 +1744,7 @@ Integer Battle_GetRequestedClan(CSmPlayer _Player) {
 		if (S_AutoBalanceRound && (Battle_BalanceClan == 1 || Battle_BalanceClan == 2)) {
 			return Battle_BalanceClan;
 		} else {
-			return _Player.User.RequestedClan;
+			return _Player.RequestedClan;
 		}
 	}
 	
@@ -3159,7 +3178,7 @@ Boolean SpawnIsLimited() {
  */
 Boolean IsSpawnable(CSmPlayer _Player) {
 	if (_Player == Null) return False;
-	if (_Player.User.RequestsSpectate) return False;
+	if (_Player.RequestsSpectate) return False;
 	if (!SpawnIsLimited()) return True;
 	
 	if (WarmUp2::GetPlayerSlot(_Player) <= 0) return False;
@@ -3209,7 +3228,7 @@ Void WaitForPlayers(Integer _MinimumNbPlayers, Integer _Duration) {
 	}
 	
 	while (!ServerShutdownRequested && !MatchEndRequested) {
-		MM_Yield();
+		MB_Yield();
 		
 		if (_Duration > 0) {
 			if (Now >= UIManager.UIAll.CountdownEndTime) break;
@@ -3285,7 +3304,7 @@ Void DoWarmUp() {
 	declare PrevWarmUpDuration = S_WarmUpDuration-1;
 	
 	while (!WarmUp2::Stop()) {
-		MM_Yield();
+		MB_Yield();
 		
 		// Let the server sleep if there's no players on it
 		if (PlayersNbTotal <= 0) continue;
@@ -3453,7 +3472,7 @@ Void AutoTeamBalanceRound() {
 		declare Transfered = AutoTeamBalanceRound_Recursive(CountClan1, CountClan2, HitClan1, HitClan2);
 		if (!Transfered) break;
 		
-		MM_Yield();
+		MB_Yield();
 	}
 	
 	foreach (Player in Players) {
@@ -3663,7 +3682,7 @@ Void LaunchTop5Sequence(Text _Level) {
 		UpdateTop5(Top, Ranking);
 		UIManager.UIAll.BigMessage = BestPlayerName;
 		Mode::PlaySound(CUIConfig::EUISound::Notice, 0);
-		MM_Sleep(C_Top5SequenceDuration / Tops.count);
+		MB_Sleep(C_Top5SequenceDuration / Tops.count);
 	}
 	
 	Layers::Hide("Top5");
