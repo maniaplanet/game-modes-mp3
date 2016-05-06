@@ -2,7 +2,7 @@
  *	Matchmaking lobby library
  */
 
-#Const Version		"2015-11-17"
+#Const Version		"2016-05-06"
 #Const ScriptName	"MatchmakingLobby.Script.txt"
 
 #Include "TextLib" as TL
@@ -635,6 +635,35 @@ Void HideVersusML(CPlayer _Player) {
 	Net_Lobby_MatchScores = "";
 	
 	UpdatePlayersList();
+}
+
+// ---------------------------------- //
+/** Enable or disable the masters list 
+ *	for the given player
+ *
+ *	@param	_Player										The player to update
+ *	@param	_Enabled									True to enable, False to disable
+ */
+Void EnableMastersList(CPlayer _Player, Boolean _Enabled) {
+	if (_Player == Null) return;
+	declare UI <=> UIManager.GetUI(_Player);
+	if (UI == Null) return;
+	declare netwrite Boolean Net_Lobby_MastersEnabled for UI = True;
+	Net_Lobby_MastersEnabled = _Enabled;
+}
+
+// ---------------------------------- //
+/** Enable or disable the masters list 
+ *	for the given player based on the
+ *	LibMMLobby_MastersListDisabledFor
+ *	array
+ *
+ *	@param	_Player										The player to update
+ */
+Void UpdateMastersListDisabledFor(CPlayer _Player) {
+	if (_Player == Null) return;
+	declare LibMMLobby_MastersListDisabledFor for This = Text[];
+	EnableMastersList(_Player, !LibMMLobby_MastersListDisabledFor.exists(_Player.Login));
 }
 
 // ---------------------------------- //
@@ -2613,6 +2642,16 @@ Text[] MM_ManageXmlRpcEvents() {
 					if (Ready == "True" || Ready == "true" || Ready == "1") ReadyState = True;
 					SetReady(User, ReadyState);
 				}
+				case "Matchmaking_SetMastersListDisabledFor": {
+					declare LibMMLobby_MastersListDisabledFor for This = Text[];
+					LibMMLobby_MastersListDisabledFor.clear();
+					foreach (Login in Event.ParamArray2) {
+						LibMMLobby_MastersListDisabledFor.add(Login);
+					}
+					foreach (Player in AllPlayers) {
+						UpdateMastersListDisabledFor(Player);
+					}
+				}
 			}
 		}
 	}
@@ -2748,6 +2787,8 @@ Boolean MM_PlayLoop() {
 			// Save last matchmaker running time
 			declare Lobby_LastMatchmakerTime for Player = Now;
 			Lobby_LastMatchmakerTime = Now;
+			// Enable/Disable masters list
+			UpdateMastersListDisabledFor(Player);
 		}
 		
 		// ---------------------------------- //
@@ -3469,17 +3510,28 @@ Void DisplayFrame(Boolean _Displayed) {
 }
 
 main() {
+	declare Frame_Global <=> (Page.GetFirstChild("Frame_Global") as CMlFrame);
+	
 	declare netread Integer Net_Lobby_MastersUpdate for Teams[0];
+	declare netread Boolean Net_Lobby_MastersEnabled for UI = True;
 	
 	declare persistent Boolean[Text] MM_FrameIsDisplayed for This;
 	if (!MM_FrameIsDisplayed.existskey("MastersList")) MM_FrameIsDisplayed["MastersList"] = True;
 	DisplayFrame(MM_FrameIsDisplayed["MastersList"]);
 	
 	declare PrevMastersUpdate = -1;
+	declare PrevEnabled = False;
 	
 	while (True) {
 		yield;
 		if (!PageIsVisible || InputPlayer == Null) continue;
+		
+		if (PrevEnabled != Net_Lobby_MastersEnabled) {
+			PrevEnabled = Net_Lobby_MastersEnabled;
+			Frame_Global.Visible = Net_Lobby_MastersEnabled;
+		}
+		
+		if (!Net_Lobby_MastersEnabled) continue;
 		
 		LibManialink_AnimLoop();
 		
