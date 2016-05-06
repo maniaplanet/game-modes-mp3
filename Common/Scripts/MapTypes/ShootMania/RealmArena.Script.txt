@@ -90,7 +90,7 @@ Text EditSpawnManialink() {
 	<label posn="0 5 3" halign="center" valign="bottom" style="TextTitle3" textprefix="$fff" text="{{{_("Rules")}}}" />
 	<quad posn="0 0 -1" sizen="70 35" halign="center" style="Bgs1" substyle="BgWindow2"/>
 	<frame posn="-30 -4">
-		<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textprefix="$222" text="{{{C_Rules}}}" />
+		<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textcolor="fff" text="{{{C_Rules}}}" />
 	</frame>
 </frame>
 <script><!--
@@ -105,7 +105,7 @@ Text EditSpawnManialink() {
 			if(AnchorTag^AnchorOrder == Button.ControlId)
 				Button.SetText("$090"^Name);
 			else 
-				Button.SetText("$222"^Name);
+				Button.SetText("$fff"^Name);
 		}
 	}
 	
@@ -191,7 +191,7 @@ Text EditPoleManialink() {
 	<label posn="0 5 3" halign="center" valign="bottom" style="TextTitle3" textprefix="$fff" text="{{{_("Rules")}}}" />
 	<quad posn="0 0 -1" sizen="70 35" halign="center" style="Bgs1" substyle="BgWindow2"/>
 	<frame posn="-30 -4">
-		<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textprefix="$222" text="{{{C_Rules}}}" />
+		<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textcolor="fff" text="{{{C_Rules}}}" />
 	</frame>
 </frame>
 <script><!--
@@ -206,7 +206,7 @@ Text EditPoleManialink() {
 			if(AnchorTag^AnchorOrder == Button.ControlId)
 				Button.SetText("$090"^Name);
 			else 
-				Button.SetText("$222"^Name);
+				Button.SetText("$fff"^Name);
 		}
 	}
 	
@@ -278,7 +278,7 @@ Text NoEditManialink() {
 	<label posn="0 5 3" halign="center" valign="bottom" style="TextTitle3" textprefix="$fff" text="{{{_("Rules")}}}" />
 	<quad posn="0 0 -1" sizen="70 40" halign="center" style="Bgs1" substyle="BgWindow2"/>
 	<frame posn="-30 -4">
-		<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textprefix="$222" text="{{{C_Rules}}}" />
+		<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textcolor="fff" text="{{{C_Rules}}}" />
 	</frame>
 </frame>
 <script><!--

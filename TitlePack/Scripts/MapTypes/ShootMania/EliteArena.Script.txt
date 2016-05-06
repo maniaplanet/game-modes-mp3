@@ -116,7 +116,7 @@ Text EditSpawnManialink() {
 		<label posn="0 5 3" halign="center" valign="bottom" style="TextTitle3" textprefix="$fff" text="{{{_("Rules")}}}" />
 		<quad posn="0 0 -1" sizen="70 35" halign="center" style="Bgs1" substyle="BgWindow2"/>
 		<frame posn="-30 -4">
-			<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textprefix="$222" text="{{{ Rules }}}" />
+			<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textcolor="fff" text="{{{ Rules }}}" />
 		</frame>
 	</frame>
 	""";
@@ -178,7 +178,7 @@ Text EditPoleManialink() {
 		<label posn="0 5 3" halign="center" valign="bottom" style="TextTitle3" textprefix="$fff" text="{{{_("Rules")}}}" />
 		<quad posn="0 0 -1" sizen="70 35" halign="center" style="Bgs1" substyle="BgWindow2"/>
 		<frame posn="-30 -4">
-			<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textprefix="$222" text="{{{ Rules }}}" />
+			<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textcolor="fff" text="{{{ Rules }}}" />
 		</frame>
 	</frame>
 	""";
@@ -218,7 +218,7 @@ Text NoEditManialink() {
 			<label posn="0 5 3" halign="center" valign="bottom" style="TextTitle3" textprefix="$fff" text="{{{_("Rules")}}}" />
 			<quad posn="0 0 -1" sizen="70 40" halign="center" style="Bgs1" substyle="BgWindow2"/>
 			<frame posn="-30 -4">
-				<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textprefix="$222" text="{{{ Rules }}}" />
+				<label posn="0 0" sizen="60 5" autonewline="1" style="TextCardSmallScores2" textcolor="fff" text="{{{ Rules }}}" />
 			</frame>
 		</frame>
 	""";
