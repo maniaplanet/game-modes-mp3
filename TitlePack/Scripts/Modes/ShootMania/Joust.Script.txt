@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const	CompatibleMapTypes	"JoustArena"
-#Const	Version				"2015-02-20"
+#Const	Version				"2016-05-30"
 #Const	ScriptName			"Joust.Script.txt"
 
 #Include "MathLib" as MathLib
@@ -952,9 +952,12 @@ if (Players.existskey(MatchWinnerId)) {
 	UIManager.UIAll.BigMessage = "";
 }
 
+declare Clan = 1;
 foreach (Score in Scores) {
 	declare MapPoints for Score = 0;
 	Score.LadderMatchScoreValue = MathLib::ToReal(MapPoints);
+	Score.LadderClan = Clan; //< Force LadderClan to a value different than 0, can't win LP otherwise
+	Clan += 1;
 }
 Ladder_SetResultsVersion(1);
 Score::MatchEnd(True);
