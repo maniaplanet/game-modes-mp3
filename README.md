@@ -1,7 +1,9 @@
 Game modes scripts
 ==================
 
-This project regroups the game modes and libraries used in ManiaPlanet.
+**For Maniaplanet 4 and newer, check [here](https://github.com/maniaplanet/game-modes)**
+
+This project regroups the game modes and libraries used in ManiaPlanet 3.
 
 
 Versions
